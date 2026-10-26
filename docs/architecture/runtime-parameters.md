@@ -79,6 +79,9 @@ del coordinador ni constituyen un límite monetario. Ver
 | notas de release | 8000 caracteres | `src/components/update-notes/SafeReleaseNotes.tsx` |
 | updater polling | 4 h | `electron/updater/constants.ts` |
 | espera del guardado de sesión antes de salir/instalar | 5000 ms por espera; timeout ofrece reintentar/cancelar/salir sin guardar, nunca concede salida por sí solo | `electron/main/shutdown-guard.ts` |
+| espera de publicación de auth antes del estado de proyectos | 10.000 ms; devuelve sesión pendiente al agotarse, sin ampliar permisos | `src/services/auth-state.ts` |
+| recuperación automática de proyectos | 3 reintentos, tras 300 / 1000 / 3000 ms desde el fallo anterior; manual reinicia el presupuesto | `src/components/sidebar/UnifiedProjectsSection.tsx` |
+| recuperación inicial de conversaciones | 2 intentos tras 500 / 2000 ms, sin solapamiento; después conserva reintento manual | `src/app/ChatUnavailableState.tsx` |
 
 ## Navegador integrado
 

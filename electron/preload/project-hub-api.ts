@@ -2,10 +2,22 @@ import type { ProjectManagementInputs } from '../../src/shared/project-managemen
 import type { ProjectHubInputs } from '../../src/shared/project-hub';
 import type { ProjectDownloadInput, ProjectUploadInput } from '../../src/shared/project-hub-files';
 import type { PreloadBridge, SafeIpc } from './types';
+import type { ProjectCreationInputs } from '../../src/shared/project-creation';
 
 export function exposeProjectHubApi(bridge: PreloadBridge, ipc: SafeIpc): void {
   const invoke = (channel: string, input?: unknown) => input === undefined ? ipc.safeInvoke(channel) : ipc.safeInvoke(channel, input);
   bridge.exposeInMainWorld('projectHubApi', {
+    resolveOrganization: (input: ProjectCreationInputs['resolveOrganization']) => invoke('project-hub:resolve-organization', input),
+    selectFolder: (input: ProjectCreationInputs['selectFolder']) => invoke('project-hub:select-folder', input),
+    cloudAccounts: (input: ProjectCreationInputs['cloudAccounts']) => invoke('project-hub:cloud-accounts', input),
+    authorizeCloud: (input: ProjectCreationInputs['authorizeCloud']) => invoke('project-hub:authorize-cloud', input),
+    cloudFolders: (input: ProjectCreationInputs['cloudFolders']) => invoke('project-hub:cloud-folders', input),
+    createCloudFolder: (input: ProjectCreationInputs['createCloudFolder']) => invoke('project-hub:create-cloud-folder', input),
+    locationFiles: (input: ProjectCreationInputs['locationFiles']) => invoke('project-hub:location-files', input),
+    uploadLocationFiles: (input: ProjectCreationInputs['uploadLocationFiles']) => invoke('project-hub:upload-location-files', input),
+    cancelLocationUpload: (input: ProjectCreationInputs['cancelLocationUpload']) => invoke('project-hub:cancel-location-upload', input),
+    createConfigured: (input: ProjectCreationInputs['createConfigured']) => invoke('project-hub:create-configured', input),
+    getLocation: (input: ProjectCreationInputs['getLocation']) => invoke('project-hub:get-location', input),
     getTaskOptions: (input: ProjectManagementInputs['getTaskOptions']) => invoke('project-hub:get-task-options', input),
     archiveTask: (input: ProjectManagementInputs['archiveTask']) => invoke('project-hub:archive-task', input),
     listMilestones: (input: ProjectManagementInputs['listMilestones']) => invoke('project-hub:list-milestones', input),

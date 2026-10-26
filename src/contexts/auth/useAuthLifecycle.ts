@@ -57,16 +57,31 @@ async function initializeSofiaSession(deps: AuthLifecycleDeps): Promise<void> {
 }
 
 function subscribeSofia(deps: AuthLifecycleDeps): (() => void) | undefined {
-  const { data: { subscription } } = sofiaAuth.onAuthStateChange(async (event, sofiaSession) => {
-    console.log('SOFIA Auth state changed:', event);
+  const scheduled = new Set<ReturnType<typeof setTimeout>>();
+  const { data: { subscription } } = sofiaAuth.onAuthStateChange((event, sofiaSession) => {
+    // getSession ya restaura INITIAL_SESSION. El callback del SDK debe terminar
+    // antes de volver a consultar Auth; esperarlo aquí retiene su bloqueo.
+    if (event === 'INITIAL_SESSION') return;
     if (!sofiaSession?.user) {
+      for (const timer of scheduled) clearTimeout(timer);
+      scheduled.clear();
       deps.clearSessionState();
       deps.setLoading(false);
       return;
     }
-    await applySofiaSession(sofiaSession, deps, true);
+    const timer = setTimeout(() => {
+      scheduled.delete(timer);
+      void applySofiaSession(sofiaSession, deps, true).catch(() => {
+        console.warn('[Auth] No se pudo actualizar la sesión; vuelve a intentarlo.');
+        deps.setLoading(false);
+      });
+    }, 0);
+    scheduled.add(timer);
   });
-  return subscription.unsubscribe;
+  return () => {
+    subscription.unsubscribe();
+    for (const timer of scheduled) clearTimeout(timer);
+  };
 }
 
 function subscribeLia(deps: AuthLifecycleDeps): (() => void) | undefined {

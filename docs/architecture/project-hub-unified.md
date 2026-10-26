@@ -1,14 +1,64 @@
 # Project Hub unificado
 
-Estado: implementación local detrás de configuración; activación y despliegue por entorno no acreditados integralmente. Actualizado: 2026-10-22.
+Estado: acceso directo a IRIS desde Electron main; validación con cuentas reales pendiente. Actualizado: 2026-10-24.
 
 ## Límites de dominio
 
 Project Hub/IRIS es la fuente de verdad de proyectos nuevos, tareas, miembros, evidencia compartida y analítica. Lia conserva carpetas de chats, conversaciones, transcripciones completas, minutas y decisiones de aprobación. Solo cruzan hacia IRIS resúmenes aprobados, hashes, referencias y extractos breves.
 
-Las carpetas existentes aparecen como **Carpetas heredadas** y no se migran. Crear desde la sección **Proyectos** usa la API v1 y registra en el outbox la creación idempotente de la carpeta colaborativa Lia.
+Las carpetas existentes aparecen como **Carpetas heredadas** y no se migran. La sección **Proyectos** usa los clientes Supabase existentes desde main, sin contactar al servidor web de Project Hub ni canjear su sesión. El registro se crea directamente en IRIS y su propietario forma parte de esa misma escritura.
 
-## Flujo de autenticación
+## Creación contextual y ubicación
+
+Nuevo proyecto abre un `dialog` en la ventana principal mediante portal al body. El formulario no muestra organización ni workspace. La asignación interna sigue resolviendo el workspace por `workspaces.sofia_org_id`, comprobando primero la sesión y membresía activa en Learning y el contexto de organización de main; la lista continúa aislada por organización. Si falla, la creación queda bloqueada; no se infiere la relación por nombre o posición.
+
+Elegir carpeta y Añadir carpeta abren `dialog.showOpenDialog` con la ventana principal como padre y `openDirectory/createDirectory`. Electron presenta el selector nativo de Windows, macOS o Linux; se retiró el explorador local construido con React. Cancelar conserva el borrador y la selección anterior. Main convierte el resultado en una selección opaca, vigente durante quince minutos, y revalida propietario, ruta canónica e identidad del directorio. El renderer no puede mandar rutas arbitrarias para crear proyectos.
+
+Las ubicaciones nuevas son Local, Google Drive y OneDrive. Local crea una subcarpeta exclusiva y el manifiesto `.soflia/project.json`. Google Drive reutiliza la cuenta Google vinculada; OneDrive utiliza la misma cuenta Microsoft, con permiso delegado de archivos separado del calendario. Ambos permiten elegir carpeta y crean la subcarpeta directamente mediante la API del proveedor. Las selecciones remotas también son opacas y quedan vinculadas a usuario, cuenta y proveedor. Hasta diez carpetas locales adicionales quedan vinculadas sin copiar, indexar ni publicar contenido.
+
+Archivos del proyecto consulta su ubicación y guarda allí la selección nativa, con revisión de destino y formatos/límites existentes de hasta diez archivos y 20 MiB por archivo. Local publica una copia exclusiva tras staging; Google usa Drive v3 y OneDrive sesiones de subida con conflicto `fail`. Los bytes no pasan por Storage de Soflia ni por el renderer. Las referencias de evidencia y los archivos históricos mantienen su dominio; el botón de subida heredado se retiró de la vista formal. La etiqueta antigua `cloud` se puede leer para identificar configuraciones previas, pero no sirve como destino nuevo ni se reasigna silenciosamente a una cuenta.
+
+La ubicación y los recibos permanecen cifrados por usuario/proyecto en `project-locations`, bajo userData. La autorización de OneDrive usa MSAL público, PKCE, state, validación de cuenta y caché cifrada separada; no sustituye las credenciales del calendario. Un resultado incierto no se reenvía ni borra carpetas como compensación. No hay transacción entre disco, proveedor y base de datos, ni conciliación automática. El manifiesto no concede permisos.
+
+Los canales son `resolve-organization`, `select-folder`, `cloud-accounts`, `authorize-cloud`, `cloud-folders`, `create-cloud-folder`, `create-configured`, `get-location`, `location-files`, `upload-location-files` y `cancel-location-upload` bajo `project-hub`. Exigen ventana principal, sesión y payload cerrado. Las autorizaciones y los selectores sólo se abren tras la acción humana. La superficie web nativa se oculta temporalmente ante el diálogo. El registro de negocio sigue en Project Hub/IRIS; esta elección configura dónde viven los archivos, no elimina la base de datos de tareas, miembros o proyectos.
+
+Sin cuenta vinculada, Drive y OneDrive quedan deshabilitados con «Inicia sesión para continuar»; durante la consulta también se bloquean. Sus logotipos oficiales se distribuyen como recursos locales, con origen documentado en `public/brands/README.md`. El selector remoto permite crear una carpeta mediante una selección opaca del padre y una acción humana explícita; no repite la escritura ante un resultado incierto. El selector local conserva la opción nativa de nueva carpeta.
+
+La creación guarda `team_id: null` si no se indica equipo y valida cualquier equipo explícito dentro del mismo workspace. No depende de `TEAM_REQUIRED` ni de un despliegue del servidor web. Después de un rechazo confirmado de negocio, un reintento local explícito puede reutilizar la misma operación y carpeta preparada, comprobando destino, organización y manifiesto intacto; una operación incierta sigue bloqueada.
+
+## Conexión directa vigente
+
+### Tablero y lista de tareas
+
+El panel abre en Tablero, con las fases Backlog, Pendientes, Por hacer, En curso, En revisión, Completadas y Canceladas, tarjetas de responsable/dificultad/fecha y contadores de las tareas cargadas. Cada fase conserva los estados reales del equipo, sus IDs y nombres; los estados personalizados adicionales también permanecen visibles. Pendientes se distingue por nombre y puede compartir el tipo persistido `todo` con Por hacer. Lista usa las mismas tareas y filtros; cambiar de vista no reinicia la consulta. Una fase sin configuración se presenta vacía sin creación ni destino de arrastre; nunca se envían IDs artificiales a la base. El menú lateral usa iconos propios con siluetas diferenciadas y cada fase tiene un indicador SVG específico, con los tokens de tema existentes.
+
+La barra compacta filtra búsqueda, estado, responsable, dificultad y ciclo. Actualizar recarga tanto las tareas como las opciones; limpiar retira todos los filtros. La búsqueda espera 200 ms y cada consulta queda asociada a una clave de proyecto/filtros, para descartar respuestas antiguas. La paginación mantiene el alcance y los filtros y señala que los recuentos parciales corresponden a tareas cargadas.
+
+La dificultad usa `estimate_points`: sin estimar para nulo, baja hasta dos puntos, media mayor de dos y hasta cinco, alta mayor de cinco. El editor selecciona dos, cinco u ocho puntos y conserva valores existentes si no cambia esa selección. `priority_id` permanece separado y se conserva al editar; no se renombra ni se usa para simular dificultad. El filtro compartido `difficulty` se valida en el canal existente y la consulta directa lo aplica antes de paginar; no requiere tablas, columnas ni canales nuevos.
+
+Crear desde una columna precarga su estado. El arrastre sólo está habilitado para quien puede escribir y envía `status_id` junto con `expected_updated_at`, conservando la confirmación main. No actualiza visualmente el estado antes de confirmar la escritura; cancelar o un resultado incierto conserva la ubicación anterior y no reenvía la mutación. Por teclado se abre el detalle y se cambia su selector Estado. Un lector mantiene acceso al detalle sin acciones de escritura.
+
+Implementación y evidencia en [el cambio de tablero](../../openspec/changes/redesign-task-board/proposal.md).
+
+### Sesión y acceso a datos
+
+`getProjectHubApiService()` conserva su nombre por compatibilidad de los canales y consumidores; su instancia de producción utiliza `DirectProjectBackend`. Las rutas del adaptador son identificadores internos, sin solicitudes HTTP a Project Hub. `auth:set-state` verifica la sesión SOFIA y ya no inicia su canje web. `npm run dev` inicia la aplicación directamente sin comprobar ni levantar ese servidor.
+
+Antes de consultar IRIS, main exige la identidad SOFIA verificada, selección de organización vigente y `organization_users.status=active`. Comprueba `organizations.is_active`, resuelve `workspaces.sofia_org_id` y verifica su membresía activa. Si falta un espejo de organización, perfil o membresía, lo sincroniza desde los datos comprobados de Learning mediante los clientes existentes; no reactiva un espacio o membresía deshabilitados ni sustituye un rol IRIS existente.
+
+Cada operación limita el workspace al contexto activo y comprueba acceso al proyecto por administración del espacio, propiedad o membresía activa. Las mutaciones mantienen la confirmación existente y sus roles de escritura/administración. A/B/A y cambios de organización invalidan el resultado, incluidos los cambios durante una espera. No hay fallback al servidor web. Las lecturas llevan límites y paginación; no se inventan totales cuando no cabe calcularlos completos.
+
+La propiedad del proyecto se registra en `created_by_user_id`; las lecturas la presentan como integrante propietario sin exigir una segunda inserción. Los colaboradores adicionales se guardan en `pm_project_members`. Tareas, hitos, documentos, miembros y referencias usan las tablas existentes; tareas siguen necesitando equipo/estados. Una operación compuesta puede dejar un efecto parcial y devuelve `uncertain/recoveryRequired`, sin compensar con borrados ni reenviar automáticamente. La importación de reuniones usa únicamente el RPC transaccional existente: si los permisos de la base no lo permiten, informa el error y no usa una clave de servicio ni cambia grants.
+
+Los archivos nuevos permanecen en equipo/Drive/OneDrive. Las descargas históricas consultan metadatos y solicitan una URL firmada directamente a Storage, con las validaciones de contenido/destino existentes. La subida heredada a Storage no se activa en esta instancia.
+
+Este cambio no modifica políticas RLS, grants ni secretos. La autorización de main cubre estos canales; no corrige los accesos heredados ni demuestra aislamiento global de la base. La [auditoría IRIS](../reports/iris-access-2026-10-22.md) conserva sus hallazgos y requiere una remediación separada. La disponibilidad del esquema y permisos desplegados se valida por respuesta de la base, sin ejecutar migraciones automáticamente.
+
+Implementación y criterios en [el cambio de creación](../../openspec/changes/redesign-project-creation/proposal.md).
+
+## Autenticación web anterior (referencia histórica)
+
+Las secciones de autenticación HTTP y custodia siguientes describen el adaptador anterior, conservado para compatibilidad y pruebas de contrato con un endpoint explícito. No describen la instancia de producción directa del Hub.
 
 1. El renderer restaura o inicia la sesión SOFIA.
 2. `auth:set-state` entrega los tokens SOFIA a main para verificar su sesión; el access token se usa también en el canje Project Hub.
@@ -46,6 +96,8 @@ registra pruebas de disco, concurrencia, HTTP local y DPAPI. La custodia no
 certifica la autorización/RLS ni la API desplegada.
 
 ## Autorización IPC
+
+La validación de caller y payload sigue vigente. Las menciones al canje y roles del servidor web en esta sección corresponden a la etapa anterior; la autorización directa vigente se describe arriba.
 
 Los 23 canales existentes sólo aceptan el marco principal no separado de la
 ventana main registrada, objeto WebContents exacto, documento de la aplicación
@@ -88,6 +140,8 @@ de diálogos nativos, un instalador ni seguridad integral de todos los IPC.
 La superficie v1 no entrega tokens Project Hub al renderer y está en `electron/project-hub/`, `electron/project-hub-handlers.ts`, `electron/preload/project-hub-api.ts` y `src/services/project-hub-api.ts`. Subsisten accesos directos heredados en `src/services/iris-data/` y `electron/iris/`; no quedan protegidos por el canje v1. La [inspección de permisos efectivos](../reports/iris-access-2026-10-22.md) confirma que requieren transición autorizada y rollout de servidor antes de retirar sus permisos. El contrato v1 local no expone borrado de proyectos.
 
 ## Subida nativa de archivos
+
+Este es el protocolo heredado de evidencia. La vista formal de archivos utiliza ahora la ubicación local, Drive u OneDrive descrita arriba; no expone este botón de carga como destino de los proyectos nuevos. El contrato se conserva para compatibilidad con consumidores anteriores y no se migran ni eliminan archivos históricos en esta corrección.
 
 `project-hub:upload-files` recibe sólo workspaceId/projectId/operationId UUID;
 `cancel-upload` sólo operationId. Sustituyen create-upload-intent/complete-upload

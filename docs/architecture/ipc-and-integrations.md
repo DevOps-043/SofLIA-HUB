@@ -224,7 +224,7 @@ aprobación fabricada del renderer. El servicio comprueba capacidad, política,
 perfil y control humano; el borrado pregunta en main. Responde con biblioteca
 versionada, cancelación o error saneado. No existe IPC de ejecución de atajos.
 
-La allowlist actual contiene 521 canales derivados de cinco arrays: 84, 52, 61, 159, 165. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
+La allowlist actual contiene 532 canales derivados de cinco arrays: 84, 52, 61, 159, 176. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 
 | Namespace | Canales | Proposito |
@@ -243,7 +243,7 @@ el catalogo y su validador deben actualizarse juntos.
 | `desktop-context` | 2 | inventario de ventanas abiertas y extraccion en cascada del contenido de las que el usuario marca en el chat |
 | `skill-workspace` | 14 | espacio de trabajo de Skills: crear, estado, leer, escribir, editar, borrar, guardar y descargar imagenes, abrir carpeta, progreso y URL de vista previa |
 | `presentation`, `presentation-view` | 5 | vista a pantalla completa, exportacion a HTML autocontenido y preparacion de la identidad de marca |
-| `project-hub` | 23 | proyectos, tareas y seguimiento |
+| `project-hub` | 60 | proyectos, tareas, seguimiento, organización interna, selector nativo y archivos en la cuenta del usuario |
 | otros | 68 | voice, updater, automation, drive, pytools, telegram, gchat, app, auth, background-host, root, AI y learning-live |
 
 ### Recorrido obligatorio
@@ -836,30 +836,20 @@ quedaron dentro de `assets/`.
 | Supabase Lia | renderer + main por dominio | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | diagnostico/degradado Lia |
 | Supabase SOFIA | renderer auth/org | `VITE_SOFIA_SUPABASE_*` | bloquea auth principal si no configura |
 | SSO SofLIA Learning | navegador del sistema + deep link `soflia://auth/callback` | `VITE_LEARNING_BASE_URL`, `VITE_LEARNING_SSO_ENABLED` | entrada no se ofrece con el interruptor apagado; el inicio por contrasena no depende de ella |
-| Project Hub/IRIS | API REST desde Electron main | `PROJECT_HUB_API_URL` | UI degradada con reintento; carpetas heredadas intactas |
+| Project Hub/IRIS | Conexión Supabase directa desde Electron main | Clientes IRIS/SOFIA existentes y sesión Learning | Error controlado sin fallback web; carpetas heredadas intactas |
 | Google OAuth/APIs | Calendar auth compartido | `VITE_GOOGLE_OAUTH_CLIENT_ID/SECRET` | conexion por usuario, refresh y desconexion |
 | Microsoft Calendar | MSAL/Graph | `VITE_MICROSOFT_CLIENT_ID` | conexion separada por provider |
 | ElevenLabs | REST binario y `with-timestamps` desde main | `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`; default `eleven_turbo_v2_5`, formato opcional | Orbe conserva texto sin voz; lector visual disponible; errores saneados de permiso, cuota o timeout |
-
-En desarrollo, `npm run dev` ejecuta `scripts/dev-with-project-hub.mjs`: comprueba
-`PROJECT_HUB_API_URL` (por defecto `https://sofliahub.netlify.app`). Para trabajar
-contra la API local se define explícitamente `PROJECT_HUB_API_URL=http://127.0.0.1:3000`;
-si no responde, el script inicia automáticamente el workspace hermano antes de
-Vite/Electron. La ruta puede sobrescribirse con `PROJECT_HUB_DEV_ROOT`. Una URL
-remota nunca provoca el arranque de procesos locales.
-
-Los instaladores reciben el endpoint público mediante
-`VITE_PROJECT_HUB_API_URL` durante el build. `PROJECT_HUB_API_URL` puede
-sobrescribirlo en runtime para diagnóstico o despliegues administrados. Como
-compatibilidad con instaladores construidos por pipelines anteriores, se usa
-`https://sofliahub.netlify.app`. Localhost requiere una sobrescritura explícita
-con `PROJECT_HUB_API_URL`.
 | WhatsApp | Baileys WebSocket | QR + config en `userData` | reconnect/status; allowlists |
 | Telegram | Bot API | config cifrada/estado local del servicio | test de conexion y status |
 | SMTP | Nodemailer | configurado via handlers computer | confirmacion de envio y error seguro |
 | GitHub Releases | electron-updater/Actions | repo publico de releases + token solo CI | check/download/install por estado |
 | Home Assistant | toolset dinamico builtin | URL/token provistos al instalar | doctor, contrato, timeout y HITL write |
 | Nodos remotos | servicio propio de host/node | config en `userData` | status/test y capability de canal |
+
+En desarrollo, `npm run dev` inicia `dev:app` directamente, sin comprobar ni arrancar un servidor de Project Hub. La instancia de producción utiliza `DirectProjectBackend` y los clientes IRIS/SOFIA existentes. No canjea tokens con el servidor web ni depende de `PROJECT_HUB_API_URL`.
+
+El transporte HTTP anterior queda disponible para pruebas de contrato y consumidores que construyan explícitamente ese adaptador con un endpoint. No es el backend de los canales de proyectos de producción. Los detalles de autorización directa, sincronización de espejos y límites están en [Project Hub unificado](project-hub-unified.md).
 
 ## Protocolo `soflia://` e inicio federado
 

@@ -153,14 +153,14 @@ describe('contrato del canal de estado de sesion', () => {
     expect(await invocar('auth:get-state')).toEqual({ authenticated: false, userId: null });
   });
 
-  it('canjea el token SOFIA sin devolverlo al renderer', async () => {
+  it('aplica la sesión SOFIA sin canjearla con la API web de proyectos ni devolver tokens', async () => {
     const result = await invocar('auth:set-state', {
       authenticated: true,
       userId: 'user-1',
       sofiaAccessToken: 'sofia-token-real',
       sofiaRefreshToken: 'sofia-refresh-real',
     });
-    expect(projectHub.exchangeSofiaToken).toHaveBeenCalledWith('sofia-token-real');
+    expect(projectHub.exchangeSofiaToken).not.toHaveBeenCalled();
     expect(JSON.stringify(result)).not.toContain('sofia-token-real');
   });
 

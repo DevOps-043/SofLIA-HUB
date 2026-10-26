@@ -6,9 +6,7 @@ import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { TextField } from "../ui/TextField";
 import {
-  dateLabel,
   record,
-  relation,
   text,
   type DataRecord,
   type DataState,
@@ -22,6 +20,11 @@ import {
 } from "./ManagementControls";
 import { rows, userRows, useProjectMutation } from "./management-state";
 import { useProjectCollection } from "./useProjectCollection";
+import { TaskBoard } from './TaskBoard';
+import { TaskToolbar } from './TaskToolbar';
+import { emptyTaskFilters, type TaskFilters } from './task-board-model';
+import { taskDifficultyFor, taskDifficultyOptions, type TaskDifficulty } from '../../shared/task-difficulty';
+import SelectDropdown from '../ui/SelectDropdown';
 
 type Draft = {
   title: string;
@@ -47,7 +50,7 @@ const empty: Draft = {
   estimate_points: "",
   estimate_hours: "",
 };
-export function ProjectTasks({
+function ProjectTaskPanel({
   workspaceId,
   projectId,
   canWrite,
@@ -63,16 +66,16 @@ export function ProjectTasks({
   onRefresh: () => void;
   onOpenWeb?: (url: string) => void;
 }) {
-  const [search, setSearch] = useState(""),
-    [status, setStatus] = useState(""),
-    [assignee, setAssignee] = useState(""),
-    [priority, setPriority] = useState(""),
-    [cycle, setCycle] = useState("");
+  const [filterValues, setFilterValues] = useState<TaskFilters>(emptyTaskFilters);
+  const [view, setView] = useState<'board' | 'list'>('board');
+  const [searchTerm, setSearchTerm] = useState('');
+  const { search, status, assignee, difficulty, cycle } = filterValues;
+  useEffect(() => { const timer = window.setTimeout(() => setSearchTerm(search.trim()), 200); return () => window.clearTimeout(timer); }, [search]);
   const filters = {
-    search: search.trim() || undefined,
+    search: searchTerm || undefined,
     statusId: status || undefined,
     assigneeId: assignee || undefined,
-    priorityId: priority || undefined,
+    difficulty: (difficulty || undefined) as TaskDifficulty | undefined,
     cycleId: cycle || undefined,
   };
   const list = useProjectCollection(
@@ -127,7 +130,15 @@ export function ProjectTasks({
   };
   const refresh = () => {
     list.reload();
+    setOptionRevision(value => value + 1);
     onRefresh();
+  };
+  const newTask = (statusId?: string) => {
+    setDraft({ ...empty, status_id: statusId || '' }); setLabels([]); setEditing({}); setArchiving(false);
+  };
+  const moveTask = (task: DataRecord, statusId: string) => {
+    if (!canWrite || mutation.busy || task.status_id === statusId) return;
+    void mutation.run(() => projectHubApi.updateTask(workspaceId, projectId, text(task.issue_id), { status_id: statusId, expected_updated_at: text(task.updated_at) || undefined }), refresh);
   };
   const save = () => {
     if (!canWrite || !draft.title.trim()) return;
@@ -169,77 +180,8 @@ export function ProjectTasks({
     );
   };
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">Tareas</h2>
-        <div className="flex gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setEditing(null);
-              refresh();
-            }}
-          >
-            Actualizar tareas
-          </Button>
-          {canWrite && (
-            <Button
-              size="sm"
-              onClick={() => {
-                setDraft(empty);
-                setLabels([]);
-                setEditing({});
-                setArchiving(false);
-              }}
-            >
-              Nueva tarea
-            </Button>
-          )}
-        </div>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <Field label="Buscar tareas">
-          <TextField
-            aria-label="Buscar tareas"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            className={fieldClass}
-          />
-        </Field>
-        <Choice
-          label="Filtrar estado"
-          value={status}
-          onChange={setStatus}
-          rows={rows(options.statuses)}
-          id="status_id"
-          empty="Todos los estados"
-        />
-        <Choice
-          label="Filtrar responsable"
-          value={assignee}
-          onChange={setAssignee}
-          rows={userRows(options.assignees)}
-          id="user_id"
-          empty="Todos los responsables"
-        />
-        <Choice
-          label="Filtrar prioridad"
-          value={priority}
-          onChange={setPriority}
-          rows={rows(options.priorities)}
-          id="priority_id"
-          empty="Todas las prioridades"
-        />
-        <Choice
-          label="Filtrar ciclo"
-          value={cycle}
-          onChange={setCycle}
-          rows={rows(options.cycles)}
-          id="cycle_id"
-          empty="Todos los ciclos"
-        />
-      </div>
+    <div className="project-tasks-panel">
+      <TaskToolbar filters={filterValues} onFilters={setFilterValues} view={view} onView={setView} options={options} count={list.state.data?.length || 0} partial={list.hasMore} loading={list.state.loading} canWrite={canWrite} busy={mutation.busy} onCreate={() => newTask()} onRefresh={() => { setEditing(null); refresh(); }} />
       {optionError && (
         <p className="text-sm text-secondary">
           {optionError}{" "}
@@ -295,14 +237,7 @@ export function ProjectTasks({
                 empty="Estado predeterminado"
                 disabled={!canWrite}
               />
-              <Choice
-                label="Prioridad"
-                value={draft.priority_id}
-                onChange={field("priority_id")}
-                rows={rows(options.priorities)}
-                id="priority_id"
-                disabled={!canWrite}
-              />
+              <div className="min-w-0 text-xs text-secondary"><span>Dificultad</span><SelectDropdown aria-label="Dificultad" className="mt-1" value={taskDifficultyFor(draft.estimate_points === '' ? null : Number(draft.estimate_points))} onChange={value => { const choice = taskDifficultyOptions.find(option => option.value === value); field('estimate_points')(choice?.points == null ? '' : String(choice.points)); }} options={taskDifficultyOptions.map(option => ({ value: option.value, label: option.label }))} disabled={!canWrite} /><p className="mt-1 text-[11px]">Elige el esfuerzo estimado para completar la tarea.</p></div>
               <Choice
                 label="Responsable"
                 value={draft.assignee_id}
@@ -339,20 +274,6 @@ export function ProjectTasks({
                 empty="Sin tarea principal"
                 disabled={!canWrite}
               />
-              <Field label="Estimación en puntos">
-                <TextField
-                  type="number"
-                  min={0}
-                  max={10000}
-                  step="any"
-                  value={draft.estimate_points}
-                  onChange={(event) =>
-                    field("estimate_points")(event.target.value)
-                  }
-                  className={fieldClass}
-                  disabled={!canWrite}
-                />
-              </Field>
               <Field label="Estimación en horas">
                 <TextField
                   type="number"
@@ -503,65 +424,18 @@ export function ProjectTasks({
           )}
         </Card>
       )}
-      {list.state.loading ? (
-        <p role="status" className="text-sm text-secondary">
-          Cargando tareas…
-        </p>
-      ) : (
-        <>
-          {list.state.error && (
-            <p role="alert" className="text-sm text-danger">
-              {list.state.error}
-            </p>
-          )}
-          {list.state.data?.length === 0 ? (
-            <Card>
-              <p className="text-sm text-secondary">
-                Aún no hay tareas visibles con estos filtros.
-              </p>
-            </Card>
-          ) : (
-            <Card padded={false}>
-              <div className="divide-y divide-border">
-                {(list.state.data || []).map((task) => (
-                  <button
-                    key={text(task.issue_id)}
-                    type="button"
-                    className="flex w-full flex-wrap items-center justify-between gap-3 p-4 text-left hover:bg-surface-2"
-                    onClick={() => edit(task)}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium">
-                        {text(task.title, "Sin título")}
-                      </p>
-                      <p className="mt-1 text-xs text-secondary">
-                        {text(
-                          relation(task.assignee).display_name,
-                          "Sin asignar",
-                        )}{" "}
-                        · {dateLabel(task.due_date)} ·{" "}
-                        {text(
-                          relation(task.task_priorities).name,
-                          "Sin prioridad",
-                        )}
-                        {task.parent_issue_id ? " · Subtarea" : ""}
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-surface-2 px-3 py-1 text-xs text-secondary">
-                      {text(relation(task.task_statuses).name, "Sin estado")}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </Card>
-          )}
-          <MoreButton
-            hasMore={list.hasMore}
-            loading={list.moreLoading}
-            onMore={() => void list.more()}
-          />
-        </>
-      )}
+      {list.state.loading ? <div role="status" className="task-board-loading"><span />Cargando tareas…</div> : <>
+        {list.state.error && <div role="alert" className="task-board-notice"><p>{list.state.error}</p><Button size="sm" variant="ghost" onClick={refresh}>Reintentar tareas</Button></div>}
+        {list.state.data && <>
+          {list.state.data?.length === 0 && <p className="task-results-note">Aún no hay tareas visibles con estos filtros.{Object.values(filterValues).some(Boolean) ? ' Cambia o limpia los filtros para ver más.' : canWrite ? ' Crea la primera desde cualquier columna.' : ''}</p>}
+          <TaskBoard tasks={list.state.data || []} statuses={rows(options.statuses)} people={userRows(options.assignees)} view={view} canWrite={canWrite} busy={mutation.busy} onOpen={edit} onCreate={newTask} onMove={moveTask} />
+        </>}
+        {list.hasMore && <p className="task-results-note">Mostrando las tareas cargadas. Carga más para completar este resultado.</p>}
+        <MoreButton hasMore={list.hasMore} loading={list.moreLoading} onMore={() => void list.more()} />
+      </>}
     </div>
   );
+}
+export function ProjectTasks(props: Parameters<typeof ProjectTaskPanel>[0]) {
+  return <ProjectTaskPanel key={`${props.workspaceId}/${props.projectId}`} {...props} />;
 }

@@ -26,13 +26,14 @@ export const projectHubStoredPayload = projectHubStoredCredentials.extend({
 export class ProjectHubError extends Error {
   constructor(readonly code: string, message: string, readonly status?: number) { super(message); }
 }
-export function projectHubHttpError(status: number): ProjectHubError {
+export function projectHubHttpError(status: number, reason?: string): ProjectHubError {
+  if (status === 422 && reason === 'TEAM_REQUIRED') return new ProjectHubError('HTTP_422', 'Project Hub no pudo completar la configuración del espacio de esta organización. No necesitas crear otro espacio. (TEAM_REQUIRED)', status);
   const message = status === 401 ? 'Project Hub requiere renovar la sesión.'
     : status === 403 ? 'No tienes permiso para realizar esta operación en Project Hub.'
       : status === 404 ? 'No se encontró el recurso solicitado en Project Hub.'
         : status === 409 ? 'La operación entra en conflicto con el estado actual de Project Hub.'
           : status === 429 ? 'Project Hub recibió demasiadas solicitudes; inténtalo más tarde.'
-            : status >= 500 ? 'Project Hub no está disponible.' : 'Project Hub rechazó la solicitud.';
+            : status >= 500 ? 'Project Hub no está disponible.' : `Project Hub rechazó la solicitud (HTTP ${status}).`;
   return new ProjectHubError(`HTTP_${status}`, message, status);
 }
 export function projectHubFailure(error: unknown): ProjectHubResult<never> {

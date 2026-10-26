@@ -196,6 +196,23 @@ describe('IntegratedBrowserPanel', () => {
     });
   });
 
+  it('retira la vista web mientras el diálogo de proyecto está abierto y la restaura al cerrar', async () => {
+    render(<IntegratedBrowserPanel />);
+    await waitFor(() => expect(api.setViewport).toHaveBeenCalled());
+    const dialog = document.createElement('dialog');
+    dialog.setAttribute('data-native-browser-overlay', '');
+    dialog.setAttribute('open', '');
+    try {
+      await act(async () => { document.body.append(dialog); });
+      await waitFor(() => expect(api.hide).toHaveBeenCalledWith(true));
+      vi.mocked(api.setViewport).mockClear();
+      fireEvent.resize(window);
+      expect(api.setViewport).not.toHaveBeenCalled();
+      await act(async () => { dialog.removeAttribute('open'); });
+      await waitFor(() => expect(api.setViewport).toHaveBeenCalled());
+    } finally { dialog.remove(); }
+  });
+
   it('muestra el inicio interactivo sin esperar el proceso nativo', async () => {
     vi.mocked(api.open).mockReturnValueOnce(new Promise(() => {}));
     render(<IntegratedBrowserPanel />);

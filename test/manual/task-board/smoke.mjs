@@ -1,0 +1,68 @@
+import { createServer } from 'vite';
+import react from '@vitejs/plugin-react';
+import { createRequire } from 'node:module';
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { resolve } from 'node:path';
+import { _electron } from 'playwright-core';
+
+const require = createRequire(import.meta.url), root = process.cwd();
+const reports = resolve(process.argv[2] || 'openspec/changes/redesign-task-board/reports');
+const server = await createServer({ configFile: false, root, cacheDir: await mkdtemp(resolve(tmpdir(), 'soflia-task-board-')), envDir: resolve(root, 'test/manual/task-board'), plugins: [react()], optimizeDeps: { entries: ['test/manual/task-board/index.html'] }, server: { host: '127.0.0.1', port: 0 } });
+await server.listen(); let app;
+try {
+  await mkdir(reports, { recursive: true });
+  app = await _electron.launch({ executablePath: require('electron'), args: [resolve(root, 'test/manual/project-panel/electron.cjs')], env: { ...process.env, PROJECT_PANEL_PREVIEW_URL: `http://127.0.0.1:${server.httpServer.address().port}/test/manual/task-board/index.html` } });
+  const page = await app.firstWindow(); page.setDefaultTimeout(20000);
+  const errors = []; page.on('pageerror', error => errors.push(error.message));
+  const capture = async name => {
+    await page.evaluate(() => Promise.race([document.fonts.ready.then(() => undefined), new Promise(resolve => setTimeout(resolve, 1000))]));
+    await page.evaluate(() => { document.documentElement.getBoundingClientRect(); return Promise.all(document.getAnimations().filter(animation => animation.effect?.getComputedTiming().iterations !== Infinity).map(animation => animation.finished.catch(() => undefined))); });
+    const png = await app.evaluate(async ({ BrowserWindow }) => {
+      const contents = BrowserWindow.getAllWindows()[0].webContents;
+      await contents.capturePage(undefined, { stayHidden: true, stayAwake: true });
+      await new Promise(resolve => setTimeout(resolve, 120));
+      return (await contents.capturePage(undefined, { stayHidden: true, stayAwake: true })).toPNG().toString('base64');
+    });
+    await writeFile(resolve(reports, name), Buffer.from(png, 'base64'));
+  };
+  await page.getByRole('button', { name: /Diseñar la nueva página/ }).waitFor();
+  await page.waitForFunction(() => !document.querySelector('.task-toolbar-actions > button:last-child')?.disabled);
+  const stages = ['Backlog', 'Pendientes', 'Por hacer', 'En curso', 'En revisión', 'Completadas', 'Canceladas'];
+  for (const stage of stages) await page.getByRole('region', { name: stage, exact: true }).waitFor();
+  await capture('tareas-tablero-claro.png');
+  await page.evaluate(() => document.documentElement.classList.add('dark'));
+  await capture('tareas-tablero-oscuro.png');
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setContentSize(2380, 1000));
+  await page.waitForFunction(() => innerWidth === 2380);
+  await capture('tareas-flujo-completo.png');
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setContentSize(1440, 1000));
+  await page.waitForFunction(() => innerWidth === 1440);
+  await page.getByRole('button', { name: 'Lista', exact: true }).click();
+  await page.getByLabel('Lista de tareas').waitFor(); await capture('tareas-lista-oscuro.png');
+  await page.getByRole('combobox', { name: 'Filtrar dificultad' }).click();
+  await page.getByRole('option', { name: 'Alta', exact: true }).click();
+  await page.getByRole('button', { name: /Implementar el flujo/ }).waitFor();
+  if (await page.locator('.project-task-card').count() !== 1) throw new Error('El filtro no actualizó la lista.');
+  await page.getByRole('button', { name: 'Tablero', exact: true }).click();
+  if (await page.locator('.project-task-card').count() !== 1) throw new Error('Cambiar vista perdió los filtros.');
+  await capture('tareas-tablero-filtrado.png');
+  await page.getByRole('button', { name: 'Limpiar filtros' }).click();
+  await page.waitForFunction(() => document.querySelectorAll('.project-task-card').length === 12);
+  await page.getByRole('button', { name: /Preparar las pruebas de accesibilidad/ }).dragTo(page.getByRole('region', { name: 'En curso', exact: true }));
+  await page.getByRole('region', { name: 'En curso', exact: true }).getByRole('button', { name: /Preparar las pruebas/ }).waitFor();
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setContentSize(360, 800));
+  await page.waitForFunction(() => innerWidth === 360);
+  await page.getByRole('button', { name: 'Menú compacto por el ancho disponible' }).waitFor();
+  await page.waitForFunction(() => document.querySelector('aside')?.getBoundingClientRect().width < 100);
+  await capture('tareas-tablero-compacto.png');
+  const fits = await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
+  if (!fits) throw new Error('El tablero desborda el viewport en lugar de su propio contenedor.');
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setContentSize(1440, 1000));
+  await page.evaluate(() => window.dispatchEvent(new Event('qa-empty')));
+  await page.getByRole('button', { name: 'Actualizar tareas', exact: true }).click();
+  await page.getByText(/Aún no hay tareas visibles/).waitFor();
+  await capture('tareas-tablero-vacio.png');
+  if (errors.length) throw new Error(errors.join('\n'));
+  console.log('Smoke Electron correcto: siete fases, iconos del proyecto, tablero/lista, filtros compartidos, movimiento, claro/oscuro, vacío y 360 px. Datos simulados; sin cuentas reales.');
+} finally { await app?.close(); await server.close(); }

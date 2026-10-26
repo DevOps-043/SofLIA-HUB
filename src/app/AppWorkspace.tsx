@@ -83,7 +83,7 @@ export function AppWorkspace(props: AppWorkspaceProps) {
     return (
       <main className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
         {props.shareLinkNotice && <ShareLinkNoticeBanner notice={props.shareLinkNotice} />}
-        {props.liaDegraded && !props.userId && <LiaDegradedNotice message={props.liaStatusMessage || undefined} />}
+        {props.liaDegraded && !props.userId && props.activeView !== 'chat' && <LiaDegradedNotice message={props.liaStatusMessage || undefined} />}
         <BrowserWorkspaceLayout
           chat={chatView}
           conversations={navigation?.conversations ?? props.chat.conversations}
@@ -100,7 +100,7 @@ export function AppWorkspace(props: AppWorkspaceProps) {
   return (
     <main className="flex-1 flex flex-col min-w-0 h-full min-h-0 overflow-hidden">
       {props.shareLinkNotice && <ShareLinkNoticeBanner notice={props.shareLinkNotice} />}
-      {props.liaDegraded && !props.userId && <LiaDegradedNotice message={props.liaStatusMessage || undefined} />}
+      {props.liaDegraded && !props.userId && props.activeView !== 'chat' && <LiaDegradedNotice message={props.liaStatusMessage || undefined} />}
       {props.activeView === 'chat' && (
         // El panel de la presentacion convive con el chat en lugar de
         // sustituirlo: el usuario debe poder pedir cambios mientras ve el

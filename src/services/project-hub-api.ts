@@ -1,4 +1,6 @@
+import { waitForAuthStatePublication } from './auth-state';
 import type { ProjectManagementInputs } from '../shared/project-management';
+import type { ProjectCreationInputs, ProjectFolderSelection, ProjectLocation, ProjectOrganization, ProjectCloudAccount, ProjectCloudFolderListing, ProjectCloudSelection, ProjectLocationFiles } from '../shared/project-creation';
 import type { ProjectHubInputs, ProjectHubRole } from '../shared/project-hub';
 import type { ProjectDownloadInput, ProjectDownloadResult, ProjectUploadInput, ProjectUploadProgress, ProjectUploadResult } from '../shared/project-hub-files';
 
@@ -32,6 +34,17 @@ export interface ProjectHubProject {
 }
 
 interface ProjectHubBridge {
+  resolveOrganization: (input: ProjectCreationInputs['resolveOrganization']) => Promise<ProjectHubResult<ProjectOrganization>>;
+  selectFolder: (input: ProjectCreationInputs['selectFolder']) => Promise<ProjectHubResult<ProjectFolderSelection>>;
+  cloudAccounts: (input: ProjectCreationInputs['cloudAccounts']) => Promise<ProjectHubResult<ProjectCloudAccount[]>>;
+  authorizeCloud: (input: ProjectCreationInputs['authorizeCloud']) => Promise<ProjectHubResult>;
+  cloudFolders: (input: ProjectCreationInputs['cloudFolders']) => Promise<ProjectHubResult<ProjectCloudFolderListing>>;
+  createCloudFolder: (input: ProjectCreationInputs['createCloudFolder']) => Promise<ProjectHubResult<ProjectCloudSelection>>;
+  locationFiles: (input: ProjectCreationInputs['locationFiles']) => Promise<ProjectHubResult<ProjectLocationFiles>>;
+  uploadLocationFiles: (input: ProjectCreationInputs['uploadLocationFiles']) => Promise<ProjectUploadResult>;
+  cancelLocationUpload: (input: ProjectCreationInputs['cancelLocationUpload']) => Promise<ProjectHubResult>;
+  createConfigured: (input: ProjectCreationInputs['createConfigured']) => Promise<ProjectHubResult<ProjectHubProject>>;
+  getLocation: (input: ProjectCreationInputs['getLocation']) => Promise<ProjectHubResult<ProjectLocation | null>>;
   getTaskDetail: (input: ProjectManagementInputs['getTaskDetail']) => Promise<ProjectHubResult>;
   addTaskComment: (input: ProjectManagementInputs['addTaskComment']) => Promise<ProjectHubResult>;
   listTaskDocuments: (input: ProjectManagementInputs['listTaskDocuments']) => Promise<ProjectHubResult>;
@@ -93,6 +106,17 @@ async function unavailable<T>(): Promise<ProjectHubResult<T>> {
 }
 
 export const projectHubApi = {
+  resolveOrganization: (organizationId: string) => bridge()?.resolveOrganization?.({ organizationId }) ?? unavailable<ProjectOrganization>(),
+  selectFolder: () => bridge()?.selectFolder?.({}) ?? unavailable<ProjectFolderSelection>(),
+  cloudAccounts: () => bridge()?.cloudAccounts?.({}) ?? unavailable<ProjectCloudAccount[]>(),
+  authorizeCloud: (input: ProjectCreationInputs['authorizeCloud']) => bridge()?.authorizeCloud?.(input) ?? unavailable(),
+  cloudFolders: (input: ProjectCreationInputs['cloudFolders']) => bridge()?.cloudFolders?.(input) ?? unavailable<ProjectCloudFolderListing>(),
+  createCloudFolder: (input: ProjectCreationInputs['createCloudFolder']) => bridge()?.createCloudFolder?.(input) ?? unavailable<ProjectCloudSelection>(),
+  locationFiles: (input: ProjectCreationInputs['locationFiles']) => bridge()?.locationFiles?.(input) ?? unavailable<ProjectLocationFiles>(),
+  uploadLocationFiles: (input: ProjectCreationInputs['uploadLocationFiles']) => bridge()?.uploadLocationFiles?.(input) ?? unavailable(),
+  cancelLocationUpload: (operationId: string) => bridge()?.cancelLocationUpload?.({ operationId }) ?? unavailable(),
+  createConfigured: (input: ProjectCreationInputs['createConfigured']) => bridge()?.createConfigured?.(input) ?? unavailable<ProjectHubProject>(),
+  getLocation: (input: ProjectCreationInputs['getLocation']) => bridge()?.getLocation?.(input) ?? unavailable<ProjectLocation | null>(),
   getTaskDetail: (input: ProjectManagementInputs['getTaskDetail']) => bridge()?.getTaskDetail?.(input) ?? unavailable(),
   addTaskComment: (input: ProjectManagementInputs['addTaskComment']) => bridge()?.addTaskComment?.(input) ?? unavailable(),
   listTaskDocuments: (input: ProjectManagementInputs['listTaskDocuments']) => bridge()?.listTaskDocuments?.(input) ?? unavailable(),
@@ -119,7 +143,12 @@ export const projectHubApi = {
   removeDocument: (input: ProjectManagementInputs['removeDocument']) => bridge()?.removeDocument?.(input) ?? unavailable(),
   updateEvidence: (input: ProjectManagementInputs['updateEvidence']) => bridge()?.updateEvidence?.(input) ?? unavailable(),
   archiveEvidence: (input: ProjectManagementInputs['archiveEvidence']) => bridge()?.archiveEvidence?.(input) ?? unavailable(),
-  status: () => bridge()?.getStatus() ?? unavailable(),
+  status: async () => {
+    if (!await waitForAuthStatePublication()) {
+      return { success: false as const, code: 'SOFIA_SESSION_PENDING', error: 'Preparando la sesión de proyectos…' };
+    }
+    return bridge()?.getStatus() ?? unavailable();
+  },
   retryAuthentication: () => bridge()?.retryAuthentication() ?? unavailable(),
   listProjects: (workspaceId: string, search?: string, cursor?: string) => bridge()?.listProjects({ workspaceId, search, cursor }) ?? unavailable<ProjectHubProject[]>(),
   createProject: (workspaceId: string, project: ProjectHubInputs['createProject']['project']) => bridge()?.createProject({ workspaceId, project }) ?? unavailable<ProjectHubProject>(),

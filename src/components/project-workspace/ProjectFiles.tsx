@@ -7,6 +7,7 @@ import { Field, fieldClass, MoreButton } from "./ManagementControls";
 import { useProjectCollection } from "./useProjectCollection";
 import { ProjectResources } from "./ProjectResources";
 import { ProjectDocuments } from "./ProjectDocuments";
+import { ProjectStorageFiles } from '../project-creation/ProjectStorageFiles';
 
 export function ProjectFiles({
   workspaceId,
@@ -41,6 +42,7 @@ export function ProjectFiles({
   };
   return (
     <div className="space-y-5">
+      {kind === 'files' && <ProjectStorageFiles key={`${workspaceId}/${projectId}`} workspaceId={workspaceId} projectId={projectId} canWrite={canWrite} onOpenWeb={onOpenWeb} />}
       <div className="flex items-end gap-3">
         <div className="flex-1">
           <Field label="Buscar archivos y recursos">
@@ -59,6 +61,7 @@ export function ProjectFiles({
         workspaceId={workspaceId}
         projectId={projectId}
         kind={kind}
+        allowUpload={false}
         state={list.state}
         canWrite={canWrite}
         canManage={canManage}

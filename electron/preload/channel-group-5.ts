@@ -130,6 +130,17 @@ export const CHANNEL_GROUP_5 = [
   'presentation:prepare-branding',
 
   // Project Hub: métodos de dominio; ningún token ni cliente Supabase cruza al renderer.
+  'project-hub:resolve-organization',
+  'project-hub:select-folder',
+  'project-hub:cloud-accounts',
+  'project-hub:authorize-cloud',
+  'project-hub:cloud-folders',
+  'project-hub:create-cloud-folder',
+  'project-hub:location-files',
+  'project-hub:upload-location-files',
+  'project-hub:cancel-location-upload',
+  'project-hub:create-configured',
+  'project-hub:get-location',
   'project-hub:get-task-options',
   'project-hub:archive-task',
   'project-hub:list-milestones',

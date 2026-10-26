@@ -1,31 +1,70 @@
 import '@testing-library/jest-dom/vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChatUnavailableState } from '../../app/ChatUnavailableState';
 
+beforeEach(() => vi.useFakeTimers());
+afterEach(() => vi.useRealTimers());
+const advance = (ms: number) => act(async () => { await vi.advanceTimersByTimeAsync(ms); });
+
 describe('Conversaciones temporalmente no disponibles', () => {
-  it('UI-068: usa lenguaje simple y no expone autenticacion interna', () => {
-    render(<ChatUnavailableState onRetry={vi.fn()} />);
-
-    expect(screen.getByRole('heading', { name: 'No pudimos cargar tus conversaciones' })).toBeInTheDocument();
-    expect(screen.getByText(/tu sesi[oó]n sigue activa/i)).toBeInTheDocument();
-    expect(document.body.textContent).not.toMatch(/Lia|Supabase|credencial|contraseñ|base de datos/i);
-  });
-
-  it('UI-069: permite reintentar sin solicitar datos adicionales', async () => {
+  it('espera y recupera automáticamente sin mostrar errores prematuros', async () => {
     const onRetry = vi.fn().mockResolvedValue(true);
     render(<ChatUnavailableState onRetry={onRetry} />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
-    await waitFor(() => expect(onRetry).toHaveBeenCalledTimes(1));
-    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Cargando conversaciones');
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByRole('heading')).toBeNull();
+    await advance(500);
+    await advance(20_000);
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    expect(document.body.textContent).not.toMatch(/Lia|Supabase|token|contraseñ/i);
   });
 
-  it('UI-070: un reintento fallido conserva un mensaje accionable no tecnico', async () => {
-    render(<ChatUnavailableState onRetry={vi.fn().mockResolvedValue(false)} />);
-
+  it('agota dos intentos y permite reintentar manualmente sin datos adicionales', async () => {
+    const onRetry = vi.fn().mockRejectedValueOnce(new Error('Red')).mockResolvedValue(false);
+    render(<ChatUnavailableState onRetry={onRetry} />);
+    await advance(2500);
+    expect(onRetry).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole('heading')).toHaveTextContent('No pudimos cargar tus conversaciones');
+    expect(screen.getByRole('alert')).toHaveTextContent(/espera un momento/i);
+    await advance(60_000);
+    expect(onRetry).toHaveBeenCalledTimes(2);
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(/espera un momento/i);
-    expect(document.body.textContent).not.toMatch(/Lia|Supabase|token|contraseñ/i);
+    await advance(0);
+    expect(onRetry).toHaveBeenCalledTimes(3);
+    expect(screen.queryByRole('textbox')).toBeNull();
+  });
+
+  it('no solapa intentos ni reinicia el presupuesto al cambiar el callback', async () => {
+    let finish!: (value: boolean) => void;
+    const onRetry = vi.fn(() => new Promise<boolean>(resolve => { finish = resolve; }));
+    const view = render(<ChatUnavailableState onRetry={onRetry} />);
+    await advance(500);
+    await advance(60_000);
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    const next = vi.fn().mockResolvedValue(false);
+    view.rerender(<ChatUnavailableState onRetry={next} />);
+    await act(async () => finish(false));
+    await advance(2000);
+    await advance(60_000);
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+  });
+
+  it('cancelar la vista impide nuevos reintentos incluso con una respuesta tardía', async () => {
+    let finish!: (value: boolean) => void;
+    const onRetry = vi.fn(() => new Promise<boolean>(resolve => { finish = resolve; }));
+    const view = render(<ChatUnavailableState onRetry={onRetry} />);
+    await advance(500);
+    view.unmount();
+    await act(async () => finish(false));
+    await advance(60_000);
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('sin reintento disponible muestra un error legible en ambos temas', () => {
+    render(<ChatUnavailableState />);
+    expect(screen.getByRole('heading')).toHaveClass('text-primary');
+    expect(screen.getByText(/tu sesión sigue activa/i)).toHaveClass('text-secondary');
   });
 });

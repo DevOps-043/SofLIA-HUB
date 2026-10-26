@@ -35,6 +35,28 @@ preload existente. La región libre de la barra permite arrastrar la ventana.
 La tarjeta se centra en el espacio restante cuando cabe; si no cabe, se desplaza
 verticalmente sin ocultar la barra.
 
+### Recuperación de datos al iniciar sesión
+
+La publicación de sesión reserva su espera antes de obtener los tokens SOFIA.
+El wrapper de Project Hub espera las publicaciones pendientes antes de consultar
+estado; después de diez segundos devuelve `SOFIA_SESSION_PENDING` sin adelantar
+la llamada IPC. Las publicaciones siguen siendo concurrentes para no retrasar
+logout; main conserva la validación de identidad y la revisión vigente.
+
+La restauración Lia comparte intentos simultáneos del mismo correo y token, y
+sincroniza el perfil una vez, en segundo plano. Un fallo del perfil no degrada una
+sesión válida. Los eventos SOFIA difieren el trabajo al siguiente turno del bucle
+para liberar el callback de Auth; `INITIAL_SESSION` lo cubre la restauración
+explícita y logout cancela los eventos todavía programados.
+
+La vista de conversaciones muestra carga durante dos intentos automáticos; sólo
+al agotarlos presenta el error y su reintento manual. En la vista de chat el
+mensaje accionable se concentra en ese panel, sin repetir el aviso en sidebar ni
+en la banda superior. Proyectos recupera códigos transitorios hasta tres veces;
+durante esos intentos muestra carga y conserva el rechazo real cuando persiste.
+Desmontar cancela nuevos intentos; las solicitudes ya enviadas pueden terminar.
+Ver [especificación y evidencia](../../openspec/changes/fix-login-data-loading/proposal.md).
+
 ### Adjuntos de contexto del turno
 
 El compositor del chat admite dos origenes de contexto que comparten el area de

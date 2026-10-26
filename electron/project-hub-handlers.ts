@@ -9,12 +9,15 @@ import { withCorrelation } from './utils/correlation';
 import { registerProjectHubUploadHandlers } from './project-hub/upload-handlers';
 import { registerProjectHubDownloadHandlers } from './project-hub/download-handlers';
 import { ProjectFileOperations } from './project-hub/file-operations';
+import { registerProjectCreationHandlers } from './project-hub/creation-handlers';
+import type { CalendarService } from './calendar-service';
 
 const log = createLogger('project-hub-ipc');
 
 export function registerProjectHubHandlers(
   service: ProjectHubApiService = getProjectHubApiService(),
   getWindow?: () => BrowserWindow | null,
+  calendar?: CalendarService,
 ): void {
   const windows = () => [getWindow?.() ?? null];
   const confirm = nativeConfirmation('Confirmar cambio en Project Hub');
@@ -102,4 +105,5 @@ export function registerProjectHubHandlers(
   const files = new ProjectFileOperations();
   registerProjectHubUploadHandlers(service, windows, confirm, files);
   registerProjectHubDownloadHandlers(service, windows, confirm, files);
+  registerProjectCreationHandlers(service, windows, calendar);
 }

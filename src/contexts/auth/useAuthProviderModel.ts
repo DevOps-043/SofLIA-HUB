@@ -76,10 +76,10 @@ export function useAuthProviderModel(): AuthContextType {
     // revocaria el acceso y cerraria la orbe recien abierta.
     if (authLoading) return;
     let cancelled = false;
-    void (async () => {
+    void publishAuthState(async () => {
       const sofiaSession = usingSofia ? await sofiaAuth.getSession() : null;
-      if (cancelled) return;
-      await publishAuthState({
+      if (cancelled) return null;
+      return {
         authenticated: Boolean(authenticatedUserId),
         userId: authenticatedUserId,
         organizationId,
@@ -90,8 +90,8 @@ export function useAuthProviderModel(): AuthContextType {
         // Main custodia únicamente el refresh token cifrado para que WhatsApp
         // conserve identidad SOFIA después de cerrar la ventana o reiniciar.
         sofiaRefreshToken: sofiaSession?.refresh_token ?? null,
-      });
-    })();
+      };
+    });
     return () => { cancelled = true; };
     // Los tokens entran en las dependencias para republicar cuando la sesión se
     // renueva: si no, el main se quedaría con el token viejo hasta reiniciar.

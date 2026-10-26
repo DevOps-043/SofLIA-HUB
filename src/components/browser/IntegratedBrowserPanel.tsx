@@ -88,6 +88,7 @@ export function IntegratedBrowserPanel(props: {
   const suggestionOpenPromiseRef = useRef<Promise<void> | null>(null);
   const suggestionRestorePromiseRef = useRef<Promise<void> | null>(null);
   const readingModeRef = useRef<BrowserReadingContent | null>(null);
+  const appDialogOpenRef = useRef(false);
   const [state, setState] = useState<IntegratedBrowserState>({ ...EMPTY_INTEGRATED_BROWSER_STATE, url: BROWSER_HOME_URL, title: BROWSER_HOME_TITLE });
   const [address, setAddress] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
@@ -159,6 +160,7 @@ export function IntegratedBrowserPanel(props: {
   const publishViewport = useCallback(async (force = false) => {
     const element = viewportRef.current;
     if (!element || !mountedRef.current) return;
+    if (appDialogOpenRef.current) return;
     if ((managementTabRef.current || suggestionOverlayRef.current) && !force) return;
     const rect = element.getBoundingClientRect();
     const rootRect = rootRef.current?.getBoundingClientRect();
@@ -198,6 +200,27 @@ export function IntegratedBrowserPanel(props: {
     // Su instantánea no debe reemplazar el estado publicado por main.
     consumeResponse({ ...response, state: undefined });
   }, [consumeResponse, onContentTopChange]);
+
+  // Los diálogos del renderer necesitan retirar la superficie web nativa,
+  // que se compone por encima del DOM incluso cuando se usa la capa modal.
+  useEffect(() => {
+    if (!integratedBrowserService.isAvailable()) return;
+    let active = true;
+    let hidePending: Promise<unknown> = Promise.resolve();
+    const sync = () => {
+      const open = !!document.querySelector('dialog[data-native-browser-overlay][open]');
+      if (open === appDialogOpenRef.current) return;
+      appDialogOpenRef.current = open;
+      if (open) hidePending = integratedBrowserService.hide(true).catch(() => undefined);
+      else void hidePending.then(() => {
+        if (active && !appDialogOpenRef.current && !managementTabRef.current && !suggestionOverlayRef.current) void publishViewport(true);
+      });
+    };
+    const observer = new MutationObserver(sync);
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['open'] });
+    sync();
+    return () => { active = false; observer.disconnect(); appDialogOpenRef.current = false; };
+  }, [publishViewport]);
 
   const showShellHome = isBrowserHomeUrl(state.url) && state.viewMode === 'single' && !state.isFullscreen;
   useLayoutEffect(() => {

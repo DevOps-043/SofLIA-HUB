@@ -37,7 +37,7 @@ afterEach(() => { resetAuthStateForTests(); vi.restoreAllMocks(); vi.unstubAllGl
 
 describe('Preload/allowlist/handler Project Hub reales con servicio doble', () => {
   it.each(projectHubIpcCases)('transporta $method por su canal de dominio', async item => {
-    expect(Object.keys(exposed)).toHaveLength(projectHubIpcCases.length + 4);
+    expect(Object.keys(exposed)).toHaveLength(projectHubIpcCases.length + 15);
     expect(ALLOWED_IPC_CHANNELS).toContain('project-hub:' + item.channel);
     expect(await exposed[item.method](...(item.input === undefined ? [] : [item.input]))).toMatchObject({ success: true });
     expect(invoke.mock.calls[0][0]).toBe('project-hub:' + item.channel);

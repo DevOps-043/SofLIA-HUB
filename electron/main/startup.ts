@@ -39,7 +39,7 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
   modules.registerIntegratedBrowserHandlers(services.integratedBrowserService, () => state.win);
   powerMonitor.on('lock-screen', () => services.integratedBrowserService.lockCredentials());
   powerMonitor.on('suspend', () => services.integratedBrowserService.lockCredentials());
-  registerProjectHubHandlers(getProjectHubApiService(), () => state.win);
+  registerProjectHubHandlers(getProjectHubApiService(), () => state.win, services.calendarService);
   // Subida de medios grandes al proveedor. Vive en main para no materializar
   // un video de cientos de megabytes en la memoria del renderer.
   modules.registerMediaInputHandlers(services.mediaInputService, () => state.win);
