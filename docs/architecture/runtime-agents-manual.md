@@ -93,6 +93,8 @@ Fuente: `src/services/gemini-chat/`, `src/services/gemini-tools/`,
 
 ### 2.1 Loop agéntico
 
+La superficie [flotante contextual](../../openspec/changes/floating-soflia-chat/design.md) usa este mismo agente, modelos, streaming, Stop y confirmaciones. Enviar incluye automáticamente una observación puntual de la pestaña integrada o texto visible acotado del apartado de la app, sin franja de controles de contexto. No hay captura continua ni lectura automática de otras aplicaciones; éstas se pueden adjuntar mediante el selector existente. Adjuntar pestañas explícitas conserva el modo de extractos. Nuevo chat reinicia el compositor dentro de la vista y conserva el ámbito del proyecto. La lectura no autoriza acciones: los controles DOM y Computer Use mantienen sus guardas y HITL. No se incorporan herramientas nuevas ni credenciales del plano de desarrollo.
+
 Excepción de alcance del turno: al adjuntar pestañas explícitamente, el modo
 `attached-fragments` no hace captura automática ni consulta el documento activo
 o herramientas de búsqueda/recuperación hospedadas. El modelo sólo puede trabajar

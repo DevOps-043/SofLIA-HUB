@@ -12,6 +12,8 @@ import * as dotenv from 'dotenv';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createMainSupabaseClient } from '../supabase-client-factory';
+import { createIrisProjectFetch } from './project-session-fetch';
+import { getOrganizationContext } from '../main/organization-context';
 
 const envPath = path.join(app.getAppPath(), '.env');
 if (fs.existsSync(envPath)) {
@@ -36,6 +38,19 @@ export function getIrisClient(): SupabaseClient | null {
     url: IRIS_URL,
     key: IRIS_KEY,
     serviceName: 'IRIS-Main',
+    fetch: createIrisProjectFetch(IRIS_URL, {
+      scope: getOrganizationContext,
+      publicKey: () => SOFIA_KEY,
+      session: async () => {
+        const { getSofiaSessionUserId } = await import('../main/sofia-session');
+        const expected = getSofiaSessionUserId();
+        if (!expected) return null;
+        const sofia = getSofiaClient();
+        const { data, error } = sofia ? await sofia.auth.getSession() : { data: { session: null }, error: null };
+        if (error || !data.session || data.session.user.id !== expected || getSofiaSessionUserId() !== expected) return null;
+        return { userId: expected, accessToken: data.session.access_token };
+      },
+    }),
   });
   if (!result.client) {
     console.error(`[IRIS-Main] ${result.error || 'No se pudo crear el cliente.'}`);

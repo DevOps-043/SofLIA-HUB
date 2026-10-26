@@ -8,12 +8,12 @@ type ActiveToolCall = {
   };
 };
 
-export function ChatLoadingIndicator({ activeToolCall }: { activeToolCall?: ActiveToolCall | null }) {
+export function ChatLoadingIndicator({ activeToolCall, brandIcon = false }: { activeToolCall?: ActiveToolCall | null; brandIcon?: boolean }) {
   return (
     <div className="flex gap-3.5 select-none animate-in fade-in duration-300">
-      {/* Avatar de LIA */}
+      {/* El compositor flotante conserva la marca también durante la espera. */}
       <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 rounded-full overflow-hidden border border-border/60 shadow-sm ring-2 ring-background">
-        <img src="./assets/lia-avatar.png" alt="SOFLIA" className="w-full h-full object-cover" />
+        <img src={brandIcon ? './assets/Icono.png' : './assets/lia-avatar.png'} alt="Soflia" className={brandIcon ? 'h-6 w-6 object-contain' : 'w-full h-full object-cover'} />
       </div>
 
       <div className="flex flex-col gap-2 pt-0.5">

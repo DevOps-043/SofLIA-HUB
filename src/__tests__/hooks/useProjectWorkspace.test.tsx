@@ -2,11 +2,13 @@ import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useProjectWorkspace } from "../../app/useProjectWorkspace";
 import type { ChatState, FolderState } from "../../app/app-types";
-import { readProjectChatBinding } from "../../services/project-chat-binding";
+import { resolveProjectChatSpace } from '../../services/project-chat-space';
 import { integratedBrowserService } from "../../services/integrated-browser-service";
-vi.mock("../../services/project-chat-binding", () => ({
-  readProjectChatBinding: vi.fn(),
+import { projectHubApi, type ProjectHubProject } from '../../services/project-hub-api';
+vi.mock("../../services/project-chat-space", () => ({
+  resolveProjectChatSpace: vi.fn(),
 }));
+vi.mock('../../services/chat', () => ({ loadConversations: vi.fn().mockResolvedValue([]) }));
 vi.mock("../../services/integrated-browser-service", () => ({
   integratedBrowserService: {
     isAvailable: vi.fn(() => true),
@@ -41,6 +43,7 @@ function setup() {
       currentConversationId: null,
       handleNewChat: vi.fn().mockResolvedValue("a"),
       handleSelectConversation: vi.fn().mockResolvedValue(true),
+      setConversations: vi.fn(),
     } as unknown as ChatState,
     folder: {
       folders: [
@@ -48,12 +51,43 @@ function setup() {
       ],
       currentFolderId: "a",
       setCurrentFolderId: vi.fn(),
+      setFolders: vi.fn(),
     } as unknown as FolderState,
   };
 }
 beforeEach(() => vi.clearAllMocks());
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 describe("Contexto del proyecto y conversaciones", () => {
+  it('verifica el destino si se abre el navegador antes de terminar de cargar el panel', async () => {
+    const options = { ...setup(), activeView: 'project-hub' as const, unifiedProject: { workspaceId: 'w', projectId: 'p' } };
+    const project = { project_id: 'p', workspace_id: 'w', project_name: 'Proyecto activo', role: 'owner' } as ProjectHubProject;
+    vi.spyOn(projectHubApi, 'getProject').mockResolvedValue({ success: true, data: project });
+    vi.mocked(resolveProjectChatSpace).mockResolvedValue(null);
+    const { result } = renderHook(() => useProjectWorkspace(options));
+    act(() => result.current.navigation!.onOpenBrowser());
+    await waitFor(() => expect(options.setBrowserOpen).toHaveBeenCalledWith(true));
+    expect(result.current.navigation?.browserProject).toEqual({ workspaceId: 'w', projectId: 'p', organizationId: 'org', name: 'Proyecto activo', canWrite: true });
+  });
+  it('no abre el navegador con la verificación tardía de otro proyecto u organización', async () => {
+    const options = { ...setup(), activeView: 'project-hub' as const, unifiedProject: { workspaceId: 'w', projectId: 'p' } };
+    let finish!: (value: Awaited<ReturnType<typeof projectHubApi.getProject>>) => void;
+    vi.spyOn(projectHubApi, 'getProject').mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    const { result, rerender } = renderHook(props => useProjectWorkspace(props), { initialProps: options });
+    act(() => result.current.navigation!.onOpenBrowser());
+    rerender({ ...options, orgId: 'otra', selectionScope: 'u/otra', unifiedProject: { workspaceId: 'otro-w', projectId: 'otro-p' } });
+    await act(async () => finish({ success: true, data: { project_id: 'p', workspace_id: 'w', project_name: 'Anterior', role: 'owner' } as ProjectHubProject }));
+    expect(options.setBrowserOpen).not.toHaveBeenCalledWith(true); expect(result.current.navigation?.browserProject).toBeUndefined();
+  });
+  it('un fallo de conexión conserva el proyecto y permite reintentar sin abrir el chat global', async () => {
+    const options = { ...setup(), activeView: 'project-hub' as const, unifiedProject: { workspaceId: 'w', projectId: 'p' } };
+    vi.mocked(resolveProjectChatSpace).mockRejectedValueOnce(new Error('Sin conexión')).mockResolvedValue(null);
+    const { result } = renderHook(() => useProjectWorkspace(options));
+    act(() => result.current.onProjectReady({ project_id: 'p', workspace_id: 'w', project_key: 'P', project_name: 'P', project_status: 'active', priority_level: 'none', health_status: 'none', completion_percentage: 0, updated_at: '', role: 'owner' }));
+    await waitFor(() => expect(result.current.navigation?.chatMessage).toContain('Actualizar chats'));
+    expect(result.current.navigation?.canCreateChat).toBe(false); expect(options.chat.handleNewChat).not.toHaveBeenCalled();
+    act(() => result.current.navigation?.onRetryChats?.());
+    await waitFor(() => expect(result.current.navigation?.canCreateChat).toBe(true)); expect(options.chat.setConversations).toHaveBeenCalledWith([]);
+  });
   it("filtra chats y prepara los nuevos con el espacio capturado, también desde navegador", async () => {
     const options = setup();
     const { result } = renderHook(() => useProjectWorkspace(options));
@@ -116,13 +150,13 @@ describe("Contexto del proyecto y conversaciones", () => {
     rerender({ ...options, userId: "otro" });
     expect(result.current.navigation).toBeUndefined();
   });
-  it("no inventa una carpeta ni cae al chat general cuando falta el vínculo de gestión", async () => {
+  it("prepara un espacio persistente al crear chat sin vínculo federado y no cae al chat general", async () => {
     const options = {
       ...setup(),
       activeView: "project-hub" as const,
       unifiedProject: { workspaceId: "w", projectId: "p" },
     };
-    vi.mocked(readProjectChatBinding).mockResolvedValue(null);
+    vi.mocked(resolveProjectChatSpace).mockResolvedValueOnce(null).mockResolvedValue({ id: 'personal', user_id: 'u', org_id: 'org', name: 'P', can_edit: true, created_at: '', updated_at: '' });
     const { result } = renderHook(() => useProjectWorkspace(options));
     act(() =>
       result.current.onProjectReady({
@@ -139,14 +173,14 @@ describe("Contexto del proyecto y conversaciones", () => {
       }),
     );
     await waitFor(() =>
-      expect(result.current.navigation?.chatMessage).toContain(
-        "todavía no está preparado",
-      ),
+      expect(result.current.navigation?.canCreateChat).toBe(true),
     );
-    expect(result.current.navigation?.canCreateChat).toBe(false);
     expect(result.current.navigation?.conversations).toEqual([]);
+    expect(result.current.navigation?.browserProject).toEqual({ workspaceId: 'w', projectId: 'p', organizationId: 'org', name: 'P', canWrite: true });
     act(() => result.current.navigation!.onNewChat());
-    expect(options.chat.handleNewChat).not.toHaveBeenCalled();
+    await waitFor(() => expect(options.chat.handleNewChat).toHaveBeenCalledWith('personal', expect.any(Function)));
+    expect(resolveProjectChatSpace).toHaveBeenLastCalledWith(expect.objectContaining({ workspaceId: 'w', projectId: 'p', userId: 'u', orgId: 'org', create: true }));
+    await waitFor(() => expect(result.current.navigation?.section).toBe('chat'));
     expect(integratedBrowserService.isAvailable).not.toHaveBeenCalled();
   });
 });

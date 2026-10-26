@@ -46,6 +46,12 @@ function openTool(name: 'Historial' | 'Contraseñas' | 'Extensiones' | 'Herramie
 }
 
 describe('IntegratedBrowserPanel', () => {
+  it('recalcula el límite superior nativo al mover el chat y al devolverlo al borde inferior', async () => {
+    const view=render(<IntegratedBrowserPanel viewportInsets={{left:0,right:24,top:48,bottom:24}} />);
+    await waitFor(()=>expect(api.setViewport).toHaveBeenCalledWith({x:200,y:128,width:776,height:528,homeInShell:true}));
+    view.rerender(<IntegratedBrowserPanel viewportInsets={{left:0,right:24,top:0,bottom:84}} />);
+    await waitFor(()=>expect(api.setViewport).toHaveBeenCalledWith({x:200,y:80,width:776,height:516,homeInShell:true}));
+  });
   let api: IntegratedBrowserApi;
   let listenerCleanup: () => void;
 
@@ -194,6 +200,32 @@ describe('IntegratedBrowserPanel', () => {
       return { x: 200, y: 80, left: 200, top: 80, right: 1000, bottom: 80 + height,
         width: 800, height, toJSON: () => ({}) };
     });
+  });
+
+  it('retira la vista web mientras el diálogo de proyecto está abierto y la restaura al cerrar', async () => {
+    render(<IntegratedBrowserPanel />);
+    await waitFor(() => expect(api.setViewport).toHaveBeenCalled());
+    const dialog = document.createElement('dialog');
+    dialog.setAttribute('data-native-browser-overlay', '');
+    dialog.setAttribute('open', '');
+    try {
+      await act(async () => { document.body.append(dialog); });
+      await waitFor(() => expect(api.hide).toHaveBeenCalledWith(true));
+      vi.mocked(api.setViewport).mockClear();
+      fireEvent.resize(window);
+      expect(api.setViewport).not.toHaveBeenCalled();
+      await act(async () => { dialog.removeAttribute('open'); });
+      await waitFor(() => expect(api.setViewport).toHaveBeenCalled());
+    } finally { dialog.remove(); }
+  });
+  it('mantiene accesibles las confirmaciones del chat flotante sobre la página nativa', async () => {
+    render(<IntegratedBrowserPanel viewportInsets={{ left: 0, right: 0, bottom: 180 }} />);
+    await waitFor(() => expect(api.setViewport).toHaveBeenCalledWith(expect.objectContaining({ height: 420 })));
+    const overlay = document.createElement('div');
+    overlay.dataset.nativeBrowserOverlay = 'true'; document.body.append(overlay);
+    await waitFor(() => expect(api.hide).toHaveBeenCalledWith(true));
+    vi.mocked(api.setViewport).mockClear(); overlay.removeAttribute('data-native-browser-overlay');
+    await waitFor(() => expect(api.setViewport).toHaveBeenCalled()); overlay.remove();
   });
 
   it('muestra el inicio interactivo sin esperar el proceso nativo', async () => {

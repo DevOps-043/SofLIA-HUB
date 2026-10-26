@@ -52,14 +52,42 @@ export function isOrbWindowRenderer(): boolean {
  * Publica el estado de sesion en el proceso main. No lanza: fuera de Electron o
  * si el puente no existe, simplemente no hay gate que actualizar.
  */
-export async function publishAuthState(state: AuthStatePublication): Promise<void> {
-  const bridge = getBridge();
-  if (!bridge) return;
-  try {
-    await bridge.setState(state);
-  } catch (error) {
-    // No se registra el estado publicado: llevaría los tokens al log del renderer.
+type PublicationSource = AuthStatePublication | (() => Promise<AuthStatePublication | null>);
+let pendingPublication: Promise<void> = Promise.resolve();
+const PUBLICATION_WAIT_MS = 10_000;
+
+export function publishAuthState(source: PublicationSource): Promise<void> {
+  // Reservar antes de obtener SOFIA: las vistas hijas pueden consultar mientras
+  // ese SDK todavía está restaurando el token. Las publicaciones no se encolan:
+  // cerrar sesión debe revocar main inmediatamente aunque otra siga pendiente.
+  const publication = (async () => {
+    const bridge = getBridge();
+    if (!bridge) return;
+    const state = typeof source === 'function' ? await source() : source;
+    if (state) await bridge.setState(state);
+  })().catch(() => {
+    // Nunca registrar el payload: contiene credenciales.
     console.warn('[Auth] No se pudo publicar el estado de sesion al proceso main.');
-    void error;
-  }
+  });
+  pendingPublication = Promise.all([pendingPublication, publication]).then(() => undefined);
+  return publication;
+}
+
+/** Espera sólo publicaciones existentes; la autorización sigue en main. */
+export async function waitForAuthStatePublication(): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const settled = async () => {
+    let observed: Promise<void>;
+    do {
+      observed = pendingPublication;
+      await observed;
+    } while (observed !== pendingPublication);
+    return true;
+  };
+  try {
+    return await Promise.race([
+      settled(),
+      new Promise<false>(resolve => { timer = setTimeout(() => resolve(false), PUBLICATION_WAIT_MS); }),
+    ]);
+  } finally { clearTimeout(timer); }
 }

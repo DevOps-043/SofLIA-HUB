@@ -13,10 +13,11 @@ export async function readProjectChatBinding(
     .eq("binding_status", "active")
     .abortSignal(signal)
     .maybeSingle();
-  if (error)
-    throw new Error(
-      "No se pudo comprobar el espacio de conversaciones del proyecto.",
-    );
+  if (error) {
+    // Instalaciones sin federación usan el espacio personal, sin depender del outbox.
+    if (['42P01', 'PGRST205', '42501'].includes(error.code)) return null;
+    throw new Error('No se pudo comprobar el espacio de conversaciones del proyecto.');
+  }
   return data && typeof data.lia_folder_id === "string"
     ? data.lia_folder_id
     : null;

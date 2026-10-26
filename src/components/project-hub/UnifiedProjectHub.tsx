@@ -6,6 +6,7 @@ import { ProjectFiles } from "../project-workspace/ProjectFiles";
 import { ProjectMilestones } from "../project-workspace/ProjectMilestones";
 import { ProjectTasks } from "../project-workspace/ProjectTasks";
 import { ProjectTeam } from "../project-workspace/ProjectTeam";
+import { ProjectGlyph } from '../project-workspace/ProjectGlyph';
 import {
   PROJECT_SECTIONS,
   type ProjectNavigation,
@@ -94,7 +95,7 @@ function ProjectDashboard(props: Props) {
           ))}
         </nav>
       )}
-      <div className="min-w-0 flex-1 overflow-y-auto custom-scrollbar p-4 md:p-7">
+      <div className={`project-dashboard-content ${section === 'tasks' ? 'is-tasks-view' : ''} min-w-0 flex-1 overflow-y-auto custom-scrollbar p-4 md:p-7`}>
         <header className="mb-6">
           <p className="mb-3 text-xs text-secondary">
             Proyectos / {project.project_key}
@@ -116,20 +117,6 @@ function ProjectDashboard(props: Props) {
                 Objetivo: {dateLabel(project.target_date)} · Actualizado:{" "}
                 {dateLabel(project.updated_at)}
               </p>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => navigate("teams")}
-              >
-                {manage ? "Añadir colaborador" : "Colaboradores"}
-              </Button>
-              {write && (
-                <Button size="sm" onClick={() => navigate("tasks")}>
-                  Añadir tarea
-                </Button>
-              )}
             </div>
           </div>
         </header>
@@ -158,6 +145,7 @@ function ProjectDashboard(props: Props) {
             workspaceId={props.workspaceId}
             projectId={props.projectId}
             kind={section}
+            onOpenBrowser={props.navigation?.onOpenBrowser}
             canWrite={write}
             canManage={manage}
             onRefresh={data.reload}
@@ -175,30 +163,27 @@ function ProjectDashboard(props: Props) {
           />
         )}
         {section === "chats" && (
-          <Card>
-            <h2 className="text-lg font-semibold">Chats del proyecto</h2>
+          <section aria-label="Conversaciones del proyecto">
+            <div className="project-resource-heading"><div><h2>Chats del proyecto</h2><p>Continúa una conversación o empieza una nueva.</p></div><div className="project-resource-actions">
+              {props.navigation && <Button size="sm" disabled={!props.navigation.canCreateChat} onClick={props.navigation.onNewChat}>Nuevo chat</Button>}
+              {props.navigation?.onRetryChats && <Button size="sm" variant="ghost" onClick={props.navigation.onRetryChats}>Actualizar chats</Button>}
+            </div></div>
             <p className="my-3 text-xs text-secondary">
-              {props.navigation?.chatMessage ||
-                "Las conversaciones permanecen en este proyecto. Su visibilidad depende de los permisos del espacio de chats."}
+              {props.navigation?.chatMessage}
             </p>
-            {props.navigation?.canCreateChat && (
-              <Button size="sm" onClick={props.navigation.onNewChat}>
-                Nuevo chat
-              </Button>
-            )}
-            <div className="mt-4 space-y-1">
+            <div className="project-chat-list">
               {props.navigation?.conversations.map((chat) => (
                 <button
                   type="button"
                   key={chat.id}
-                  className="project-nav-button text-primary"
                   onClick={() => props.navigation?.onOpenChat(chat.id)}
                 >
-                  {chat.title}
+                  <ProjectGlyph name="chats" /><span>{chat.title}<small>Actualizado {dateLabel(chat.updated_at)}</small></span>
                 </button>
               ))}
             </div>
-          </Card>
+            {!props.navigation?.chatMessage && !props.navigation?.conversations.length && <div className="project-resource-empty"><ProjectGlyph name="chats" size={34} /><h3>Tu primera conversación del proyecto</h3><p>Usa Nuevo chat para empezar a trabajar con Soflia aquí.</p></div>}
+          </section>
         )}
         {section === "milestones" && (
           <ProjectMilestones

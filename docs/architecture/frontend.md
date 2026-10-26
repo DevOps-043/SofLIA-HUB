@@ -8,6 +8,8 @@ Estado: vigente. Actualizado: 2026-07-21.
 
 ## Entrada y composicion
 
+El [chat flotante contextual](../../openspec/changes/floating-soflia-chat/design.md) reutiliza el ChatUI principal en presentación compacta desde las demás secciones y el navegador. El icono oficial abre un compositor interno de 380 px, con cabecera de 28 px sin marca/título, botones de icono para nuevo chat y modelos, asa de arrastre y minimización. El campo vacío mide 28 px y abrir con ratón no lo enfoca ni activa el resaltado de escritura; el acceso por teclado conserva el foco útil. El asa permite arrastrar o mover con flechas dentro de la superficie de la aplicación; posición y borrador sobreviven a minimizar, y los cambios de tamaño reajustan los límites. Sin selección activa de proyecto se ofrece una entrada compacta para preparar su chat autorizado, sin habilitar envíos en otra conversación. No crea una ventana del SO ni monta dos controladores de conversación. El ámbito de usuario/organización/proyecto y el cambio de conversación cancelan turnos obsoletos; la primera persistencia del borrador no corta su respuesta. El navegador mantiene el layout lateral compatible y usa el dock inferior inicialmente. Al moverlo reserva el mayor rectángulo nativo disponible que no intersecta el panel mediante los insets renderer existentes y un desplazamiento superior opcional; durante el arrastre, o si no queda una región operable en una ventana pequeña, retira temporalmente WebContentsView con la guarda de overlays existente. Las vistas previas de archivos usan el diálogo interno sin desmontar el chat.
+
 `src/main.tsx` monta `App`; `src/App.tsx` envuelve la aplicacion en
 `AuthProvider`, renderiza `AppContent` y mantiene `UpdateNotification` global.
 No se usa React Router: `ActiveView` es la union `chat | project | project-hub |
@@ -34,6 +36,28 @@ cerrar sin sesión, mediante `src/services/window-controls-service.ts` y la API
 preload existente. La región libre de la barra permite arrastrar la ventana.
 La tarjeta se centra en el espacio restante cuando cabe; si no cabe, se desplaza
 verticalmente sin ocultar la barra.
+
+### Recuperación de datos al iniciar sesión
+
+La publicación de sesión reserva su espera antes de obtener los tokens SOFIA.
+El wrapper de Project Hub espera las publicaciones pendientes antes de consultar
+estado; después de diez segundos devuelve `SOFIA_SESSION_PENDING` sin adelantar
+la llamada IPC. Las publicaciones siguen siendo concurrentes para no retrasar
+logout; main conserva la validación de identidad y la revisión vigente.
+
+La restauración Lia comparte intentos simultáneos del mismo correo y token, y
+sincroniza el perfil una vez, en segundo plano. Un fallo del perfil no degrada una
+sesión válida. Los eventos SOFIA difieren el trabajo al siguiente turno del bucle
+para liberar el callback de Auth; `INITIAL_SESSION` lo cubre la restauración
+explícita y logout cancela los eventos todavía programados.
+
+La vista de conversaciones muestra carga durante dos intentos automáticos; sólo
+al agotarlos presenta el error y su reintento manual. En la vista de chat el
+mensaje accionable se concentra en ese panel, sin repetir el aviso en sidebar ni
+en la banda superior. Proyectos recupera códigos transitorios hasta tres veces;
+durante esos intentos muestra carga y conserva el rechazo real cuando persiste.
+Desmontar cancela nuevos intentos; las solicitudes ya enviadas pueden terminar.
+Ver [especificación y evidencia](../../openspec/changes/fix-login-data-loading/proposal.md).
 
 ### Adjuntos de contexto del turno
 

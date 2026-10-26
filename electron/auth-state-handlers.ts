@@ -124,12 +124,6 @@ export function registerAuthStateHandlers(): void {
     }
 
     if (revision !== publication) return { ok: false, state: getAuthState() };
-    if (authenticated && parsed.sofiaAccessToken) {
-      const projectHubExchange = await getProjectHubApiService().exchangeSofiaToken(parsed.sofiaAccessToken);
-      if (!projectHubExchange.success) {
-        console.warn(`[ProjectHub] Canje SOFIA rechazado (${projectHubExchange.code || 'UNKNOWN'}): ${projectHubExchange.error || 'sin detalle'}`);
-      }
-    }
 
     return { ok: true, state };
   });

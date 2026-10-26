@@ -14,6 +14,7 @@ export interface MainSupabaseClientInput {
    * SDK, que en Electron escribiria en un almacenamiento sin cifrar.
    */
   withUserSession?: boolean;
+  fetch?: typeof globalThis.fetch;
 }
 
 export interface MainSupabaseClientResult {
@@ -48,7 +49,7 @@ export function createMainSupabaseClient(input: MainSupabaseClientInput): MainSu
           detectSessionInUrl: false,
         },
         global: {
-          fetch: createSupabaseFetch({
+          fetch: input.fetch ?? createSupabaseFetch({
             serviceName: input.serviceName,
             stripIncomingSignal: true,
           }),

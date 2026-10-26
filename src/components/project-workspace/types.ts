@@ -13,12 +13,14 @@ export type ProjectSection =
   | "activity"
   | "chat";
 export interface ProjectNavigation {
+  browserProject?: ProjectBrowserTarget;
   name: string;
   section: ProjectSection;
   conversations: Conversation[];
   currentConversationId: string | null;
   canCreateChat: boolean;
   chatMessage?: string;
+  onRetryChats?: () => void;
   browserOpen: boolean;
   onNavigate: (section: ProjectSection) => void;
   onBack: () => void;
@@ -27,6 +29,13 @@ export interface ProjectNavigation {
   onOpenBrowser: () => void;
   onBrowserNewChat?: () => Promise<void>;
   onBrowserOpenChat?: (id: string) => Promise<void>;
+}
+export interface ProjectBrowserTarget {
+  organizationId: string;
+  workspaceId: string;
+  projectId: string;
+  name: string;
+  canWrite: boolean;
 }
 export const PROJECT_SECTIONS: Array<{
   id: Exclude<ProjectSection, "chat">;

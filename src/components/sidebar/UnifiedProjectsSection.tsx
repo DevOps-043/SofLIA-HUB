@@ -1,133 +1,93 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { projectHubApi, type ProjectHubProject } from '../../services/project-hub-api';
+import type { ProjectOrganization } from '../../shared/project-creation';
 import type { SidebarProps } from './types';
 import { SidebarSectionLabel } from './SidebarSectionLabel';
+import { CreateProjectModal } from '../project-creation/CreateProjectModal';
 
-interface ListedProject extends ProjectHubProject { workspaceName: string }
-
-const AUTO_RETRY_DELAY_MS = 3_000;
+const AUTO_RETRY_DELAYS_MS = [300, 1_000, 3_000];
 const RECOVERABLE_CODES = new Set(['UNAVAILABLE', 'TIMEOUT', 'NOT_AUTHENTICATED', 'SOFIA_SESSION_PENDING']);
 
 export function UnifiedProjectsSection({ props }: { props: SidebarProps }) {
-  const [projects, setProjects] = useState<ListedProject[]>([]);
-  const [workspaces, setWorkspaces] = useState<Array<{ id: string; name: string; role: string }>>([]);
-  const [loading, setLoading] = useState(false);
+  // Remontar invalida también el diálogo al cambiar de actor u organización.
+  return <OrganizationProjects key={`${props.userEmail || ''}/${props.currentOrgId || ''}`} props={props} />;
+}
+function OrganizationProjects({ props }: { props: SidebarProps }) {
+  const [projects, setProjects] = useState<ProjectHubProject[]>([]);
+  const [organization, setOrganization] = useState<ProjectOrganization | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creatorOpen, setCreatorOpen] = useState(false);
-  const [projectName, setProjectName] = useState('');
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('');
-  const [creating, setCreating] = useState(false);
   const [autoRetry, setAutoRetry] = useState(false);
+  const [retryRevision, setRetryRevision] = useState(0);
   const loadSequence = useRef(0);
-
-  const load = useCallback(async (retryAuthentication = false) => {
+  const retryCount = useRef(0);
+  const currentOrgId = props.currentOrgId;
+  const load = useCallback(async (retryAuthentication = false, automatic = false) => {
+    if (!automatic) retryCount.current = 0;
     const sequence = ++loadSequence.current;
-    setLoading(true);
-    setError(null);
-    let status = await projectHubApi.status();
-    if (retryAuthentication && status.success && !status.data?.authenticated) {
-      await projectHubApi.retryAuthentication();
-      status = await projectHubApi.status();
-    }
-    if (sequence !== loadSequence.current) return;
-    if (!status.success || status.data?.configured === false || status.data?.enabled === false || !status.data?.authenticated) {
-      setError(status.error || status.data?.authError?.error || (status.data?.configured === false
-        ? 'Project Hub no está configurado en esta versión de Soflia Hub.'
-        : 'Project Hub no está conectado.'));
-      setAutoRetry(RECOVERABLE_CODES.has(status.code || status.data?.authError?.code || ''));
-      setLoading(false);
-      return;
-    }
-    setWorkspaces(status.data.workspaces);
-    setSelectedWorkspaceId((current) => current || status.data!.workspaces[0]?.id || '');
-    const results = await Promise.all(status.data.workspaces.map(async (workspace) => ({ workspace, result: await projectHubApi.listProjects(workspace.id) })));
-    if (sequence !== loadSequence.current) return;
-    setProjects(results.flatMap(({ workspace, result }) => (result.data || []).map((project) => ({ ...project, workspaceName: workspace.name }))));
-    const failed = results.find(({ result }) => !result.success)?.result;
-    setError(failed?.error || null);
-    setAutoRetry(Boolean(failed && RECOVERABLE_CODES.has(failed.code || '')));
-    setLoading(false);
-  }, []);
-
+    setLoading(true); setError(null); setAutoRetry(false);
+    if (!currentOrgId) { setProjects([]); setOrganization(null); setError('Selecciona una organización para ver sus proyectos.'); setLoading(false); return; }
+    try {
+      let status = await projectHubApi.status();
+      if (sequence !== loadSequence.current) return;
+      if (retryAuthentication && status.success && !status.data?.authenticated) {
+        await projectHubApi.retryAuthentication();
+        if (sequence !== loadSequence.current) return;
+        status = await projectHubApi.status();
+      }
+      if (sequence !== loadSequence.current) return;
+      if (!status.success || status.data?.configured === false || status.data?.enabled === false || !status.data?.authenticated) {
+        setOrganization(null); setProjects([]);
+        setError(status.error || status.data?.authError?.error || 'No se pudo conectar con los proyectos de esta organización.');
+        setAutoRetry(retryCount.current < AUTO_RETRY_DELAYS_MS.length && RECOVERABLE_CODES.has(status.code || status.data?.authError?.code || ''));
+        return;
+      }
+      const resolved = await projectHubApi.resolveOrganization(currentOrgId);
+      if (sequence !== loadSequence.current) return;
+      if (!resolved.success || !resolved.data) { setOrganization(null); setProjects([]); setError(resolved.error || 'No se pudo comprobar la organización del proyecto.'); setAutoRetry(retryCount.current < AUTO_RETRY_DELAYS_MS.length && RECOVERABLE_CODES.has(resolved.code || '')); return; }
+      const scoped = resolved.data;
+      setOrganization(scoped);
+      const result = await projectHubApi.listProjects(scoped.workspaceId);
+      if (sequence !== loadSequence.current) return;
+      setProjects(result.success ? (result.data || []).filter(project => project.workspace_id === scoped.workspaceId) : []);
+      setError(result.success ? null : result.error || 'No se pudieron cargar los proyectos.');
+      setAutoRetry(!result.success && retryCount.current < AUTO_RETRY_DELAYS_MS.length && RECOVERABLE_CODES.has(result.code || ''));
+    } catch { if (sequence === loadSequence.current) { setProjects([]); setOrganization(null); setError('No se pudieron cargar los proyectos. Reintenta la conexión.'); } }
+    finally { if (sequence === loadSequence.current) { setLoading(false); setRetryRevision(value => value + 1); } }
+  }, [currentOrgId]);
+  const invalidate = useCallback(() => { loadSequence.current++; }, []);
   useEffect(() => {
     const timer = window.setTimeout(() => { void load(true); }, 0);
-    return () => { window.clearTimeout(timer); };
-  }, [load]);
-
+    return () => { window.clearTimeout(timer); invalidate(); };
+  }, [load, invalidate]);
   useEffect(() => {
-    if (!autoRetry) return;
-    const timer = window.setTimeout(() => { void load(true); }, AUTO_RETRY_DELAY_MS);
-    return () => { window.clearTimeout(timer); };
-  }, [autoRetry, error, load]);
-
-  const openCreator = () => {
-    if (!workspaces.length) return setError('No hay un workspace disponible.');
-    setSelectedWorkspaceId((current) => current || workspaces[0].id);
-    setProjectName('');
-    setCreatorOpen(true);
-    setError(null);
-  };
-
-  const createProject = async (event: FormEvent) => {
-    event.preventDefault();
-    const name = projectName.trim();
-    if (!name || !selectedWorkspaceId || creating) return;
-    setCreating(true);
-    setError(null);
-    const result = await projectHubApi.createProject(selectedWorkspaceId, { name, priority: 'medium', tags: [] });
-    setCreating(false);
-    if (!result.success || !result.data) return setError(result.error || 'No se pudo crear el proyecto.');
+    if (!autoRetry || retryCount.current >= AUTO_RETRY_DELAYS_MS.length) return;
+    const timer = window.setTimeout(() => {
+      retryCount.current++;
+      void load(true, true);
+    }, AUTO_RETRY_DELAYS_MS[retryCount.current]);
+    return () => window.clearTimeout(timer);
+  }, [autoRetry, retryRevision, load]);
+  const created = (project: ProjectHubProject) => {
+    if (!organization || project.workspace_id !== organization.workspaceId) return;
     setCreatorOpen(false);
-    setProjectName('');
-    await load();
-    props.onOpenUnifiedProject?.(selectedWorkspaceId, result.data.project_id);
+    props.onOpenUnifiedProject?.(organization.workspaceId, project.project_id);
+    void load();
   };
-
-  return (
-    <>
-      {props.isOpen && <SidebarSectionLabel label="Proyectos" action={<div className="flex gap-1">
-        <button onClick={() => void load(true)} className="grid h-6 w-6 place-items-center rounded-lg hover:bg-gray-100 dark:hover:bg-white/[0.06]" title="Actualizar proyectos">↻</button>
-        <button onClick={openCreator} className="grid h-6 w-6 place-items-center rounded-lg bg-[#0A2540] text-white dark:bg-accent dark:text-[#071018]" title="Crear proyecto">+</button>
-      </div>} />}
-      {props.isOpen && creatorOpen && (
-        <form onSubmit={(event) => void createProject(event)} className="mx-2 mb-2 space-y-2 rounded-xl border border-gray-200 bg-white p-2 shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
-          <label className="block text-[10px] font-semibold text-secondary dark:text-white/70">
-            Nombre del proyecto
-            <input
-              autoFocus
-              value={projectName}
-              onChange={(event) => setProjectName(event.target.value)}
-              maxLength={255}
-              placeholder="Ej. Lanzamiento Q4"
-              className="mt-1 h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-[11px] text-[#0A2540] outline-none focus:border-accent dark:border-white/10 dark:bg-[#0a0e14] dark:text-white"
-            />
-          </label>
-          {workspaces.length > 1 && (
-            <label className="block text-[10px] font-semibold text-secondary dark:text-white/70">
-              Workspace
-              <select
-                value={selectedWorkspaceId}
-                onChange={(event) => setSelectedWorkspaceId(event.target.value)}
-                className="mt-1 h-8 w-full rounded-lg border border-gray-200 bg-white px-2 text-[11px] text-[#0A2540] outline-none dark:border-white/10 dark:bg-[#0a0e14] dark:text-white"
-              >
-                {workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name}</option>)}
-              </select>
-            </label>
-          )}
-          <div className="flex justify-end gap-1.5">
-            <button type="button" onClick={() => setCreatorOpen(false)} className="rounded-lg px-2 py-1 text-[10px] text-secondary hover:bg-gray-100 dark:text-white/60 dark:hover:bg-white/[0.06]">Cancelar</button>
-            <button type="submit" disabled={!projectName.trim() || creating} className="rounded-lg bg-[#0A2540] px-2.5 py-1 text-[10px] font-semibold text-white disabled:opacity-40 dark:bg-accent dark:text-[#071018]">{creating ? 'Creando…' : 'Crear'}</button>
-          </div>
-        </form>
-      )}
-      {props.isOpen && loading && <p className="px-3 py-2 text-[11px] text-secondary/70">Cargando proyectos…</p>}
-      {props.isOpen && error && <button onClick={() => void load(true)} className="mx-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-left text-[10px] text-amber-800">{error} Reintentar</button>}
-      {projects.map((project) => <button key={project.project_id} onClick={() => props.onOpenUnifiedProject?.(project.workspace_id, project.project_id)}
-        className={`flex min-h-9 w-full items-center gap-2 rounded-xl px-2 text-left text-[12px] transition-colors ${props.activeUnifiedProjectId === project.project_id ? 'bg-[#0A2540]/10 font-semibold text-[#0A2540] dark:bg-accent/10 dark:text-accent' : 'text-secondary hover:bg-gray-100 dark:text-white/60 dark:hover:bg-white/[0.04]'}`}
-        title={`${project.workspaceName} · ${project.project_key}`}>
-        <span className="h-2 w-2 rounded-full bg-emerald-400" /><span className="min-w-0 flex-1 truncate">{project.project_name}</span><span className="text-[9px] tabular-nums opacity-60">{project.completion_percentage}%</span>
-      </button>)}
-      {props.isOpen && !loading && !error && projects.length === 0 && <p className="px-3 py-2 text-[11px] text-secondary/60">Aún no hay proyectos.</p>}
-    </>
-  );
+  const recovering = autoRetry;
+  return <>
+    {props.isOpen && <SidebarSectionLabel label="Proyectos" action={<div className="flex gap-1">
+      <button disabled={loading || recovering} onClick={() => void load(true)} className="grid h-6 w-6 place-items-center rounded-lg hover:bg-surface-2 disabled:opacity-40" title="Actualizar proyectos" aria-label="Actualizar proyectos">↻</button>
+      <button disabled={!organization || loading} onClick={() => setCreatorOpen(true)} className="grid h-6 w-6 place-items-center rounded-lg bg-primary text-card disabled:opacity-40 dark:bg-accent dark:text-on-accent" title="Crear proyecto" aria-label="Crear proyecto">+</button>
+    </div>} />}
+    {creatorOpen && organization && currentOrgId && <CreateProjectModal organizationId={currentOrgId} workspaceId={organization.workspaceId} onClose={() => setCreatorOpen(false)} onCreated={created} />}
+    {props.isOpen && (loading || recovering) && <p role="status" className="px-3 py-2 text-[11px] text-secondary">Cargando proyectos…</p>}
+    {props.isOpen && error && !loading && !recovering && <button onClick={() => void load(true)} className="mx-2 rounded-lg border border-warning/30 bg-warning/10 px-2 py-1.5 text-left text-[10px] text-primary">{error} Reintentar</button>}
+    {projects.map(project => <button key={project.project_id} onClick={() => props.onOpenUnifiedProject?.(project.workspace_id, project.project_id)}
+      className={`flex min-h-9 w-full items-center gap-2 rounded-xl px-2 text-left text-[12px] transition-colors ${props.activeUnifiedProjectId === project.project_id ? 'bg-primary/10 font-semibold text-primary dark:bg-accent/10 dark:text-accent' : 'text-secondary hover:bg-surface-2'}`} title={`${props.orgName || organization?.name} · ${project.project_key}`}>
+      <span className="h-2 w-2 rounded-full bg-success" /><span className="min-w-0 flex-1 truncate">{project.project_name}</span><span className="text-[9px] tabular-nums opacity-60">{project.completion_percentage}%</span>
+    </button>)}
+    {props.isOpen && !loading && !error && projects.length === 0 && <p className="px-3 py-2 text-[11px] text-secondary">Aún no hay proyectos.</p>}
+  </>;
 }

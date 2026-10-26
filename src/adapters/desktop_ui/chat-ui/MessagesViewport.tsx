@@ -13,9 +13,9 @@ export function MessagesViewport({ controller }: { controller: ChatUIController 
       <ChatHeader controller={controller} />
       {!controller.props.canSendMessages && <ReadOnlyBanner reason={controller.props.readOnlyReason} />}
       {messages.length === 0 && !chat.showLoadingUI ? (
-        <EmptyChatState />
+        controller.props.floating ? null : <EmptyChatState />
       ) : (
-        <MessageList controller={controller} />
+        <MessageList controller={controller} floating={controller.props.floating} />
       )}
     </div>
   );

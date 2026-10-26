@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProjectTasks } from '../../components/project-workspace/ProjectTasks';
 import { ProjectMilestones } from '../../components/project-workspace/ProjectMilestones';
@@ -21,9 +21,55 @@ afterEach(()=>{cleanup();vi.unstubAllGlobals();delete (window as Window & {proje
 const fill=(label:string,value:string)=>fireEvent.change(screen.getByLabelText(label),{target:{value}});
 async function choose(label:string,value:string){fireEvent.click(screen.getByRole('combobox',{name:label}));fireEvent.click(await screen.findByRole('option',{name:value}));}
 describe('Gestión de tareas en la misma interfaz',()=>{
- it('crea una tarea con descripción, responsable, prioridad y fecha',async()=>{
-  render(<ProjectTasks {...props}/>);await screen.findByText('Aún no hay tareas visibles con estos filtros.');fireEvent.click(screen.getByRole('button',{name:'Nueva tarea'}));fill('Título de la tarea','Preparar lanzamiento');fill('Descripción','Validar la entrega con el equipo');fill('Fecha límite','2026-12-01');await choose('Responsable','Ana');await choose('Prioridad','Alta');fill('Estimación en puntos','5');fireEvent.click(screen.getByRole('button',{name:'Guardar tarea'}));
-  await waitFor(()=>expect(bridge.createTask).toHaveBeenCalledWith(expect.objectContaining({workspaceId:w,projectId:p,task:expect.objectContaining({title:'Preparar lanzamiento',description:'Validar la entrega con el equipo',assignee_id:user,priority_id:id,due_date:'2026-12-01',estimate_points:5})})));expect(props.onRefresh).toHaveBeenCalledOnce();
+ it('abre una ventana fuera del tablero y devuelve el foco al cerrar',async()=>{
+  render(<ProjectTasks {...props}/>);await screen.findByText(/Aún no hay tareas visibles/);
+  const trigger=screen.getByRole('button',{name:'Nueva tarea'});trigger.focus();fireEvent.click(trigger);
+  const dialog=screen.getByRole('dialog',{name:'Nueva tarea'});
+  expect(dialog.parentElement).toBe(document.body);expect(dialog.contains(screen.getByLabelText('Tablero de tareas'))).toBe(false);
+  expect(screen.getByLabelText('Título de la tarea')).toHaveFocus();
+  fireEvent.click(within(dialog).getByRole('button',{name:'Cerrar ventana'}));expect(screen.queryByRole('dialog')).toBeNull();expect(trigger).toHaveFocus();
+ });
+ it('ofrece las siete fases incluso si faltan estados y envía la fase solicitada al guardar',async()=>{
+  bridge.getTaskOptions.mockResolvedValue(ok({statuses:[],can_manage_statuses:true}));render(<ProjectTasks {...props}/>);await screen.findByText(/Aún no hay tareas visibles/);fireEvent.click(screen.getByRole('button',{name:'Nueva tarea'}));
+  fireEvent.click(screen.getByRole('combobox',{name:'Estado'}));
+  expect(screen.getAllByRole('option').map(option=>option.textContent)).toHaveLength(7);
+  fireEvent.click(screen.getByRole('option',{name:/En curso/}));fill('Título de la tarea','Coordinar entrega');fireEvent.click(screen.getByRole('button',{name:'Guardar tarea'}));
+  await waitFor(()=>expect(bridge.createTask).toHaveBeenCalledWith(expect.objectContaining({task:expect.objectContaining({status_stage:'in_progress'})})));
+ });
+ it('guarda inicio, foto, documento, página y chat en la misma tarea con URLs saneadas',async()=>{
+  render(<ProjectTasks {...props}/>);await screen.findByText(/Aún no hay tareas visibles/);fireEvent.click(screen.getByRole('button',{name:'Nueva tarea'}));
+  fill('Título de la tarea','Lanzamiento');fill('Fecha de inicio','2026-11-01');fill('Fecha límite','2026-11-10');
+  for (const [i,type] of ['Foto','Documento','Página web','Chat del equipo'].entries()) {
+   fireEvent.click(screen.getByRole('button',{name:'Añadir vínculo'}));await choose(`Tipo del recurso ${i+1}`,type);fill(`Nombre del recurso ${i+1}`,type);fill(`Enlace del recurso ${i+1}`,`https://example.test/${i}?token=privado`);
+  }
+  fireEvent.click(screen.getByRole('button',{name:'Guardar tarea'}));
+  await waitFor(()=>expect(bridge.createTask).toHaveBeenCalledWith(expect.objectContaining({task:expect.objectContaining({started_at:'2026-11-01T00:00:00.000Z',external_links:[{type:'photo',name:'Foto',url:'https://example.test/0'},{type:'document',name:'Documento',url:'https://example.test/1'},{type:'web',name:'Página web',url:'https://example.test/2'},{type:'team_chat',name:'Chat del equipo',url:'https://example.test/3'}]})})));
+ });
+ it('rechaza fechas invertidas y protocolos inseguros sin perder el borrador',async()=>{
+  render(<ProjectTasks {...props}/>);await screen.findByText(/Aún no hay tareas visibles/);fireEvent.click(screen.getByRole('button',{name:'Nueva tarea'}));fill('Título de la tarea','Conservar borrador');fill('Fecha de inicio','2026-12-02');fill('Fecha límite','2026-12-01');
+  fireEvent.submit(screen.getByRole('button',{name:'Guardar tarea'}).closest('form')!);expect(await screen.findByRole('alert')).toHaveTextContent(/fecha de inicio/);expect(bridge.createTask).not.toHaveBeenCalled();
+  fill('Fecha límite','2026-12-03');fireEvent.click(screen.getByRole('button',{name:'Añadir vínculo'}));fill('Nombre del recurso 1','Archivo');fill('Enlace del recurso 1','javascript:alert(1)');fireEvent.submit(screen.getByRole('button',{name:'Guardar tarea'}).closest('form')!);
+  expect(await screen.findByRole('alert')).toHaveTextContent(/HTTP o HTTPS/);expect(screen.getByLabelText('Título de la tarea')).toHaveValue('Conservar borrador');expect(bridge.createTask).not.toHaveBeenCalled();
+  fill('Enlace del recurso 1','sin-url');fireEvent.submit(screen.getByRole('button',{name:'Guardar tarea'}).closest('form')!);expect(await screen.findByRole('alert')).toHaveTextContent(/HTTP o HTTPS/);expect(bridge.createTask).not.toHaveBeenCalled();
+ });
+ it('conserva la hora original y referencias heredadas al editar otro campo',async()=>{
+  bridge.listTasks.mockResolvedValue(ok([{issue_id:id,title:'Tarea anterior',status_id:id,started_at:'2026-10-23T16:45:00Z',external_links:[{legacy:'referencia anterior'}],updated_at:date}]));render(<ProjectTasks {...props}/>);fireEvent.click(await screen.findByRole('button',{name:/Tarea anterior/}));
+  expect(screen.getByLabelText('Fecha de inicio')).toHaveValue('2026-10-23');fill('Título de la tarea','Tarea revisada');fireEvent.click(screen.getByRole('button',{name:'Guardar tarea'}));
+  await waitFor(()=>expect(bridge.updateTask).toHaveBeenCalled());const updates=bridge.updateTask.mock.calls[0][0].updates;expect(updates.started_at).toBe('2026-10-23T16:45:00Z');expect(updates).not.toHaveProperty('external_links');
+ });
+ it('reabre recursos y permite retirar la referencia sin borrar el archivo remoto',async()=>{
+  bridge.listTasks.mockResolvedValue(ok([{issue_id:id,title:'Con recursos',status_id:id,external_links:[{type:'photo',name:'Foto del equipo',url:'https://example.test/foto.png'}],updated_at:date}]));render(<ProjectTasks {...props}/>);fireEvent.click(await screen.findByRole('button',{name:/Con recursos/}));
+  expect(screen.getByLabelText('Nombre del recurso 1')).toHaveValue('Foto del equipo');fireEvent.click(screen.getByRole('button',{name:'Quitar recurso 1'}));fireEvent.click(screen.getByRole('button',{name:'Guardar tarea'}));
+  await waitFor(()=>expect(bridge.updateTask).toHaveBeenCalledWith(expect.objectContaining({updates:expect.objectContaining({external_links:[]})})));
+ });
+ it('permite reintentar opciones dentro de la ventana sin perder el borrador',async()=>{
+  bridge.getTaskOptions.mockResolvedValueOnce({success:false,error:'No se pudieron consultar las opciones'}).mockResolvedValue(ok({statuses:[{status_id:id,name:'Por hacer',status_type:'todo'}]}));
+  render(<ProjectTasks {...props}/>);await screen.findByText('No se pudieron consultar las opciones');fireEvent.click(screen.getByRole('button',{name:'Nueva tarea'}));fill('Título de la tarea','Mi borrador');fireEvent.click(within(screen.getByRole('dialog')).getByRole('button',{name:'Reintentar opciones'}));
+  await waitFor(()=>expect(screen.getByRole('combobox',{name:'Estado'})).toHaveTextContent('Por hacer'));expect(screen.getByLabelText('Título de la tarea')).toHaveValue('Mi borrador');
+ });
+ it('crea una tarea con descripción, responsable, dificultad y fecha',async()=>{
+  render(<ProjectTasks {...props}/>);await screen.findByText(/Aún no hay tareas visibles con estos filtros/);fireEvent.click(screen.getByRole('button',{name:'Nueva tarea'}));fill('Título de la tarea','Preparar lanzamiento');fill('Descripción','Validar la entrega con el equipo');fill('Fecha límite','2026-12-01');await choose('Responsable','Ana');await choose('Dificultad','Media');fireEvent.click(screen.getByRole('button',{name:'Guardar tarea'}));
+  await waitFor(()=>expect(bridge.createTask).toHaveBeenCalledWith(expect.objectContaining({workspaceId:w,projectId:p,task:expect.objectContaining({title:'Preparar lanzamiento',description:'Validar la entrega con el equipo',assignee_id:user,priority_id:null,due_date:'2026-12-01',estimate_points:5})})));expect(props.onRefresh).toHaveBeenCalledOnce();
  });
  it('edita un registro y envía la revisión leída',async()=>{
   bridge.listTasks.mockResolvedValue(ok([{issue_id:id,title:'Tarea existente',status_id:id,updated_at:date}]));render(<ProjectTasks {...props}/>);fireEvent.click(await screen.findByRole('button',{name:/Tarea existente/}));fill('Título de la tarea','Título corregido');fireEvent.click(screen.getByRole('button',{name:'Guardar tarea'}));await waitFor(()=>expect(bridge.updateTask).toHaveBeenCalledWith(expect.objectContaining({taskId:id,updates:expect.objectContaining({title:'Título corregido',expected_updated_at:date})})));
@@ -36,7 +82,7 @@ describe('Gestión de tareas en la misma interfaz',()=>{
   bridge.listTasks.mockResolvedValue(ok([{issue_id:id,title:'Tarea visible'}]));render(<ProjectTasks {...props} canWrite={false} canManage={false}/>);fireEvent.click(await screen.findByRole('button',{name:/Tarea visible/}));expect(screen.getByLabelText('Título de la tarea')).toBeDisabled();expect(screen.queryByRole('button',{name:'Nueva tarea'})).toBeNull();expect(screen.queryByRole('button',{name:'Guardar tarea'})).toBeNull();expect(screen.queryByRole('button',{name:'Archivar tarea'})).toBeNull();
  });
  it('un resultado incierto bloquea la repetición automática de una creación',async()=>{
-  bridge.createTask.mockResolvedValue({success:false,uncertain:true,error:'Tiempo agotado'});render(<ProjectTasks {...props}/>);fireEvent.click(screen.getByRole('button',{name:'Nueva tarea'}));fill('Título de la tarea','Tarea con resultado incierto');fireEvent.click(screen.getByRole('button',{name:'Guardar tarea'}));await screen.findByText(/No se pudo verificar el resultado/);expect(screen.getByRole('button',{name:'Guardar tarea'})).toBeDisabled();fireEvent.click(screen.getByRole('button',{name:'Guardar tarea'}));expect(bridge.createTask).toHaveBeenCalledOnce();
+  bridge.createTask.mockResolvedValue({success:false,uncertain:true,error:'Tiempo agotado'});render(<ProjectTasks {...props}/>);await screen.findByText(/Aún no hay tareas visibles/);fireEvent.click(screen.getByRole('button',{name:'Nueva tarea'}));fill('Título de la tarea','Tarea con resultado incierto');fireEvent.click(screen.getByRole('button',{name:'Guardar tarea'}));await screen.findByText(/No se pudo verificar el resultado/);expect(screen.getByRole('button',{name:'Guardar tarea'})).toBeDisabled();fireEvent.click(screen.getByRole('button',{name:'Guardar tarea'}));expect(bridge.createTask).toHaveBeenCalledOnce();
  });
  it('una respuesta anterior a un cambio de filtro nunca repone datos obsoletos',async()=>{
   let release!:(value:ProjectHubResult)=>void;bridge.listTasks.mockImplementationOnce(()=>new Promise(resolve=>{release=resolve;})).mockResolvedValueOnce(ok([{issue_id:user,title:'Resultado actual'}]));render(<ProjectTasks {...props}/>);await waitFor(()=>expect(bridge.listTasks).toHaveBeenCalledOnce());fill('Buscar tareas','actual');await screen.findByRole('button',{name:/Resultado actual/});await act(async()=>release(ok([{issue_id:id,title:'Respuesta obsoleta'}])));expect(screen.queryByRole('button',{name:/Respuesta obsoleta/})).toBeNull();

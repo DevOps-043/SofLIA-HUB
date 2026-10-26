@@ -5,6 +5,8 @@ Estado: vigente. Actualizado: 2026-10-22.
 Inventario de defaults y topes con impacto operativo. Los overrides guardados en
 `userData` pueden cambiar el valor efectivo de un host.
 
+El chat flotante contextual lee al enviar: 12000 caracteres de texto renderer, recorrido de hasta 8000 nodos de texto, sin campos editables, panel ni regiones privadas. Navegador: 8000 ms por preparación, 16000 caracteres de DOM y hasta 60 nombres/refs de controles (200 caracteres por nombre), una captura de imagen de hasta 8 MiB si está disponible. No añade polling. El dock mide 460 px como máximo de ancho y se adapta al contenedor; vacío muestra sólo cabecera y compositor, con respuestas ocupa hasta 520 px o 70vh. El selector abierto sin historial ocupa hasta 360 px. En el navegador acota su altura para conservar un área web operable de al menos 120 px. Fuentes: `src/services/floating-chat-context.ts`, `src/components/browser/BrowserFloatingWorkspace.tsx` y [diseño](../../openspec/changes/floating-soflia-chat/design.md).
+
 <!-- evidence: electron/desktop-agent/agent-config.ts -->
 <!-- evidence: electron/memory/constants.ts -->
 <!-- evidence: electron/memory/model-config.ts -->
@@ -79,6 +81,9 @@ del coordinador ni constituyen un límite monetario. Ver
 | notas de release | 8000 caracteres | `src/components/update-notes/SafeReleaseNotes.tsx` |
 | updater polling | 4 h | `electron/updater/constants.ts` |
 | espera del guardado de sesión antes de salir/instalar | 5000 ms por espera; timeout ofrece reintentar/cancelar/salir sin guardar, nunca concede salida por sí solo | `electron/main/shutdown-guard.ts` |
+| espera de publicación de auth antes del estado de proyectos | 10.000 ms; devuelve sesión pendiente al agotarse, sin ampliar permisos | `src/services/auth-state.ts` |
+| recuperación automática de proyectos | 3 reintentos, tras 300 / 1000 / 3000 ms desde el fallo anterior; manual reinicia el presupuesto | `src/components/sidebar/UnifiedProjectsSection.tsx` |
+| recuperación inicial de conversaciones | 2 intentos tras 500 / 2000 ms, sin solapamiento; después conserva reintento manual | `src/app/ChatUnavailableState.tsx` |
 
 ## Navegador integrado
 
@@ -474,6 +479,10 @@ Esta simplificación no introduce cuotas, timers ni presupuesto de red nuevo.
 Fuente: `electron/wa-agent/agent-loop-tools.ts` y los ejecutores Gmail.
 
 ## Sesiones y HTTP de Project Hub
+
+La conexión directa vigente incorpora ámbito de Learning a las peticiones REST de IRIS desde main y rechaza redirecciones y cambios de revisión de organización. El verificador SQL acepta token ASCII de 20–16384 caracteres, clave pública de 20–4096 y organización UUID; sólo consulta el RPC fijo de Learning. HTTP de base tiene timeout de 3000 ms y conexión de 1500 ms, con verificación TLS y sin caché de membresías. El contexto verificado dura la transacción y no se hereda en Storage/Realtime. Fuentes: `electron/iris/project-session-fetch.ts` y `database/iris/migrations/20261025003232_hub_project_storage_rls.sql`. El [diseño vigente](../../openspec/changes/unify-project-resources-and-chats/design.md) describe las políticas y recuperación.
+
+Los límites de custodia y transporte siguientes corresponden al adaptador web anterior, conservado para consumidores explícitos y pruebas. Los marcadores simples del navegador se guardan por acción explícita sin revisión técnica nativa; las demás revisiones existentes conservan sus límites.
 
 Custodia: 4 MiB de JSON y 8 MiB cifrados por usuario; propietario de 1–256
 caracteres, tokens ASCII imprimibles sin espacios de 1–65536 y hasta 1000

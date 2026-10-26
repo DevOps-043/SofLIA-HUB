@@ -5,7 +5,13 @@ import type { UserAISettings } from '../services/settings-service';
 import type { BrowserSelectionActionRequest } from '../services/integrated-browser-service';
 
 interface AppChatViewProps {
+  scopeKey?: string;
+  floating?: boolean;
+  readVisibleContext?: import('../services/floating-chat-context').FloatingContextReader;
+  onBackToProject?: () => void;
+  canWriteProjectChat?: boolean;
   compact?: boolean;
+  browserOpen?: boolean;
   avatarUrl?: string;
   canShareConversation: boolean;
   chat: ChatState;
@@ -33,9 +39,13 @@ export function AppChatView(props: AppChatViewProps) {
 
   return (
     <ChatUI
+      key={props.scopeKey}
+      floating={props.floating}
+      readVisibleContext={props.readVisibleContext}
+      onBackToProject={props.onBackToProject}
       compact={props.compact}
       conversationId={props.chat.currentConversationId}
-      browserOpen={props.compact}
+      browserOpen={props.browserOpen ?? props.compact}
       messages={props.chat.currentMessages}
       onMessagesChange={props.onMessagesChange}
       externalPrompt={props.externalPrompt}
@@ -50,8 +60,8 @@ export function AppChatView(props: AppChatViewProps) {
       } : undefined}
       userAvatar={props.avatarUrl}
       onShare={props.canShareConversation ? props.onShareConversation : undefined}
-      canSendMessages={props.currentConversation?.can_edit !== false}
-      readOnlyReason={props.currentConversation?.can_edit === false ? 'Esta conversacion fue compartida contigo en modo solo lectura.' : undefined}
+      canSendMessages={props.canWriteProjectChat !== false && props.currentConversation?.can_edit !== false}
+      readOnlyReason={props.canWriteProjectChat === false ? 'Los chats de este proyecto son de sólo lectura con tu acceso actual.' : props.currentConversation?.can_edit === false ? 'Esta conversación fue compartida contigo en modo sólo lectura.' : undefined}
       onOpenBrowser={props.onOpenBrowser}
       onOpenMeetings={props.onOpenMeetings}
       onOpenLiveSessions={props.onOpenLiveSessions}

@@ -21,6 +21,8 @@ const historyLabels: Record<string, string> = {
   priority_id: "Prioridad actualizada",
   assignee_id: "Responsable actualizado",
   due_date: "Fecha límite actualizada",
+  started_at: "Fecha de inicio actualizada",
+  external_links: "Recursos vinculados actualizados",
   cycle_id: "Ciclo actualizado",
   parent_issue_id: "Tarea principal actualizada",
   estimate_points: "Estimación en puntos actualizada",

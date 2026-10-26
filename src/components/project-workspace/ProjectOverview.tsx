@@ -2,6 +2,7 @@ import type { ProjectHubProject } from "../../services/project-hub-api";
 import { Card } from "../ui/Card";
 import { Button } from "../ui/Button";
 import { ProjectGlyph } from "./ProjectGlyph";
+import { ProjectLocationCard } from '../project-creation/ProjectLocationCard';
 import {
   count,
   dateLabel,
@@ -78,6 +79,7 @@ export function ProjectOverview({
   ];
   return (
     <div className="space-y-5">
+      <ProjectLocationCard workspaceId={project.workspace_id} projectId={project.project_id} />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (
           <Card key={metric.label}>

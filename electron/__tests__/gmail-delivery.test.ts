@@ -95,6 +95,8 @@ describe('Entrega íntegra Gmail', () => {
     expect(raw).toContain('Bcc: privado@example.test');
     expect(raw).toMatch(/Subject: =\?UTF-8\?[BQ]\?/i);
     expect(raw).toContain('Content-Disposition: attachment;');
+    expect(raw).toContain('\r\n\r\n');
+    expect(raw).not.toMatch(/(?<!\r)\n|\r(?!\n)/);
     expect(raw).not.toContain('filename="revisión "final".txt"');
     expect(raw.split('\r\n').every(line => Buffer.byteLength(line) <= 998)).toBe(true);
   });

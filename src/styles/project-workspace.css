@@ -13,6 +13,11 @@
 .project-nav-button > svg { flex-shrink: 0; }
 .project-nav-button:hover { background-color: color-mix(in srgb, var(--color-primary-val) 6%, transparent); }
 .project-nav-button:focus-visible { outline: 2px solid var(--color-accent-val); outline-offset: -2px; }
+.project-nav-button.project-nav-link { min-height: 36px; gap: 9px; padding: 4px 8px; border-radius: 10px; }
+.project-nav-icon { display: grid; place-items: center; width: 27px; height: 27px; flex-shrink: 0; border-radius: 8px; transition: background-color .15s; }
+.project-nav-link:hover .project-nav-icon { background: color-mix(in srgb, currentColor 6%, transparent); }
+.project-nav-link[aria-current="page"] .project-nav-icon { background: color-mix(in srgb, var(--color-accent-val) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent-val) 12%, transparent); }
+.project-glyph { flex-shrink: 0; }
 .project-workspace { font-family: var(--font-system-ui); }
 .project-workspace button { border-radius: 1rem; }
 .project-workspace h1, .project-workspace h2, .project-workspace h3 { font-family: var(--font-system-ui); }

@@ -1,0 +1,8 @@
+- [x] Crear el panel flotante con icono, modelo y compositor reutilizado.
+- [x] Preparar contexto puntual y cancelable del navegador o la vista de la app.
+- [x] Integrar ámbitos de proyectos y geometría nativa sin duplicar chat.
+- [x] Verificar flujos, permisos, errores y documentación; límites de QA visual registrados en el reporte.
+- [x] Simplificar diseño, retirar franja de contexto y corregir Nuevo chat sin abandonar la vista; repetir verificación.
+- [x] Compactar cabecera y compositor, retirar marca y foco automático con ratón, y corregir estado sin chat seleccionado.
+- [x] Arrastre libre y por teclado, límites al redimensionar y composición segura sobre el navegador nativo.
+- [x] Pruebas focalizadas, capturas de QA y compuerta de PR del refinamiento.

@@ -5,6 +5,9 @@ import { projectHubApi } from '../../services/project-hub-api';
 import type { ProjectDownloadResult } from '../../shared/project-hub-files';
 
 vi.mock('../../services/project-hub-api', () => ({ projectHubApi: {
+  getLocation: vi.fn(),
+  locationFiles: vi.fn(),
+  cloudAccounts: vi.fn(async () => ({ success: true, data: [] })),
   listDocuments: vi.fn(async()=>({success:true,data:[]})), getProject: vi.fn(), analytics: vi.fn(), listEvidence: vi.fn(), downloadFile: vi.fn(), cancelDownload: vi.fn(), cancelUpload: vi.fn(),
 } }));
 vi.mock('../../services/integrated-browser-service', () => ({ integratedBrowserService: {} }));
@@ -12,6 +15,8 @@ const ID = '12345678-1234-4123-8123-123456789012';
 const EVIDENCE = '22345678-1234-4123-8123-123456789012';
 let resolve!: (result: ProjectDownloadResult) => void;
 beforeEach(() => {
+  vi.mocked(projectHubApi.getLocation).mockResolvedValue({ success: true, data: null });
+  vi.mocked(projectHubApi.locationFiles).mockResolvedValue({ success: true, data: { location: null, files: [], partial: false } });
   vi.mocked(projectHubApi.getProject).mockResolvedValue({ success: true, data: { project_id: ID, workspace_id: ID, project_name: 'Proyecto inicial', project_key: 'PR', project_status: 'active', completion_percentage: 0 } } as Awaited<ReturnType<typeof projectHubApi.getProject>>);
   vi.mocked(projectHubApi.analytics).mockResolvedValue({ success: true, data: {} });
   vi.mocked(projectHubApi.listEvidence).mockResolvedValue({ success: true, data: [
@@ -30,6 +35,7 @@ async function openSources() {
 describe('Fuentes Project Hub integradas', () => {
   it('ofrece copia sólo para uploads ready y cancela la operación pendiente al desmontar', async () => {
     const view = render(<UnifiedProjectHub workspaceId={ID} projectId={ID} />); fireEvent.click(await openSources());
+    expect(screen.queryByRole('button', { name: 'Añadir tarea' })).toBeNull(); expect(screen.queryByRole('button', { name: 'Añadir colaborador' })).toBeNull();
     expect(screen.getAllByRole('button', { name: 'Guardar copia' })).toHaveLength(1);
     expect(projectHubApi.downloadFile).toHaveBeenCalledWith(ID, ID, EVIDENCE, expect.any(String));
     expect(screen.getByRole('button', { name: 'Guardar copia' })).toBeDisabled();

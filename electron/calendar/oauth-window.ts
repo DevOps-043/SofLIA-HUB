@@ -3,13 +3,16 @@ import http from 'node:http';
 import { URL } from 'node:url';
 import { OAUTH_REDIRECT_PORT } from './constants';
 
-export function openOAuthWindow(authUrl: string, title: string): Promise<string | null> {
+export function openOAuthWindow(authUrl: string, title: string, options: { state?: string; signal?: AbortSignal; parent?: BrowserWindow } = {}): Promise<string | null> {
   return new Promise((resolve) => {
     let resolved = false;
     let server: http.Server | null = null;
 
     server = http.createServer((req, res) => {
       const url = new URL(req.url || '', `http://localhost:${OAUTH_REDIRECT_PORT}`);
+      if (options.state && (url.pathname !== '/callback' || url.searchParams.get('state') !== options.state || options.signal?.aborted)) {
+        res.writeHead(400); res.end('La autorización no corresponde a esta solicitud.'); return;
+      }
       const code = url.searchParams.get('code');
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(`
@@ -31,6 +34,7 @@ export function openOAuthWindow(authUrl: string, title: string): Promise<string 
 
     server.listen(OAUTH_REDIRECT_PORT, '127.0.0.1');
     const authWin = new BrowserWindow({
+      ...(options.parent ? { parent: options.parent, modal: true } : {}),
       width: 600,
       height: 700,
       title: `Conectar ${title}`,
@@ -38,13 +42,18 @@ export function openOAuthWindow(authUrl: string, title: string): Promise<string 
     });
 
     authWin.loadURL(authUrl);
+    const abort = () => { if (!authWin.isDestroyed()) authWin.close(); };
+    options.signal?.addEventListener('abort', abort, { once: true });
     authWin.on('closed', () => {
+      options.signal?.removeEventListener('abort', abort);
       if (!resolved) {
         resolved = true;
         resolve(null);
         server?.close();
       }
     });
+    server.on('error', () => { if (!resolved) { resolved = true; resolve(null); } abort(); });
+    if (options.signal?.aborted) abort();
     setTimeout(() => {
       if (!resolved) {
         resolved = true;

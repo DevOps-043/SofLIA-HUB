@@ -1,0 +1,68 @@
+import { createServer } from 'vite';
+import react from '@vitejs/plugin-react';
+import { createRequire } from 'node:module';
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { resolve } from 'node:path';
+import { _electron } from 'playwright-core';
+
+const require = createRequire(import.meta.url), root = process.cwd();
+const reports = resolve(process.argv[2] || 'openspec/changes/redesign-task-editor/reports');
+const server = await createServer({ configFile: false, root, cacheDir: await mkdtemp(resolve(tmpdir(), 'soflia-task-editor-')), envDir: resolve(root, 'test/manual/task-board'), plugins: [react()], optimizeDeps: { entries: ['test/manual/task-board/index.html'] }, server: { host: '127.0.0.1', port: 0 } });
+await server.listen(); let app;
+try {
+  await mkdir(reports, { recursive: true });
+  app = await _electron.launch({ executablePath: require('electron'), args: [resolve(root, 'test/manual/project-panel/electron.cjs')], env: { ...process.env, PROJECT_PANEL_PREVIEW_URL: `http://127.0.0.1:${server.httpServer.address().port}/test/manual/task-board/index.html` } });
+  const page = await app.firstWindow(); page.setDefaultTimeout(20000);
+  const errors = []; page.on('pageerror', error => errors.push(error.message));
+  const capture = async name => {
+    await page.evaluate(() => document.fonts.ready);
+    await page.evaluate(() => Promise.all(document.getAnimations().filter(animation => animation.effect?.getComputedTiming().iterations !== Infinity).map(animation => animation.finished.catch(() => undefined))));
+    const png = await app.evaluate(async ({ BrowserWindow }) => {
+      const contents = BrowserWindow.getAllWindows()[0].webContents;
+      await contents.capturePage(undefined, { stayHidden: true, stayAwake: true });
+      await new Promise(resolve => setTimeout(resolve, 120));
+      return (await contents.capturePage(undefined, { stayHidden: true, stayAwake: true })).toPNG().toString('base64');
+    });
+    await writeFile(resolve(reports, name), Buffer.from(png, 'base64'));
+  };
+  const resize = async (width, height) => { await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0].setContentSize(...size), [width, height]); await page.waitForFunction(width => innerWidth === width, width); };
+  await resize(1440, 1000);
+  await page.evaluate(() => document.documentElement.classList.add('dark'));
+  await page.getByRole('button', { name: /Diseñar la nueva página/ }).waitFor();
+  const boardBefore = await page.getByLabel('Tablero de tareas').boundingBox();
+  await page.getByRole('button', { name: 'Nueva tarea', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Nueva tarea', exact: true });
+  await dialog.waitFor();
+  if (await page.getByLabel('Título de la tarea').evaluate(node => node !== document.activeElement)) throw new Error('El título no recibe el foco inicial.');
+  const boardAfter = await page.getByLabel('Tablero de tareas').boundingBox();
+  if (boardBefore.y !== boardAfter.y) throw new Error('El editor desplazó el tablero.');
+  await page.getByLabel('Título de la tarea').fill('Preparar el lanzamiento del equipo');
+  await page.getByLabel('Descripción', { exact: true }).fill('Reunir las referencias de diseño y coordinar la entrega con el equipo.');
+  await page.getByLabel('Fecha de inicio', { exact: true }).fill('2026-11-01');
+  await page.getByLabel('Fecha límite', { exact: true }).fill('2026-11-10');
+  await page.getByRole('combobox', { name: 'Estado', exact: true }).click();
+  for (const name of ['Backlog', 'Pendientes', 'Por hacer', 'En curso', 'En revisión', 'Completadas', 'Canceladas']) await page.getByRole('option', { name, exact: true }).waitFor();
+  await capture('editor-estados-oscuro.png');
+  await page.getByRole('option', { name: 'En curso', exact: true }).click();
+  await page.getByRole('button', { name: 'Añadir vínculo', exact: true }).click();
+  await page.getByLabel('Nombre del recurso 1').fill('Documento de lanzamiento');
+  await page.getByLabel('Enlace del recurso 1').fill('https://example.test/lanzamiento');
+  await capture('editor-oscuro.png');
+  await page.evaluate(() => document.documentElement.classList.remove('dark'));
+  await capture('editor-claro.png');
+  await resize(390, 844);
+  await capture('editor-compacto.png');
+  const fits = await dialog.evaluate(node => node.scrollWidth <= node.clientWidth && node.getBoundingClientRect().right <= innerWidth);
+  if (!fits) throw new Error('La ventana desborda horizontalmente.');
+  await page.keyboard.press('Escape'); await dialog.waitFor({ state: 'hidden' });
+  if (await page.getByRole('button', { name: 'Nueva tarea', exact: true }).evaluate(node => node !== document.activeElement)) throw new Error('El cierre no restauró el foco.');
+  await resize(1440, 1000);
+  await page.getByRole('button', { name: /Diseñar la nueva página/ }).click();
+  await page.getByRole('dialog', { name: 'Detalle de tarea' }).waitFor();
+  await page.getByLabel('Fecha de inicio', { exact: true }).fill('2026-10-25');
+  await page.getByRole('button', { name: 'Guardar tarea', exact: true }).click();
+  await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  if (errors.length) throw new Error(errors.join('\n'));
+  console.log('Smoke Electron correcto: modal, tablero inmóvil, siete estados seleccionables, recursos, inicio, edición, Escape, foco, claro/oscuro y 390 px. Datos simulados.');
+} finally { await app?.close(); await server.close(); }

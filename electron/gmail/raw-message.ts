@@ -12,12 +12,14 @@ export async function buildRawMessage(params: SendEmailParams, assertCurrent: ()
     if (!parsed) throw new Error('invalid_recipient');
     return parsed;
   });
-  const message = new MailComposer({
+  // MailComposer propaga newline a MimeNode; los tipos instalados omiten esta opción.
+  const mail: ConstructorParameters<typeof MailComposer>[0] & { newline: '\r\n' } = {
     to: addresses(params.to), cc: addresses(params.cc), bcc: addresses(params.bcc),
     subject: params.subject, ...(params.isHtml ? { html: params.body } : { text: params.body }),
     attachments: attachments.map(file => ({ filename: file.filename, content: file.content, contentDisposition: 'attachment' })),
     disableFileAccess: true, disableUrlAccess: true, newline: '\r\n',
-  }).compile();
+  };
+  const message = new MailComposer(mail).compile();
   // Gmail obtiene el sobre del raw: BCC debe viajar al proveedor, que lo retira.
   message.keepBcc = true;
   const raw = await message.build();

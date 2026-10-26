@@ -153,7 +153,7 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
       </button>
       {controller.state.tools.isOpen && menuPos && createPortal(
         <>
-          <div className="fixed inset-0 z-[9998]" onClick={handleClose} />
+          <div data-native-browser-overlay={controller.props.floating ? 'true' : undefined} className="fixed inset-0 z-[9998]" onClick={handleClose} />
           <div
             className="fixed z-[9999] overflow-hidden animate-in fade-in zoom-in-95 duration-150"
             style={{ left: menuPos.left, bottom: menuPos.bottom }}

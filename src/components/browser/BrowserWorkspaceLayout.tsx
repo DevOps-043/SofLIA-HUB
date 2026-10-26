@@ -10,6 +10,8 @@ import { AgentActivityPanel } from '../agents/AgentActivityPanel';
 import { useAgentActivityPanel } from '../agents/agent-activity-context';
 import { ArtifactViewerPanel } from '../artifacts/ArtifactViewerPanel';
 import { useArtifactViewer } from '../artifacts/artifact-viewer-context';
+import type { ProjectBrowserTarget } from '../project-workspace/types';
+import { BrowserFloatingWorkspace } from './BrowserFloatingWorkspace';
 
 const CHAT_WIDTH_STORAGE_KEY = 'sofLia_integratedBrowserFloatingChatWidth';
 const CHAT_SIDE_STORAGE_KEY = 'sofLia_integratedBrowserFloatingChatSide';
@@ -22,7 +24,11 @@ const DEFAULT_BROWSER_CONTENT_TOP = 100;
 
 type PanelSide = 'left' | 'right';
 
-interface BrowserWorkspaceLayoutProps {
+export interface BrowserWorkspaceLayoutProps {
+  floating?: boolean;
+  floatingTitle?: string;
+  onPrepareFloating?: () => Promise<void>;
+  projectTarget?: ProjectBrowserTarget;
   chat: ReactNode;
   conversations: BrowserConversationItem[];
   currentConversationId: string | null;
@@ -33,6 +39,10 @@ interface BrowserWorkspaceLayoutProps {
 }
 
 export function BrowserWorkspaceLayout(props: BrowserWorkspaceLayoutProps) {
+  return props.floating ? <BrowserFloatingWorkspace {...props} /> : <BrowserSideWorkspace {...props} />;
+}
+
+function BrowserSideWorkspace(props: BrowserWorkspaceLayoutProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [preferredChatWidth, setPreferredChatWidth] = useState(readStoredChatWidth);
@@ -154,6 +164,7 @@ export function BrowserWorkspaceLayout(props: BrowserWorkspaceLayoutProps) {
     >
       <section className="absolute inset-0 min-w-0 overflow-hidden" aria-label="Navegador integrado">
         <IntegratedBrowserPanel
+          projectTarget={props.projectTarget}
           onClose={props.onClose}
           maximized={!chatVisible}
           onToggleMaximize={() => setChatVisible((visible) => !visible)}

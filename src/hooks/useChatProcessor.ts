@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useLayoutEffect } from 'react';
 
 import type { ChatMessage } from '../services/chat-service';
 import type { ToolCallInfo } from '../services/gemini-chat';
@@ -33,6 +33,12 @@ export function useChatProcessor({
   // Token de generación: solo la más reciente puede escribir en el chat. Al
   // editar/regenerar/enviar se incrementa y la generación anterior queda superada.
   const genTokenRef = useRef(0);
+  useLayoutEffect(() => () => { ++genTokenRef.current; abortRef.current?.abort(); }, [sofiaUserId, organizationId]);
+  const cancelScope = useCallback(() => {
+    // Un cambio de destino descarta incluso el acuse de Stop del turno anterior.
+    ++genTokenRef.current;
+    abortRef.current?.abort();
+  }, []);
 
   const showLoadingUI = shouldShowLoadingUi(messages);
   const activeModel = MODEL_OPTIONS.find((model) => model.id === preferredPrimaryModel);
@@ -136,5 +142,5 @@ export function useChatProcessor({
     )));
   };
 
-  return { isLoading, showLoadingUI, activeToolCall, copiedId, messagesRef, processMessage, handleSend, handleRegenerate, handleEditMessage, handleCopy, handleFeedback, stopGeneration };
+  return { isLoading, showLoadingUI, activeToolCall, copiedId, messagesRef, processMessage, handleSend, handleRegenerate, handleEditMessage, handleCopy, handleFeedback, stopGeneration, cancelScope };
 }

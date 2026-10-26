@@ -108,9 +108,9 @@ export function ProjectSidebarContent({
             aria-label={item.label}
             aria-current={model.section === item.id ? "page" : undefined}
             title={expanded ? undefined : item.label}
-            className={`project-nav-button ${model.section === item.id ? "bg-accent/10 font-semibold text-accent" : "text-secondary"}`}
+            className={`project-nav-button project-nav-link ${model.section === item.id ? "bg-accent/10 font-semibold text-accent" : "text-secondary"}`}
           >
-            <ProjectGlyph name={item.id} />
+            <span className="project-nav-icon"><ProjectGlyph name={item.id} /></span>
             {expanded && <span className="truncate">{item.label}</span>}
           </button>
         ))}
@@ -153,6 +153,7 @@ export function ProjectSidebarContent({
                   : model.chatMessage || "Aún no hay chats en este proyecto."}
               </p>
             )}
+            {model.chatMessage && model.onRetryChats && <button type="button" onClick={model.onRetryChats} className="mt-1 px-2.5 py-1 text-xs text-accent">Actualizar chats</button>}
           </section>
         )}
       </nav>
