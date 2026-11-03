@@ -12,6 +12,7 @@
 - [x] 4.1 Añadir diagnóstico y verificación reproducible de capacidades y grabaciones.
 - [x] 4.2 Ejecutar pruebas dirigidas, tipos, gates y revisión adversarial independiente.
 - [x] 4.3 Actualizar documentación, evidencia y límites de activación pendientes.
-- [ ] 4.4 Activar staging y realizar piloto audiovisual real, sujeto a acceso y autorización operativa.
+- [x] 4.4 Aplicar las dos migraciones aprobadas en Learning principal y verificar permisos, historial y conservación del proveedor Meeting.
+- [ ] 4.5 Publicar los servicios compatibles, completar configuración administrada y realizar piloto audiovisual real, sujeto a autorización operativa.
 
 Evidencia y límites: [reporte de implementación](reports/implementation.md). No archivar ni marcar el piloto como ejecutado.
