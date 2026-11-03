@@ -41,3 +41,10 @@
   .studio-media-dock button:not(.studio-device-chevron) { min-width: 40px; padding: 6px 10px; }
   .studio-dock-split button:not(.studio-device-chevron) { min-width: 35px; padding-right: 4px; }
 }
+.studio-program-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 16px; border: 0; border-block: 1px solid var(--color-border-val); background: var(--color-surface-2-val); }
+.studio-program-controls legend { float: left; margin-right: 12px; font-size: 12px; color: var(--color-text-secondary-val); }
+.studio-program-controls button { padding: 7px 10px; border: 1px solid var(--color-border-val); border-radius: 8px; font-size: 12px; }
+.studio-program-controls button[aria-pressed="true"] { color: var(--color-accent-val); }
+.studio-program-controls label { display: flex; align-items: center; flex: 1 1 250px; gap: 8px; font-size: 12px; }
+.studio-program-controls input { flex: 1; min-width: 120px; padding: 7px 10px; border: 1px solid var(--color-border-val); border-radius: 8px; background: var(--color-surface-1-val); }
+.studio-program-controls small { font-size: 11px; color: var(--color-text-secondary-val); }

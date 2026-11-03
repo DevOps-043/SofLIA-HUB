@@ -2,11 +2,15 @@ import { ZoomVideo, VideoQuality } from './video-client';
 import { videoJoinSchema } from '../../src/shared/live-studio.contract';
 import { manageZoomSharing } from './share-lifecycle';
 import { callDevices } from './call-devices';
+import { academicRooms } from './academic-rooms';
+import { receiveProgramAudio } from './program-audio';
 
 /** Adaptador aislado: los listeners y recursos pertenecen a este iframe. */
 export function start(initial: MessageEvent) {
   const args = videoJoinSchema.parse(initial.data.detail);
   const client = ZoomVideo.createClient();
+  const rooms=academicRooms(client);
+  let roomPlanReceived=false;
   const nonce = location.hash.slice(1), origin = initial.origin;
   const status = document.getElementById('status')!, root = document.getElementById('meeting')!;
   const emit = (type: string, detail?: unknown) => parent.postMessage({ source: 'soflia-zoom', nonce, type, detail }, origin === 'null' ? '*' : origin);
@@ -14,7 +18,8 @@ export function start(initial: MessageEvent) {
   let captionsEnabled = false;
   let recordingTimer: ReturnType<typeof setTimeout> | undefined;
   let operations = Promise.resolve(), renders = Promise.resolve();
-  const sharing = manageZoomSharing(navigator.mediaDevices, active => { shared = active; emit('sharing', active); });
+  const programAudio=receiveProgramAudio(emit);
+  const sharing = manageZoomSharing(navigator.mediaDevices, active => { shared = active; emit('sharing', active); },programAudio.ready);
   let stream: ReturnType<typeof client.getMediaStream>;
   let devices:ReturnType<typeof callDevices>;
   let joinTask: Promise<void> = Promise.resolve();
@@ -97,7 +102,7 @@ export function start(initial: MessageEvent) {
   async function dispose() {
     if (disposed) return;
     disposed = true; buttons.forEach(b => { b.disabled = true; }); leave.disabled = true;
-    clearTimeout(recordingTimer); sharing.dispose(); window.removeEventListener('message', receive);
+    clearTimeout(recordingTimer); sharing.dispose(); programAudio.close(); window.removeEventListener('message', receive);
     try { await joinTask; await operations; await renders; if (joined) await checked(client.leave()); }
     catch { /* La destrucción del cliente libera los recursos aunque la red falle. */ }
     finally { joined = false; await ZoomVideo.destroyClient(); root.replaceChildren(); emit('disconnected'); }
@@ -105,6 +110,9 @@ export function start(initial: MessageEvent) {
   function receive(event: MessageEvent) {
     if (event.source !== parent || event.origin !== origin || event.data?.nonce !== nonce || event.data?.source !== 'soflia-studio') return;
     const { type, detail } = event.data;
+    if(type==='program-audio-stop'){programAudio.close();return;}
+    if(type==='program-audio-pending'){if(joined&&!disposed)try{programAudio.expect(detail);}catch{failure();}return;}
+    if(type==='program-audio-offer'){if(joined&&!disposed)void programAudio.offer(detail).catch(()=>{if(!disposed)failure();});return;}
     if (type === 'leave') void dispose();
     else if (type === 'stop-share') { sharing.stop(); action(stopShare); }
     else if (type === 'mute') action(async () => { if (audio) await checked(detail ? stream.muteAudio() : stream.unmuteAudio()); });
@@ -119,21 +127,20 @@ export function start(initial: MessageEvent) {
       if (detail) await checked(transcription.startLiveTranscription());
       captionsEnabled = detail; controls();
     });
-    else if (type === 'visit-room') action(async () => {
-      const rooms = client.getSubsessionClient();
-      if (!detail) await checked(rooms.leaveSubsession());
-      else {
-        const room = rooms.getSubsessionList().find(item => item.subsessionName === detail);
-        if (!room) throw new Error('Sala audiovisual no disponible.');
-        await checked(rooms.joinSubsession(room.subsessionId));
-      }
-      emit('room-joined', detail);
+    else if(type==='sync-rooms')action(async()=>{rooms.setPlan(detail);roomPlanReceived=true;emit('rooms-status',await rooms.sync());});
+    else if(type==='visit-room')action(async()=>{
+      const room=detail?.room_id,request=detail?.request_id;
+      if(typeof request!=='string'||!/^[-a-f0-9]{36}$/.test(request)||room!==null&&(typeof room!=='string'||!/^[-a-f0-9]{36}$/.test(room)))throw new Error('Sala inválida.');
+      await rooms.visit(room);emit('room-joined',{room_id:room,request_id:request});
     });
   }
   window.addEventListener('message', receive);
   window.addEventListener('pagehide', () => { void dispose(); }, { once: true });
   client.on('connection-change', event => { if (event.state === 'Closed' || event.state === 'Fail') void dispose(); });
   for (const name of ['user-added', 'user-updated', 'user-removed', 'peer-video-state-change']) client.on(name, render);
+  for(const name of ['user-added','main-session-user-updated','subsession-state-change'] as const)client.on(name,()=>{
+    if(roomPlanReceived&&!disposed&&joined)action(async()=>{emit('rooms-status',await rooms.sync());});
+  });
   client.on('device-change',()=>{if(joined&&!disposed)reportDevices();});
   for (const name of ['caption-status', 'caption-enable', 'caption-host-disable'] as const) client.on(name, () => { if (joined && !disposed) controls(); });
   client.on('caption-message', event => {

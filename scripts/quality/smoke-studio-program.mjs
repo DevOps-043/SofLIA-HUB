@@ -27,6 +27,7 @@ await server.listen(); const devUrl = server.resolvedUrls.local[0];
 await writeFile(path.join(directory, 'main.cjs'), `
 const {app,BrowserWindow}=require('electron');const fs=require('node:fs');const path=require('node:path');
 const {configureMainDisplayMedia,resolveStudioOutput,setAuthState}=require('./dist-electron/output.cjs');
+app.commandLine.appendSwitch('autoplay-policy','no-user-gesture-required');
 app.setPath('userData',path.join(__dirname,'profile'));app.setAppPath(__dirname);
 app.whenReady().then(async()=>{
  setAuthState({authenticated:true,userId:'prueba-programa'});
@@ -37,10 +38,11 @@ app.whenReady().then(async()=>{
   if(event.message.startsWith('QA_RECEPTOR ')){const r=JSON.parse(event.message.slice(12));isolated=r.publisher==='undefined'&&r.general==='undefined'&&r.receiver.join(',')==='answer,offer,state'}
  })});
  win.webContents.on('console-message',event=>{
+  if(event.message.startsWith('QA_AUDIO'))console.error(event.message);
   if(event.message.startsWith('QA_ERROR ')){console.error(event.message);app.exit(1)}
   if(!event.message.startsWith('QA_PROGRAMA '))return;
   const r=JSON.parse(event.message.slice(12));const output=resolveStudioOutput(win);
-  const valid=r.first[0]>180&&r.first[1]<60&&r.second[1]>180&&r.second[0]<60&&r.third[2]>180&&r.third[1]<60&&r.visual[0]>180&&r.visual[1]>180&&r.visual[2]<60&&r.fourth[0]>180&&r.fourth[1]<60&&r.sameTrack&&isolated&&output.frame&&output.frame!==win.webContents.mainFrame;
+  const valid=r.first[0]>180&&r.first[1]<60&&r.second[1]>180&&r.second[0]<60&&r.third[2]>180&&r.third[1]<60&&r.visual[0]>180&&r.visual[1]>180&&r.visual[2]<60&&r.fourth[0]>180&&r.fourth[1]<60&&r.sameTrack&&r.audioTransport&&r.audioMix&&r.cameraOverlay&&r.sceneRecovery&&isolated&&output.frame&&output.frame!==win.webContents.mainFrame;
   console.log('PROGRAMA_CONTINUO_'+(valid?'OK':'FALLO')+' '+JSON.stringify({...r,receptorAislado:isolated}));
   setTimeout(()=>{win.destroy();app.exit(valid?0:1)},100);
  });

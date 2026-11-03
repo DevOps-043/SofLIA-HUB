@@ -1,6 +1,6 @@
 # Aula de sesiones de Learning
 
-Estado: implementación local para pruebas; despliegue pendiente. Actualizado: 2026-10-12.
+Estado: implementación local para pruebas; despliegue pendiente. Actualizado: 2026-11-03.
 
 <!-- evidence: src/components/learning-live/LearningWorkspace.tsx -->
 <!-- evidence: src/components/learning-live/ConnectedStudio.tsx -->
@@ -31,13 +31,13 @@ Realtime suscribe INSERT/UPDATE de `live_studio_revisions` con RLS académico. S
 
 El instructor puede publicar mensajes, cerrar/abrir chat, habilitar el acceso al botón de reacciones, restringir escritura, bloquear y restablecer acceso académico. El bloqueo no expulsa a un usuario ya conectado en Zoom; Zoom conserva su propia moderación audiovisual. Las estadísticas abarcan los últimos 100 mensajes retenidos, no un historial completo. Las reacciones son eventos independientes que flotan cinco segundos sobre el video; no crean mensajes. El instructor puede configurar de 0 a 300 segundos de espera entre mensajes de participantes (0 desactiva), con validación transaccional en Learning. Interacciones automáticas de SofLIA quedan deshabilitadas hasta integrar política y consentimiento.
 
-Los participantes reciben sus entregas y respuestas, sin claves de quiz, respuestas ajenas ni conversaciones de otras salas. Las salas académicas distribuyen identidades realmente conectadas por tamaño o cantidad; se puede visitar su chat y regresar al principal. Las salas de audio se administran en Zoom: todavía no existe correlación segura de identidad académica con participante Zoom ni sincronización automática de salas.
+Los participantes reciben sus entregas y respuestas, sin claves de quiz, respuestas ajenas ni conversaciones de otras salas. Las salas académicas distribuyen identidades realmente conectadas por tamaño o cantidad; se puede visitar su chat y regresar al principal. Video SDK sincroniza las salas académicas mediante user_key firmado, crea destinos audiovisuales y asigna participantes conectados; quienes llegan tarde se incorporan al actualizar la lista del proveedor. Entrar espera confirmación audiovisual antes de cambiar la presencia académica y compensa un fallo. Meeting conserva su gestión de salas en la llamada.
 
 ## Preparación, materiales y reloj
 
 El dominio valida escenas, material, prácticas y quizzes. Archivos privados de hasta 25 MB se suben por URL firmada; el servidor comprueba pertenencia de ruta, existencia, tamaño y MIME antes de publicarlos. Lecturas usan el mismo flujo. Crear o importar un quiz JSON no lo publica hasta que el instructor lo indique. Entregas y reloj se guardan en Learning; el reloj se representa a partir de hora de servidor sin escribir cada segundo.
 
-El manifiesto Engine versión 1 incluye curso, revisión y bancos de escenas/materiales/quizzes/prácticas. La importación valida el curso y aplica una preparación completa. Sus rutas de archivos ya deben pertenecer al bucket de esa sesión. El checkout Engine todavía no tiene un publicador síncrono: esta fase ofrece importación validada, no entrega automática entre plataformas. Es un contrato de preparación nuevo, no el manifiesto audiovisual `film.json`.
+El manifiesto Engine versión 1 incluye curso, revisión y bancos de escenas/materiales/quizzes/prácticas. La importación valida el curso y aplica una preparación completa. Sus rutas de archivos ya deben pertenecer al bucket de esa sesión. Engine permite entregar láminas y prácticas aprobadas a una sesión programada, mediante un endpoint firmado de Learning y comprobación académica del actor. La preparación completa reemplaza el banco anterior; se rechazan excesos y revisiones antiguas sin truncado. Notas, respuestas y guía del facilitador permanecen en Engine. Es un contrato de preparación nuevo, no el manifiesto audiovisual `film.json`.
 
 El banco del instructor contiene escenas locales: láminas, fuentes de pantalla, imágenes y videos. Crear, seleccionar y quitar no envía comandos ni archivos a Learning. El contenido del manifiesto puede servir como preparación inicial; el participante conserva el contenido académico publicado y recibe la pantalla por Zoom. Las URLs firmadas académicas se renuevan a los 10 minutos; las URLs blob locales se liberan al quitar la escena o salir.
 
@@ -52,9 +52,9 @@ el SDK administra sus dispositivos. El micrófono se silencia por API y la cáma
 desde sus controles oficiales. Compartir sigue iniciándose desde la llamada.
 En modo directo main entrega la fuente ligada y cambiar escena detiene esa pista.
 El instructor puede preparar una salida continua: el programa compone láminas,
-pantallas autorizadas, imágenes, videos silenciosos y pantallas del curso en un
+pantallas autorizadas, imágenes, videos con audio opcional y pantallas del curso en un
 canvas estable. La llamada captura un WebContents dedicado y conserva su pista
-al pasar entre escenas. La cámara de la llamada no forma parte de ese canvas.
+al pasar entre escenas. Una acción explícita puede añadir una captura local de cámara al canvas y un rótulo. Se informa si el dispositivo está ocupado; no se accede a internals del SDK. El audio de videos se enruta mediante Web Audio y una pista local aislada hacia Video SDK, sin retorno local ni captura global del equipo. Actívalo antes de compartir.
 No se usan selectores DOM internos, métodos SDK inventados ni cámara virtual.
 
 ### Escenas y salida compacta
@@ -173,3 +173,9 @@ La fixture visual anterior en `test/manual/live-sessions/` conserva ejemplos de 
 Las pruebas SQL de Learning ejecutan migración reentrante, RLS, autorización, idempotencia, CAS y presencia concurrente en PGlite. La prueba `node scripts/quality/smoke-zoom-runtime.mjs` ejecuta Electron oculto y confirma carga del frame con la CSP real y origen aislado; no acredita ingreso, audio o video de una reunión.
 
 Despliegue, configuración y barreras pendientes están en [operación del estudio](../operations/live-studio-runtime.md). Los cambios anteriores de diseño quedan como antecedentes en [diseño del instructor](../../openspec/changes/design-instructor-live-studio/design.md) y [reinicio del aula](../../openspec/changes/redesign-live-sessions/design.md). La práctica guiada por orbe conserva su contrato independiente en [acompañamiento visual](autonomous-orb-guidance.md).
+
+## Recuperación local y composición
+
+Las escenas creadas localmente se guardan en IndexedDB por usuario y sesión, con hasta doce archivos de 25 MB y 100 MB acumulados. No se guardan URLs firmadas ni vínculos de captura. Al volver se recuperan archivos y textos; una pantalla requiere vincularse de nuevo. Las URLs blob se liberan al cerrar. Las escenas académicas recibidas desde Learning se actualizan por revisión y se mantienen separadas de la preparación local. Un error de cuota o almacenamiento se presenta sin anunciar guardado exitoso.
+
+Audio del programa y salas automáticas se ofrecen en Video SDK; Meeting conserva sus controles existentes. La pista de audio se clona al compartir, por lo que detener una emisión no destruye el programa. La mezcla conserva la voz en la llamada; no captura otros sonidos del equipo. El compositor y sus nodos/pistas se liberan al cerrar o cambiar de identidad/sesión.

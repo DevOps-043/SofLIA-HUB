@@ -598,3 +598,13 @@ Rechaza DTD/ZIP64/multidisco y coordenadas/spans excesivos. El constructor aplic
 las cuotas del DTO durante conversión y tras redacción, contando UTF-16. Fuentes:
 `python/tools_sidecar/office_preflight.py` y `document_budget.py`. Son presupuestos
 de admisión/trabajo; permanecen estructuras de terceros y riesgos del SO.
+
+## Continuación del aula síncrona
+
+La entrega de Engine usa el contrato canónico de Learning: 32 KiB por petición y 64 KiB de respuesta en Engine, HMAC con propósito y timestamp de cinco minutos; el catálogo devuelve hasta cien sesiones programadas autorizadas. El manifiesto conserva doce láminas, veinte prácticas y rechaza exceso sin truncado. Fuentes: `src/shared/engine-preparation.contract.ts` y los servicios coordinados de Learning/Engine.
+
+El plan audiovisual contiene hasta cincuenta salas y quinientas identidades únicas. Se correlaciona por user_key firmado y espera confirmación de visita, con compensación ante fallo. Las identidades académicas sin conexión audiovisual quedan pendientes; no se asignan por nombre visible. Fuente: `packages/zoom-runtime/academic-rooms.ts`.
+
+La preparación local conserva hasta doce escenas propias de 25 MB por archivo y 100 MB acumulados en IndexedDB por usuario/sesión. No guarda permisos ni URLs. La lectura espera escrituras encoladas; la cuota fallida no se presenta como guardado. Fuentes: `src/services/studio-scene-store.ts` y `useStudioScenes`.
+
+La cámara superpuesta solicita video local ideal 640×360 sin audio y se cancela inmediatamente al cerrar, incluso durante preparación. El rótulo admite 120 caracteres. La mezcla utiliza Web Audio sin retorno local y una sola pista de audio WebRTC, con ICE local de ocho segundos, respuesta de diez segundos y confirmación de transporte de diez segundos. Compartir espera hasta dieciocho segundos por el audio anunciado; un fallo libera la captura y no entrega una emisión incompleta. Cambiar audio mientras se comparte está bloqueado. No se conceden servidores ICE externos ni audio global. Fuentes: `src/services/studio-program-renderer.ts`, `src/shared/local-peer.ts` y `packages/zoom-runtime/program-audio.ts`.

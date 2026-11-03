@@ -5,7 +5,7 @@ El cambio `migrate-zoom-video-sdk` añade Video SDK junto al Meeting histórico.
 <!-- evidence: packages/zoom-runtime/video-runtime.ts -->
 <!-- evidence: config/vite/zoom-video-assets.mts -->
 
-Estado: preparación local, pendiente de publicación y prueba real. Actualizado: 2026-10-13.
+Estado: preparación local, pendiente de publicación y prueba real. Actualizado: 2026-11-03.
 
 <!-- evidence: electron/main/zoom-protocol.ts -->
 <!-- evidence: packages/zoom-runtime/package-lock.json -->
@@ -68,11 +68,7 @@ completar su configuración administrativa; no se declara corregido el ingreso.
 
 `live_studio_purge`, invocado por el job existente de retención, limpia ledger después de siete días y estado de sesiones cerradas al superar la retención de organización (30 días por defecto). El job reclama hasta 100 archivos por ejecución, borra bytes mediante Storage API y confirma su ledger. Archivos retirados o subidas sin publicar tienen 24 horas de gracia; material de sesiones cerradas sigue la retención de organización. El bloqueo de sesión y el estado purging impiden publicar un archivo reclamado. Si Storage falla se conserva la reclamación para reintento. Programar y verificar el job en staging antes del rollout general.
 
-Quedan por implementar publicación automática desde Engine y correlación/traslado
-de salas audiovisuales. La salida continua permite cortes directos entre escenas y pantallas del
-curso sobre una pista; no incluye mezcla de audio ni cámara de la llamada en el
-programa. La UI identifica salas académicas y medios locales. SofLIA automática
-permanece deshabilitada.
+Engine permite entregar láminas y prácticas aprobadas a una sesión programada de Learning mediante el endpoint firmado. Video SDK sincroniza salas académicas y audiovisuales por identidad firmada. La salida continua incorpora audio opcional de videos, cámara local y rótulo; no extrae la cámara ni el audio interno de la llamada. La activación requiere versiones compatibles y piloto. SofLIA automática en el grupo permanece deshabilitada; la tutora individual conserva política y consentimiento.
 
 ## Uso de escenas y salida
 ### Aula del participante
@@ -178,7 +174,7 @@ dentro de su dock. No se muestran controles de transiciones, segundo monitor ni
 avisos de pantalla preparada. Los modos pantalla/cámara/combinada son locales;
 se deshabilitan cuando el monitor muestra el programa continuo.
 
-La preparación es local al estudio y no persiste al salir. No se publica nada
+La preparación local se recupera por usuario y sesión desde IndexedDB; permisos de pantalla y URLs firmadas no se persisten. No se publica nada
 en Learning por seleccionar una pantalla. `node scripts/quality/smoke-studio-program.mjs`
 comprueba composición, transporte local, captura del programa, pista estable y
 aislamiento sin credenciales ni una reunión real. El ensayo de dos cuentas sigue
@@ -202,3 +198,11 @@ No se cambian validaciones de identidad o membresía ni se reintenta un 403 con
 otro formato o rol. Este arreglo del Hub no requiere desplegar el backend nuevo
 para volver a entrar al aula anterior. Reiniciar la aplicación si su proceso main
 no está observando cambios; solo recargar el renderer no actualiza el HTTP main.
+
+## Continuación coordinada del 3 de noviembre de 2026
+
+Aplicar también la migración revisada 20261103120000_live_studio_participation.sql de Learning, después de las de estudio/Video. Publicar su endpoint interno firmado de preparación antes de habilitar la entrega de Engine. Usar los sincronizadores de ambos consumidores con LEARNING_CHECKOUT y --check. El contrato conserva negociación legacy de participación. No se aplicó SQL remoto en esta continuación.
+
+En la salida activa, Añadir cámara al programa solicita una captura local; Quitar cámara la libera. Rótulo en pantalla modifica solo el canvas. Activar audio de videos prepara una pista aislada para Video SDK: hacerlo antes de pulsar Compartir. Al cambiar escena se conserva esa pista y al silenciar el programa su ganancia queda en cero. No se solicita audio del sistema ni se agregan permisos IPC.
+
+Los controles de transición históricos fueron retirados de la interfaz compacta: la selección de escena realiza un corte y conserva la salida continua. No es necesario restaurar esa interfaz para usar composición.

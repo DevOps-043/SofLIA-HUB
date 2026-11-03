@@ -1,7 +1,7 @@
 import { countdownText, PROGRAM_FPS, PROGRAM_HEIGHT, PROGRAM_WIDTH, type StudioTransition } from '../shared/studio-program';
 import type { StudioPreparedScene } from '../components/learning-live/instructor/studio-types';
 
-export type ProgramSource = { draw(ctx: CanvasRenderingContext2D, now: number): void; close(): void };
+export type ProgramSource = { draw(ctx: CanvasRenderingContext2D, now: number): void; close(): void; audio?:HTMLMediaElement };
 
 /** Un lienzo y una pista estables; las fuentes cambian dentro de la composición. */
 export class StudioProgramRenderer {
@@ -12,6 +12,34 @@ export class StudioProgramRenderer {
   private stream: MediaStream | null = null;
   private lastFrame = -Infinity;
   private closed = false;
+  private overlay:ProgramSource|null=null;
+  private label='';
+  private audioContext:AudioContext|null=null;
+  private audioDestination:MediaStreamAudioDestinationNode|null=null;
+  private gain:GainNode|null=null;
+  private audioSource:MediaElementAudioSourceNode|null=null;
+  private audioElements=new WeakMap<HTMLMediaElement,MediaElementAudioSourceNode>();
+  setOverlay(source:ProgramSource|null){this.overlay?.close();this.overlay=source;}
+  setLabel(label:string){this.label=label.trim().slice(0,120);}
+  async setAudioEnabled(enabled:boolean):Promise<MediaStream|null>{
+    if(!this.audioContext&&enabled){
+      this.audioContext=new AudioContext();
+      this.audioDestination=this.audioContext.createMediaStreamDestination();
+      this.gain=this.audioContext.createGain();this.gain.connect(this.audioDestination);
+    }
+    if(!this.audioContext)return null;
+    this.gain!.gain.value=enabled?1:0;
+    await this.audioContext.resume();this.bindAudio();
+    return this.audioDestination!.stream;
+  }
+  private bindAudio(){
+    this.audioSource?.disconnect();this.audioSource=null;
+    const element=this.current?.audio;
+    if(!element||!this.audioContext||!this.gain)return;
+    let source=this.audioElements.get(element);
+    if(!source){source=this.audioContext.createMediaElementSource(element);this.audioElements.set(element,source);}
+    source.connect(this.gain);element.muted=false;this.audioSource=source;
+  }
   constructor(canvas: HTMLCanvasElement, private failed: () => void) {
     this.canvas = canvas; canvas.width = PROGRAM_WIDTH; canvas.height = PROGRAM_HEIGHT;
     this.frame = requestAnimationFrame(this.paint);
@@ -20,7 +48,7 @@ export class StudioProgramRenderer {
   take(source: ProgramSource, transition: StudioTransition, bridge?: ProgramSource, reducedMotion = false): Promise<void> {
     if (this.closed || this.next) { source.close(); bridge?.close(); return Promise.reject(new Error('Hay un cambio de escena en curso.')); }
     if (transition.effect === 'visual' && !bridge) { source.close(); return Promise.reject(new Error('Falta el contenido intermedio.')); }
-    if (!this.current || transition.effect === 'cut') { bridge?.close(); this.current?.close(); this.current = source; return Promise.resolve(); }
+    if (!this.current || transition.effect === 'cut') { bridge?.close(); this.audioSource?.disconnect();this.current?.close(); this.current = source;this.bindAudio(); return Promise.resolve(); }
     return new Promise((done, reject) => { this.next = { source, bridge, reducedMotion, start: performance.now(), transition, done, reject }; });
   }
   private paint = (time: number) => {
@@ -53,7 +81,15 @@ export class StudioProgramRenderer {
             next.source.draw(ctx, Date.now());
           }
         } finally { ctx.restore(); }
-        if (progress === 1) { this.current?.close(); next.bridge?.close(); this.current = next.source; this.next = null; next.done(); }
+        if (progress === 1) { this.current?.close(); next.bridge?.close(); this.current = next.source; this.next = null;this.bindAudio(); next.done(); }
+      }
+      if(this.overlay){
+        ctx.save();
+        try{ctx.translate(PROGRAM_WIDTH-352,PROGRAM_HEIGHT-218);ctx.scale(320/PROGRAM_WIDTH,180/PROGRAM_HEIGHT);this.overlay.draw(ctx,Date.now());}finally{ctx.restore();}
+      }
+      if(this.label){
+        ctx.fillStyle='rgba(15,20,25,0.88)';ctx.fillRect(32,PROGRAM_HEIGHT-86,820,54);
+        ctx.fillStyle='#ffffff';ctx.textAlign='left';ctx.font='500 25px system-ui';ctx.fillText(this.label,52,PROGRAM_HEIGHT-51,780);
       }
     } catch {
       ctx.globalAlpha = 1;
@@ -65,6 +101,10 @@ export class StudioProgramRenderer {
   close(): void {
     this.closed = true; cancelAnimationFrame(this.frame);
     this.current?.close(); this.current = null;
+    this.overlay?.close();this.overlay=null;
+    this.audioSource?.disconnect();this.audioSource=null;
+    this.audioDestination?.stream.getTracks().forEach(track=>track.stop());this.audioDestination=null;
+    if(this.audioContext)void this.audioContext.close().catch(()=>{});this.audioContext=null;
     if (this.next) { this.next.source.close(); this.next.bridge?.close(); this.next.done(); this.next = null; }
     this.stream?.getTracks().forEach((track) => track.stop()); this.stream = null;
   }
@@ -97,7 +137,7 @@ export function createTextProgramSource(scene: StudioPreparedScene, now?: number
 export async function createMediaProgramSource(scene: StudioPreparedScene, stream?: MediaStream, signal?: AbortSignal): Promise<ProgramSource> {
   const element = stream || scene.kind === 'video' ? document.createElement('video') : document.createElement('img');
   const video = element instanceof HTMLVideoElement ? element : null;
-  if (video) { video.muted = true; video.playsInline = true; video.loop = !stream; }
+  if (video) { video.muted = true; video.playsInline = true; video.loop = !stream;if(!stream)video.crossOrigin='anonymous'; }
   else (element as HTMLImageElement).crossOrigin = 'anonymous';
   const close = () => { stream?.getTracks().forEach((track) => track.stop()); if (video) { video.pause(); video.srcObject = null; } element.removeAttribute('src'); };
   try {
@@ -114,7 +154,7 @@ export async function createMediaProgramSource(scene: StudioPreparedScene, strea
     });
     const test = document.createElement('canvas'); test.width = test.height = 1;
     const context = test.getContext('2d'); context?.drawImage(element, 0, 0, 1, 1); context?.getImageData(0, 0, 1, 1);
-    return { close, draw(ctx) {
+    return { close, ...(video&&!stream?{audio:video}:{}), draw(ctx) {
       ctx.fillStyle = '#0f1419'; ctx.fillRect(0, 0, PROGRAM_WIDTH, PROGRAM_HEIGHT);
       if (stream?.getVideoTracks().some((track) => track.readyState === 'ended')) {
         ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.font = '28px system-ui'; ctx.fillText('La fuente ya no está disponible', PROGRAM_WIDTH / 2, PROGRAM_HEIGHT / 2); return;
