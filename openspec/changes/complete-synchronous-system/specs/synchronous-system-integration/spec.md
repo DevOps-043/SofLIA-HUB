@@ -35,3 +35,7 @@ La entrega MUST distinguir pruebas locales de configuración, migración, grabac
 #### Scenario: Cuenta no preparada
 - **WHEN** no existe configuración o permiso audiovisual
 - **THEN** se informa el requisito y no se anuncia una transmisión o grabación exitosa.
+
+#### Scenario: Instalador para pruebas
+- **WHEN** se entrega el paquete Windows del candidato
+- **THEN** el ASAR excluye AGENTS.md y SKILL.md, incluso en dependencias, y se registra versión y hash del artefacto sin atribuirle un despliegue web.

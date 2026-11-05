@@ -14,5 +14,6 @@
 - [x] 4.3 Actualizar documentación, evidencia y límites de activación pendientes.
 - [x] 4.4 Aplicar las dos migraciones aprobadas en Learning principal y verificar permisos, historial y conservación del proveedor Meeting.
 - [ ] 4.5 Publicar los servicios compatibles, completar configuración administrada y realizar piloto audiovisual real, sujeto a autorización operativa.
+- [ ] 4.6 Construir y verificar el instalador Windows de pruebas, sin instrucciones de desarrollo, y registrar su hash.
 
 Evidencia y límites: [reporte de implementación](reports/implementation.md). No archivar ni marcar el piloto como ejecutado.
