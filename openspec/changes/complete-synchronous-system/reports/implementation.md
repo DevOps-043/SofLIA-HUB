@@ -1,10 +1,10 @@
 # Cierre local del sistema síncrono
 
-Fecha: 2026-11-03. Estado: código implementado y verificado localmente; SQL aprobado de Learning principal aplicado. Despliegue y piloto pendientes.
+Fecha inicial: 2026-11-03. Actualización de entrega: 2026-11-05. Estado: SQL aprobado aplicado, código de pruebas publicado en los tres repositorios y verificación coordinada aprobada. Despliegue web y piloto pendientes; instalador Windows en preparación.
 
 ## Bases y ubicación
 
-Rama coordinada codex/complete-synchronous-system. Hub parte de db0827f8 (consolidación del 26 de octubre), Learning de 73b88201 (Video SDK) y Engine de a4062883 (staging). Los worktrees principales ajenos de Hub y Learning se conservaron; Engine trabaja en su checkout principal según AGENTS.md. No se publicaron ramas ni se modificaron secretos. La operación remota posterior se limitó a las dos migraciones aprobadas de Learning y las consultas de verificación descritas abajo.
+Rama coordinada codex/complete-synchronous-system. Hub parte de db0827f8 (consolidación del 26 de octubre), Learning de 73b88201 (Video SDK) y Engine de a4062883 (staging). Los worktrees principales ajenos de Hub y Learning se conservaron; Engine trabaja en su checkout principal según AGENTS.md. El 2026-11-05 se publicaron las tres ramas de pruebas con autorización del usuario para preparar la liberación. Engine incorporó además staging 37dcf7dc sin conflictos. No se modificaron secretos. Las operaciones SQL conservan el alcance y la procedencia de evidencia descritos abajo.
 
 ## Resultado
 
@@ -66,3 +66,9 @@ Antes de activar: publicar Learning compatible sin pool mixto de backends tras l
 Continuación: el usuario aprobó la migración y verificaciones de Engine emsjctbdevufloxntjll y decidió ejecutarla manualmente en SQL Editor. Las capturas identifican Engine main; el JSON completo aportado del postflight confirma tres tablas privadas vacías con RLS, siete funciones invoker con search_path vacío y acceso restringido, dos políticas restrictivas, trigger activo y check de tipos ampliado. Se verificaron programáticamente nombres, cantidades, permisos y opciones; no se atribuye una consulta remota al agente. El JSON y los límites están en openspec/changes/complete-live-preparation-delivery/reports/engine-manual-postflight.json y engine-manual-execution.md del repositorio Engine. Las pruebas locales previas aprobaron 14 casos SQL y 25 del dominio. El historial remoto no está confirmado: comprobar/reconciliar antes de db push, sin volver a ejecutar la creación. Despliegue, configuración y piloto siguen pendientes.
 
 Rollback: retirar entrega nueva y funciones de participación coordinadamente; conservar tablas, archivos y revisiones. Para nuevas aulas se puede volver al proveedor Meeting, manteniendo compatibilidad con aulas Video previas. No borrar material ni desactivar captura obligatoria como reversión.
+
+## Entrega para pruebas, 2026-11-05
+
+Las tres ramas coordinadas están publicadas. Learning repitió 171 pruebas/27 archivos aprobados. Engine eliminó los once ciclos, integró staging reciente y aprobó verify (297 pruebas, tipos/lint y cero ciclos), HyperFrames (358) y verify:harness (20 pruebas y compuertas de arnés correctas). Hub repitió build:app, runtime:stable (Electron 44.5.1) y smoke-studio-program con vídeo estable, mezcla/transporte de audio, overlay, recuperación de escenas y receptor aislado correctos. Se preparó Python privado con locks y comprobaciones de ambos sidecars para el paquete Windows.
+
+La [guía de entrega y recorrido del equipo](../../../../docs/operations/synchronous-testing-release.md) fija el orden Learning → Engine/Hub y los límites. El instalador de pruebas usa versión 0.9.9-sync.20261105, salida release/synchronous-qa-20261105 y publish never. Su construcción y hash se registrarán al terminar; no es una publicación estable. No hay conexión Netlify ni navegador habilitado en la sesión, por lo que no se declara URL de despliegue ni configuración/llamada real verificadas.
