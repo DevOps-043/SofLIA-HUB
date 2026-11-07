@@ -1,6 +1,6 @@
 # Entrega del aula síncrona para pruebas
 
-Actualizado el 2026-11-07. Learning QA está desplegado. Engine integra el refuerzo de permisos de staging. El instalador configurado de Hub está en preparación.
+Actualizado el 2026-11-07. Learning y Engine están disponibles en QA. El instalador configurado de Hub está en preparación.
 
 ## Código y orden de publicación
 
@@ -12,15 +12,17 @@ Learning usa su netlify.toml y scripts/netlify-build.sh. Engine usa netlify.toml
 
 Learning QA quedó publicado desde 5ffa4092 y abrió su panel autenticado. Engine tiene un override de rama que apunta al Learning QA. La comprobación de entrega de una sesión autorizada forma parte del piloto. [Learning QA](https://codex-complete-synchronous-system--soflia-learning.netlify.app) · [Deploy de Learning](https://app.netlify.com/projects/soflia-learning/deploys/6aed311b87cd372cd48e585c).
 
+Engine QA quedó publicado desde c88078d4 con el refuerzo de permisos de staging. Ambas portadas devolvieron HTTP 200 y Learning devolvió 401 ante una consulta anónima al catálogo en vivo. [Engine QA](https://codex-complete-synchronous-system--soflia-coursegen.netlify.app) · [Deploy de Engine](https://app.netlify.com/projects/soflia-coursegen/deploys/6aef49cb63a3e86c72c0eceb).
+
 ## Instalador Windows de QA
 
 El paquete local 0.9.9-sync.20261105 se construyó sin los orígenes públicos de autenticación. Reservarlo para evidencia estructural. El flujo Instalador de aula síncrona QA genera 0.9.9-sync.20261107 con las claves públicas administradas y el origen exacto de Learning QA, verifica el ASAR y publica el ejecutable, manifiesto y SHA-256 en una prerelease.
 
 El primer intento remoto detectó que el chequeo de tipos se ejecutaba antes de instalar el SDK de Zoom en un checkout limpio. El script pretypecheck prepara el SDK con su lockfile y build:app reutiliza esa instalación al generar el bundle de Zoom. [Diagnóstico de CI](https://github.com/DevOps-043/SofLIA-HUB/actions/runs/42387466449).
 
-Candidato: 0.9.9-sync.20261105, Windows x64, construido desde Hub 5a0e75d2. Archivo local: release/synchronous-qa-20261105-r2/Soflia-Hub-Windows-0.9.9-sync.20261105-Setup.exe. Tamaño: 597809249 bytes. SHA-256: a3cdd61d81407b8cb92fe124fa5246ac0709368328cbcb53e358792f66cdb187.
+Evidencia local 0.9.9-sync.20261105 de Hub 5a0e75d2. Archivo release/synchronous-qa-20261105-r2/Soflia-Hub-Windows-0.9.9-sync.20261105-Setup.exe, 597809249 bytes y SHA-256 a3cdd61d81407b8cb92fe124fa5246ac0709368328cbcb53e358792f66cdb187.
 
-El [manifiesto de verificación](../../openspec/changes/complete-synchronous-system/reports/windows-testing-package.json) registra cabecera PE sin firma embebida, versión, hash del ASAR, 43 dependencias, entradas de la aplicación, ausencia de archivos de entorno e instrucciones de desarrollo, preservación del contexto runtime de reuniones y validación de Python/ambos sidecars. No se ejecutó el instalador ni se publicó el binario en un servicio de descargas; el archivo local puede compartirse con el equipo conservando su hash.
+La verificación estructural cubrió cabecera PE, versión, ASAR, 43 dependencias, entradas de la aplicación, contexto de reuniones, Python y sidecars. [Manifiesto local](../../openspec/changes/complete-synchronous-system/reports/windows-testing-package.json).
 
 ## Base y configuración
 
