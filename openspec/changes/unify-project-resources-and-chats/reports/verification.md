@@ -20,6 +20,10 @@ respectivamente. La rama de origen y su índice permanecieron intactos.
 - Pasaron 122 pruebas adicionales de IRIS, navegador, proyectos y aula.
 - Compiló el renderer y Electron. El smoke IPC nativo pasó diez
   comprobaciones con perfil temporal, red bloqueada y servicio simulado.
+- `npm run verify:pr` pasó con 7.410 pruebas aprobadas y cinco omitidas.
+  La cobertura de líneas fue 62,2 %. El lint contra `18cec138` revisó
+  601 archivos sin incidencias nuevas. También compilaron presentaciones,
+  audiovisual y Zoom.
 
 La validación local no acredita las políticas efectivas de la instancia IRIS
 ni el comportamiento de una cuenta real. La retirada completa de Gemini
