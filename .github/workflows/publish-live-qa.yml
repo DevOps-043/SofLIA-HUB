@@ -18,12 +18,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: aula-sincrona-windows-qa
-          path: paquete
-          github-token: ${{ github.token }}
-          run-id: 42389034063
+      - name: Descargar y comprobar el ZIP original
+        env:
+          ACTIONS_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          curl --fail --silent --show-error --location --output paquete.zip \
+            --header "Authorization: Bearer $ACTIONS_TOKEN" \
+            --header 'Accept: application/vnd.github+json' \
+            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/artifacts/13581221807/zip"
+          printf '%s  paquete.zip\n' 75ac258e06ad1664da843d25b9dc4ac2c8936141f34f3b0a96d865394eec9fe8 |
+            sha256sum --check --strict
+          unzip -l paquete.zip
+          unzip -q paquete.zip -d paquete
       - name: Verificar paquete y publicar
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
