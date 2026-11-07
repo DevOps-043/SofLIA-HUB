@@ -158,10 +158,11 @@ export function Sidebar(props: SidebarProps) {
                   )}
                 </div>
 
-                {/* WorkSpaces Popover Button */}
+                {/* Proyectos de la organización actual. */}
                 <div className="relative shrink-0">
                   <button
                     onClick={() => { setProjectsOpen(!projectsOpen); setFoldersOpen(false); }}
+                    aria-label="Proyectos"
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-200 ${
                       projectsOpen
                         ? 'bg-accent/10 border-accent/20 text-accent font-bold shadow-sm'
@@ -171,7 +172,7 @@ export function Sidebar(props: SidebarProps) {
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                     </svg>
-                    <span className="hidden md:inline">WorkSpaces</span>
+                    <span className="hidden md:inline">Proyectos</span>
                   </button>
 
                   {projectsOpen && (

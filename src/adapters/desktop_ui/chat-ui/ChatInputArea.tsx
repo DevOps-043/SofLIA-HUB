@@ -17,6 +17,7 @@ export function ChatInputArea({ controller }: { controller: ChatUIController }) 
   const canSend = controller.props.canSendMessages;
   const modes = controller.state.modes;
   const compact = controller.props.compact === true;
+  const floating = controller.props.floating === true;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const tabMenuRef = useRef<HTMLDivElement>(null);
   const preparing = controller.preparation?.busy ?? false;
@@ -35,13 +36,13 @@ export function ChatInputArea({ controller }: { controller: ChatUIController }) 
   useLayoutEffect(() => {
     const target = textareaRef.current;
     if (!target) return;
-    const baseHeight = compact ? 30 : 36;
+    const baseHeight = floating ? 28 : compact ? 30 : 36;
     target.style.height = `${baseHeight}px`;
     target.style.height = `${Math.min(Math.max(baseHeight, target.scrollHeight), compact ? 112 : 160)}px`;
-  }, [compact, input.value]);
+  }, [compact, floating, input.value]);
 
   return (
-    <div className={`min-w-0 flex-shrink-0 overflow-hidden bg-background dark:bg-background-dark ${compact ? 'px-2 pb-2 pt-1' : 'px-4 pb-3 pt-1.5'}`}>
+    <div className={`${floating ? 'soflia-floating-input-area' : ''} min-w-0 flex-shrink-0 overflow-hidden bg-background dark:bg-background-dark ${compact ? 'px-2 pb-2 pt-1' : 'px-4 pb-3 pt-1.5'}`}>
       <div className="mx-auto min-w-0 max-w-5xl">
         <fieldset disabled={preparing} className="min-w-0">
         <ModeBadges controller={controller} />
@@ -89,7 +90,7 @@ export function ChatInputArea({ controller }: { controller: ChatUIController }) 
             onSelect={controller.skillCommands.activate}
           />
         )}
-        <div className={`relative mt-1 flex w-full items-center border border-border/70 bg-surface-2 transition-all focus-within:border-accent/40 focus-within:ring-2 focus-within:ring-accent/12 ${compact ? 'gap-1 rounded-[18px] px-1 py-1' : 'gap-1.5 rounded-[24px] px-1.5 py-1'}`} style={{ fontFamily: 'var(--font-system-ui)' }}>
+        <div className={`${floating ? 'soflia-floating-input-shell' : ''} relative mt-1 flex w-full items-center border border-border/70 bg-surface-2 transition-all focus-within:border-accent/40 focus-within:ring-2 focus-within:ring-accent/12 ${compact ? 'gap-1 rounded-[18px] px-1 py-1' : 'gap-1.5 rounded-[24px] px-1.5 py-1'}`} style={{ fontFamily: 'var(--font-system-ui)' }}>
           {!preparing && <ToolMenu controller={controller} />}
           <div className="relative min-w-0 flex-1">
             {compact && !input.value && (
@@ -122,7 +123,7 @@ export function ChatInputArea({ controller }: { controller: ChatUIController }) 
               className={`!no-scrollbar min-w-0 w-full resize-none overflow-y-auto bg-transparent text-gray-900 placeholder:text-secondary focus:outline-none dark:text-gray-100 ${compact ? 'px-1 py-[6px] text-[12px] leading-[18px]' : 'px-2 py-[7px] text-[14px] leading-[22px]'}`}
               rows={1}
               disabled={chat.showLoadingUI || preparing || !canSend}
-              style={{ height: compact ? '30px' : '36px', scrollbarWidth: 'none', msOverflowStyle: 'none', fontFamily: 'var(--font-system-ui)' }}
+              style={{ height: floating ? '28px' : compact ? '30px' : '36px', scrollbarWidth: 'none', msOverflowStyle: 'none', fontFamily: 'var(--font-system-ui)' }}
             />
           </div>
           <div className="flex items-center gap-1 pr-0.5">

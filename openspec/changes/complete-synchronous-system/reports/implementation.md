@@ -1,0 +1,84 @@
+# Cierre local del sistema síncrono
+
+Fecha inicial 2026-11-03. Actualización de entrega 2026-11-07. SQL aprobado aplicado, Learning y Engine desplegados en QA y prerelease Windows verificada. El piloto audiovisual sigue pendiente.
+
+## Bases y ubicación
+
+Rama coordinada codex/complete-synchronous-system. Hub parte de db0827f8 (consolidación del 26 de octubre), Learning de 73b88201 (Video SDK) y Engine de a4062883 (staging). Los worktrees principales ajenos de Hub y Learning se conservaron; Engine trabaja en su checkout principal según AGENTS.md. El 2026-11-05 se publicaron las tres ramas de pruebas con autorización del usuario para preparar la liberación. Engine incorporó además staging 37dcf7dc sin conflictos. No se modificaron secretos. Las operaciones SQL conservan el alcance y la procedencia de evidencia descritos abajo.
+
+## Resultado
+
+- Learning completa participación transaccional y negociación legacy. El reloj SQL impone cadencia y deduplicación; no acepta marcas elegidas por el cliente.
+- Engine consulta sesiones autorizadas y entrega láminas/prácticas aprobadas con contrato canónico, HMAC, propósito y timestamp. Learning revalida actor, organización, curso, estado programado y revisión. Se excluyen notas, respuestas y criterios privados; los excesos se rechazan sin truncar.
+- Video SDK sincroniza salas por user_key firmado. Participantes sin conexión quedan pendientes; visitas esperan confirmación y compensan errores. El plan excluye presencias vencidas/bloqueadas y devuelve al grupo principal a quien pierde asignación. Meeting conserva su operación anterior.
+- La salida continua incorpora cámara local explícita y rótulo. Mezcla audio de videos sin retorno y lo transmite como pista local clonada a Video SDK. Capturar espera el audio anunciado; cambiarlo durante compartir está bloqueado. La cancelación libera cámara pendiente, pistas y conexiones.
+- IndexedDB recupera textos y archivos por usuario/sesión, espera escrituras pendientes y nunca conserva permisos de captura o URLs. Una pantalla requiere vincularse otra vez.
+- recordings:health informa configuración y, solo con --database, contadores de jobs. No imprime secretos ni confunde actividad histórica con worker vivo.
+
+La migración canónica nueva es 20261103120000_live_studio_participation.sql de SOFIA/Learning. Sustituye la preparación local no recuperada del reporte antiguo; no depende de un archivo 20261024180000 ausente. Es aditiva/reentrante y conserva el núcleo previo privado. La migración Video existente sigue siendo requisito del proveedor.
+
+## Verificación ejecutada
+
+| Proyecto | Comando | Resultado |
+| --- | --- | --- |
+| Hub | npm run verify:pr | Adaptadores, arnés, suministro, documentación, semilla, OpenSpec, tooling, tipos, lint y suite aprobados. 529 archivos aprobados, 2 omitidos; 5987 pruebas aprobadas y 5 omitidas. |
+| Hub | Pruebas focalizadas posteriores del bridge, salas y compartir | 10 aprobadas tras la última guarda de asignación. Incluyen espera de audio y liberación ante cancelación. |
+| Hub | Pruebas de lifecycle de audio/cámara | 4 aprobadas; no se detiene la pista original y cerrar salida cancela la cámara pendiente. |
+| Hub | npm run typecheck; npm run lint:changed; npm run docs:check; npm run docs:system:check | Repetidos tras ajustes; correctos. Sin deuda nueva. |
+| Hub | npm run zoom:build | Tipos y bundle aislado correctos; aviso de tamaño de proveedor, sin relajar CSP. |
+| Hub | node scripts/quality/smoke-zoom-runtime.mjs | SDK_READY_ORIGIN=soflia-zoom://meeting; VIDEO_ASSETS=true. |
+| Hub | node scripts/quality/smoke-studio-program.mjs | PROGRAMA_CONTINUO_OK: video estable, mezcla/transporte de audio, overlay sintético, recuperación con escrituras pendientes y receptor aislado. |
+| Learning | npm run test --workspace=apps/web -- src/features/live/__tests__ src/proxy/__tests__/api-route-auth.test.ts --maxWorkers=2 | 27 archivos, 171 pruebas aprobadas; SQL reentrante, roles, cadencia, deduplicación, revisión antigua, negociación HTTP y conservación legacy al instalar incluidos. |
+| Learning | npx --no-install tsc --noEmit -p apps/web/tsconfig.recordings.json | Correcto tras next typegen local; no build ni variables remotas. |
+| Learning | ESLint focalizado de servicios, contrato, ruta y pruebas | Correcto. |
+| Engine | npm run typecheck | Correcto. |
+| Engine | npm run test:course-delivery | 25 pruebas aprobadas, con regresión Nexus y privacidad de preparación. |
+| Engine | npm run test:security-boundaries | Correcto. |
+| Engine | docs:check y validación estricta del cambio nuevo | Correctos. |
+| Engine | npm run verify:pr | Supera adaptadores, arnés, documentación, OpenSpec (34), tooling (20), lint global y tipos. Se detiene en architecture:cycles con 11 ciclos previos del compositor multimedia. No se declara gate global verde de Engine. |
+| Ambos consumidores | Sincronizadores con LEARNING_CHECKOUT y --check | Contratos coincidentes con Learning. |
+
+La suite general Hub empezó antes del último ajuste de espera de audio y autorización de salas. Esos archivos se volvieron a verificar con pruebas focalizadas, tipos/lint y smokes; no se repitió innecesariamente toda la suite.
+
+## Revisión independiente
+
+Un revisor de solo lectura intentó refutar permisos, idempotencia, aislamiento, recuperación y cancelación. Detectó y se corrigieron:
+
+1. Nexus conservaba materiales antiguos y readiness no exigía sesiones: guardas en servicio/builder y regresión.
+2. Conexión tardía a salas abiertas usaba mover en vez de asignar: elección basada en pertenencia real.
+3. Visitas tardías podían desalinear audio/chat: exclusión de visitas concurrentes y compensación.
+4. Recuperación adelantaba escrituras pendientes: lectura espera la cola de esa clave.
+5. Cámara en preparación podía sobrevivir diez segundos al cierre: captura/AbortController se liberan inmediatamente.
+6. Activar audio durante compartir no cambiaba la pista: controles y hook lo bloquean.
+7. SDP aplicado no confirmaba transporte: se espera conexión y se observan fallos posteriores.
+8. Compartir podía adelantarse a ICE: anuncio de preparación, espera con timeout y oferta fuera de la cola SDK evitan silencio y bloqueo circular.
+
+El revisor confirmó cierre de sus hallazgos y no encontró otro P1/P2 concreto en las fronteras revisadas. La prueba nativa detectó uso de evaluación dinámica de Zod bajo CSP: se corrigió con validación jitless, conservando la política.
+
+## Límites y activación
+
+Con aprobación explícita del plan se aplicaron en Learning principal mrqnnmuckznvukjvfkly las migraciones Video SDK y participación: versiones remotas 20261103184110 y 20261103184120. Preflight, respaldo de la función previa, hashes, postflight y evidencia están en docs/reports/live-activation-2026-11-03/ del repositorio Learning. El historial remoto confirma la aplicación. Se conservaron una sesión programada en Meeting y un estado legacy, los dos buckets privados y Realtime. Las funciones son invoker y solo service_role puede ejecutarlas; las credenciales Video están vacías y aisladas por RLS.
+
+No se contrataron planes, configuraron credenciales ni desplegaron servicios. El overlay nativo usa una fuente sintética; la cámara física, llamada real, salas reales, captura cloud, transferencia a Storage y reproducción requieren piloto. La configuración completa no acredita capacidad ni facturación.
+
+Antes de activar: publicar Learning compatible sin pool mixto de backends tras la ampliación del estado, comprobar/reconciliar el historial de la migración manual de Engine, configurar Video/archivo/conexión Engine, comprobar dos organizaciones y aulas simultáneas, revocación y reconexión, y grabación con Hub cerrado. La guarda SQL conserva el formato legacy hasta que escribe el nuevo backend y rechaza degradaciones posteriores. No se promete capacidad de 500 participantes. Intervenciones automáticas de Soflia en el grupo y RTMS/LTI/LRS conservan su alcance ampliado separado.
+
+Continuación: el usuario aprobó la migración y verificaciones de Engine emsjctbdevufloxntjll y decidió ejecutarla manualmente en SQL Editor. Las capturas identifican Engine main; el JSON completo aportado del postflight confirma tres tablas privadas vacías con RLS, siete funciones invoker con search_path vacío y acceso restringido, dos políticas restrictivas, trigger activo y check de tipos ampliado. Se verificaron programáticamente nombres, cantidades, permisos y opciones; no se atribuye una consulta remota al agente. El JSON y los límites están en openspec/changes/complete-live-preparation-delivery/reports/engine-manual-postflight.json y engine-manual-execution.md del repositorio Engine. Las pruebas locales previas aprobaron 14 casos SQL y 25 del dominio. El historial remoto no está confirmado: comprobar/reconciliar antes de db push, sin volver a ejecutar la creación. Despliegue, configuración y piloto siguen pendientes.
+
+Rollback: retirar entrega nueva y funciones de participación coordinadamente; conservar tablas, archivos y revisiones. Para nuevas aulas se puede volver al proveedor Meeting, manteniendo compatibilidad con aulas Video previas. No borrar material ni desactivar captura obligatoria como reversión.
+
+## Publicación de QA, 2026-11-07
+
+Learning desplegó 5ffa4092 y Engine desplegó c88078d4 con el refuerzo de permisos de staging. Ambas portadas devolvieron HTTP 200. El catálogo de Learning devolvió 401 para un cliente Hub sin sesión. El instalador 0.9.9-sync.20261107 se publicó con el hash del EXE verificado contra el manifiesto y el checksum. La guía de entrega reúne los enlaces y el recorrido por rol. [Guía de QA](../../../../docs/operations/synchronous-testing-release.md).
+
+## Preparación del candidato, 2026-11-05
+
+Las tres ramas coordinadas están publicadas. Learning repitió 171 pruebas/27 archivos aprobados. Engine eliminó los once ciclos, integró staging reciente y aprobó verify (297 pruebas, tipos/lint y cero ciclos), HyperFrames (358) y verify:harness (20 pruebas y compuertas de arnés correctas). Hub repitió build:app, runtime:stable (Electron 44.5.1) y smoke-studio-program con vídeo estable, mezcla/transporte de audio, overlay, recuperación de escenas y receptor aislado correctos. Se preparó Python privado con locks y comprobaciones de ambos sidecars para el paquete Windows.
+
+La [guía de entrega y recorrido del equipo](../../../../docs/operations/synchronous-testing-release.md) fija el orden Learning → Engine/Hub y los límites. El instalador de pruebas 0.9.9-sync.20261105 terminó con código 0 en release/synchronous-qa-20261105-r2, mediante la API local de electron-builder con publish=never y config.publish=null, ZIP sin paquete diferencial y sin credenciales de firma en el entorno del proceso. El [manifiesto](windows-testing-package.json) registra 597809249 bytes y SHA-256 a3cdd61d81407b8cb92fe124fa5246ac0709368328cbcb53e358792f66cdb187. Es un archivo local de pruebas sin firma embebida, sin feed de actualización y sin instalación/publicación ejecutadas.
+
+La inspección final aprobó versión/entrypoints, 43 dependencias, 28339 entradas ASAR y ausencia de archivos de entorno e instrucciones de desarrollo. afterPack validó Python privado y ambos sidecars. El contexto operativo de reuniones separado se conserva idéntico a su fuente; su AGENTS.md pertenece al plano runtime y no es el router de desarrollo. Se restauraron únicamente los cinco bitmaps regenerados durante el empaquetado.
+
+La revisión propia del artefacto inicial detectó veinte AGENTS.md/SKILL.md de dependencias externas; ese primer paquete se descartó como candidato. Se corrigió el filtro del empaquetador y el smoke permanente ahora rechaza esas entradas en el ASAR real. Un intento de override publish=null por CLI fue rechazado por el esquema y se sustituyó por null tipado mediante la API local; el paquete r2 es el verificado. Tras el ajuste aprobaron node --check del smoke, cuatro pruebas de test:quality, arnés, documentación y OpenSpec estricto. lint:changed confirmó que no había TypeScript nuevo; no se atribuye una ejecución completa adicional de verify:release.
+
+No hay conexión Netlify ni navegador habilitado en la sesión, por lo que no se declara URL de despliegue ni configuración/llamada real verificadas. El registro del historial de Engine sigue pendiente de la fila final del usuario. El piloto permanece abierto.

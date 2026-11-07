@@ -1,5 +1,6 @@
 import { projectManagementInputs, projectPage, projectTaskFilters } from './project-management';
 import { z } from 'zod';
+import { taskResource, taskStage } from './task-workflow';
 
 export const PROJECT_HUB_IPC_MAX_BYTES = 2 * 1024 * 1024;
 export const PROJECT_HUB_IPC_MAX_DEPTH = 12;
@@ -33,6 +34,9 @@ export const projectHubProjectUpdate = z.object({
 }).strict().refine(datesOrdered).refine(notEmpty);
 export const projectHubTaskCreate = z.object({
   title: text(500), description: z.string().max(50_000).nullable().optional(), status_id: uuid.optional(),
+  status_stage: taskStage.optional(),
+  started_at: z.iso.datetime({ offset: true }).nullable().optional(),
+  external_links: z.array(taskResource).max(50).optional(),
   priority_id: uuid.nullable().optional(), assignee_id: uuid.nullable().optional(), due_date: date.nullable().optional(),
   label_ids: z.array(uuid).max(50).optional(),
   cycle_id: uuid.nullable().optional(), parent_issue_id: uuid.nullable().optional(),

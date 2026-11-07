@@ -2,9 +2,10 @@ import { ChatLoadingIndicator } from '../ChatLoadingIndicator';
 import type { ChatUIController } from '../useChatUIController';
 import { ChatMessageItem } from './ChatMessageItem';
 
-export function MessageList({ controller }: { controller: ChatUIController }) {
+export function MessageList({ controller, floating = false }: { controller: ChatUIController; floating?: boolean }) {
   const messages = controller.props.messages;
   const chat = controller.runtime.chat;
+  const { messagesEndRef } = controller.refs;
 
   return (
     <div className="min-w-0 flex-1">
@@ -15,8 +16,8 @@ export function MessageList({ controller }: { controller: ChatUIController }) {
           }
           return <ChatMessageItem key={message.id} controller={controller} message={message} />;
         })}
-        {chat.showLoadingUI && <ChatLoadingIndicator activeToolCall={chat.activeToolCall} />}
-        <div ref={controller.refs.messagesEndRef} />
+        {chat.showLoadingUI && <ChatLoadingIndicator activeToolCall={chat.activeToolCall} brandIcon={floating} />}
+        <div ref={messagesEndRef} />
       </div>
     </div>
   );

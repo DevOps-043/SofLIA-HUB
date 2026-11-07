@@ -18,6 +18,9 @@ export interface ConfirmationModalState {
 }
 
 export interface ChatUIProps {
+  floating?: boolean;
+  readVisibleContext?: import('../../../services/floating-chat-context').FloatingContextReader;
+  onBackToProject?: () => void;
   compact?: boolean;
   /** Conversacion activa; asocia el espacio de trabajo de una Skill a ella. */
   conversationId?: string | null;

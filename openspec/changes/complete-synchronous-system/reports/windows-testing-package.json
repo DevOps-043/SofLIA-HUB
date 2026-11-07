@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "at": "2026-11-05T06:43:36.193Z",
+  "channel": "pruebas",
+  "applicationVersion": "0.9.9-sync.20261105",
+  "sourceCommit": "5a0e75d2890643b1985ed45ff0b86db9b394c88f",
+  "branch": "codex/complete-synchronous-system",
+  "artifact": {
+    "file": "release/synchronous-qa-20261105-r2/Soflia-Hub-Windows-0.9.9-sync.20261105-Setup.exe",
+    "bytes": 597809249,
+    "sha256": "a3cdd61d81407b8cb92fe124fa5246ac0709368328cbcb53e358792f66cdb187",
+    "embeddedSignature": false
+  },
+  "asar": {
+    "sha256": "5dd69d3f56d6155f790d61ba31cf5c18ad052f3ff7ef331f49c30a8dfa8b4f65",
+    "entries": 28339,
+    "developmentOrEnvironmentEntries": 0,
+    "dependenciesChecked": 43,
+    "entrypointsPresent": true
+  },
+  "looseDevelopmentOrEnvironmentFiles": 0,
+  "runtimeMeetingContextPreserved": true,
+  "pythonAndBothSidecarsVerified": true,
+  "updateFeedPresent": false,
+  "compression": "NSIS con ZIP, sin paquete diferencial",
+  "buildExitCode": 0,
+  "published": false,
+  "installerStarted": false,
+  "applicationStarted": false,
+  "webDeployed": false
+}

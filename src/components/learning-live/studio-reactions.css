@@ -1,0 +1,17 @@
+.studio-reaction-overlay { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 3; }
+.studio-reaction-float { position: absolute; bottom: 12px; display: flex; flex-direction: column; align-items: center; gap: 3px; animation: studio-reaction-rise 5s linear both; }
+.studio-reaction-float b { font-size: 32px; font-weight: 400;  }
+.studio-reaction-float small { max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; border-radius: 10px; padding: 2px 6px; color: var(--color-on-accent-val); background: var(--color-primary-val); }
+@keyframes studio-reaction-rise { 0% { opacity: 0; transform: translateY(12px); } 10%,70% { opacity: 1; } 100% { opacity: 0; transform: translateY(-160px); } }
+.studio-reaction-picker { width: max-content; max-width: 100%; padding: 6px; background: var(--studio-surface); border: 1px solid var(--studio-border); border-radius: 14px; }
+.studio-reaction-picker > div { display: flex; gap: 3px; }
+.studio-reaction-picker button { padding: 4px 6px; font-size: 21px !important; border-radius: 8px; }
+.studio-reaction-picker button:hover { background: var(--studio-inset); }
+.studio-reaction-picker small { display: block; max-width: 260px; font-size: 10px; padding: 5px; }
+.participant-floating-controls > .studio-reaction-picker { margin: 0 auto 8px; }
+.studio-chat > .studio-reaction-picker { margin: 4px 12px; }
+.studio-chat-countdown { margin: 0 14px 8px; font-size: 10px; color: var(--studio-muted); }
+.studio-chat-interval { display: flex; align-items: center; gap: 8px; }
+.studio-chat-interval .studio-number-field { width: 110px; }
+@media (prefers-reduced-motion: reduce) { .studio-reaction-float { animation: none; } }
+.studio-monitor-area { position: relative; }

@@ -18,7 +18,7 @@ export function ChatMessageItem({
     <div className={`flex min-w-0 gap-4 ${isUser && !isEditing ? 'justify-end' : ''}`}>
       {message.role === 'model' && (
         <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 rounded-full overflow-hidden">
-          <img src="./assets/lia-avatar.png" alt="SOFLIA" className="w-full h-full object-cover" />
+          <img src={controller.props.floating ? './assets/Icono.png' : './assets/lia-avatar.png'} alt="Soflia" className={controller.props.floating ? 'h-6 w-6 object-contain' : 'w-full h-full object-cover'} />
         </div>
       )}
       {/* min-w-0 evita que el tamano minimo automatico del item flex (tablas,

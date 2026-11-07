@@ -29,3 +29,8 @@
 .studio-common-questions { padding-top: 7px; padding-bottom: 9px; }
 
 @container instructor-studio (max-width: 500px) { .studio-stat-values strong { font-size: 20px; }.studio-chat-column { gap: 10px; } }
+.studio-chat-connection { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 5px 14px; font-size: 10px; color: var(--studio-muted); }
+.studio-chat-connection > span { display: flex; align-items: center; gap: 6px; }
+.studio-chat-connection i { width: 5px; height: 5px; border-radius: 50%; background: var(--studio-muted); }
+.studio-chat-connection i.is-connected { background: var(--studio-accent); }
+.studio-chat-connection button { color: var(--studio-accent); font-size: 10px; }

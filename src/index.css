@@ -3,6 +3,9 @@
 @import "./styles/theme-light.css";
 @import "./styles/theme-dark.css";
 @import "./styles/project-workspace.css";
+@import "./styles/project-creation.css";
+@import "./styles/task-board.css";
+@import "./styles/project-resources.css";
 @variant dark (&:where(.dark, .dark *));
 
 @theme {

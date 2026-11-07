@@ -1,13 +1,37 @@
 import { describe, expect, it, vi } from 'vitest';
 import { requestLearningStudio } from '../learning-studio-access';
 import { emptyStudioState } from '../../src/shared/live-studio-domain';
-import { studioResponseSchema } from '../../src/shared/live-studio.contract';
+import { studioRequestSchema,studioResponseSchema } from '../../src/shared/live-studio.contract';
 
 const user = '00000000-0000-4000-8000-000000000001', session = '00000000-0000-4000-8000-000000000031';
 const input = { organization_slug: 'acme', session_id: session, operation: { type: 'snapshot' } };
 const deps = { baseUrl: 'https://learning.test', getIdentity: async () => ({ userId: user, accessToken: 'privado' }) };
 const snapshot = { user_id: user, session_id: session, title: 'Clase', server_time: '2026-10-12T20:00:00.000Z', can_manage: true, state: emptyStudioState(), asset_urls: {} };
 describe('frontera HTTP del estudio', () => {
+  it('negocia participación y distingue límite 429 sin exponer el mensaje arbitrario del servidor',async()=>{
+    const fetcher=vi.fn().mockResolvedValue(new Response(JSON.stringify({error:'detalle privado'}),{status:429}));
+    expect(await requestLearningStudio(input,{...deps,fetcher})).toMatchObject({success:false,code:'rate_limited'});
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).not.toHaveProperty('participation_version');
+    expect(fetcher.mock.calls[0][1].headers['X-Soflia-Studio-Participation']).toBe('1');
+  });
+  it('abre el instructor con API anterior estricta sin enviar el campo nuevo en JSON',async()=>{
+    const legacyRequest=studioRequestSchema.omit({participation_version:true});
+    expect(legacyRequest.safeParse({...input,participation_version:1}).success).toBe(false);
+    const legacyState:Record<string,unknown>=structuredClone(snapshot.state);
+    delete legacyState.reaction_events;delete legacyState.participation;
+    const moderation:Record<string,unknown>={...snapshot.state.moderation};delete moderation.message_interval_seconds;
+    const legacySnapshot={...snapshot,state:{...legacyState,moderation}};
+    const fetcher=vi.fn().mockImplementation(async(_url,options)=>legacyRequest.safeParse(JSON.parse(options.body)).success?new Response(JSON.stringify({snapshot:legacySnapshot})):new Response(JSON.stringify({error:'Datos inválidos'}),{status:400}));
+    const result=await requestLearningStudio({...input,participation_version:1},{...deps,fetcher});
+    expect(result).toMatchObject({success:true,snapshot:{can_manage:true,user_id:user}});
+    if(result.success)expect(result.snapshot).not.toHaveProperty('participation_version');
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
+  it('conserva capacidad confirmada por servidor nuevo y no intenta degradar un 403',async()=>{
+    const fetcher=vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({snapshot:{...snapshot,participation_version:1}}))).mockResolvedValueOnce(new Response('{}',{status:403}));
+    expect(await requestLearningStudio(input,{...deps,fetcher})).toMatchObject({success:true,snapshot:{participation_version:1}});
+    expect(await requestLearningStudio(input,{...deps,fetcher})).toMatchObject({success:false,code:'access_denied'});expect(fetcher).toHaveBeenCalledTimes(2);
+  });
   it.each([
     ['Falta configurar Meeting SDK en Learning', 'configuración para habilitar el ingreso'],
     ['Zoom no autorizó al anfitrión; revisa el permiso ZAK', 'permisos de la conexión audiovisual'],

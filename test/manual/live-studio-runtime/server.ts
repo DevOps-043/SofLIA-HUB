@@ -1,7 +1,8 @@
 import type { Plugin } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { randomUUID, createHash } from 'node:crypto';
-import { applyStudioCommand, emptyStudioState, projectStudioState, StudioDomainError } from '../../../src/shared/live-studio-domain';
+import { applyStudioCommand, projectStudioState, StudioDomainError } from '../../../src/shared/live-studio-domain';
+import { exampleStudioState } from './example-state';
 import { studioRequestSchema } from '../../../src/shared/live-studio.contract';
 
 const session = '00000000-0000-4000-8000-000000000031';
@@ -17,7 +18,7 @@ async function body(request: IncomingMessage, limit: number) {
   return Buffer.concat(chunks);
 }
 export function studioTestServer(): Plugin {
-  let state = emptyStudioState();
+  let state = exampleStudioState();
   const commands = new Map<string, string>();
   const listeners = new Set<ServerResponse>();
   const uploads = new Map<string, { bytes: number; mime: string; content?: Buffer }>();
@@ -67,8 +68,8 @@ export function studioTestServer(): Plugin {
           }
         }
         const asset_urls = Object.fromEntries([...uploads].filter(([, item]) => item.content).map(([id]) => [`${org}/${session}/${id}`, `http://127.0.0.1:4321/__studio-assets/${id}`]));
-        return json(response, { success: true, snapshot: { session_id: session, user_id: actor.id, title: 'Prueba funcional del estudio', can_manage: actor.canManage, server_time: new Date().toISOString(), state: projectStudioState(state, actor, new Date().toISOString()), asset_urls } });
-      } catch (error) { return json(response, { success: false, code: error instanceof StudioDomainError && error.code === 'forbidden' ? 'access_denied' : 'unavailable', error: error instanceof StudioDomainError ? error.message : 'Solicitud de prueba inválida' }); }
+        return json(response, { success: true, snapshot: { participation_version:1, session_id: session, user_id: actor.id, title: 'Prueba funcional del estudio', can_manage: actor.canManage, server_time: new Date().toISOString(), state: projectStudioState(state, actor, new Date().toISOString()), asset_urls } });
+      } catch (error) { return json(response, { success: false, code: error instanceof StudioDomainError && error.code === 'forbidden' ? 'access_denied' : error instanceof StudioDomainError && error.code==='rate_limited'?'rate_limited':'unavailable', error: error instanceof StudioDomainError ? error.message : 'Solicitud de prueba inválida' }); }
     });
     server.httpServer?.once('close', () => { for (const listener of listeners) listener.end(); listeners.clear(); uploads.clear(); });
   } };

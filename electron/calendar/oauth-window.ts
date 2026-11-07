@@ -9,6 +9,8 @@ export interface OAuthWindowOptions {
   clientId: string;
   proof: OAuthProof;
   assertCurrent: () => void;
+  signal?: AbortSignal;
+  parent?: BrowserWindow;
 }
 
 const statusHtml = '<!doctype html><html lang="es"><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; base-uri \'none\'; form-action \'none\'"><title>Autorización</title><body><h1>Continúa en tu navegador</h1><p>Autoriza la conexión en el navegador del sistema. Cierra esta ventana para cancelar.</p></body></html>';
@@ -20,13 +22,15 @@ export async function openOAuthWindow(authUrl: string, title: string, options: O
   let window: BrowserWindow | null = null;
   const unsubscribe = onAuthStateChange(() => { try { options.assertCurrent(); } catch { void receiver.cancel(); } });
   const closed = () => { void receiver.cancel(); };
+  options.signal?.addEventListener('abort', closed, { once: true });
+  if (options.signal?.aborted) closed();
   const completed = receiver.result.then(code => ({ kind: 'completed' as const, code }));
   const complete = (code: string | null) => { options.assertCurrent(); return code; };
   try {
     if (!await receiver.ready) throw new Error('No se pudo iniciar la recepción OAuth local.');
     options.assertCurrent();
     if (!receiver.isPending()) return complete(await receiver.result);
-    window = new BrowserWindow({ width: 440, height: 260, title: `Conectar ${title}`, show: false,
+    window = new BrowserWindow({ parent: options.parent, width: 440, height: 260, title: `Conectar ${title}`, show: false,
       webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true } });
     window.on('closed', closed);
     window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -43,6 +47,7 @@ export async function openOAuthWindow(authUrl: string, title: string, options: O
     return complete(await receiver.result);
   } finally {
     unsubscribe();
+    options.signal?.removeEventListener('abort', closed);
     try { if (window && !window.isDestroyed()) { window.removeListener('closed', closed); window.destroy(); } }
     finally { await receiver.cancel(); }
   }

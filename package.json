@@ -8,12 +8,14 @@
     "email": "devops@soflia.ai"
   },
   "scripts": {
-    "dev": "node scripts/dev-with-project-hub.mjs",
+    "installer:live-qa": "node scripts/quality/build-live-qa.mjs",
+    "dev": "npm run dev:app",
     "dev:app": "vite --config vite.config.mts",
     "dev:clean": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-clean.ps1",
     "dev:fresh": "npm run dev:clean && npm run dev",
+    "pretypecheck": "npm run zoom:install",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
-    "build:app": "npm run typecheck && vite build --config vite.config.mts && npm run presentation:build && npm run audiovisual:build && npm run zoom:build",
+    "build:app": "npm run typecheck && vite build --config vite.config.mts && npm run presentation:build && npm run audiovisual:build && npm run zoom:build:prepared",
     "build": "npm run build:app && node scripts/generate-bitmaps.js && node scripts/setup-python-runtime.js && electron-builder && node scripts/build-installer-shell.mjs",
     "build:win": "npm run build:app && node scripts/generate-bitmaps.js && node scripts/setup-python-runtime.js && electron-builder --win && node scripts/build-installer-shell.mjs",
     "build:mac": "npm run build:app && node scripts/generate-bitmaps.js && node scripts/setup-python-runtime.js && electron-builder --mac",
@@ -68,7 +70,8 @@
     "production:smoke": "node scripts/run-production-smoke.mjs",
     "audiovisual:build": "vite build --config vite.audiovisual.config.mts",
     "zoom:install": "npm ci --prefix packages/zoom-runtime --ignore-scripts",
-    "zoom:build": "npm run zoom:install && tsc -p packages/zoom-runtime/tsconfig.json && vite build --config vite.zoom.config.mts",
+    "zoom:build": "npm run zoom:install && npm run zoom:build:prepared",
+    "zoom:build:prepared": "tsc -p packages/zoom-runtime/tsconfig.json && vite build --config vite.zoom.config.mts",
     "select:smoke:native": "node scripts/quality/smoke-select-dropdown.mjs"
   },
   "dependencies": {

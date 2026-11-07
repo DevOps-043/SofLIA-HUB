@@ -6,6 +6,18 @@ const context = () => ({ accessToken: 'acceso-ficticio-A', signal: new AbortCont
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe('Transporte Project Hub acotado', () => {
+  it('explica TEAM_REQUIRED sin revelar mensajes ni detalles del servidor', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ error: { code: 'TEAM_REQUIRED', message: 'secreto-ficticio', details: 'privado' } }, { status: 422 })));
+    await expect(new ProjectHubTransport('https://api.example.test').request('/api/v1/test', { method: 'POST' }, context())).rejects.toMatchObject({ code: 'HTTP_422', message: expect.stringContaining('espacio de esta organización') });
+  });
+  it('conserva el estado HTTP cuando el código remoto es desconocido', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ error: { code: 'PRIVADO', message: 'privado' } }, { status: 422 })));
+    await expect(new ProjectHubTransport('https://api.example.test').request('/api/v1/test', { method: 'POST' }, context())).rejects.toMatchObject({ code: 'HTTP_422', message: 'Project Hub rechazó la solicitud (HTTP 422).' });
+  });
+  it('acota y descarta un cuerpo de rechazo excesivo', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ error: { code: 'TEAM_REQUIRED', details: 'x'.repeat(17_000) } }, { status: 422 })));
+    await expect(new ProjectHubTransport('https://api.example.test').request('/api/v1/test', { method: 'POST' }, context())).rejects.toMatchObject({ code: 'HTTP_422', message: 'Project Hub rechazó la solicitud (HTTP 422).' });
+  });
   it.each(['http://remoto.example.test', 'https://usuario:clave@example.test', 'https://api.example.test/?token=ficticio', 'https://api.example.test/#fragmento', 'file:///tmp/prueba', 'no-url'])('rechaza endpoint inseguro o ambiguo: %s', endpoint => {
     expect(normalizeProjectHubEndpoint(endpoint)).toBe('');
   });

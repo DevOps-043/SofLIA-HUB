@@ -9,13 +9,14 @@ import { uploadProjectFiles, type ProjectHubNativeUpload, type ProjectHubUploadA
 import type { ProjectDownloadResult, ProjectUploadResult } from '../../src/shared/project-hub-files';
 import { downloadProjectFile, type ProjectHubDownloadAuthorization, type ProjectHubDownloadTarget } from './download';
 import type { ProjectHubProject, ProjectHubRequestOptions, ProjectHubResult, ProjectHubSession } from './types';
+import { DirectProjectBackend } from './direct-backend';
 
 const PUBLIC_PROJECT_HUB_URL = 'https://sofliahub.netlify.app';
 
 export class ProjectHubApiService {
   private readonly transport: ProjectHubTransport;
   private readonly authentication: ProjectHubAuthentication;
-  constructor(baseUrl = resolveProjectHubBaseUrl(), storage?: ProjectHubCredentialStorage) {
+  constructor(baseUrl = resolveProjectHubBaseUrl(), storage?: ProjectHubCredentialStorage, private readonly direct?: DirectProjectBackend) {
     this.transport = new ProjectHubTransport(baseUrl);
     this.authentication = new ProjectHubAuthentication(this.transport, storage);
   }
@@ -46,16 +47,18 @@ export class ProjectHubApiService {
   removeTaskDocument(input: ProjectManagementInputs['removeTaskDocument'], authorization?: ProjectHubOperationAuthorization) { const request = managementRequest('removeTaskDocument', input); return this.call(request.path, request.options, authorization); }
   createTaskLabel(input: ProjectManagementInputs['createTaskLabel'], authorization?: ProjectHubOperationAuthorization) { const request = managementRequest('createTaskLabel', input); return this.call(request.path, request.options, authorization); }
   async getStatus(authorization?: ProjectHubOperationAuthorization) {
+    if (this.direct) return this.direct.status(authorization);
     return { configured: Boolean(this.transport.baseUrl), endpoint: this.transport.baseUrl,
       enabled: process.env.PROJECT_HUB_UNIFIED_UI !== 'false', browserCollectionsEnabled: process.env.BROWSER_COLLECTIONS !== 'false',
       ...await this.authentication.status(authorization) };
   }
   async exchangeSofiaToken(sofiaAccessToken: string): Promise<ProjectHubResult<{ workspaces: ProjectHubSession['workspaces'] }>> {
+    if (this.direct) { const status = await this.direct.status(); return { success: status.authenticated, data: { workspaces: status.workspaces }, ...(!status.authenticated ? status.authError : {}) }; }
     return this.authentication.exchange(sofiaAccessToken);
   }
-  async retryAuthentication(authorization?: ProjectHubOperationAuthorization): Promise<ProjectHubResult<{ workspaces: ProjectHubSession['workspaces'] }>> { return this.authentication.retry(authorization); }
-  async restore(): Promise<boolean> { return this.authentication.restore(); }
-  async logout(): Promise<void> { return this.authentication.logout(); }
+  async retryAuthentication(authorization?: ProjectHubOperationAuthorization): Promise<ProjectHubResult<{ workspaces: ProjectHubSession['workspaces'] }>> { if (this.direct) { const status = await this.direct.status(authorization); return { success: status.authenticated, data: { workspaces: status.workspaces }, ...(!status.authenticated ? status.authError : {}) }; } return this.authentication.retry(authorization); }
+  async restore(): Promise<boolean> { return this.direct ? false : this.authentication.restore(); }
+  async logout(): Promise<void> { if (!this.direct) await this.authentication.logout(); }
 
   async listProjects(input: { workspaceId: string; search?: string; cursor?: string }, authorization?: ProjectHubOperationAuthorization): Promise<ProjectHubResult<ProjectHubProject[]>> {
     const query = new URLSearchParams();
@@ -118,6 +121,7 @@ export class ProjectHubApiService {
     return this.call(`${this.projectPath(input)}/files/${input.evidenceId}/download`, {}, authorization);
   }
   async uploadFiles(input: ProjectHubNativeUpload, authorization: ProjectHubUploadAuthorization): Promise<ProjectUploadResult> {
+    if (this.direct) return { success: false, code: 'LEGACY_UPLOAD_DISABLED', error: 'Añade los archivos en la ubicación elegida para el proyecto: equipo, Google Drive o OneDrive.' };
     let lease: Awaited<ReturnType<ProjectHubAuthentication['capture']>> | undefined;
     try {
       lease = await this.authentication.capture(authorization);
@@ -127,6 +131,12 @@ export class ProjectHubApiService {
     finally { lease?.dispose(); }
   }
   async downloadFile(input: ProjectHubDownloadTarget, authorization: ProjectHubDownloadAuthorization): Promise<ProjectDownloadResult> {
+    if (this.direct) {
+      let context;
+      try { context = await this.direct.capture(authorization); return await downloadProjectFile(input, this, authorization, { ...context, assert: () => context!.assert() }, process.env.VITE_IRIS_SUPABASE_URL ?? ''); }
+      catch { return { success: false, code: 'DOWNLOAD_DENIED', error: 'No se pudo autorizar la descarga del archivo histórico.' }; }
+      finally { context?.dispose(); }
+    }
     let lease: Awaited<ReturnType<ProjectHubAuthentication['capture']>> | undefined;
     try {
       lease = await this.authentication.capture(authorization);
@@ -136,6 +146,7 @@ export class ProjectHubApiService {
   }
 
   async findProjectWorkspace(projectId: string): Promise<string | null> {
+    if (this.direct) return this.direct.findProjectWorkspace(projectId);
     let lease: Awaited<ReturnType<ProjectHubAuthentication['capture']>> | undefined;
     try {
       lease = await this.authentication.capture(); await this.authentication.access(lease);
@@ -149,6 +160,7 @@ export class ProjectHubApiService {
   }
   private projectPath(input: { workspaceId: string; projectId: string }) { return `/api/v1/workspaces/${input.workspaceId}/projects/${input.projectId}`; }
   private async call<T = unknown>(path: string, options: ProjectHubRequestOptions = {}, authorization?: ProjectHubOperationAuthorization): Promise<ProjectHubResult<T>> {
+    if (this.direct) return this.direct.request<T>(path, options, authorization);
     let lease: Awaited<ReturnType<ProjectHubAuthentication['capture']>> | undefined;
     try {
       lease = await this.authentication.capture(authorization);
@@ -186,6 +198,6 @@ export function resolveProjectHubBaseUrl(): string {
 
 let singleton: ProjectHubApiService | null = null;
 export function getProjectHubApiService(): ProjectHubApiService {
-  singleton ||= new ProjectHubApiService();
+  singleton ||= new ProjectHubApiService('', undefined, new DirectProjectBackend());
   return singleton;
 }

@@ -24,6 +24,8 @@ import { BrowserTabStrip } from './BrowserTabStrip';
 import { BrowserGroupEditor, BrowserVerticalTabs } from './BrowserTabWorkspace';
 import { BrowserFindBar } from './BrowserFindBar';
 import { BrowserNavigationSafetyNotice } from './BrowserNavigationSafetyNotice';
+import { BrowserSaveToProject } from './BrowserSaveToProject';
+import type { ProjectBrowserTarget } from '../project-workspace/types';
 import { BrowserSensitiveHandoffNotice } from './BrowserSensitiveHandoffNotice';
 import { scopedPreferenceKey } from '../../services/user-scope';
 import { browserShortcutLabel, type BrowserShortcutCommand } from '../../shared/browser-keyboard-shortcuts';
@@ -60,10 +62,11 @@ function waitForNextPaint(): Promise<void> {
 const PAINT_WAIT_FALLBACK_MS = 120;
 
 export function IntegratedBrowserPanel(props: {
+  projectTarget?: ProjectBrowserTarget;
   onClose?: () => void;
   maximized?: boolean;
   onToggleMaximize?: () => void;
-  viewportInsets?: { left: number; right: number };
+  viewportInsets?: { left: number; right: number; top?: number; bottom?: number };
   onContentTopChange?: (offset: number) => void;
   chatVisible?: boolean;
   onShowChat?: () => void;
@@ -72,7 +75,7 @@ export function IntegratedBrowserPanel(props: {
   const rootRef = useRef<HTMLElement>(null);
   const mountedRef = useRef(true);
   const viewportRef = useRef<HTMLDivElement>(null);
-  const viewportInsetsRef = useRef({ left: 0, right: 0 });
+  const viewportInsetsRef = useRef({ left: 0, right: 0, top: 0, bottom: 0 });
   const lastViewportRef = useRef<string | null>(null);
   const viewportRequestRef = useRef(0);
   const viewportProfileRef = useRef<number | null>(null);
@@ -88,6 +91,7 @@ export function IntegratedBrowserPanel(props: {
   const suggestionOpenPromiseRef = useRef<Promise<void> | null>(null);
   const suggestionRestorePromiseRef = useRef<Promise<void> | null>(null);
   const readingModeRef = useRef<BrowserReadingContent | null>(null);
+  const appDialogOpenRef = useRef(false);
   const [state, setState] = useState<IntegratedBrowserState>({ ...EMPTY_INTEGRATED_BROWSER_STATE, url: BROWSER_HOME_URL, title: BROWSER_HOME_TITLE });
   const [address, setAddress] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
@@ -119,7 +123,9 @@ export function IntegratedBrowserPanel(props: {
   });
   const viewportInsetLeft = Math.max(0, Math.round(props.viewportInsets?.left ?? 0));
   const viewportInsetRight = Math.max(0, Math.round(props.viewportInsets?.right ?? 0));
-  viewportInsetsRef.current = { left: viewportInsetLeft, right: viewportInsetRight };
+  const viewportInsetBottom = Math.max(0, Math.round(props.viewportInsets?.bottom ?? 0));
+  const viewportInsetTop = Math.max(0, Math.round(props.viewportInsets?.top ?? 0));
+  viewportInsetsRef.current = { left: viewportInsetLeft, right: viewportInsetRight, top: viewportInsetTop, bottom: viewportInsetBottom };
 
   useLayoutEffect(() => {
     mountedRef.current = true;
@@ -159,6 +165,7 @@ export function IntegratedBrowserPanel(props: {
   const publishViewport = useCallback(async (force = false) => {
     const element = viewportRef.current;
     if (!element || !mountedRef.current) return;
+    if (appDialogOpenRef.current) return;
     if ((managementTabRef.current || suggestionOverlayRef.current) && !force) return;
     const rect = element.getBoundingClientRect();
     const rootRect = rootRef.current?.getBoundingClientRect();
@@ -168,9 +175,10 @@ export function IntegratedBrowserPanel(props: {
     const width = Math.round(rect.width) - insets.left - insets.right;
     // El desplegable ocupa sólo la parte superior: la página sigue componiendo
     // cuadros debajo, sin una captura estática ni ocultación de WebContentsView.
-    const y = shellHomeRef.current ? Math.round(rect.top)
-      : Math.max(Math.round(rect.top), Math.ceil(suggestionsBottomRef.current ?? rect.top));
-    const height = Math.round(rect.bottom) - y;
+    const insetY = Math.round(rect.top) + insets.top;
+    const y = shellHomeRef.current ? insetY
+      : Math.max(insetY, Math.ceil(suggestionsBottomRef.current ?? rect.top));
+    const height = Math.round(rect.bottom) - y - Math.min(insets.bottom, Math.max(0, Math.round(rect.bottom) - y - 120));
     if (width < 160 || height < 120) return;
     const viewport = {
       x: Math.round(rect.left) + insets.left,
@@ -198,6 +206,27 @@ export function IntegratedBrowserPanel(props: {
     // Su instantánea no debe reemplazar el estado publicado por main.
     consumeResponse({ ...response, state: undefined });
   }, [consumeResponse, onContentTopChange]);
+
+  // Los diálogos del renderer necesitan retirar la superficie web nativa,
+  // que se compone por encima del DOM incluso cuando se usa la capa modal.
+  useEffect(() => {
+    if (!integratedBrowserService.isAvailable()) return;
+    let active = true;
+    let hidePending: Promise<unknown> = Promise.resolve();
+    const sync = () => {
+      const open = !!document.querySelector('dialog[data-native-browser-overlay][open], [data-native-browser-overlay="true"]');
+      if (open === appDialogOpenRef.current) return;
+      appDialogOpenRef.current = open;
+      if (open) hidePending = integratedBrowserService.hide(true).catch(() => undefined);
+      else void hidePending.then(() => {
+        if (active && !appDialogOpenRef.current && !managementTabRef.current && !suggestionOverlayRef.current) void publishViewport(true);
+      });
+    };
+    const observer = new MutationObserver(sync);
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['open', 'data-native-browser-overlay'] });
+    sync();
+    return () => { active = false; observer.disconnect(); appDialogOpenRef.current = false; };
+  }, [publishViewport]);
 
   const showShellHome = isBrowserHomeUrl(state.url) && state.viewMode === 'single' && !state.isFullscreen;
   useLayoutEffect(() => {
@@ -514,7 +543,7 @@ export function IntegratedBrowserPanel(props: {
 
   useEffect(() => {
     void publishViewport();
-  }, [publishViewport, viewportInsetLeft, viewportInsetRight]);
+  }, [publishViewport, viewportInsetLeft, viewportInsetRight, viewportInsetTop, viewportInsetBottom]);
 
   useEffect(() => {
     if (utilityBarVisible) void refreshToolbarExtensions();
@@ -669,6 +698,7 @@ export function IntegratedBrowserPanel(props: {
               favorites={bookmarks.favorites}
             />
             <BrowserBookmarkToggle bookmarks={bookmarks} />
+            <BrowserSaveToProject title={state.title} url={state.url} projectTarget={props.projectTarget} />
             <BrowserExtensionsBar extensions={toolbarExtensions} onOpenExtensions={() => void toggleManagement('extensions')} />
             <BrowserIconButton
               label={observationStatus.enabled ? 'Pausar percepción de SofLIA' : 'Activar percepción de SofLIA'}
@@ -788,7 +818,7 @@ export function IntegratedBrowserPanel(props: {
           <div
             className="pointer-events-none absolute overflow-hidden bg-white dark:bg-[#111820]"
             data-testid="integrated-browser-snapshot"
-            style={snapshotStyle ?? { inset: 0, left: viewportInsetLeft, right: viewportInsetRight }}
+            style={snapshotStyle ?? { inset: 0, left: viewportInsetLeft, right: viewportInsetRight, top: viewportInsetTop, bottom: viewportInsetBottom }}
           >
             <img
               src={managementSnapshot ?? suggestionSnapshot ?? ''}
@@ -802,7 +832,7 @@ export function IntegratedBrowserPanel(props: {
             <div className="h-full w-1/3 animate-pulse rounded-full bg-accent" />
           </div>
         )}
-        {showShellHome ? <div className="absolute inset-y-0" style={{ left: viewportInsetLeft, right: viewportInsetRight }}>
+        {showShellHome ? <div className="absolute inset-y-0" style={{ left: viewportInsetLeft, right: viewportInsetRight, top: viewportInsetTop, bottom: viewportInsetBottom }}>
           <BrowserHomePage key={state.activeTabId ?? 'initial-home'} onNavigate={navigateFromHome} />
         </div> : <div className="grid h-full place-items-center text-sm text-gray-400 dark:text-white/30">Preparando navegador seguro...</div>}
       </div>

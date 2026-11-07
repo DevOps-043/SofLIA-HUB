@@ -1,0 +1,46 @@
+.soflia-floating-dock { position:absolute; z-index:60; right:12px; bottom:12px; max-width:calc(100% - 24px); font-family:var(--font-system-ui); }
+.soflia-floating-launcher { display:grid; place-items:center; width:46px; height:46px; border:1px solid color-mix(in srgb,var(--color-accent-val) 35%,var(--color-border-val)); border-radius:50%; background:var(--color-card-val); box-shadow:0 6px 24px rgb(0 0 0 / 18%); transition:transform .16s,border-color .16s; }
+.soflia-floating-launcher:hover { transform:translateY(-2px); border-color:var(--color-accent-val); }
+.soflia-floating-dock [hidden] { display:none !important; }
+.soflia-floating-card { position:relative; display:flex; flex-direction:column; width:380px; max-width:100%; max-height:min(var(--soflia-floating-max-height,min(480px,70vh)),var(--soflia-floating-surface-height,100vh)); min-height:0; overflow:hidden; border:1px solid var(--color-border-val); border-radius:12px; background:var(--color-card-val); color:var(--color-primary-val); box-shadow:0 8px 28px rgb(0 0 0 / 18%); }
+.soflia-floating-card:has([data-floating-has-messages="true"]) { height:var(--soflia-floating-max-height,min(520px,70vh)); }
+.soflia-floating-card:has(.soflia-floating-model-menu):not(:has([data-floating-has-messages="true"])) { height:min(360px,var(--soflia-floating-max-height,70vh)); }
+.soflia-floating-header { display:flex; flex:none; align-items:center; gap:3px; height:28px; padding:2px 6px; }
+.soflia-floating-grip { display:flex; flex:1; min-width:24px; height:24px; align-items:center; justify-content:flex-start; padding:0 5px; cursor:grab; touch-action:none; user-select:none; color:var(--color-text-secondary-val); border-radius:5px; }
+.soflia-floating-grip svg { width:22px; height:14px; fill:none; stroke:currentColor; stroke-width:2.8; stroke-linecap:round; opacity:.55; }
+.soflia-floating-dock[data-dragging] .soflia-floating-grip { cursor:grabbing; }
+.soflia-floating-dock[data-dragging] { user-select:none; }
+.soflia-floating-model { display:flex; align-items:center; justify-content:center; gap:3px; height:24px; padding:3px 5px; font-size:10px; color:var(--color-text-secondary-val); border-radius:5px; }
+.soflia-floating-minimize { display:grid; place-items:center; width:24px; height:24px; border-radius:5px; color:var(--color-text-secondary-val); }
+.soflia-floating-minimize svg,.soflia-floating-new svg,.soflia-floating-model svg { width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.soflia-floating-new { display:grid; place-items:center; width:24px; height:24px; border-radius:5px; color:var(--color-text-secondary-val); }
+.soflia-floating-new:disabled { opacity:.45; cursor:wait; }
+.soflia-floating-minimize:hover,.soflia-floating-model:hover,.soflia-floating-new:hover { background:var(--color-surface-2-val); }
+.soflia-floating-content { display:flex; flex:1 1 auto; min-height:0; overflow:hidden; }
+.soflia-floating-model-menu { position:absolute; z-index:10; top:28px; right:6px; left:6px; max-height:calc(100% - 76px); overflow:auto; padding:6px; border:1px solid var(--color-border-val); border-radius:10px; background:var(--color-card-val); box-shadow:0 6px 20px rgb(0 0 0 / 12%); }
+.soflia-floating-model-menu > button { display:flex; align-items:center; justify-content:space-between; width:100%; padding:10px; border-radius:8px; text-align:left; }
+.soflia-floating-model-menu > button:hover,.soflia-floating-model-menu > button[aria-checked="true"] { background:var(--color-surface-2-val); }
+.soflia-floating-model-menu strong { display:block; font-size:12px; font-weight:550; }
+.soflia-floating-model-menu small { display:block; margin-top:2px; color:var(--color-text-secondary-val); font-size:11px; }
+.soflia-floating-thinking { display:flex; align-items:center; justify-content:space-between; gap:8px; border-top:1px solid var(--color-border-val); padding:10px; font-size:11px; color:var(--color-text-secondary-val); }
+.soflia-floating-thinking select { max-width:50%; background:var(--color-surface-2-val); color:var(--color-primary-val); padding:5px; border-radius:6px; }
+.soflia-floating-navigation { flex:none; min-height:0; max-height:220px; overflow:auto; padding:2px 10px; }
+.soflia-floating-chat-ui { min-height:0; }
+.soflia-floating-chat-ui,.soflia-floating-chat-ui > div { background:transparent; }
+.soflia-floating-chat-ui textarea { min-height:28px; padding-top:5px; padding-bottom:5px; }
+.soflia-floating-input-area { padding:0 6px 6px; background:transparent; }
+.soflia-floating-input-shell { margin-top:0; padding:2px; gap:3px; border-radius:9px; box-shadow:none; }
+.soflia-floating-input-shell:focus-within { box-shadow:none; }
+.soflia-floating-input-shell button { width:26px; height:26px; box-shadow:none; }
+.soflia-floating-input-shell button svg { width:15px; height:15px; }
+.soflia-floating-project-start { width:100%; padding:0 6px 6px; }
+.soflia-floating-start-input { display:block; width:100%; height:34px; padding:0 10px; border:1px solid var(--color-border-val); border-radius:9px; background:var(--color-surface-2-val); color:var(--color-text-secondary-val); font-size:12px; text-align:left; }
+.soflia-floating-chat-ui .max-w-5xl.space-y-6 { padding:10px 14px 16px; }
+.soflia-floating-chat-ui .max-w-5xl.space-y-6 > div { gap:10px; }
+.soflia-floating-response { font-size:13px; line-height:1.65; }
+.soflia-floating-response :is(h1,h2,h3,h4) { font-size:14px; line-height:1.5; margin-top:1em; margin-bottom:.5em; }
+.soflia-floating-response :is(p,ul,ol) { margin-top:.5em; margin-bottom:.5em; }
+.soflia-floating-chat-ui button:focus-visible,.soflia-floating-dock button:focus-visible { outline:2px solid var(--color-accent-val); outline-offset:2px; }
+.soflia-floating-notice { padding:12px; font-size:12px; color:var(--color-text-secondary-val); }
+.soflia-floating-notice button { color:var(--color-accent-val); text-decoration:underline; }
+@media (prefers-reduced-motion:reduce) { .soflia-floating-launcher { transition:none; } }
