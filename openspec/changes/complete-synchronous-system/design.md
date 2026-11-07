@@ -14,6 +14,7 @@ Cerrar contratos conservando autenticación por organización, CAS e idempotenci
 - Composición y dispositivos usan APIs públicas; no capturar DOM interno ni audio global del equipo como sustituto de una pista aislada.
 - Verificación local incluye contratos, SQL reentrante, errores y recursos; las pruebas de cuenta real permanecen como barrera operativa.
 - El instalador de pruebas excluye instrucciones AGENTS.md y SKILL.md también de dependencias transitivas; el smoke comprueba el contenido real del ASAR.
+- El build de QA toma las URLs y claves públicas de las dos bases de autenticación desde la configuración administrada. La compuerta comprueba la configuración incrustada y el origen de Learning QA antes de distribuir. Un job separado verifica el hash y publica la prerelease.
 
 ## Risks / Trade-offs
 

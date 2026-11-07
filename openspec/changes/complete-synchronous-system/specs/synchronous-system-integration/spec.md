@@ -39,3 +39,7 @@ La entrega MUST distinguir pruebas locales de configuración, migración, grabac
 #### Scenario: Instalador para pruebas
 - **WHEN** se entrega el paquete Windows del candidato
 - **THEN** el ASAR excluye AGENTS.md y SKILL.md, incluso en dependencias, y se registra versión y hash del artefacto sin atribuirle un despliegue web.
+
+#### Scenario: Configuración efectiva del instalador
+- **WHEN** falta una URL o clave pública de autenticación, se recibe una clave elevada o el bundle carece del origen de Learning QA
+- **THEN** la compuerta detiene la distribución y reporta la variable o comprobación que falló, sin revelar su valor.

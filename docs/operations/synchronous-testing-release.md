@@ -1,6 +1,6 @@
 # Entrega del aula síncrona para pruebas
 
-Fecha: 2026-11-05. Estado: ramas de pruebas publicadas en los tres repositorios, verificaciones de producto aprobadas e instalador Windows de pruebas construido y verificado. Despliegue web y piloto audiovisual pendientes.
+Actualizado el 2026-11-07. Learning QA está desplegado. Engine integra el refuerzo de permisos de staging. El instalador configurado de Hub está en preparación.
 
 ## Código y orden de publicación
 
@@ -10,9 +10,11 @@ Ramas publicadas: [Hub](https://github.com/DevOps-043/SofLIA-HUB/tree/codex/comp
 
 Learning usa su netlify.toml y scripts/netlify-build.sh. Engine usa netlify.toml con captura del origen inmutable del despliegue antes del build, para que los jobs internos correspondan a la misma versión. No sustituir ese comando por next build directo en Netlify. La instalación Desktop necesita el paquete generado desde la misma rama Hub.
 
-Para habilitar el acceso del equipo, desplegar la rama coordinada como entorno de pruebas de ambos sitios Netlify, conservando sus comandos versionados. Registrar la URL y el SHA efectivo de cada deploy; después comprobar la conexión Engine → Learning con una sesión programada autorizada. En esta sesión no hay conexión Netlify ni navegador habilitado para realizar ese paso.
+Learning QA quedó publicado desde 5ffa4092 y abrió su panel autenticado. Engine tiene un override de rama que apunta al Learning QA. La comprobación de entrega de una sesión autorizada forma parte del piloto. [Learning QA](https://codex-complete-synchronous-system--soflia-learning.netlify.app) · [Deploy de Learning](https://app.netlify.com/projects/soflia-learning/deploys/6aed311b87cd372cd48e585c).
 
-## Instalador Windows disponible
+## Instalador Windows de QA
+
+El paquete local 0.9.9-sync.20261105 se construyó sin los orígenes públicos de autenticación. Reservarlo para evidencia estructural. El flujo Instalador de aula síncrona QA genera 0.9.9-sync.20261107 con las claves públicas administradas y el origen exacto de Learning QA, verifica el ASAR y publica el ejecutable, manifiesto y SHA-256 en una prerelease.
 
 Candidato: 0.9.9-sync.20261105, Windows x64, construido desde Hub 5a0e75d2. Archivo local: release/synchronous-qa-20261105-r2/Soflia-Hub-Windows-0.9.9-sync.20261105-Setup.exe. Tamaño: 597809249 bytes. SHA-256: a3cdd61d81407b8cb92fe124fa5246ac0709368328cbcb53e358792f66cdb187.
 

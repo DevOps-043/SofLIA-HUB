@@ -8,6 +8,7 @@
     "email": "devops@soflia.ai"
   },
   "scripts": {
+    "installer:live-qa": "node scripts/quality/build-live-qa.mjs",
     "dev": "npm run dev:app",
     "dev:app": "vite --config vite.config.mts",
     "dev:clean": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-clean.ps1",
