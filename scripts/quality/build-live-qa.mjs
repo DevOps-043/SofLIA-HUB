@@ -10,6 +10,7 @@ import { inspectInstaller, installerArtifact, installerEnvironment } from './smo
 export const learningQaOrigin = 'https://codex-complete-synchronous-system--soflia-learning.netlify.app';
 const version = '0.9.9-sync.20261107';
 const branch = 'refs/heads/codex/complete-synchronous-system';
+let stage = 'configuración pública';
 
 export function publicQaConfig(env) {
   const config = {
@@ -48,7 +49,9 @@ async function main() {
     'La compilación QA requiere un checkout sin archivos de entorno.');
   const config = publicQaConfig(process.env);
   const env = { ...installerEnvironment(process.env), ...config };
+  stage = 'compilación';
   assert.equal(await compileApp(projectRoot, env), 0, 'Falló la compilación de QA.');
+  stage = 'recursos del instalador';
   assert.equal(await runBuildCommand(projectRoot, ['scripts/generate-bitmaps.js'], env), 0);
 
   // El empaquetador recibe el bundle compilado y no necesita valores de conexión.
@@ -56,6 +59,7 @@ async function main() {
   process.env.CSC_IDENTITY_AUTO_DISCOVERY = 'false';
   const output = `release/${version}`;
   const artifact = installerArtifact(version);
+  stage = 'empaquetado de Windows';
   await build({
     targets: Platform.WINDOWS.createTarget(['nsis'], Arch.x64),
     publish: 'never',
@@ -68,6 +72,7 @@ async function main() {
     },
   });
 
+  stage = 'verificación del ASAR y del ejecutable';
   const require = createRequire(import.meta.url);
   const asar = require('@electron/asar');
   const resources = path.join(output, 'win-unpacked', 'resources');
@@ -97,4 +102,14 @@ async function main() {
   console.log(`Instalador de QA verificado. SHA-256 ${installer.sha256}`);
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    await main();
+  } catch (error) {
+    const detail = error?.code === 'ERR_ASSERTION'
+      ? error.message.split('\n', 1)[0]
+      : (typeof error?.code === 'string' && /^[A-Z0-9_]+$/.test(error.code) ? error.code : 'Error en el paso');
+    console.error(`::error title=Instalador QA · ${stage}::${detail}`);
+    process.exitCode = 1;
+  }
+}
