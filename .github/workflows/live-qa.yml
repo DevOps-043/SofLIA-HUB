@@ -6,6 +6,7 @@ on:
     paths:
       - .github/workflows/live-qa.yml
       - scripts/quality/build-live-qa.mjs
+      - package.json
 
 permissions:
   contents: read
