@@ -11,6 +11,7 @@ import { registerProjectHubDownloadHandlers } from './project-hub/download-handl
 import { ProjectFileOperations } from './project-hub/file-operations';
 import { registerProjectCreationHandlers } from './project-hub/creation-handlers';
 import type { CalendarService } from './calendar-service';
+import { isExplicitBrowserBookmark } from './project-hub/browser-bookmark';
 
 const log = createLogger('project-hub-ipc');
 
@@ -35,7 +36,8 @@ export function registerProjectHubHandlers(
           input = schema.parse(empty ? undefined : projectHubSnapshot(args[0]));
         } catch { return { success: false, code: 'INVALID_PAYLOAD', error: 'Solicitud Project Hub inválida o excesiva.' }; }
         const authorization: ProjectHubOperationAuthorization = { userId: caller.userId, assertCurrent: caller.assert, signal: caller.signal };
-        if (label) {
+        const explicitBookmark = channel === 'project-hub:add-evidence' && isExplicitBrowserBookmark(input);
+        if (label && !explicitBookmark) {
           const target = await projectHubReviewTarget(service, input, authorization); caller.assert();
           const detail = projectHubMutationReview(label, caller.userId, input, target);
           if (!await confirm(caller.parent, detail, caller.assert, caller.signal)) {

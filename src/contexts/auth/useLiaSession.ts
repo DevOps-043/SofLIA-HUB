@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../../lib/supabase';
 import { exchangeSofiaForLiaSession } from '../../services/lia-session-exchange';
@@ -16,6 +16,12 @@ const CANCELLED: LiaSessionSyncResult = { session: null, retryAllowed: false };
 export const CONVERSATIONS_UNAVAILABLE_MESSAGE = 'No pudimos cargar tus conversaciones. Intenta nuevamente.';
 
 export function useLiaSession({ setSession, setLiaDegraded, setLiaStatusMessage }: LiaSessionDeps) {
+  const pending = useRef<{
+    email: string | null;
+    token?: string | null;
+    signal?: AbortSignal;
+    promise: Promise<Session | null>;
+  } | null>(null);
   const syncOptionalLiaSession = useCallback(async (
     expectedEmail?: string | null,
     signal?: AbortSignal,
@@ -45,7 +51,7 @@ export function useLiaSession({ setSession, setLiaDegraded, setLiaStatusMessage 
     }
   }, []);
 
-  const ensureLiaSession = useCallback(async (
+  const resolveLiaSession = useCallback(async (
     email?: string | null,
     sofiaAccessToken?: string | null,
     signal?: AbortSignal,
@@ -69,6 +75,17 @@ export function useLiaSession({ setSession, setLiaDegraded, setLiaStatusMessage 
       return degrade(setSession, setLiaDegraded, setLiaStatusMessage);
     }
   }, [setLiaDegraded, setLiaStatusMessage, setSession, syncOptionalLiaSession]);
+
+  const ensureLiaSession = useCallback((email?: string | null, token?: string | null, signal?: AbortSignal) => {
+    const current = pending.current;
+    const normalizedEmail = normalizeEmail(email);
+    if (current && current.email === normalizedEmail && current.token === token && current.signal === signal) return current.promise;
+    const promise = resolveLiaSession(normalizedEmail, token, signal).finally(() => {
+      if (pending.current?.promise === promise) pending.current = null;
+    });
+    pending.current = { email: normalizedEmail, token, signal, promise };
+    return promise;
+  }, [resolveLiaSession]);
 
   return { ensureLiaSession, syncOptionalLiaSession };
 }

@@ -16,6 +16,7 @@ const PUBLIC_PROJECT_HUB_URL = 'https://sofliahub.netlify.app';
 export class ProjectHubApiService {
   private readonly transport: ProjectHubTransport;
   private readonly authentication: ProjectHubAuthentication;
+  get requiresSofiaExchange(): boolean { return !this.direct; }
   constructor(baseUrl = resolveProjectHubBaseUrl(), storage?: ProjectHubCredentialStorage, private readonly direct?: DirectProjectBackend) {
     this.transport = new ProjectHubTransport(baseUrl);
     this.authentication = new ProjectHubAuthentication(this.transport, storage);

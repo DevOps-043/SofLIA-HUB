@@ -27,7 +27,7 @@ test('YAML inválido, aliases excesivos y uses no textual nunca aprueban por omi
 });
 test('todos los workflows reales fijan referencias remotas sin ejecutar Actions', () => {
   const result = checkWorkflowIntegrity(process.cwd());
-  assert.equal(result.workflows, 4); assert.ok(result.references >= 25); assert.ok(result.remote >= 23);
+  assert.equal(result.workflows, 6); assert.ok(result.references >= 31); assert.ok(result.remote >= 29);
 });
 
 test('una action local fuera de .github no permite esconder tags mutables', () => {

@@ -2,6 +2,26 @@
 
 Fecha: 2026-10-24. Implementación local; sin operaciones en cuentas reales.
 
+## Integración del 7 de noviembre de 2026
+
+La rama de integración conserva la captura local `28ab7c8b` y contiene
+`18cec138` y `0dc4d698`. Se resolvieron 88 y 45 rutas con conflicto,
+respectivamente. La rama de origen y su índice permanecieron intactos.
+
+- Producción usa el adaptador directo de IRIS y su autorización por organización.
+  El adaptador HTTP conserva su canje para los consumidores de compatibilidad.
+- Se conservaron las protecciones locales de sesión, la recuperación Lia por
+  intento vigente y la autorización OAuth de OneDrive por navegador del sistema.
+- El guardado explícito de título y URL saneada conserva su contrato acotado.
+  Las operaciones con texto o adjuntos siguen la confirmación nativa.
+- La validación dirigida aprobó 413 casos de identidad, proyectos, aula de
+  trabajo y recuperación. Una ejecución posterior aprobó 167 casos de IPC y
+  OAuth, incluidos los casos de marcador simple y payload ampliado.
+
+La validación local no acredita las políticas efectivas de la instancia IRIS
+ni el comportamiento de una cuenta real. La retirada completa de Gemini
+continúa registrada en el cambio correspondiente.
+
 ## Resultado y contratos
 
 El encabezado pierde Añadir colaborador/Añadir tarea. Archivos unifica archivos del destino del usuario, documentos y evidencias previas en cuadrícula, con una búsqueda sobre lo cargado y paginación. Mantiene descargas históricas y estados parciales. Añadir archivo usa el destino existente del proyecto. Vincular Drive abre un diálogo con carpetas, archivos y paginación de la cuenta, sin pedir título/URL. Main revalida la selección y confirma el vínculo a IRIS; el archivo original permanece en Drive.

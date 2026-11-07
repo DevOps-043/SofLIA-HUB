@@ -25,7 +25,6 @@ export function ProjectResources({
   state,
   canWrite,
   canManage = false,
-  allowUpload = true,
   onRefresh,
   onOpenWeb,
 }: {
@@ -35,7 +34,6 @@ export function ProjectResources({
   state: DataState<DataRecord[]>;
   canWrite: boolean;
   canManage?: boolean;
-  allowUpload?: boolean;
   onRefresh: () => void;
   onOpenWeb?: (url: string) => void;
 }) {
@@ -122,10 +120,10 @@ export function ProjectResources({
       )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">
-          {kind === "files" ? (allowUpload ? "Archivos" : "Referencias vinculadas") : "Páginas web"}
+          {kind === "files" ? "Archivos" : "Páginas web"}
         </h2>
         <div className="flex gap-2">
-          {kind === "files" && canWrite && allowUpload && (
+          {kind === "files" && canWrite && (
             <Button
               size="sm"
               disabled={upload.busy}
