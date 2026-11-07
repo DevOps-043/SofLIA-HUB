@@ -1,6 +1,6 @@
 # Entrega del aula síncrona para pruebas
 
-Actualizado el 2026-11-07. Learning y Engine están disponibles en QA. El instalador configurado de Hub está en preparación.
+Actualizado el 2026-11-07. Learning y Engine están disponibles en QA. El instalador configurado de Hub está publicado como prerelease de Windows.
 
 ## Código y orden de publicación
 
@@ -16,7 +16,11 @@ Engine QA quedó publicado desde c88078d4 con el refuerzo de permisos de staging
 
 ## Instalador Windows de QA
 
-El paquete local 0.9.9-sync.20261105 se construyó sin los orígenes públicos de autenticación. Reservarlo para evidencia estructural. El flujo Instalador de aula síncrona QA genera 0.9.9-sync.20261107 con las claves públicas administradas y el origen exacto de Learning QA, verifica el ASAR y publica el ejecutable, manifiesto y SHA-256 en una prerelease.
+Descargar **0.9.9-sync.20261107** desde la prerelease pública. La compilación de efb38855 verificó el ASAR con la configuración pública de autenticación y el origen de Learning QA, además de la versión y la estructura del instalador Windows x64. [Prerelease de Hub](https://github.com/DevOps-043/PulseHub-SofLIA-releases/releases/tag/v0.9.9-sync.20261107) · [Ejecución de CI](https://github.com/DevOps-043/SofLIA-HUB/actions/runs/42389034063).
+
+El ZIP de Actions contenía solo el ejecutable. La publicación verificó ese ZIP y regeneró el manifiesto y el checksum con los mismos bytes del instalador. El archivo publicado pesa 597897290 bytes y su SHA-256 es `b15caa1082c7d7df0d08f700174d5f99985f6319f08fb7c1568c18f3759299bd`. El digest de GitHub Releases coincide con los dos archivos adjuntos. [Publicación](https://github.com/DevOps-043/SofLIA-HUB/actions/runs/42390817097) · [Manifiesto](https://github.com/DevOps-043/PulseHub-SofLIA-releases/releases/download/v0.9.9-sync.20261107/testing-package.json).
+
+El paquete local 0.9.9-sync.20261105 se construyó sin los orígenes públicos de autenticación. Reservarlo para evidencia estructural.
 
 El primer intento remoto detectó que el chequeo de tipos se ejecutaba antes de instalar el SDK de Zoom en un checkout limpio. El script pretypecheck prepara el SDK con su lockfile y build:app reutiliza esa instalación al generar el bundle de Zoom. [Diagnóstico de CI](https://github.com/DevOps-043/SofLIA-HUB/actions/runs/42387466449).
 

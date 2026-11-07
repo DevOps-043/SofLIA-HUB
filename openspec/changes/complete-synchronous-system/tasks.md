@@ -14,7 +14,7 @@
 - [x] 4.3 Actualizar documentación, evidencia y límites de activación pendientes.
 - [x] 4.4 Aplicar las dos migraciones aprobadas en Learning principal y verificar permisos, historial y conservación del proveedor Meeting.
 - [ ] 4.5 Publicar los servicios compatibles, completar configuración administrada y realizar piloto audiovisual real, sujeto a autorización operativa.
-- [ ] 4.6 Verificar configuración pública de autenticación y Learning QA dentro del instalador Windows. El paquete local previo solo aprobó controles estructurales.
-- [ ] 4.7 Publicar la prerelease de QA desde la configuración administrada, con manifiesto y checksum.
+- [x] 4.6 Verificar configuración pública de autenticación y Learning QA dentro del instalador Windows. El job Windows de la ejecución 42389034063 aprobó y publicó el artefacto de QA.
+- [x] 4.7 Publicar la prerelease de QA desde la configuración administrada, con manifiesto y checksum verificados.
 
 Evidencia y límites: [reporte de implementación](reports/implementation.md). No archivar ni marcar el piloto como ejecutado.

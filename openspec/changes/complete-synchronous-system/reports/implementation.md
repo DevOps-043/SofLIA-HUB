@@ -1,6 +1,6 @@
 # Cierre local del sistema síncrono
 
-Fecha inicial: 2026-11-03. Actualización de entrega: 2026-11-05. Estado: SQL aprobado aplicado, código de pruebas publicado en los tres repositorios y verificación coordinada aprobada. Despliegue web y piloto pendientes; instalador Windows en preparación.
+Fecha inicial 2026-11-03. Actualización de entrega 2026-11-07. SQL aprobado aplicado, Learning y Engine desplegados en QA y prerelease Windows verificada. El piloto audiovisual sigue pendiente.
 
 ## Bases y ubicación
 
@@ -67,7 +67,11 @@ Continuación: el usuario aprobó la migración y verificaciones de Engine emsjc
 
 Rollback: retirar entrega nueva y funciones de participación coordinadamente; conservar tablas, archivos y revisiones. Para nuevas aulas se puede volver al proveedor Meeting, manteniendo compatibilidad con aulas Video previas. No borrar material ni desactivar captura obligatoria como reversión.
 
-## Entrega para pruebas, 2026-11-05
+## Publicación de QA, 2026-11-07
+
+Learning desplegó 5ffa4092 y Engine desplegó c88078d4 con el refuerzo de permisos de staging. Ambas portadas devolvieron HTTP 200. El catálogo de Learning devolvió 401 para un cliente Hub sin sesión. El instalador 0.9.9-sync.20261107 se publicó con el hash del EXE verificado contra el manifiesto y el checksum. La guía de entrega reúne los enlaces y el recorrido por rol. [Guía de QA](../../../../docs/operations/synchronous-testing-release.md).
+
+## Preparación del candidato, 2026-11-05
 
 Las tres ramas coordinadas están publicadas. Learning repitió 171 pruebas/27 archivos aprobados. Engine eliminó los once ciclos, integró staging reciente y aprobó verify (297 pruebas, tipos/lint y cero ciclos), HyperFrames (358) y verify:harness (20 pruebas y compuertas de arnés correctas). Hub repitió build:app, runtime:stable (Electron 44.5.1) y smoke-studio-program con vídeo estable, mezcla/transporte de audio, overlay, recuperación de escenas y receptor aislado correctos. Se preparó Python privado con locks y comprobaciones de ambos sidecars para el paquete Windows.
 
