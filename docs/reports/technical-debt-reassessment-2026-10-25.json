@@ -1,0 +1,1294 @@
+{
+  "date": "2026-10-25",
+  "evaluatedAt": "2026-10-26T02:09:51.862Z",
+  "afterUnit": 37,
+  "scope": "Repositorio/worktree local, sin certificación de producción ni despliegue.",
+  "head": "e166d250629e503cf12f69449fb6d66e569134c8",
+  "baseline": {
+    "file": "technical-debt-2026-10-19.json",
+    "sha256": "603432edc8252902cc4b962b32296f06a48b167c405048f7100ff03461102805",
+    "value": 50.375
+  },
+  "previousAssessment": {
+    "afterUnit": 36,
+    "value": 43.25,
+    "sha256": "f76425268e7fe806ce07c8fd6004893ceef0eae286ee3d7466b6b36c99df5db5",
+    "localBackup": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-global-quality-2026-10-25\\previous-assessment.json"
+  },
+  "score": {
+    "type": "Índice experto de brechas técnicas ponderadas; no ratio de esfuerzo SQALE",
+    "value": 40.875,
+    "roundedApproximation": 41,
+    "differencePoints": 9.5,
+    "differenceFromPreviousAssessment": 2.375,
+    "confidence": "media",
+    "sensitivityRange": [
+      35,
+      50
+    ],
+    "sensitivityIsStatistical": false,
+    "areas": [
+      {
+        "name": "Seguridad y privacidad",
+        "weight": 20,
+        "previous": 50,
+        "lastAssessment": 50,
+        "score": 50,
+        "contribution": 10,
+        "criteria": [
+          {
+            "name": "Credenciales de proveedor en cliente",
+            "previous": 75,
+            "lastAssessment": 75,
+            "current": 75,
+            "reason": "Persisten referencias a claves compartidas VITE y clientes Gemini en renderer; Auth no retira esas credenciales.",
+            "sources": [
+              "src/config.ts",
+              ".github/workflows/release.yml",
+              "docs/security/security-and-privacy.md",
+              "docs/architecture/ipc-and-integrations.md",
+              "src/services/gemini-chat/client.ts",
+              "electron/auth-state-handlers.ts",
+              "electron/ai-grounding-handler.ts",
+              "electron/ipc/renderer-source.ts",
+              "electron/ipc/auth-state-contract.ts",
+              "ai-specs/policies/tool-boundaries.md"
+            ]
+          },
+          {
+            "name": "Autorización y schemas IPC heterogéneos",
+            "previous": 50,
+            "lastAssessment": 50,
+            "current": 50,
+            "reason": "Auth ahora valida Hub/Orbe, frame/documento y cuotas. ai:generate-grounded conserva un handler sin comprobación de fuente; no existe autorización uniforme acreditada de los 521 canales. La brecha global sigue parcial (50), no menor (25).",
+            "sources": [
+              "src/config.ts",
+              ".github/workflows/release.yml",
+              "docs/security/security-and-privacy.md",
+              "docs/architecture/ipc-and-integrations.md",
+              "src/services/gemini-chat/client.ts",
+              "electron/auth-state-handlers.ts",
+              "electron/ai-grounding-handler.ts",
+              "electron/ipc/renderer-source.ts",
+              "electron/ipc/auth-state-contract.ts",
+              "ai-specs/policies/tool-boundaries.md"
+            ]
+          },
+          {
+            "name": "Guardas de agentes y límites runtime",
+            "previous": 25,
+            "lastAssessment": 25,
+            "current": 25,
+            "reason": "Las políticas runtime/HITL y límites de skills se conservan; sus fuentes no cambian desde la evaluación anterior. No se demuestra desaparición de las brechas restantes de todos los agentes.",
+            "sources": [
+              "src/config.ts",
+              ".github/workflows/release.yml",
+              "docs/security/security-and-privacy.md",
+              "docs/architecture/ipc-and-integrations.md",
+              "src/services/gemini-chat/client.ts",
+              "electron/auth-state-handlers.ts",
+              "electron/ai-grounding-handler.ts",
+              "electron/ipc/renderer-source.ts",
+              "electron/ipc/auth-state-contract.ts",
+              "ai-specs/policies/tool-boundaries.md"
+            ]
+          },
+          {
+            "name": "CSP y defensa de fronteras",
+            "previous": 50,
+            "lastAssessment": 50,
+            "current": 50,
+            "reason": "La lease mejora la frontera Auth y se compone con guardas existentes; no cambia CSP ni acredita todas las demás fronteras. Sigue implementación parcial.",
+            "sources": [
+              "src/config.ts",
+              ".github/workflows/release.yml",
+              "docs/security/security-and-privacy.md",
+              "docs/architecture/ipc-and-integrations.md",
+              "src/services/gemini-chat/client.ts",
+              "electron/auth-state-handlers.ts",
+              "electron/ai-grounding-handler.ts",
+              "electron/ipc/renderer-source.ts",
+              "electron/ipc/auth-state-contract.ts",
+              "ai-specs/policies/tool-boundaries.md"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Arquitectura y modularidad",
+        "weight": 12,
+        "previous": 43.75,
+        "lastAssessment": 43.75,
+        "score": 43.75,
+        "contribution": 5.25,
+        "criteria": [
+          {
+            "name": "Separación de procesos y dominios",
+            "previous": 25,
+            "lastAssessment": 25,
+            "current": 25,
+            "reason": "Se conserva separación main/preload/renderer con DTO compartido y servicios de negocio; no hay nuevo permiso o canal. Persisten excepciones pendientes fuera de Auth.",
+            "sources": [
+              "electron/integrated-browser/service.ts",
+              "docs/architecture/frontend.md",
+              "docs/architecture/integrated-browser-platform.md",
+              "src/shared/auth-state.ts",
+              "electron/ipc/caller-authorization.ts",
+              "electron/main/bootstrap.ts",
+              "electron/preload/auth-apis.ts",
+              "src/services/auth-state.ts"
+            ]
+          },
+          {
+            "name": "Concentración del navegador",
+            "previous": 75,
+            "lastAssessment": 75,
+            "current": 75,
+            "reason": "El coordinador del navegador conserva 5532 segmentos de línea según el mismo conteo anterior; su hash no cambió. Las extracciones no eliminan la concentración material.",
+            "sources": [
+              "electron/integrated-browser/service.ts",
+              "docs/architecture/frontend.md",
+              "docs/architecture/integrated-browser-platform.md",
+              "src/shared/auth-state.ts",
+              "electron/ipc/caller-authorization.ts",
+              "electron/main/bootstrap.ts",
+              "electron/preload/auth-apis.ts",
+              "src/services/auth-state.ts"
+            ]
+          },
+          {
+            "name": "Componentes/hooks extensos",
+            "previous": 50,
+            "lastAssessment": 50,
+            "current": 50,
+            "reason": "Los mismos tres archivos de producción superan 1000 segmentos de línea. No se refactorizan los componentes/hooks pendientes y la longitud sólo es una señal de cohesión.",
+            "sources": [
+              "electron/integrated-browser/service.ts",
+              "docs/architecture/frontend.md",
+              "docs/architecture/integrated-browser-platform.md",
+              "src/shared/auth-state.ts",
+              "electron/ipc/caller-authorization.ts",
+              "electron/main/bootstrap.ts",
+              "electron/preload/auth-apis.ts",
+              "src/services/auth-state.ts"
+            ]
+          },
+          {
+            "name": "Fachadas y claridad de contratos",
+            "previous": 25,
+            "lastAssessment": 25,
+            "current": 25,
+            "reason": "Auth elimina duplicación de DTO y separa lease/parser. Los contratos globales ya estaban en brecha menor; no hay evidencia para calificarlos íntegramente satisfechos.",
+            "sources": [
+              "electron/integrated-browser/service.ts",
+              "docs/architecture/frontend.md",
+              "docs/architecture/integrated-browser-platform.md",
+              "src/shared/auth-state.ts",
+              "electron/ipc/caller-authorization.ts",
+              "electron/main/bootstrap.ts",
+              "electron/preload/auth-apis.ts",
+              "src/services/auth-state.ts"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Calidad de código y tipado",
+        "weight": 12,
+        "previous": 43.75,
+        "lastAssessment": 37.5,
+        "score": 37.5,
+        "contribution": 4.5,
+        "criteria": [
+          {
+            "name": "TypeScript estricto y tipos de frontera",
+            "previous": 25,
+            "lastAssessment": 25,
+            "current": 25,
+            "reason": "TypeScript estricto y la compuerta siguen aprobados; permanecen 1416 mensajes no-explicit-any en producción. El DTO Auth mejora una frontera sin eliminar la brecha global.",
+            "sources": [
+              "eslint.config.mjs",
+              "scripts/quality/lint-changed.mjs",
+              "src/services/iris-data/projects.ts",
+              "openspec/changes/gate-global-quality-and-workflow-integrity/reports/gate-summary.json"
+            ]
+          },
+          {
+            "name": "Baseline lint y ejecutabilidad global",
+            "previous": 75,
+            "lastAssessment": 50,
+            "current": 50,
+            "reason": "ESLint src/electron conserva 2009 errores y 31 avisos, con 1589/31 en producción, porque ninguna fuente de esos árboles ni eslint.config.mjs cambió. El lint incremental final protege 454 archivos. No se suprimen incidencias ni se equipara gate verde a árbol sin deuda.",
+            "sources": [
+              "eslint.config.mjs",
+              "scripts/quality/lint-changed.mjs",
+              "src/services/iris-data/projects.ts",
+              "openspec/changes/gate-global-quality-and-workflow-integrity/reports/gate-summary.json"
+            ]
+          },
+          {
+            "name": "Errores silenciosos y consistencia",
+            "previous": 50,
+            "lastAssessment": 50,
+            "current": 50,
+            "reason": "Auth controla fallos y no propaga errores libres. deleteProject todavía ignora errores de tres pasos intermedios y mantiene borrados separados; la consistencia global sigue parcial.",
+            "sources": [
+              "eslint.config.mjs",
+              "scripts/quality/lint-changed.mjs",
+              "src/services/iris-data/projects.ts",
+              "openspec/changes/gate-global-quality-and-workflow-integrity/reports/gate-summary.json"
+            ]
+          },
+          {
+            "name": "Disciplina local y supresiones",
+            "previous": 25,
+            "lastAssessment": 25,
+            "current": 25,
+            "reason": "No se amplían supresiones ni dependencias en el delta de once fuentes; compuerta incremental aprobada. La disciplina del resto del árbol mantiene brechas históricas.",
+            "sources": [
+              "eslint.config.mjs",
+              "scripts/quality/lint-changed.mjs",
+              "src/services/iris-data/projects.ts",
+              "openspec/changes/gate-global-quality-and-workflow-integrity/reports/gate-summary.json"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Pruebas y calidad funcional",
+        "weight": 15,
+        "previous": 56.25,
+        "lastAssessment": 43.75,
+        "score": 31.25,
+        "contribution": 4.6875,
+        "criteria": [
+          {
+            "name": "Amplitud y casos negativos existentes",
+            "previous": 25,
+            "lastAssessment": 25,
+            "current": 25,
+            "reason": "La suite conserva 6053 casos aprobados y negativos; 11 casos nuevos del tooling cubren las políticas. La amplitud de casos no equivale a cobertura completa: hay 1023 archivos con sentencias sin ejecutar. Se conserva la franja, sin adjudicar puntos por cantidad de tests.",
+            "sources": [
+              "vitest.config.ts",
+              "scripts/quality/run-gate.mjs",
+              "openspec/changes/authorize-auth-state-publication/reports/verification.md",
+              "openspec/changes/authorize-auth-state-publication/reports/regression-summary.json"
+            ]
+          },
+          {
+            "name": "Cobertura medida y umbrales",
+            "previous": 75,
+            "lastAssessment": 75,
+            "current": 25,
+            "reason": "V8 mide las 2563 fuentes productivas, incluidas las no importadas, y el gate exige inventario exacto, métricas coherentes y pisos versionados. Cobertura actual: líneas 56.92%, sentencias 55.61%, funciones 51.7%, ramas 49.6%. Se reduce la brecha de medición/control, sin declarar cobertura suficiente de producto: pisos iniciales y ejecución CI Node 24 pendientes de validación remota conservan una brecha menor.",
+            "sources": [
+              "vitest.config.ts",
+              "scripts/quality/run-gate.mjs",
+              "openspec/changes/authorize-auth-state-publication/reports/verification.md",
+              "openspec/changes/authorize-auth-state-publication/reports/regression-summary.json",
+              "config/coverage-policy.json",
+              "scripts/quality/check-coverage.mjs",
+              "scripts/quality/check-coverage.test.mjs",
+              "openspec/changes/gate-global-quality-and-workflow-integrity/reports/coverage-evidence.json"
+            ]
+          },
+          {
+            "name": "E2E empaquetado y proveedores/Python en gate",
+            "previous": 75,
+            "lastAssessment": 50,
+            "current": 50,
+            "reason": "Python (33), tooling (62) y V8 están en la compuerta con una sola suite. Persisten E2E instalado, GUI y proveedores reales sin acreditar.",
+            "sources": [
+              "vitest.config.ts",
+              "scripts/quality/run-gate.mjs",
+              "openspec/changes/authorize-auth-state-publication/reports/verification.md",
+              "openspec/changes/authorize-auth-state-publication/reports/regression-summary.json"
+            ]
+          },
+          {
+            "name": "Reproducibilidad de la suite",
+            "previous": 50,
+            "lastAssessment": 25,
+            "current": 25,
+            "reason": "Compuerta final con cobertura y build aprobados sobre fuentes estables; cinco casos siguen omitidos. El resultado local no acredita CI remoto Node 24 o todos los SO.",
+            "sources": [
+              "vitest.config.ts",
+              "scripts/quality/run-gate.mjs",
+              "openspec/changes/authorize-auth-state-publication/reports/verification.md",
+              "openspec/changes/authorize-auth-state-publication/reports/regression-summary.json"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Datos e integridad",
+        "weight": 10,
+        "previous": 43.75,
+        "lastAssessment": 50,
+        "score": 50,
+        "contribution": 5,
+        "criteria": [
+          {
+            "name": "Orden y evidencia de RLS/migraciones",
+            "previous": 50,
+            "lastAssessment": 75,
+            "current": 75,
+            "reason": "Sin nueva remediación aplicada ni inspección remota. Se conserva la inspección IRIS del 22 de octubre con 30 tablas sin RLS y políticas permisivas; el SQL local hub_service_state sigue permitiendo anon/authenticated con true.",
+            "sources": [
+              "docs/reports/iris-access-2026-10-22.md",
+              "database/lia/migrations/hub-service-state.sql",
+              "src/services/iris-data/projects.ts",
+              "docs/operations/release-and-recovery.md"
+            ]
+          },
+          {
+            "name": "Atomicidad del borrado de proyectos",
+            "previous": 50,
+            "lastAssessment": 50,
+            "current": 50,
+            "reason": "deleteProject conserva cuatro borrados independientes y no comprueba los tres errores intermedios. No hay transacción que cierre la brecha.",
+            "sources": [
+              "docs/reports/iris-access-2026-10-22.md",
+              "database/lia/migrations/hub-service-state.sql",
+              "src/services/iris-data/projects.ts",
+              "docs/operations/release-and-recovery.md"
+            ]
+          },
+          {
+            "name": "Respaldo, retención y recuperación",
+            "previous": 50,
+            "lastAssessment": 50,
+            "current": 50,
+            "reason": "Las recuperaciones locales verificadas se conservan; no hay evidencia nueva de respaldo integral, retención ni RPO/RTO demostrados.",
+            "sources": [
+              "docs/reports/iris-access-2026-10-22.md",
+              "database/lia/migrations/hub-service-state.sql",
+              "src/services/iris-data/projects.ts",
+              "docs/operations/release-and-recovery.md"
+            ]
+          },
+          {
+            "name": "Constraints e idempotencia existentes",
+            "previous": 25,
+            "lastAssessment": 25,
+            "current": 25,
+            "reason": "Auth refuerza vigencia local pero no aporta constraints o CAS entre equipos. Ownership, idempotencia e invariantes de servidor mantienen sus límites.",
+            "sources": [
+              "docs/reports/iris-access-2026-10-22.md",
+              "database/lia/migrations/hub-service-state.sql",
+              "src/services/iris-data/projects.ts",
+              "docs/operations/release-and-recovery.md"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Dependencias y cadena de suministro",
+        "weight": 8,
+        "previous": 56.25,
+        "lastAssessment": 18.75,
+        "score": 18.75,
+        "contribution": 1.5,
+        "criteria": [
+          {
+            "name": "Avisos en dependencias de producción",
+            "previous": 75,
+            "lastAssessment": 25,
+            "current": 25,
+            "reason": "Las dos auditorías npm frescas reportan siete paquetes moderate y cero high/critical; persiste la cadena file-type/Jimp/nut-js.",
+            "sources": [
+              "package.json",
+              "package-lock.json",
+              "python/tools_sidecar/requirements.lock",
+              "openspec/changes/secure-python-reader-dependencies/tasks.md",
+              "scripts/quality/check-supply-chain.mjs"
+            ]
+          },
+          {
+            "name": "Avisos en herramientas de desarrollo",
+            "previous": 75,
+            "lastAssessment": 0,
+            "current": 0,
+            "reason": "Los nodos afectados de las auditorías completa y sin dev son idénticos; no hay avisos exclusivamente de desarrollo en estas consultas.",
+            "sources": [
+              "package.json",
+              "package-lock.json",
+              "python/tools_sidecar/requirements.lock",
+              "openspec/changes/secure-python-reader-dependencies/tasks.md",
+              "scripts/quality/check-supply-chain.mjs"
+            ]
+          },
+          {
+            "name": "Locks y revisión de ganchos",
+            "previous": 25,
+            "lastAssessment": 25,
+            "current": 25,
+            "reason": "Manifest y lock coinciden con las fuentes verificadas, sin dependencias nuevas. Queda cierre completo de Python/voz y validación nativa pendiente.",
+            "sources": [
+              "package.json",
+              "package-lock.json",
+              "python/tools_sidecar/requirements.lock",
+              "openspec/changes/secure-python-reader-dependencies/tasks.md",
+              "scripts/quality/check-supply-chain.mjs"
+            ]
+          },
+          {
+            "name": "Completitud del control automatizado incluido Python",
+            "previous": 50,
+            "lastAssessment": 25,
+            "current": 25,
+            "reason": "Se conservan la política Electron y cuatro targets del lector verificados; macOS Intel sigue pendiente, sin entorno del usuario ni artefacto nativo aprobado.",
+            "sources": [
+              "package.json",
+              "package-lock.json",
+              "python/tools_sidecar/requirements.lock",
+              "openspec/changes/secure-python-reader-dependencies/tasks.md",
+              "scripts/quality/check-supply-chain.mjs"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "CI/CD, empaquetado y publicación",
+        "weight": 8,
+        "previous": 68.75,
+        "lastAssessment": 43.75,
+        "score": 37.5,
+        "contribution": 3,
+        "criteria": [
+          {
+            "name": "Publicar condicionado al mismo commit verificado",
+            "previous": 75,
+            "lastAssessment": 25,
+            "current": 25,
+            "reason": "El workflow continúa condicionando builds al job verify del mismo contexto; sin nueva ejecución remota del candidato que acredite el pipeline.",
+            "sources": [
+              ".github/workflows/ci.yml",
+              ".github/workflows/release.yml",
+              ".github/workflows/python-readers.yml",
+              "docs/operations/release-and-recovery.md"
+            ]
+          },
+          {
+            "name": "Paridad de build Linux",
+            "previous": 75,
+            "lastAssessment": 25,
+            "current": 25,
+            "reason": "Se conserva el build canónico para Linux; el build local aislado no acredita instalador Linux nativo.",
+            "sources": [
+              ".github/workflows/ci.yml",
+              ".github/workflows/release.yml",
+              ".github/workflows/python-readers.yml",
+              "docs/operations/release-and-recovery.md"
+            ]
+          },
+          {
+            "name": "Consistencia de Node y matriz de plataformas",
+            "previous": 50,
+            "lastAssessment": 50,
+            "current": 50,
+            "reason": "CI declara Node 24 y QA usa 26.7.0; sin ejecución CI Node 24 o matriz de SO nueva. El lector Intel permanece pendiente.",
+            "sources": [
+              ".github/workflows/ci.yml",
+              ".github/workflows/release.yml",
+              ".github/workflows/python-readers.yml",
+              "docs/operations/release-and-recovery.md"
+            ]
+          },
+          {
+            "name": "Firma/notarización e inmutabilidad del pipeline",
+            "previous": 75,
+            "lastAssessment": 75,
+            "current": 50,
+            "reason": "Las 18 referencias mutables se sustituyen por SHA completos oficiales y la política rechaza dependencias mutables, incluso en actions compuestas locales. Los cuatro workflows pasan con 27 referencias (25 remotas fijas y dos locales). Firma Windows y notarización Apple continúan pendientes: el criterio global queda parcial, no cerrado.",
+            "sources": [
+              ".github/workflows/ci.yml",
+              ".github/workflows/release.yml",
+              ".github/workflows/python-readers.yml",
+              "docs/operations/release-and-recovery.md",
+              "scripts/quality/workflow-integrity.mjs",
+              "scripts/quality/workflow-integrity.test.mjs",
+              "openspec/changes/gate-global-quality-and-workflow-integrity/reports/workflow-evidence.json"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Observabilidad y operación",
+        "weight": 5,
+        "previous": 56.25,
+        "lastAssessment": 50,
+        "score": 50,
+        "contribution": 2.5,
+        "criteria": [
+          {
+            "name": "Adopción de logs estructurados",
+            "previous": 75,
+            "lastAssessment": 50,
+            "current": 50,
+            "reason": "Auth incorpora logger estructurado: 26 archivos con llamada literal createLogger y 1008 coincidencias textuales console. La adopción sigue parcial, no uniforme; el barrido textual no es auditoría de PII.",
+            "sources": [
+              "docs/operations/release-and-recovery.md",
+              "electron/utils/logger-options.ts",
+              "docs/plans/technical-debt-reduction.md",
+              "electron/auth-state-handlers.ts"
+            ]
+          },
+          {
+            "name": "Correlación transversal",
+            "previous": 50,
+            "lastAssessment": 50,
+            "current": 50,
+            "reason": "Las rutas ya verificadas conservan correlación, pero Auth sólo añade diagnóstico estático de módulo y no demuestra correlación transversal completa.",
+            "sources": [
+              "docs/operations/release-and-recovery.md",
+              "electron/utils/logger-options.ts",
+              "docs/plans/technical-debt-reduction.md",
+              "electron/auth-state-handlers.ts"
+            ]
+          },
+          {
+            "name": "Objetivos y alertas demostrados en repo",
+            "previous": 50,
+            "lastAssessment": 50,
+            "current": 50,
+            "reason": "No hay nuevas alertas operativas o SLO globales medidos y acreditados.",
+            "sources": [
+              "docs/operations/release-and-recovery.md",
+              "electron/utils/logger-options.ts",
+              "docs/plans/technical-debt-reduction.md",
+              "electron/auth-state-handlers.ts"
+            ]
+          },
+          {
+            "name": "Diagnóstico y estados operativos",
+            "previous": 50,
+            "lastAssessment": 50,
+            "current": 50,
+            "reason": "Auth devuelve rechazo controlado y distingue fuente denegada sin identidad. Persisten operación/recuperación unificadas y diagnóstico de otras superficies pendientes.",
+            "sources": [
+              "docs/operations/release-and-recovery.md",
+              "electron/utils/logger-options.ts",
+              "docs/plans/technical-debt-reduction.md",
+              "electron/auth-state-handlers.ts"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Rendimiento y escalabilidad",
+        "weight": 4,
+        "previous": 50,
+        "lastAssessment": 50,
+        "score": 50,
+        "contribution": 2,
+        "criteria": [
+          {
+            "name": "Instrumentación y benchmark existentes",
+            "previous": 25,
+            "lastAssessment": 25,
+            "current": 25,
+            "reason": "No hay benchmark representativo nuevo; se conserva la instrumentación existente y su brecha menor.",
+            "sources": [
+              "docs/architecture/load-and-scalability.md",
+              "src/services/iris-data/projects.ts",
+              "openspec/changes/scale-hub-data-800-users/tasks.md"
+            ]
+          },
+          {
+            "name": "Carga real de 800 usuarios verificada",
+            "previous": 75,
+            "lastAssessment": 75,
+            "current": 75,
+            "reason": "Los 800 usuarios concurrentes siguen como objetivo en runbook, con ejecución manual pendiente y sin resultado acreditado.",
+            "sources": [
+              "docs/architecture/load-and-scalability.md",
+              "src/services/iris-data/projects.ts",
+              "openspec/changes/scale-hub-data-800-users/tasks.md"
+            ]
+          },
+          {
+            "name": "Consultas y paginación",
+            "previous": 50,
+            "lastAssessment": 50,
+            "current": 50,
+            "reason": "getProjects conserva select(*) y lista sin paginación; no hay evidencia que cierre consultas y volumen globales.",
+            "sources": [
+              "docs/architecture/load-and-scalability.md",
+              "src/services/iris-data/projects.ts",
+              "openspec/changes/scale-hub-data-800-users/tasks.md"
+            ]
+          },
+          {
+            "name": "Presupuestos y regresión en CI",
+            "previous": 50,
+            "lastAssessment": 50,
+            "current": 50,
+            "reason": "Las cuotas Auth son de seguridad/recursos, no un presupuesto de latencia medido en CI. Presupuestos de rendimiento siguen parciales.",
+            "sources": [
+              "docs/architecture/load-and-scalability.md",
+              "src/services/iris-data/projects.ts",
+              "openspec/changes/scale-hub-data-800-users/tasks.md"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Documentación y gobierno",
+        "weight": 3,
+        "previous": 25,
+        "lastAssessment": 31.25,
+        "score": 31.25,
+        "contribution": 0.9375,
+        "criteria": [
+          {
+            "name": "Estructura, enlaces y catálogo",
+            "previous": 0,
+            "lastAssessment": 0,
+            "current": 0,
+            "reason": "Inventario canónico y enlaces verificados, con 704 archivos relacionados con pruebas. El reporte de cobertura y LCOV se conservan en CI/release sin sustituir documentación de producto.",
+            "sources": [
+              "docs/README.md",
+              "docs/architecture/load-and-scalability.md",
+              "docs/plans/technical-debt-reduction.md",
+              "openspec/changes/authorize-auth-state-publication/reports/verification.md"
+            ]
+          },
+          {
+            "name": "Actualidad semántica de runbooks",
+            "previous": 50,
+            "lastAssessment": 50,
+            "current": 50,
+            "reason": "Se actualizaron contratos Auth, pero load-and-scalability aún describe main sin sesión para flujos y falta revisión semántica integral de runbooks.",
+            "sources": [
+              "docs/README.md",
+              "docs/architecture/load-and-scalability.md",
+              "docs/plans/technical-debt-reduction.md",
+              "openspec/changes/authorize-auth-state-publication/reports/verification.md"
+            ]
+          },
+          {
+            "name": "Cierre de cambios OpenSpec",
+            "previous": 25,
+            "lastAssessment": 50,
+            "current": 50,
+            "reason": "Hay 108 cambios activos, 80 sin casillas abiertas y 191 casillas abiertas. La revisión independiente sigue pendiente y no se equipara checklist con archivo/aprobación.",
+            "sources": [
+              "docs/README.md",
+              "docs/architecture/load-and-scalability.md",
+              "docs/plans/technical-debt-reduction.md",
+              "openspec/changes/authorize-auth-state-publication/reports/verification.md"
+            ]
+          },
+          {
+            "name": "Trazabilidad y límites declarados",
+            "previous": 25,
+            "lastAssessment": 25,
+            "current": 25,
+            "reason": "Se conserva trazabilidad con OpenSpec, snapshots/hashes y recibos; falta revisión externa y validación operativa global.",
+            "sources": [
+              "docs/README.md",
+              "docs/architecture/load-and-scalability.md",
+              "docs/plans/technical-debt-reduction.md",
+              "openspec/changes/authorize-auth-state-publication/reports/verification.md"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Accesibilidad y UX",
+        "weight": 3,
+        "previous": 50,
+        "lastAssessment": 50,
+        "score": 50,
+        "contribution": 1.5,
+        "criteria": [
+          {
+            "name": "Semántica y teclado existentes",
+            "previous": 25,
+            "lastAssessment": 25,
+            "current": 25,
+            "reason": "Auth no cambia UI; se conservan mejoras de selector/confirmación, sin auditoría de semántica/teclado de todos los controles.",
+            "sources": [
+              "docs/ux/accessibility.md",
+              "openspec/changes/harden-action-confirmation-dialog/tasks.md",
+              "openspec/changes/harden-select-dropdown-interaction/reports/verification.md"
+            ]
+          },
+          {
+            "name": "Auditoría accesible automatizada",
+            "previous": 75,
+            "lastAssessment": 75,
+            "current": 75,
+            "reason": "Sigue sin axe en CI ni auditoría versionada integral con lector de pantalla.",
+            "sources": [
+              "docs/ux/accessibility.md",
+              "openspec/changes/harden-action-confirmation-dialog/tasks.md",
+              "openspec/changes/harden-select-dropdown-interaction/reports/verification.md"
+            ]
+          },
+          {
+            "name": "Movimiento y equivalentes semánticos",
+            "previous": 50,
+            "lastAssessment": 50,
+            "current": 50,
+            "reason": "Sin evidencia nueva de equivalentes semánticos completos de canvas/orbe o movimiento reducido global; se conservan mejoras locales.",
+            "sources": [
+              "docs/ux/accessibility.md",
+              "openspec/changes/harden-action-confirmation-dialog/tasks.md",
+              "openspec/changes/harden-select-dropdown-interaction/reports/verification.md"
+            ]
+          },
+          {
+            "name": "Regresión visual y flujos completos",
+            "previous": 50,
+            "lastAssessment": 50,
+            "current": 50,
+            "reason": "No se ejecuta revisión visual nueva ni regresión completa instalada multiplataforma. Se respeta el rechazo previo del navegador.",
+            "sources": [
+              "docs/ux/accessibility.md",
+              "openspec/changes/harden-action-confirmation-dialog/tasks.md",
+              "openspec/changes/harden-select-dropdown-interaction/reports/verification.md"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "method": "Mismos 44 criterios, pesos y escala ordinal 0/25/50/75/100; promedio de cuatro criterios por área y suma ponderada. Juicio técnico con evidencia, no ratio SQALE ni porcentaje de código defectuoso.",
+  "interpretation": "Misma matriz de 44 criterios y pesos. Cambian dos criterios por controles transversales verificados: cobertura/umbrales y referencias inmutables de CI. No se atribuye cobertura funcional completa, firma o despliegue; las otras franjas se conservan.",
+  "changedCriteriaSincePreviousAssessment": [
+    {
+      "name": "Cobertura medida y umbrales",
+      "previous": 75,
+      "current": 25
+    },
+    {
+      "name": "Firma/notarización e inmutabilidad del pipeline",
+      "previous": 75,
+      "current": 50
+    }
+  ],
+  "currentChecks": {
+    "audit": {
+      "info": 0,
+      "low": 0,
+      "moderate": 7,
+      "high": 0,
+      "critical": 0,
+      "total": 7
+    },
+    "productionAudit": {
+      "info": 0,
+      "low": 0,
+      "moderate": 7,
+      "high": 0,
+      "critical": 0,
+      "total": 7
+    },
+    "devOnlyAffected": [],
+    "lint": {
+      "all": {
+        "files": 3257,
+        "errors": 2009,
+        "warnings": 31,
+        "fatal": 0
+      },
+      "productionTs": {
+        "files": 2563,
+        "errors": 1589,
+        "warnings": 31,
+        "fatal": 0,
+        "explicitAnyMessages": 1416
+      }
+    },
+    "staticSummary": {
+      "productionFiles": 2563,
+      "consoleTextMatches": 1008,
+      "consoleMethodCalls": 1001,
+      "createLoggerFiles": 26,
+      "largeFiles": [
+        {
+          "file": "electron/integrated-browser/reading-mode-content.ts",
+          "lines": 1012
+        },
+        {
+          "file": "electron/integrated-browser/service.ts",
+          "lines": 5532
+        },
+        {
+          "file": "src/components/orb/OrbMesh.tsx",
+          "lines": 1077
+        }
+      ]
+    },
+    "openSpec": {
+      "changes": 108,
+      "noOpenChecklist": 80,
+      "openItems": 191
+    },
+    "stableSources": {
+      "count": 3533,
+      "sha256": "c665785dda788d496b4440ed33491fbf716ec87c8c0441ddbb08cbc40bffc5b5",
+      "currentHashesMatch": true
+    },
+    "deltaFromPreviousAssessment": [
+      {
+        "file": ".github/workflows/ci.yml",
+        "previousSha256": "c98eef3b5965f0384e90a3e049ffb3898b85f217f159e4f39e47e5cba1eaf449",
+        "currentSha256": "2508fc2fe6a7c2d5fc43c52fd9064e3d016127416a0d18c3ebbee35d85dc62fe"
+      },
+      {
+        "file": ".github/workflows/release.yml",
+        "previousSha256": "1f36046a2cf4001bcdabb9b10cc38e4b0495892dbbf13c5fe59d61bc04d9c1b5",
+        "currentSha256": "b0e3c2a7f006d3776e4522fc1b6094bfde897191a1b3a211ee0a597f9b7b61eb"
+      },
+      {
+        "file": "package.json",
+        "previousSha256": "497634e40237c151f24a557f48e4c84c2430d63af98102d4962c16fddd5c0b3a",
+        "currentSha256": "bff2b0c7bf6e9d2afa1888c5dd843b4cc3c952ba4608a0780ee94191af5b5749"
+      },
+      {
+        "file": "scripts/quality/run-gate.mjs",
+        "previousSha256": "8a47dde387c80a024c814df8a58dfe727aa404aac9e516c245870432ae16f816",
+        "currentSha256": "0d6625415b006d28285ca25cdad2d48185f8c8ffaa908c5984255d3e31cf4dd5"
+      },
+      {
+        "file": "vitest.config.ts",
+        "previousSha256": "dd5b8815f885c79538717370f78a76e61b1b1a8d097f4ab3e982f76f8d236902",
+        "currentSha256": "0f18154b02f18eec7b89a222d98ae3266e225cacddf903ae820f5545aef80711"
+      },
+      {
+        "file": "config/coverage-policy.json",
+        "previousSha256": null,
+        "currentSha256": "a5a4dc376af7c28cedd5600c9d27960c3a2825abbfc6c5f3af5d03e608e53d77"
+      },
+      {
+        "file": "scripts/quality/check-coverage.mjs",
+        "previousSha256": null,
+        "currentSha256": "2c2885dccbe07455a12d4c982ed83d142646f6df81cc6eb33c5d1631ad0b6b71"
+      },
+      {
+        "file": "scripts/quality/check-coverage.test.mjs",
+        "previousSha256": null,
+        "currentSha256": "b2b44888e4fd1cd1add3c029a1fe88ff34f89632ca75c222ce9f43dcf8b1199f"
+      },
+      {
+        "file": "scripts/quality/workflow-integrity.mjs",
+        "previousSha256": null,
+        "currentSha256": "b78d9cfedb9541aee6cd04c00b1bff7ec5d43960c9ee405afc5f768d6ca437bc"
+      },
+      {
+        "file": "scripts/quality/workflow-integrity.test.mjs",
+        "previousSha256": null,
+        "currentSha256": "9e6d43aecf9c38a56f134ff5269a499ca4585574247aa524f94131d2b3b71e75"
+      }
+    ],
+    "latestGate": "../../openspec/changes/gate-global-quality-and-workflow-integrity/reports/gate-summary.json",
+    "latestBuild": "../../openspec/changes/gate-global-quality-and-workflow-integrity/reports/build-summary.json",
+    "gateReusedWithMatchingHashes": true,
+    "lintReusedWithIdenticalSources": true,
+    "lintSourcesAfterUnit": 36,
+    "coverage": {
+      "baseline": {
+        "files": 2563,
+        "lines": 56.92,
+        "statements": 55.61,
+        "functions": 51.7,
+        "branches": 49.6,
+        "totals": {
+          "lines": {
+            "total": 60530,
+            "covered": 34457,
+            "skipped": 0,
+            "pct": 56.92
+          },
+          "statements": {
+            "total": 75609,
+            "covered": 42049,
+            "skipped": 0,
+            "pct": 55.61
+          },
+          "functions": {
+            "total": 16680,
+            "covered": 8624,
+            "skipped": 0,
+            "pct": 51.7
+          },
+          "branches": {
+            "total": 55378,
+            "covered": 27471,
+            "skipped": 0,
+            "pct": 49.6
+          }
+        },
+        "thresholds": {
+          "lines": 56,
+          "statements": 55,
+          "functions": 51,
+          "branches": 49
+        },
+        "zeroStatementCoverage": 1023,
+        "rawTestMocksExcluded": [
+          "C:\\Users\\fysg5\\Desktop\\SofLIA\\Pulse Hub\\SofLIA-HUB\\test\\mocks\\electron\\app-ipc.ts",
+          "C:\\Users\\fysg5\\Desktop\\SofLIA\\Pulse Hub\\SofLIA-HUB\\test\\mocks\\electron\\system-ui.ts",
+          "C:\\Users\\fysg5\\Desktop\\SofLIA\\Pulse Hub\\SofLIA-HUB\\test\\mocks\\electron\\windowing.ts"
+        ],
+        "reason": "El remapeo V8 añadió tres mocks fuera del include. Se excluyen como fixtures de prueba y excludeAfterRemap se integra para la medición final; ninguna fuente productiva se omite."
+      },
+      "current": {
+        "files": 2563,
+        "lines": 56.92,
+        "statements": 55.61,
+        "functions": 51.7,
+        "branches": 49.6
+      },
+      "totals": {
+        "lines": {
+          "total": 60530,
+          "covered": 34457,
+          "skipped": 0,
+          "pct": 56.92
+        },
+        "statements": {
+          "total": 75609,
+          "covered": 42049,
+          "skipped": 0,
+          "pct": 55.61
+        },
+        "functions": {
+          "total": 16680,
+          "covered": 8624,
+          "skipped": 0,
+          "pct": 51.7
+        },
+        "branches": {
+          "total": 55378,
+          "covered": 27471,
+          "skipped": 0,
+          "pct": 49.6
+        },
+        "branchesTrue": {
+          "total": 0,
+          "covered": 0,
+          "skipped": 0,
+          "pct": 100
+        }
+      },
+      "thresholds": {
+        "lines": 56,
+        "statements": 55,
+        "functions": 51,
+        "branches": 49
+      },
+      "zeroStatementCoverage": 1023,
+      "summarySha256": "3fab1a55ecfe0c0eb31076834913aa19a9d515191655e17f9adb52a8abb6e631",
+      "summaryPath": "C:\\Users\\fysg5\\Desktop\\SofLIA\\Pulse Hub\\SofLIA-HUB\\coverage\\coverage-summary.json",
+      "lcovSha256": "4e1d057ff4a1e4fcba356528e9d41c614ab08e62c7163fb93bc78d8f226387aa",
+      "scope": "Toda producción src/electron, inventario Git exacto; sólo tests/fixtures y declaraciones excluidos. Sin E2E/CI remoto."
+    },
+    "workflow": {
+      "workflows": 4,
+      "references": 27,
+      "remote": 25,
+      "previousMutableReferences": 18,
+      "mutableNow": 0,
+      "pins": {
+        "checkout": "11d5960a326750d5838078e36cf38b85af677262",
+        "setupNode": "49933ea5288caeca8642d1e84afbd3f7d6820020",
+        "uploadArtifact": "ea165f8d65b6e75b540449e92b4886f43607fa02",
+        "downloadArtifact": "d3f86a106a0bac45b974a628896c90dbdf5c8093"
+      },
+      "origin": "git ls-remote de repositorios oficiales actions/*; no se ejecutó código remoto."
+    }
+  },
+  "commands": {
+    "npmAudit": {
+      "exitCode": 1,
+      "expectedReason": "Siete paquetes moderate, cero high/critical, consulta sin error."
+    },
+    "npmAuditProduction": {
+      "exitCode": 1
+    },
+    "eslint": {
+      "command": "npx eslint src electron --format json --output-file TEMP/eslint.json",
+      "exitCode": 1,
+      "reason": "2009 incidencias históricas de error; cero fatales. No se amplía baseline.",
+      "reused": true
+    }
+  },
+  "metricDefinitions": {
+    "production": "TS/TSX bajo src/electron excluyendo __tests__ y .d.ts",
+    "console": "Coincidencias de \\bconsole\\. en texto, no análisis AST ni evidencia de fuga.",
+    "lines": "Segmentos al separar por CRLF/LF; incluye segmento final vacío, igual al conteo anterior.",
+    "openSpec": "Directorios bajo openspec/changes, excluyendo archive; sin casillas abiertas no equivale a revisado/archivado."
+  },
+  "limitations": [
+    "Sin consulta remota nueva de RLS; se conserva inspección del 22 de octubre sin remediación acreditada.",
+    "Sin cobertura medida nueva, prueba de carga, instalador, proveedores reales o CI Node 24 ejecutados aquí.",
+    "Sin revisión visual nueva; se respeta rechazo previo del navegador.",
+    "Revisión independiente pendiente; sin secretos/.env, SQL, stage/commit/push o despliegue.",
+    "Pisos de cobertura iniciales, no objetivo 80/90 ni garantía de correctitud; SHA fijo no certifica todo el código de Actions."
+  ],
+  "evidence": [
+    {
+      "file": "src/config.ts",
+      "sha256": "547aaa50ef4792c7a9a6c55a734051064b7ee07b1420946eb7e16ec5ecc0a269"
+    },
+    {
+      "file": ".github/workflows/release.yml",
+      "sha256": "b0e3c2a7f006d3776e4522fc1b6094bfde897191a1b3a211ee0a597f9b7b61eb"
+    },
+    {
+      "file": "docs/security/security-and-privacy.md",
+      "sha256": "ad476293d3e5a914908503b6b42163c176ebe13cef08082bbb22badf588172a9"
+    },
+    {
+      "file": "docs/architecture/ipc-and-integrations.md",
+      "sha256": "d31591dcd854517fb25df287879f114ad015874f6dd31d2193b0b5256e02c471"
+    },
+    {
+      "file": "src/services/gemini-chat/client.ts",
+      "sha256": "4a3c69271fb76b979d5c12d7fb1b20cf1425c32f8afd091f20accb5ad4065a37"
+    },
+    {
+      "file": "electron/auth-state-handlers.ts",
+      "sha256": "41590288cefdf5a7bdafab6226eb1f868b4fc102c22253162b26d9ee9e283141"
+    },
+    {
+      "file": "electron/ai-grounding-handler.ts",
+      "sha256": "679579a8b179a05ebe6003fc9e9ff5575891d9afa7ddb11a9ff46f4177f99dc2"
+    },
+    {
+      "file": "electron/ipc/renderer-source.ts",
+      "sha256": "0893a18253f62af8980824b28168086b4820628c53a16b91451fded1d48572ae"
+    },
+    {
+      "file": "electron/ipc/auth-state-contract.ts",
+      "sha256": "42ce1d4f77bd46d21736a232d40a41f4d066129fc2f09576716a0ae339351c6d"
+    },
+    {
+      "file": "ai-specs/policies/tool-boundaries.md",
+      "sha256": "6fe90b66dc01ecae0c06803c259db5f8005ae7454260f88b8995cda3fb71c7fd"
+    },
+    {
+      "file": "electron/integrated-browser/service.ts",
+      "sha256": "3c722d4fd25bfc367d90eb0f3cc8e8329d9939e1d435c10e25398acc47b1c824"
+    },
+    {
+      "file": "docs/architecture/frontend.md",
+      "sha256": "a1edce5d8b93100a50c814d9634e1de6f5a403b05e285bccd5d570b90862eb1f"
+    },
+    {
+      "file": "docs/architecture/integrated-browser-platform.md",
+      "sha256": "f09d6b7093f32fc11f366846e9daa29fc1848dcd073a7de2cfe9aaf5afe711e3"
+    },
+    {
+      "file": "src/shared/auth-state.ts",
+      "sha256": "d19dd9cde6660d1a4a50f322b1207f2677a137106603a3941e1495fd0b8c5885"
+    },
+    {
+      "file": "electron/ipc/caller-authorization.ts",
+      "sha256": "b0cc32fe3e060303eae6a1f2f803bb37bf60f4c73bcca829244e1dbebc47209b"
+    },
+    {
+      "file": "electron/main/bootstrap.ts",
+      "sha256": "4107834f082f5c49de60f2c88074d19354aa866b52bdc5457757ced429d8b81c"
+    },
+    {
+      "file": "electron/preload/auth-apis.ts",
+      "sha256": "a34473e184b6a352c8990eca5844fde76670fb4e8119a22935b34ea3dbc366ca"
+    },
+    {
+      "file": "src/services/auth-state.ts",
+      "sha256": "6eb8deafbc57a86acd40d422e0cb9bea64e3082b2ffd121762edb4f4f975911d"
+    },
+    {
+      "file": "eslint.config.mjs",
+      "sha256": "7919d78c2085249d233e17666f3bf5e019aa21219f2fa1ad1241004d2752c83d"
+    },
+    {
+      "file": "scripts/quality/lint-changed.mjs",
+      "sha256": "a6d4e457d1d07d055d1ff80fb96bd90e3cedfb429e88508a07222eca3e758727"
+    },
+    {
+      "file": "src/services/iris-data/projects.ts",
+      "sha256": "2df7e4d86764db0ef097206708c03704d356c81828870a229466530d2d2ac517"
+    },
+    {
+      "file": "openspec/changes/gate-global-quality-and-workflow-integrity/reports/gate-summary.json",
+      "sha256": "fdfc08f9835fb2ac6fd3a063a8668e9c963bc478af63514528ec7a7689fd61f2"
+    },
+    {
+      "file": "vitest.config.ts",
+      "sha256": "0f18154b02f18eec7b89a222d98ae3266e225cacddf903ae820f5545aef80711"
+    },
+    {
+      "file": "scripts/quality/run-gate.mjs",
+      "sha256": "0d6625415b006d28285ca25cdad2d48185f8c8ffaa908c5984255d3e31cf4dd5"
+    },
+    {
+      "file": "openspec/changes/authorize-auth-state-publication/reports/verification.md",
+      "sha256": "f670717cb39e45e182d4e6bfbdc5716af059934f4e0943eb20f4fd668d0e6712"
+    },
+    {
+      "file": "openspec/changes/authorize-auth-state-publication/reports/regression-summary.json",
+      "sha256": "5c06cf795595d13e1d80b6fc9a35d9f1657a9654d40838921dd09bcff54cfb2a"
+    },
+    {
+      "file": "config/coverage-policy.json",
+      "sha256": "a5a4dc376af7c28cedd5600c9d27960c3a2825abbfc6c5f3af5d03e608e53d77"
+    },
+    {
+      "file": "scripts/quality/check-coverage.mjs",
+      "sha256": "2c2885dccbe07455a12d4c982ed83d142646f6df81cc6eb33c5d1631ad0b6b71"
+    },
+    {
+      "file": "scripts/quality/check-coverage.test.mjs",
+      "sha256": "b2b44888e4fd1cd1add3c029a1fe88ff34f89632ca75c222ce9f43dcf8b1199f"
+    },
+    {
+      "file": "openspec/changes/gate-global-quality-and-workflow-integrity/reports/coverage-evidence.json",
+      "sha256": "c03ea0bf5461875f0d947ea521ae7656b8574b38d8b7fe5d098a6cab6cb567e1"
+    },
+    {
+      "file": "docs/reports/iris-access-2026-10-22.md",
+      "sha256": "730b971d99586fadd63bbfd7cf542712e58e34da5141cdbbad7e0a0ee1f58809"
+    },
+    {
+      "file": "database/lia/migrations/hub-service-state.sql",
+      "sha256": "f75f3aa7504c1c75feee668439cfb567ba43a85422d6419aece41a148c3aac5a"
+    },
+    {
+      "file": "docs/operations/release-and-recovery.md",
+      "sha256": "61bd7975149343b205b17bcd1968dacf10ef0c65b836dd625bb3bea03320e72d"
+    },
+    {
+      "file": "package.json",
+      "sha256": "bff2b0c7bf6e9d2afa1888c5dd843b4cc3c952ba4608a0780ee94191af5b5749"
+    },
+    {
+      "file": "package-lock.json",
+      "sha256": "00907dbd199e00edf4b4fdf18392c367c355ed381f0cb55ff41714aa19cb7f9e"
+    },
+    {
+      "file": "python/tools_sidecar/requirements.lock",
+      "sha256": "3e63710eaf70d9ea46f7790d4a95b378be8dfdfef00dffc16341c8951427b49d"
+    },
+    {
+      "file": "openspec/changes/secure-python-reader-dependencies/tasks.md",
+      "sha256": "ec17edf44365f38c873ab553d18f8e6906b2984848caddec3edb1011e2adb438"
+    },
+    {
+      "file": "scripts/quality/check-supply-chain.mjs",
+      "sha256": "5628b65cc166c1ce0121e915a40a84647fd84544bd2d56957e60a1f5a4eff30f"
+    },
+    {
+      "file": ".github/workflows/ci.yml",
+      "sha256": "2508fc2fe6a7c2d5fc43c52fd9064e3d016127416a0d18c3ebbee35d85dc62fe"
+    },
+    {
+      "file": ".github/workflows/python-readers.yml",
+      "sha256": "c2eb224b8d6b241f34f9904b31a6eb11ccdb5541ddb42d660ad30f0e06f0e788"
+    },
+    {
+      "file": "scripts/quality/workflow-integrity.mjs",
+      "sha256": "b78d9cfedb9541aee6cd04c00b1bff7ec5d43960c9ee405afc5f768d6ca437bc"
+    },
+    {
+      "file": "scripts/quality/workflow-integrity.test.mjs",
+      "sha256": "9e6d43aecf9c38a56f134ff5269a499ca4585574247aa524f94131d2b3b71e75"
+    },
+    {
+      "file": "openspec/changes/gate-global-quality-and-workflow-integrity/reports/workflow-evidence.json",
+      "sha256": "fd3a941705b3761568b7aeba67bf55e3ee12c452d54a378755a94d9a1cacf2b3"
+    },
+    {
+      "file": "electron/utils/logger-options.ts",
+      "sha256": "c407b34f6284ac8bdcd7465d8969cdcd4756edd692f3b34f55a70ef247fbdcf7"
+    },
+    {
+      "file": "docs/plans/technical-debt-reduction.md",
+      "sha256": "23374cafc76962520f123246d35441ef214363ecf6bf0c3b0d5871dc1e5c5a00"
+    },
+    {
+      "file": "docs/architecture/load-and-scalability.md",
+      "sha256": "248c8ec76392d52e6b255fcf51452fc81b18adcbff650100249a802d06f6e924"
+    },
+    {
+      "file": "openspec/changes/scale-hub-data-800-users/tasks.md",
+      "sha256": "9876c0bd6238b8b9e797d0448ae665172c66fd5ad0d97be9149af21fc21ce23f"
+    },
+    {
+      "file": "docs/README.md",
+      "sha256": "93dac2dd1de80b65a7c1b3171783fbf3ef761335a197f95fae65aaae968a5556"
+    },
+    {
+      "file": "docs/ux/accessibility.md",
+      "sha256": "37b96ed5202d1ecc0d07f608b3821ae2a9aff5beff0eecb547d1ec60646ee61b"
+    },
+    {
+      "file": "openspec/changes/harden-action-confirmation-dialog/tasks.md",
+      "sha256": "925fa58215ee8c12a9fac79e8075ea3b05a61c14139911ef84df0eb181544ead"
+    },
+    {
+      "file": "openspec/changes/harden-select-dropdown-interaction/reports/verification.md",
+      "sha256": "702d8852dcbb223e49c34ab439a4fab81cae4ad9bf679ac27ec6193aee4838f7"
+    },
+    {
+      "file": "openspec/changes/gate-global-quality-and-workflow-integrity/reports/verification.md",
+      "sha256": "2e236e1ec8753b3324d675430e9bece233e2935510d3a17589b42ad4b49d8ef7"
+    },
+    {
+      "file": "openspec/changes/gate-global-quality-and-workflow-integrity/reports/source-evidence.json",
+      "sha256": "eb8d66a0395634bd3dab15fb0513c86628c208b150d4c1d1702890179bdee4a8"
+    },
+    {
+      "file": ".gitignore",
+      "sha256": "a71753c5bdea5225e163eaf2428c722e8b5aa938eca1c09013526715e95f73a2"
+    }
+  ],
+  "rawLogs": {
+    "npm-audit.json": {
+      "path": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-global-quality-2026-10-25\\npm-audit.json",
+      "sha256": "0ac2ed6e0fd63547b66c18e60b016948018d2d1a549e72947cd08e759a4c56f9"
+    },
+    "npm-audit-production.json": {
+      "path": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-global-quality-2026-10-25\\npm-audit-production.json",
+      "sha256": "0ac2ed6e0fd63547b66c18e60b016948018d2d1a549e72947cd08e759a4c56f9"
+    },
+    "eslint.json": {
+      "path": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-debt-reassessment-unit-36-2026-10-25\\eslint.json",
+      "sha256": "2b138603c687b892c088635c3a67cd5033066716b5af0617d9f474199a07ce6f"
+    },
+    "lint-summary.json": {
+      "path": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-debt-reassessment-unit-36-2026-10-25\\lint-summary.json",
+      "sha256": "e3761efa030f9a80ee14275857f8f19705f01a0233119fb4b67a3d340f294acf"
+    },
+    "static-summary.json": {
+      "path": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-debt-reassessment-unit-36-2026-10-25\\static-summary.json",
+      "sha256": "e5622c6a42a194001d088ce37966a5147bc882d90c47b46ebe0c30e520d52a0a"
+    },
+    "openspec-summary.json": {
+      "path": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-debt-reassessment-unit-36-2026-10-25\\openspec-summary.json",
+      "sha256": "996e6e8723a6edc4b6c5b32248ca8e42d46aa401e7e53ee4a0d6a39b617f9bcc"
+    },
+    "survey-summary.json": {
+      "path": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-debt-reassessment-unit-36-2026-10-25\\survey-summary.json",
+      "sha256": "f7ef985eb306d4393ba27cffae7c9c7ec293ca5973dd2f0141a6e39b99ced3ef"
+    },
+    "baseline-receipt.json": {
+      "path": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-global-quality-2026-10-25\\baseline-receipt.json",
+      "sha256": "1f8944985891e0b90c90ebc2670f6c3aef75a3b0124647fe4d34a6d9edeef947"
+    },
+    "policy-consumers-final.log": {
+      "path": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-global-quality-2026-10-25\\policy-consumers-final.log",
+      "sha256": "330017c96bbb35576d3b7dcece78299cfccd14a1e4de9d5b45200d5f76ef7da6"
+    },
+    "coverage-baseline-tests.json": {
+      "path": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-global-quality-2026-10-25\\coverage-baseline-tests.json",
+      "sha256": "9ba1f46d473c56130e3cd3ca2dfbbb33df51c0b0f3de186095af1f0b27b1f183"
+    }
+  },
+  "timezone": "America/Mexico_City"
+}

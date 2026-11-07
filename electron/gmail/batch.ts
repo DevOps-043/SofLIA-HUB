@@ -1,94 +1,44 @@
-/**
- * Operaciones batch contra Gmail API.
- *
- * Aisladas para que las funciones que las usan (apply, undo, emptyAndDelete)
- * no tengan que repetir el manejo de chunks ni los límites de 100 mensajes/req.
- */
+import { z } from 'zod';
+import { gmailObjectIdSchema } from '../../src/shared/gmail-mailbox';
+import type { GmailExecutionContext } from './execution-context';
+import { GmailOperationLimitError, type GmailOperationProgress } from './operation-progress';
 
-import { chunkArray } from './helpers';
-import type { GmailClient } from './types';
-
-const GMAIL_BATCH_LIMIT = 100;
-const MAX_DRAIN_ITERATIONS = 500;
-
-/**
- * Aplica `addLabelIds`/`removeLabelIds` a un conjunto arbitrario de mensajes,
- * partiendo en chunks de 100 (límite de Gmail).
- */
-export async function batchModifyMessageIds(
-  gmail: GmailClient,
-  messageIds: string[],
-  addLabelIds: string[],
-  removeLabelIds: string[],
-): Promise<void> {
-  for (const batch of chunkArray(messageIds, GMAIL_BATCH_LIMIT)) {
-    await gmail.users.messages.batchModify({
-      userId: 'me',
-      requestBody: {
-        ids: batch,
-        addLabelIds,
-        removeLabelIds,
-      },
-    });
+export const GMAIL_BATCH_LIMIT = 100;
+export const GMAIL_SELECTION_LIMIT = 50_000;
+const pageSchema = z.object({ messages: z.array(z.object({ id: gmailObjectIdSchema })).max(GMAIL_BATCH_LIMIT).optional(),
+  nextPageToken: z.string().min(1).max(4096).optional(),
+});
+/** Snapshot completo antes de mutar: no vuelve a pedir la primera página alterada. */
+export async function selectGmailLabelMessages(context: GmailExecutionContext, labelId: string, capacity = GMAIL_SELECTION_LIMIT): Promise<string[]> {
+  const ids = new Set<string>(), tokens = new Set<string>();
+  let pageToken: string | undefined;
+  let pages = 0;
+  do {
+    if (++pages > GMAIL_SELECTION_LIMIT / GMAIL_BATCH_LIMIT + 1) throw new Error('Paginación excesiva.');
+    const response = await context.call(client => client.users.messages.list({ userId: 'me', labelIds: [labelId], maxResults: GMAIL_BATCH_LIMIT, pageToken }, context.requestOptions()));
+    const page = pageSchema.parse(response.data);
+    for (const message of page.messages ?? []) {
+      if (ids.has(message.id)) throw new Error('Mensaje repetido en la selección.');
+      if (ids.size >= capacity) throw new GmailOperationLimitError('messages');
+      ids.add(message.id);
+    }
+    pageToken = page.nextPageToken;
+    if (pageToken && tokens.has(pageToken)) throw new Error('Paginación repetida.');
+    if (pageToken) tokens.add(pageToken);
+  } while (pageToken);
+  return [...ids];
+}
+export async function applyGmailMessageBatches(context: GmailExecutionContext, progress: GmailOperationProgress,
+  ids: string[], changes: { addLabelIds: string[]; removeLabelIds: string[] }, acknowledge: (count: number) => void): Promise<void> {
+  for (let offset = 0; offset < ids.length; offset += GMAIL_BATCH_LIMIT) {
+    const chunk = ids.slice(offset, offset + GMAIL_BATCH_LIMIT);
+    await progress.write(context, client => client.users.messages.batchModify({ userId: 'me', requestBody: { ids: chunk, ...changes } }, context.requestOptions()),
+      () => acknowledge(chunk.length));
   }
 }
-
-/**
- * Vacía completamente una etiqueta moviendo todos sus mensajes a otro lugar
- * (típicamente INBOX). Itera con paginación porque Gmail solo devuelve hasta
- * 100 mensajes por listado.
- *
- * Lanza si se alcanza el límite duro de iteraciones (~50,000 mensajes) para
- * evitar loops infinitos en caso de error de paginación.
- */
-export async function drainLabelMessages(
-  gmail: GmailClient,
-  labelId: string,
-  options?: { addLabels?: string[]; removeLabels?: string[] },
-): Promise<{ processed: number; remaining: number }> {
-  let totalProcessed = 0;
-  let iterations = 0;
-
-  while (iterations < MAX_DRAIN_ITERATIONS) {
-    const listResponse = await gmail.users.messages.list({
-      userId: 'me',
-      labelIds: [labelId],
-      maxResults: GMAIL_BATCH_LIMIT,
-    });
-
-    const messageIds = (listResponse.data.messages || [])
-      .map((m: { id?: string }) => m.id)
-      .filter(Boolean) as string[];
-    if (messageIds.length === 0) break;
-
-    await gmail.users.messages.batchModify({
-      userId: 'me',
-      requestBody: {
-        ids: messageIds,
-        addLabelIds: options?.addLabels || ['INBOX'],
-        removeLabelIds: options?.removeLabels || [labelId],
-      },
-    });
-
-    totalProcessed += messageIds.length;
-    iterations += 1;
-    console.log(
-      `[GmailService] Batch modified ${messageIds.length} messages (label: ${labelId}), total: ${totalProcessed}`,
-    );
-  }
-
-  if (iterations >= MAX_DRAIN_ITERATIONS) {
-    throw new Error(`Se alcanzo el limite de iteraciones vaciando la etiqueta ${labelId}`);
-  }
-
-  const remainingResponse = await gmail.users.messages.list({
-    userId: 'me',
-    labelIds: [labelId],
-    maxResults: 1,
-  });
-
-  return {
-    processed: totalProcessed,
-    remaining: (remainingResponse.data.messages || []).length,
-  };
+/** Devuelve sólo vacío/no vacío: un resultado de una página no es un conteo total. */
+export async function isGmailLabelEmpty(context: GmailExecutionContext, id: string): Promise<boolean> {
+  const response = await context.call(client => client.users.messages.list({ userId: 'me', labelIds: [id], maxResults: 1 }, context.requestOptions()));
+  const messages = z.array(z.object({ id: gmailObjectIdSchema })).max(1).parse(response.data.messages ?? []);
+  return messages.length === 0 && !response.data.nextPageToken;
 }

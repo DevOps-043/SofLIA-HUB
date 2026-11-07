@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "provider": "v8",
+  "include": ["src/**/*.{ts,tsx}", "electron/**/*.ts"],
+  "exclude": ["**/__tests__/**", "**/*.d.ts", "test/**"],
+  "thresholds": { "lines": 56, "statements": 55, "functions": 51, "branches": 49 }
+}

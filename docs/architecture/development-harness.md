@@ -146,22 +146,12 @@ El ciclo operativo y el momento de archivar se detallan en la
 ### Verificación ejecutable y CI
 
 La secuencia actual de `verify:pr` proviene de
-[run-gate.mjs](../../scripts/quality/run-gate.mjs) y se detiene en el primer fallo:
-
-1. `adapters:check`: correspondencia de wrappers.
-2. `harness:validate`: estructura e invariantes del arnés.
-3. `audit:supply-chain`: controles de dependencias definidos por el proyecto.
-4. `docs:system:check`: catálogo, evidencia, IDs e inventarios derivados.
-5. `docs:check`: existencia de destinos de enlaces Markdown locales.
-6. `skills:seed:check`: coherencia del catálogo de Skills del producto.
-7. `openspec:validate`: validación estricta de las especificaciones.
-8. `typecheck`: contratos TypeScript de renderer y main.
-9. `lint:changed`: incidencias nuevas respecto a la línea base.
-10. `test`: suite Vitest.
-
-`verify:release` añade estabilidad de Electron y build/empaquetado. Las Skills del
-paso 6 pertenecen al producto; ese paso es una especialización de SofLIA, no un
-requisito universal de un arnés de desarrollo.
+[run-gate.mjs](../../scripts/quality/run-gate.mjs), se detiene en el primer fallo
+y se documenta en [desarrollo y CI](../operations/development-and-devops.md#ci-de-pull-request).
+Incluye estabilidad/seguridad del runtime y contratos Python además de tipos,
+lint, suites y validadores del arnés. `verify:release` añade build/empaquetado.
+La comprobación de semilla de Skills pertenece al producto: es una
+especialización de SofLIA, no un requisito universal de un arnés de desarrollo.
 
 [validate-harness.mjs](../../scripts/quality/validate-harness.mjs) comprueba rutas
 obligatorias, referencias al router/estándar, secciones del estándar, formato de
@@ -171,11 +161,12 @@ retirados. No evalúa la calidad semántica de una instrucción o de un requisit
 La correspondencia exacta de wrappers se comprueba por separado.
 
 [lint-changed.mjs](../../scripts/quality/lint-changed.mjs) reúne archivos del diff,
-índice y archivos nuevos. `HARNESS_BASE_REF` puede ampliar la selección al diff
-de la rama; las incidencias se comparan con `HEAD` por regla y severidad.
-Este control evita aumentos en el conteo de incidencias, pero puede omitir una
-incidencia nueva si desaparece otra de la misma regla. No certifica ausencia de
-deuda ni sustituye el lint completo.
+índice y archivos nuevos. Compara cambios comprometidos con el ancestro común
+de la base configurada y HEAD, y cambios locales con HEAD; exige ambas bases
+cuando corresponde. La selección TS/JS, configuración canónica, errores Git,
+parser y límites del presupuesto histórico se definen en el
+[estándar de pruebas](../standards/testing.md#regla-de-baseline).
+No certifica ausencia de deuda ni sustituye el lint completo.
 
 El [workflow de CI](../../.github/workflows/ci.yml) corre en PR y ejecución manual,
 usa Ubuntu, Node 24, `npm ci`, historial completo y `verify:pr`. Su variable

@@ -1,0 +1,237 @@
+[
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\build-final.log",
+    "bytes": 38995,
+    "sha256": "ca104bed272e3895b203092bd732860343305dcffd5bee17d4492396ed144fc7"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\docs-final.log",
+    "bytes": 139,
+    "sha256": "800d352aee7f041cd780fb16942677f0fca0941ae8905443a2b0c2d68db1dee1"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\docs-system-final.log",
+    "bytes": 195,
+    "sha256": "c41ad32e6479d28ad1de38d7cd38a5a223e43d56df1af09378a29ce8e821b20c"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\gate-final.log",
+    "bytes": 121571,
+    "sha256": "ac453b47becc9d04f66fa5b63ea609f7a3b3b3af6b1a017d3ce1d365a9cdcc3d"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\gesture-renderer-red.log",
+    "bytes": 2928,
+    "sha256": "416d03350438263aaaf7aa56473373d36a80e5c9953691125fb1dca98f9fb9a3"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\harness-final.log",
+    "bytes": 144,
+    "sha256": "916e65bfd3de6fbfa30c2fa5e9d816f138601dd577b5d8ebf17711b92b2aeebd"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\lint-final.log",
+    "bytes": 145,
+    "sha256": "d86064c2dd17bf9e8a75d326304501298477a8f68d6f8a64cf2033ea054fdd89"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\lint-first.log",
+    "bytes": 454,
+    "sha256": "1926303438b7128c9a8fbe18690c44fceb4fad2241868ae56fcfd0d1de2fb4f4"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\lint-second.log",
+    "bytes": 145,
+    "sha256": "d70adb0336234927a4b04b5884cb366c57a7155d9a7b0976207a7d31c31ccd81"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\native-before.log",
+    "bytes": 1091,
+    "sha256": "43336fccb1e37e3b7cdb56169beeab3bcd092db8471040befd59e87112678c24"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\native-context-gesture-red.log",
+    "bytes": 2247,
+    "sha256": "018060cb74c6dde8c3d8721bc61a8eca9efd35b949beb48554b1c84bd2b9c0d1"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\native-context-green.log",
+    "bytes": 1651,
+    "sha256": "57aa917ca818f929cc7bffda7b6fe6534b8b57b578722a6baa82fced7fedac30"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\native-contrast-red.log",
+    "bytes": 2245,
+    "sha256": "b4bcaf140fa672e346a39f32c8d94c9a7171ffcc90e4d587ca425cbd555c4441"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\native-contrast-tick-red.log",
+    "bytes": 2499,
+    "sha256": "1ab7d8e18c947fb9c2012e6ce57475abeef23fd77443e92159b30d212eea2882"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\native-final.log",
+    "bytes": 1786,
+    "sha256": "d0394101d723b818129f3dfc7deec8344e7225a45fa01911a539dea9d7c7f595"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\native-first.log",
+    "bytes": 1742,
+    "sha256": "8a98cab9b67d046eb3a16b5781fddb0216d395442c533fdd7aebce86aa3bc6c1"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\native-forced-contrast-red.log",
+    "bytes": 2499,
+    "sha256": "a5703456e37578935f0f025c9bac1918254fe4bc0f5675a39faafb9a39fcaa05"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\native-frame-validation.log",
+    "bytes": 2307,
+    "sha256": "2aa062dcc58e3681a7257a2fef96155f294b7a59b42d857d6c2d163c2b9b6ed1"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\native-key-trace.log",
+    "bytes": 2505,
+    "sha256": "18b9c6de8b54b1feeb94db71c3af5d09f58c72bb1838ecd3d04505fc1b4fd365"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\native-keyboard-char.log",
+    "bytes": 1545,
+    "sha256": "62be736ecfd6ec6a135aad4dde28ee410c2a504286c512130d5b65f62f4b1331"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\native-keyboard-probe.log",
+    "bytes": 1876,
+    "sha256": "03f247c91be942ddbcdc9b46a45fce4eb968c322ae92de9f823e506908a2a497"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\native-offscreen-frames.log",
+    "bytes": 1824,
+    "sha256": "2b893964ed805cb9654af3ac35e22e9e810218e8790e429c4812450155039dfa"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\native-paint-handoff.log",
+    "bytes": 2585,
+    "sha256": "ef55ff84c7577aac893cb467a963c335ddb304354bf1667b1e3126b7a0ef0626"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\native-paint-isolated.log",
+    "bytes": 2080,
+    "sha256": "8070cd120d3e179f183dcd83db67f878a4a1a68b4e0c7c231d6218bd66e2c2b1"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\native-pixel-probe.log",
+    "bytes": 2585,
+    "sha256": "d2bcc6a512dbe5cd4c4dbe74fd2bf8dd69c396b873b7f9b1803ec1bd718ea2fb"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\native-presentation-frames.log",
+    "bytes": 2475,
+    "sha256": "a819206773e7570839890dca83be8eff4fb11e6c9b5b7c3e18f71e69e6d4f6e8"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\native-restoration-red.log",
+    "bytes": 1435,
+    "sha256": "dec3557c7a433477f1b1b70df0ac91ba34f897ad86f150f9d5b4cf5879270fed"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\native-second.log",
+    "bytes": 1435,
+    "sha256": "e55de2e899ef8e197ac21cb20b614c6a0dda697710bb06bf865178a2e95dae86"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\native-space-final.log",
+    "bytes": 2652,
+    "sha256": "4839432899ea463881ec1105d26e0eab6b0972e3c6c494e4802469897c2577ef"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\native-stage-probe.log",
+    "bytes": 1669,
+    "sha256": "d3939d25f874a722f22a9a5a00e4802452ee3a5ac23cd9191878eca334c16d33"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\native-third.log",
+    "bytes": 1820,
+    "sha256": "6c8a5d3609d46784eed1beaa39ce633bb17dccffbb76a9480ed7b3a9671a0c93"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\native-transparent-presentation.log",
+    "bytes": 2475,
+    "sha256": "7d74b9f1b826748c1197400f895deed9bbf959ec03830c63cf858a0db0b2966d"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\openspec-final.log",
+    "bytes": 53,
+    "sha256": "ac47a3ff4a77d462a4d501911b87800b8366769d4aa209861ab1109d3b07fd8c"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\renderer-adversarial.log",
+    "bytes": 682,
+    "sha256": "32021bef95b1e86ea80d8567305f4911babfd3de107daf53c2a396ccd55af35a"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\renderer-first-green.log",
+    "bytes": 1615,
+    "sha256": "fcdd3a8f40bcf570a4fddfe9269e5d9ba89b6245a4a34cb2ef98ed356f1730c4"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\renderer-gesture-green.log",
+    "bytes": 678,
+    "sha256": "5ecc74878dada7a1df7fe74bc8f2b2902c26de3fb0aedbd1079b36ae25dee404"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\renderer-red.log",
+    "bytes": 6485,
+    "sha256": "0b3197f80e9007cf75680d8085f8b5c283f108d403de9994cfaf3cf3c972066d"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\renderer-restoration-green.log",
+    "bytes": 676,
+    "sha256": "a763c9a8f257c85f072ea5e99dbc40055e88f07946dc7cf15efaa9e619240bf9"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\renderer-second-green.log",
+    "bytes": 674,
+    "sha256": "74c74b8c7fc44ab29baf05d81cd430b0641fcde46b217a40989da691c4191d11"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\renderer-valid-red.log",
+    "bytes": 33258,
+    "sha256": "7ce7d286f4709550fe7acd634af684386ce23435ca5e47f42fc62da043a6c0a5"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\restoration-before-native.log",
+    "bytes": 557,
+    "sha256": "4130cd35dd326841e8c6acd804b2056ffd44c0b2ae49234af3a088c9307c4daf"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\restore-red.log",
+    "bytes": 1664,
+    "sha256": "73508d4cf56725d4c3be034815e950598075ae5084503daa8ac1cd890c772d2a"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\selector-final.log",
+    "bytes": 1887,
+    "sha256": "be1fb545510f4c05fbe81c76edb0f4964229090061b74b58de0ad841d7227f56"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\selector-frozen-final.log",
+    "bytes": 1480,
+    "sha256": "f6cf204572a6ac9be3ed8f6a1b036f2ec0cdeb8bac1b54f336b769b60982c228"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\tests-contract-final.log",
+    "bytes": 2155,
+    "sha256": "61ed2263465462b3faeee11d84ca3178b7f74610c7a80c01b0d687e9898a1c66"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\typecheck-first.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-confirmation-dialog-2026-10-25\\typecheck-second.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  }
+]

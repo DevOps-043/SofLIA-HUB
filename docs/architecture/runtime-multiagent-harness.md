@@ -212,7 +212,7 @@ el coordinador prepara una minuta. El panel muestra aportes, estados, tokens
 observados y consultas. La fuente se entrega como datos a cada etapa mediante
 el mismo dispatcher autorizado que atiende herramientas adicionales.
 
-Gemini utiliza la clave existente de SofLIA y su modelo runtime. Para Codex,
+OpenAI utiliza la credencial nativa de SofLIA y su modelo predeterminado. Para Codex,
 abre Configurar Codex, selecciona su ejecutable nativo y guarda una clave API
 OpenAI del contexto actual. La clave nunca se devuelve al renderer. La
 configuración se conserva cifrada cuando el sistema permite hacerlo.
@@ -230,7 +230,7 @@ borrador y su revisión.
 ## Arquitectura y alcance
 
 [Orquestador](../../electron/agent-runtime/service.ts) → proveedor
-[Gemini](../../electron/agent-runtime/gemini-provider.ts) o
+[OpenAI](../../electron/agent-runtime/openai-provider.ts) o
 [Codex](../../electron/codex-runtime/provider.ts) → catálogo cerrado de
 [herramientas](../../electron/agent-runtime/tools.ts).
 
@@ -300,7 +300,7 @@ del arnés entre dispositivos.
 
 La fuente de parámetros es [AGENT_LIMITS](../../src/shared/agent-runtime.ts):
 80000 caracteres de fuente, 24000 por salida, doce consultas por etapa, seis
-llamadas por etapa Gemini, 3000 tokens de salida solicitados por llamada Gemini,
+llamadas por etapa OpenAI, 3000 tokens de salida solicitados por llamada OpenAI,
 tres minutos por análisis y treinta segundos por solicitud RPC.
 Codex se corta por duración, herramientas y uso observado; no se garantiza un
 tope monetario ni un número exacto de iteraciones internas del motor.

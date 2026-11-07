@@ -1,11 +1,14 @@
 import { GOOGLE_API_KEY, MODELS } from '../../config';
 import {
-  GEMINI_GROUNDING_API,
   GEMINI_GROUNDING_MODELS,
   GEMINI_GROUNDING_TOOLS,
   supportsCodeExecutionCombo,
 } from '../../shared/gemini-grounding-config';
 import { getApiKeyWithCache } from '../api-keys';
+import { observeApiKeySession } from '../api-keys/session-scope';
+import { hasNativeGroundingRuntime, requestNativeGrounding, GroundingBridgeError } from '../grounded-generation';
+import { fetchGroundedContent } from '../../shared/grounded-http';
+import { GROUNDED_REQUEST_MS, groundingSnapshot, jsonObject, validateGroundingInput, type JsonObject } from '../../shared/grounded-generation';
 import { extractSources } from './sources';
 import { completedStreamResult, isAbortError, stoppedStreamResult } from './streams';
 import type { StreamResult, ToolCallInfo } from './types';
@@ -17,7 +20,7 @@ export const WEB_GROUNDING_FAILURE =
 // siempre (p. ej. API bloqueada) y dejar el chat en "..." eterno. Se acota.
 // 150s: los informes profundos hacen varias búsquedas y generan 900-1500
 // palabras; con 60s se cortaban investigaciones legítimas a la mitad.
-const GROUNDING_REQUEST_TIMEOUT_MS = 150_000;
+const GROUNDING_REQUEST_TIMEOUT_MS = GROUNDED_REQUEST_MS;
 
 /**
  * Combina la señal de cancelación del usuario (botón Stop) con un timeout, para
@@ -69,44 +72,50 @@ export function shouldUseWebGrounding(message: string): boolean {
 export async function sendGroundedMessage(input: {
   candidateModelIds: string[];
   finalMessage: string;
-  messageContent: any;
+  messageContent: unknown;
   systemInstruction: string;
   history: Array<{ role: string; parts: Array<{ text: string }> }>;
-  generationConfig: Record<string, any>;
+  generationConfig: Record<string, unknown>;
   allToolCalls: ToolCallInfo[];
   allGeneratedImages: string[];
   signal?: AbortSignal;
-}): Promise<StreamResult> {
-  const apiKeys = await resolveApiKeyCandidates();
-  if (!apiKeys.length) return completedStreamResult(WEB_GROUNDING_FAILURE, {}, input.allToolCalls, input.allGeneratedImages);
+}): Promise<StreamResult & { cancelled?: true }> {
+  const scope = observeApiKeySession(true);
+  const cancelled = () => !scope.isCurrent() || input.signal?.aborted;
+  const stopped = () => ({ ...stoppedStreamResult(input.allToolCalls, input.allGeneratedImages), cancelled: true as const });
+  const unavailable = () => completedStreamResult(WEB_GROUNDING_FAILURE, {}, input.allToolCalls, input.allGeneratedImages);
+  try {
+    if (cancelled()) return stopped();
+    const apiKeys = hasNativeGroundingRuntime() ? [null] : await resolveApiKeyCandidates();
+    if (cancelled()) return stopped();
+    if (!apiKeys.length) return unavailable();
 
-  let lastError: unknown = null;
-  for (const modelId of resolveGroundingModelIds(input.candidateModelIds)) {
-    for (const apiKey of apiKeys) {
-      if (input.signal?.aborted) return stoppedStreamResult(input.allToolCalls, input.allGeneratedImages);
-      try {
-        const response = await requestGroundedContent(modelId, apiKey, input);
-        const text = extractResponseText(response);
-        const sources = extractSources(response);
-        if (!text.trim() || !sources?.length) throw new Error('WEB_GROUNDING_NO_VERIFIED_SOURCES');
-        // Graficas de code execution (matplotlib) llegan como imagenes inline.
-        const images = [...input.allGeneratedImages, ...extractInlineImages(response)];
-        return completedStreamResult(text, response, input.allToolCalls, images);
-      } catch (error) {
-        // Cancelación del usuario: detener limpio, no seguir probando modelos.
-        if (isAbortError(error, input.signal)) return stoppedStreamResult(input.allToolCalls, input.allGeneratedImages);
-        lastError = error;
-        console.warn('[GeminiChat] grounded model attempt failed:', {
-          modelId,
-          apiKeySource: apiKey.source,
-          error: sanitizeGroundingLogError(error),
-        });
+    for (const modelId of resolveGroundingModelIds(input.candidateModelIds)) {
+      for (const apiKey of apiKeys) {
+        if (cancelled()) return stopped();
+        try {
+          const response = await requestGroundedContent(modelId, apiKey, input);
+          if (cancelled()) return stopped();
+          const text = extractResponseText(response);
+          const sources = extractSources(response);
+          if (!text.trim() || !sources?.length) throw new Error('WEB_GROUNDING_NO_VERIFIED_SOURCES');
+          const images = [...input.allGeneratedImages, ...extractInlineImages(response)];
+          return completedStreamResult(text, response, input.allToolCalls, images);
+        } catch (error) {
+          if (cancelled() || isAbortError(error, input.signal)) return stopped();
+          if (error instanceof GroundingBridgeError) return unavailable();
+          console.warn('[GeminiChat] No se completó un intento de investigación:', {
+            modelId,
+            apiKeySource: apiKey?.source ?? 'nativa',
+            error: sanitizeGroundingLogError(error),
+          });
+        }
       }
     }
+    return unavailable();
+  } finally {
+    scope.dispose();
   }
-
-  console.warn('[GeminiChat] grounded response unavailable:', sanitizeGroundingLogError(lastError));
-  return completedStreamResult(WEB_GROUNDING_FAILURE, {}, input.allToolCalls, input.allGeneratedImages);
 }
 
 async function resolveApiKeyCandidates(): Promise<GroundingApiKeyCandidate[]> {
@@ -131,74 +140,39 @@ function uniqueApiKeys(candidates: Array<GroundingApiKeyCandidate | null>): Grou
 
 async function requestGroundedContent(
   modelId: string,
-  apiKey: GroundingApiKeyCandidate,
+  apiKey: GroundingApiKeyCandidate | null,
   input: {
     finalMessage: string;
-    messageContent: any;
+    messageContent: unknown;
     systemInstruction: string;
     history: Array<{ role: string; parts: Array<{ text: string }> }>;
-    generationConfig: Record<string, any>;
+    generationConfig: Record<string, unknown>;
     signal?: AbortSignal;
   },
-): Promise<any> {
+): Promise<unknown> {
   const modelName = normalizeModelName(modelId);
   const body = buildGroundingRequestBody(input, modelName);
   // Acota la petición con timeout + cancelación del usuario para no colgarse.
   const { signal, cleanup } = createBoundedSignal(input.signal, GROUNDING_REQUEST_TIMEOUT_MS);
   try {
-    const mainResponse = await requestGroundedContentViaMain(modelName, apiKey.value, body, signal);
-    if (mainResponse) return mainResponse;
-
-    const response = await fetch(`${GEMINI_GROUNDING_API.generateContentBaseUrl}/${modelName}:generateContent?key=${encodeURIComponent(apiKey.value)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal,
-    });
-
-    const raw = await response.text();
-    const payload = parseJsonResponse(raw);
-    if (!response.ok) throw new Error(payload?.error?.message || `HTTP ${response.status}`);
-    return payload;
+    const request = validateGroundingInput({ modelName, body });
+    const mainResponse = await requestNativeGrounding(request, signal);
+    if (mainResponse !== null) return mainResponse;
+    if (!apiKey) throw new GroundingBridgeError();
+    return await raceWithSignal(fetchGroundedContent(request, apiKey.value, signal), signal);
   } finally {
     cleanup();
   }
 }
 
-async function requestGroundedContentViaMain(modelName: string, apiKey: string, body: Record<string, any>, signal: AbortSignal): Promise<any | null> {
-  const ipc = getIpcRenderer();
-  if (!ipc?.invoke) return null;
-
-  try {
-    // El IPC no acepta signal: se acota con raceWithSignal (timeout + Stop).
-    const result = await raceWithSignal(ipc.invoke('ai:generate-grounded', { modelName, apiKey, body }), signal);
-    if (result?.success) return result.payload || {};
-    if (!result || typeof result !== 'object') return null;
-    throw new Error(result?.error || `HTTP ${result?.status || 'unknown'}`);
-  } catch (error) {
-    if (isMissingIpcGroundingHandler(error)) return null;
-    throw error;
-  }
-}
-
-function getIpcRenderer(): { invoke?: (channel: string, ...args: any[]) => Promise<any> } | null {
-  if (typeof window === 'undefined') return null;
-  return (window as any).ipcRenderer || null;
-}
-
-function isMissingIpcGroundingHandler(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error || '');
-  return /Unauthorized IPC channel|No handler registered|No handler|Cannot read|is not a function/i.test(message);
-}
-
 function buildGroundingRequestBody(input: {
   finalMessage: string;
-  messageContent: any;
+  messageContent: unknown;
   systemInstruction: string;
   history: Array<{ role: string; parts: Array<{ text: string }> }>;
-  generationConfig: Record<string, any>;
-}, modelName: string): Record<string, any> {
-  return {
+  generationConfig: Record<string, unknown>;
+}, modelName: string): JsonObject {
+  const body = {
     contents: [
       ...input.history,
       { role: 'user', parts: toRestParts(input.messageContent || input.finalMessage) },
@@ -209,15 +183,9 @@ function buildGroundingRequestBody(input: {
     generationConfig: input.generationConfig,
     tools: buildGroundingTools(input.finalMessage, modelName),
   };
-}
-
-function parseJsonResponse(raw: string): any {
-  if (!raw) return {};
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return { raw };
-  }
+  const snapshot = groundingSnapshot(body);
+  if (!jsonObject(snapshot)) throw new Error('Solicitud de investigación no válida.');
+  return snapshot as JsonObject;
 }
 
 function normalizeModelName(modelId: string): string {
@@ -254,24 +222,33 @@ function buildGroundingTools(message: string, modelName: string): Array<Record<s
   return tools;
 }
 
-function toRestParts(content: any): any[] {
+function toRestParts(content: unknown): unknown[] {
   if (typeof content === 'string') return [{ text: content }];
   if (!Array.isArray(content)) return [{ text: String(content || '') }];
-  return content.map((part) => (typeof part === 'string' ? { text: part } : part));
+  return content.map(part => typeof part === 'string' ? { text: part } : part);
 }
 
-function extractResponseText(response: any): string {
-  const parts = response?.candidates?.[0]?.content?.parts || [];
-  return parts.filter((part: any) => part.text).map((part: any) => part.text).join('');
+function responseParts(response: unknown): Record<string, unknown>[] {
+  if (!jsonObject(response) || !Array.isArray(response.candidates)) return [];
+  const candidate: unknown = response.candidates[0];
+  if (!jsonObject(candidate) || !jsonObject(candidate.content) || !Array.isArray(candidate.content.parts)) return [];
+  return candidate.content.parts.filter(jsonObject);
+}
+function extractResponseText(response: unknown): string {
+  return responseParts(response).map(part => typeof part.text === 'string' ? part.text : '').join('');
 }
 
-/** Imagenes inline de la respuesta (graficas de code execution) como data URLs. */
-function extractInlineImages(response: any): string[] {
-  const parts = response?.candidates?.[0]?.content?.parts || [];
-  return parts
-    .map((part: any) => part.inlineData || part.inline_data)
-    .filter((data: any) => data?.data && String(data.mimeType || data.mime_type || '').startsWith('image/'))
-    .map((data: any) => `data:${data.mimeType || data.mime_type};base64,${data.data}`);
+/** Imágenes inline del proveedor; MIME y base64 comprobados antes de publicar. */
+function extractInlineImages(response: unknown): string[] {
+  const images: string[] = [];
+  for (const part of responseParts(response)) {
+    const data = part.inlineData ?? part.inline_data;
+    if (!jsonObject(data)) continue;
+    const mime = data.mimeType ?? data.mime_type;
+    if (typeof mime !== 'string' || !/^image\/(png|jpeg|webp|gif)$/.test(mime) || typeof data.data !== 'string' || !/^[A-Za-z0-9+/]*={0,2}$/.test(data.data) || !data.data) continue;
+    images.push('data:' + mime + ';base64,' + data.data);
+  }
+  return images;
 }
 
 function buildGroundingInstruction(systemInstruction: string): string {
@@ -315,9 +292,5 @@ function extractPublicUrls(text: string): string[] {
 }
 
 function sanitizeGroundingLogError(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error || 'unknown');
-  return message
-    .replace(/AIza[0-9A-Za-z_-]+/g, '[api-key]')
-    .replace(/key=[^&\s]+/g, 'key=[api-key]')
-    .slice(0, 500);
+  return error instanceof Error && error.name === 'AbortError' ? 'Investigación cancelada.' : 'El proveedor no completó la investigación.';
 }

@@ -1,119 +1,56 @@
-/**
- * Sincronización del estado pendiente con Supabase.
- *
- * Procesa la cola en orden: borrados → upserts de conversaciones → snapshots
- * de mensajes. Cada operación exitosa limpia su entrada pendiente; un fallo
- * TRANSITORIO deja la entrada para el siguiente intento (resiliencia ante red
- * intermitente).
- *
- * Un fallo PERMANENTE no se reintenta. Sin esa distinción, una fila que la base
- * de datos nunca va a aceptar se queda en la cola para siempre: cada guardado la
- * reenvía, la cola no drena nunca y el registro de Supabase se llena de
- * rechazos. Pasó de verdad, con miles de `42501` por hora sobre `conversations`
- * y `messages` — una conversación creada bajo otra identidad, reclamada por la
- * activa, que RLS rechazaba correctamente en cada intento.
- */
+import { isSupabaseConfigured, supabase } from '../../lib/supabase';
+import { runPendingChatSyncPass } from './sync-pass';
+import { createChatSessionReview, type ChatSessionLease, type ChatSessionReview } from './session-review';
 
-import { isSupabaseConfigured } from '../../lib/supabase';
-import { saveConversationToCache, saveMessagesToCache } from './cache';
-import {
-  clearPendingConversationDelete,
-  clearPendingConversationUpsert,
-  clearPendingMessageSnapshot,
-  getPendingConversationUpserts,
-  readPendingChatState,
-} from './pending-state';
-import { deleteConversationRemote } from './remote';
-import { upsertConversationRemoteOutcome } from './remote/conversation-mutations';
-import { syncMessagesRemoteOutcome } from './remote/message-sync';
+interface SyncBatch {
+  targets: Set<string> | null;
+  session: ChatSessionLease;
+  promise: Promise<void>;
+  resolve: () => void;
+  reject: (error: unknown) => void;
+}
+interface SyncQueue { pending: SyncBatch | null; session: ChatSessionReview }
+const syncByUser = new Map<string, SyncQueue>();
 
-export async function syncPendingChatState(
-  userId: string,
-  conversationIds?: string[],
-): Promise<void> {
-  if (!userId || !isSupabaseConfigured()) {
-    return;
+/** Una pasada activa y una pendiente fusionada por identidad en este renderer. */
+export async function syncPendingChatState(userId: string, conversationIds?: string[]): Promise<void> {
+  if (!userId || !isSupabaseConfigured()) return;
+  const targets = conversationIds?.length ? new Set(conversationIds) : null;
+  const active = syncByUser.get(userId);
+  const review = active?.session ?? createChatSessionReview(supabase?.auth);
+  const session = review.capture(userId);
+  if (active?.pending && active.pending.session.cycle === session.cycle) {
+    if (targets === null) active.pending.targets = null;
+    else if (active.pending.targets !== null) for (const id of targets) active.pending.targets.add(id);
+    return active.pending.promise;
   }
-
-  const targetIds = new Set(conversationIds || []);
-  const isTargetedSync = targetIds.size > 0;
-
-  // 1. Procesar borrados primero (evita reescribir lo que se acaba de borrar).
-  const deletedIds = readPendingChatState(userId).deletedConversationIds;
-  for (const conversationId of deletedIds) {
-    if (isTargetedSync && !targetIds.has(conversationId)) continue;
-
-    const deleted = await deleteConversationRemote(conversationId);
-    if (deleted) {
-      clearPendingConversationDelete(userId, conversationId);
-    }
+  let resolve!: () => void, reject!: (error: unknown) => void;
+  const promise = new Promise<void>((done, fail) => { resolve = done; reject = fail; });
+  const batch: SyncBatch = { targets, session, promise, resolve, reject };
+  if (active) {
+    // El lote anterior perdió su ciclo; conservar datos, sin heredar su scope.
+    active.pending?.resolve(); active.pending = batch;
   }
+  else {
+    const queue: SyncQueue = { pending: batch, session: review }; syncByUser.set(userId, queue);
+    void drainSyncQueue(userId, queue);
+  }
+  return promise;
+}
 
-  // 2. Upsert de conversaciones nuevas o modificadas.
-  for (const pending of getPendingConversationUpserts(userId)) {
-    if (isTargetedSync && !targetIds.has(pending.id)) continue;
-
-    // Una conversacion de otra identidad no es nuestra para escribirla. Puede
-    // ser compartida por otro usuario, o una copia local reetiquetada por la
-    // migracion de identidad mientras la fila remota conserva su dueño. En
-    // ambos casos RLS la rechaza siempre: se saca de la cola en vez de
-    // reintentarla en cada guardado.
-    if (pending.user_id && pending.user_id !== userId) {
-      console.warn(
-        `[chat-service] La conversacion ${pending.id} pertenece a otra identidad (${pending.user_id}); ` +
-        'no se sincroniza y se retira de la cola.',
-      );
-      clearPendingConversationUpsert(userId, pending.id);
-      continue;
-    }
-
-    const resultado = await upsertConversationRemoteOutcome(pending);
-    if (!resultado.ok) {
-      if (resultado.permanente) {
-        console.warn(
-          `[chat-service] La conversacion ${pending.id} no se puede guardar en Supabase y no se reintentara: ` +
-          `${resultado.message}. Sigue disponible en este equipo.`,
-        );
-        clearPendingConversationUpsert(userId, pending.id);
+async function drainSyncQueue(userId: string, queue: SyncQueue): Promise<void> {
+  try {
+    while (queue.pending) {
+      const batch = queue.pending; queue.pending = null;
+      try {
+        await batch.session.ready;
+        if (batch.session.isCurrent()) await runPendingChatSyncPass(userId, batch.targets, batch.session);
+        batch.resolve();
       }
-      continue;
+      catch (error) { batch.reject(error); }
     }
-    const synced = resultado.data;
-
-    saveConversationToCache(userId, {
-      ...synced,
-      is_shared: pending.is_shared,
-      share_permission: pending.share_permission,
-      can_edit: pending.can_edit,
-      can_share: pending.can_share,
-      shared_by_user_id: pending.shared_by_user_id,
-      share_token: pending.share_token,
-      shared_at: pending.shared_at,
-    });
-    clearPendingConversationUpsert(userId, pending.id);
-  }
-
-  // 3. Snapshots de mensajes (después de las conversaciones para evitar FK violations).
-  const stateAfterConversationSync = readPendingChatState(userId);
-  for (const [conversationId, snapshot] of Object.entries(stateAfterConversationSync.messageSnapshots)) {
-    if (isTargetedSync && !targetIds.has(conversationId)) continue;
-
-    const resultado = await syncMessagesRemoteOutcome(conversationId, userId, snapshot);
-    if (resultado.ok) {
-      clearPendingMessageSnapshot(userId, conversationId);
-      saveMessagesToCache(conversationId, snapshot);
-      continue;
-    }
-
-    if (resultado.permanente) {
-      // Tipicamente arrastran el rechazo de su conversacion: si esa fila
-      // pertenece a otra identidad, sus mensajes tampoco se van a admitir.
-      console.warn(
-        `[chat-service] Los mensajes de ${conversationId} no se pueden guardar en Supabase y no se reintentaran: ` +
-        `${resultado.message}. Siguen disponibles en este equipo.`,
-      );
-      clearPendingMessageSnapshot(userId, conversationId);
-      saveMessagesToCache(conversationId, snapshot);
-    }
+  } finally {
+    if (syncByUser.get(userId) === queue) syncByUser.delete(userId);
+    queue.session.dispose();
   }
 }

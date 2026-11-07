@@ -2,14 +2,8 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from
 import { createPortal } from 'react-dom';
 
 import { cn } from './cn';
-
-export interface SelectDropdownOption {
-  value: string;
-  label: string;
-  /** Linea secundaria dentro de la opcion (§13.3 del sistema de diseño). */
-  description?: string;
-  disabled?: boolean;
-}
+import { activeOptionIndex, findPrefixOption, nextEnabledOption, normalizeOptionPrefix, type SelectDropdownOption } from './select-dropdown-navigation';
+export type { SelectDropdownOption } from './select-dropdown-navigation';
 
 interface SelectDropdownProps {
   value: string;
@@ -42,6 +36,7 @@ interface MenuPosition {
 const MENU_GAP = 6;
 const VIEWPORT_MARGIN = 12;
 const MAX_MENU_HEIGHT = 288;
+const TYPEAHEAD_WINDOW_MS = 500;
 
 /**
  * Select del sistema SOFIA: trigger + popover propio en lugar del menu nativo,
@@ -64,19 +59,28 @@ const SelectDropdown: React.FC<SelectDropdownProps> = ({
   className,
   ...aria
 }) => {
+  const unavailable = disabled || options.length === 0;
   const [requestedOpen, setRequestedOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(-1);
+  const [activeValue, setActiveValue] = useState<string | null>(null);
+  const [previousUnavailable, setPreviousUnavailable] = useState(unavailable);
   const [position, setPosition] = useState<MenuPosition | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const typeahead = useRef({ text: '', at: 0 });
   const reactId = useId();
+  const triggerId = id ?? `select-${reactId}`;
   const listboxId = `${id ?? 'select'}-${reactId}-listbox`;
   const optionId = (index: number) => `${listboxId}-option-${index}`;
 
   const isCompact = size === 'compact';
-  // Derivado en lugar de un efecto que cierre al deshabilitar: si el control se
-  // apaga con el menu abierto, este simplemente deja de renderizarse.
-  const open = requestedOpen && !disabled;
+  // Ajustar sólo el propio estado durante la transición evita una apertura
+  // latente al habilitar de nuevo, sin un efecto que publique primero el menú.
+  if (previousUnavailable !== unavailable) {
+    setPreviousUnavailable(unavailable);
+    if (unavailable) setRequestedOpen(false);
+  }
+  const open = requestedOpen && !unavailable;
+  const activeIndex = open ? activeOptionIndex(options, activeValue, value) : -1;
   const selectedIndex = options.findIndex((option) => option.value === value);
   const selectedLabel = selectedIndex >= 0
     ? options[selectedIndex].label
@@ -93,7 +97,7 @@ const SelectDropdown: React.FC<SelectDropdownProps> = ({
       ? 'above'
       : 'below';
     const available = placement === 'below' ? spaceBelow : spaceAbove;
-    const maxHeight = Math.max(120, Math.min(MAX_MENU_HEIGHT, available));
+    const maxHeight = Math.max(0, Math.min(MAX_MENU_HEIGHT, available));
     const width = rect.width;
     const left = Math.min(
       Math.max(VIEWPORT_MARGIN, rect.left),
@@ -111,14 +115,24 @@ const SelectDropdown: React.FC<SelectDropdownProps> = ({
     });
   }, []);
 
+  const closeMenu = useCallback(() => {
+    setRequestedOpen(false);
+    typeahead.current = { text: '', at: 0 };
+  }, []);
+
   useLayoutEffect(() => {
     if (!open) return;
     updatePosition();
+    const handleScroll = (event: Event) => {
+      // Desplazar las opciones no cambia la posición del trigger ni debe
+      // devolver al usuario a la opción activa mientras explora con la rueda.
+      if (event.target !== menuRef.current) updatePosition();
+    };
     // `true` en captura: el scroll ocurre en el contenedor del modal, no en window.
-    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('scroll', handleScroll, true);
     window.addEventListener('resize', updatePosition);
     return () => {
-      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('scroll', handleScroll, true);
       window.removeEventListener('resize', updatePosition);
     };
   }, [open, updatePosition]);
@@ -128,22 +142,31 @@ const SelectDropdown: React.FC<SelectDropdownProps> = ({
     const handlePointerDown = (event: MouseEvent) => {
       const target = event.target as Node;
       if (triggerRef.current?.contains(target) || menuRef.current?.contains(target)) return;
-      setRequestedOpen(false);
+      closeMenu();
     };
     document.addEventListener('mousedown', handlePointerDown);
     return () => document.removeEventListener('mousedown', handlePointerDown);
-  }, [open]);
+  }, [open, closeMenu]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) return;
-    const active = menuRef.current?.querySelector('[data-active="true"]');
-    // scrollIntoView no existe en jsdom ni en algunos WebView embebidos.
-    active?.scrollIntoView?.({ block: 'nearest' });
-  }, [open, activeIndex]);
+    const menu = menuRef.current;
+    const active = menu?.querySelector<HTMLElement>('[data-active="true"]');
+    if (!menu || !active) return;
+    // Desplazar sólo la lista evita mover ancestros del diálogo. Medir el
+    // rectángulo actual también cubre zoom y cambios de altura del popup.
+    const bounds = menu.getBoundingClientRect();
+    const item = active.getBoundingClientRect();
+    const top = bounds.top + menu.clientTop;
+    const bottom = top + menu.clientHeight;
+    if (item.top < top || item.height > menu.clientHeight) menu.scrollTop += item.top - top;
+    else if (item.bottom > bottom) menu.scrollTop += item.bottom - bottom;
+  }, [open, activeIndex, position]);
 
   function openMenu(startIndex: number) {
-    if (disabled || options.length === 0) return;
-    setActiveIndex(startIndex);
+    if (unavailable) return;
+    setActiveValue(options[startIndex]?.value ?? null);
+    typeahead.current = { text: '', at: 0 };
     setRequestedOpen(true);
   }
 
@@ -151,68 +174,76 @@ const SelectDropdown: React.FC<SelectDropdownProps> = ({
     const option = options[index];
     if (!option || option.disabled) return;
     onChange(option.value);
-    setRequestedOpen(false);
+    closeMenu();
     triggerRef.current?.focus();
   }
 
-  /** Salta las opciones deshabilitadas y da la vuelta en ambos sentidos. */
-  function nextEnabled(from: number, step: 1 | -1): number {
-    const total = options.length;
-    if (total === 0) return -1;
-    // Sin seleccion previa: bajar entra por la primera y subir por la ultima.
-    const start = from < 0 ? (step === 1 ? -1 : 0) : from;
-    for (let offset = 1; offset <= total; offset += 1) {
-      const index = (((start + step * offset) % total) + total) % total;
-      if (!options[index]?.disabled) return index;
-    }
-    return from;
+  function firstEnabled(step: 1 | -1): number {
+    return nextEnabledOption(options, -1, step);
   }
 
-  function firstEnabled(step: 1 | -1): number {
-    const start = step === 1 ? 0 : options.length - 1;
-    if (!options[start]?.disabled) return start;
-    return nextEnabled(start, step);
+  function explorePrefix(key: string, now: number) {
+    const previous = typeahead.current;
+    const prefix = normalizeOptionPrefix(key);
+    const maxPrefix = options.reduce((longest, option) => Math.max(longest, option.label.length), 1);
+    const text = open && now - previous.at < TYPEAHEAD_WINDOW_MS && previous.text.length < maxPrefix
+      ? previous.text + prefix : prefix;
+    const repeated = Array.from(text).every(character => character === text[0]);
+    const query = repeated ? text[0] : text;
+    const current = open ? activeIndex : selectedIndex;
+    const match = findPrefixOption(options, query, current, current < 0 || (!repeated && text.length > 1));
+    if (match >= 0) {
+      if (!open) openMenu(match);
+      else setActiveValue(options[match].value);
+    }
+    typeahead.current = { text, at: now };
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
+    if (unavailable || event.nativeEvent.isComposing || event.ctrlKey || event.metaKey || event.altKey) return;
     switch (event.key) {
       case 'ArrowDown':
       case 'ArrowUp': {
         event.preventDefault();
         const step = event.key === 'ArrowDown' ? 1 : -1;
         if (!open) {
-          openMenu(selectedIndex >= 0 ? selectedIndex : firstEnabled(step));
+          openMenu(selectedIndex >= 0 && !options[selectedIndex].disabled ? selectedIndex : firstEnabled(step));
           return;
         }
-        setActiveIndex((current) => nextEnabled(current < 0 ? selectedIndex : current, step));
+        setActiveValue(options[nextEnabledOption(options, activeIndex, step)]?.value ?? null);
         return;
       }
       case 'Home':
       case 'End': {
         if (!open) return;
         event.preventDefault();
-        setActiveIndex(firstEnabled(event.key === 'Home' ? 1 : -1));
+        setActiveValue(options[firstEnabled(event.key === 'Home' ? 1 : -1)]?.value ?? null);
         return;
       }
       case 'Enter':
       case ' ': {
         event.preventDefault();
-        if (!open) { openMenu(selectedIndex >= 0 ? selectedIndex : firstEnabled(1)); return; }
-        commit(activeIndex >= 0 ? activeIndex : selectedIndex);
+        if (!open) { openMenu(activeOptionIndex(options, null, value)); return; }
+        commit(activeIndex);
         return;
       }
       case 'Escape': {
         if (!open) return;
         event.preventDefault();
-        setRequestedOpen(false);
+        event.stopPropagation();
+        closeMenu();
         return;
       }
       case 'Tab': {
         // Tab sale del control: el menu no debe quedar huerfano sobre la pagina.
-        if (open) setRequestedOpen(false);
+        if (open) closeMenu();
         return;
       }
       default:
+        if (event.key.length === 1) {
+          event.preventDefault();
+          explorePrefix(event.key, event.timeStamp);
+        }
     }
   }
 
@@ -220,20 +251,24 @@ const SelectDropdown: React.FC<SelectDropdownProps> = ({
     <div className={cn(isCompact ? 'relative' : 'relative w-full', className)}>
       <button
         ref={triggerRef}
-        id={id}
+        id={triggerId}
         type="button"
         role="combobox"
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? listboxId : undefined}
-        aria-activedescendant={open && activeIndex >= 0 ? optionId(activeIndex) : undefined}
+        aria-activedescendant={open && position && activeIndex >= 0 ? optionId(activeIndex) : undefined}
         aria-label={aria['aria-label']}
         aria-labelledby={aria['aria-labelledby']}
         disabled={disabled}
-        onClick={() => (open ? setRequestedOpen(false) : openMenu(selectedIndex >= 0 ? selectedIndex : firstEnabled(1)))}
+        onClick={() => (open ? closeMenu() : openMenu(activeOptionIndex(options, null, value)))}
         onKeyDown={handleKeyDown}
+        onBlur={event => {
+          const target = event.relatedTarget;
+          if (!(target instanceof Node) || !menuRef.current?.contains(target)) closeMenu();
+        }}
         className={cn(
-          'group flex items-center justify-between gap-2.5 bg-surface-2 border text-left text-gray-900 dark:text-white transition-colors',
+          'group flex items-center justify-between gap-2.5 bg-surface-2 border text-left text-gray-900 dark:text-white transition-colors motion-reduce:transition-none',
           'focus:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/15 focus-visible:border-accent/50',
           'disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-border',
           open ? 'border-accent/50 ring-[3px] ring-accent/15' : 'border-border hover:border-accent/40',
@@ -247,7 +282,7 @@ const SelectDropdown: React.FC<SelectDropdownProps> = ({
         </span>
         <ChevronIcon
           className={cn(
-            'shrink-0 transition-transform duration-200',
+            'shrink-0 transition-transform duration-200 motion-reduce:transition-none',
             isCompact ? 'w-3.5 h-3.5' : 'w-4 h-4',
             open ? 'rotate-180 text-accent' : 'text-secondary group-hover:text-accent',
           )}
@@ -260,6 +295,7 @@ const SelectDropdown: React.FC<SelectDropdownProps> = ({
           role="listbox"
           id={listboxId}
           aria-label={aria['aria-label']}
+          aria-labelledby={aria['aria-labelledby'] ?? (aria['aria-label'] ? undefined : triggerId)}
           tabIndex={-1}
           style={{
             position: 'fixed',
@@ -270,12 +306,12 @@ const SelectDropdown: React.FC<SelectDropdownProps> = ({
             maxHeight: position.maxHeight,
           }}
           className={cn(
-            'z-[1000] overflow-y-auto overscroll-contain p-1.5 rounded-2xl',
+            'z-[1000] overflow-y-auto overscroll-contain p-1.5 rounded-2xl transition-none [animation-duration:150ms] motion-reduce:animate-none',
             'bg-surface border border-border backdrop-blur-xl',
             'shadow-[0_18px_50px_rgba(10,37,64,0.16)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.55)]',
             position.placement === 'below'
-              ? 'animate-in fade-in slide-in-from-top-1 duration-150'
-              : 'animate-in fade-in slide-in-from-bottom-1 duration-150',
+              ? 'animate-in fade-in slide-in-from-top-1'
+              : 'animate-in fade-in slide-in-from-bottom-1',
           )}
         >
           {options.map((option, index) => {
@@ -289,11 +325,14 @@ const SelectDropdown: React.FC<SelectDropdownProps> = ({
                 aria-selected={isSelected}
                 aria-disabled={option.disabled || undefined}
                 data-active={isActive}
-                onMouseEnter={() => !option.disabled && setActiveIndex(index)}
+                onMouseEnter={() => {
+                  if (!option.disabled) setActiveValue(option.value);
+                  typeahead.current = { text: '', at: 0 };
+                }}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => commit(index)}
                 className={cn(
-                  'flex items-start gap-2.5 px-2.5 py-2 rounded-[10px] text-sm cursor-pointer transition-colors',
+                  'flex items-start gap-2.5 px-2.5 py-2 rounded-[10px] text-sm cursor-pointer transition-colors motion-reduce:transition-none',
                   option.disabled && 'opacity-40 cursor-not-allowed',
                   isActive && !option.disabled && 'bg-accent/[0.07]',
                   isSelected ? 'text-accent font-medium' : 'text-gray-900 dark:text-white',

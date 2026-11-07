@@ -39,6 +39,17 @@ function makeDeps(overrides: Partial<CascadeDeps> = {}): CascadeDeps {
 }
 
 describe('cascada de extraccion de contexto de escritorio', () => {
+  it('Office protegido omite la captura visual cuando obtiene texto redactado', async () => {
+    const deps = makeDeps({ protectDocument: true });
+    const result = await extractAppContext(excelWindow, deps);
+    expect(result.level).toBe('documento'); expect(result.image).toBeUndefined();
+    expect(deps.captureWindow).not.toHaveBeenCalled(); expect(deps.extractWindowText).not.toHaveBeenCalled();
+  });
+  it('Office protegido rechaza el fallo del parser sin recurrir a UIA ni captura', async () => {
+    const deps = makeDeps({ protectDocument: true, parseDocument: vi.fn(async () => { throw new Error('fallo ficticio'); }) });
+    await expect(extractAppContext(excelWindow, deps)).rejects.toThrow();
+    expect(deps.captureWindow).not.toHaveBeenCalled(); expect(deps.extractWindowText).not.toHaveBeenCalled();
+  });
   it('nivel A: lee el documento completo del disco y conserva las tablas', async () => {
     const deps = makeDeps();
     const attachment = await extractAppContext(excelWindow, deps);

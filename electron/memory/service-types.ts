@@ -30,7 +30,7 @@ export interface MemorySummaryApi {
   processSummarizeQueueDebounced(): void;
   processSummarizeQueue(): Promise<void>;
   summarizeSession(sessionKey: string): Promise<void>;
-  callGeminiSummarize(conversationText: string): Promise<string | null>;
+  callOpenAISummarize(conversationText: string, signal?: AbortSignal): Promise<string | null>;
 }
 
 export interface MemoryEmbeddingApi {

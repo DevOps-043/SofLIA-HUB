@@ -12,7 +12,6 @@ vi.mock('../../whatsapp-executors/google-executors', () => ({
   isGoogleTool: vi.fn((name: string) => ['gmail_', 'google_calendar_', 'drive_', 'gchat_'].some((prefix) => name.startsWith(prefix))),
   executeGoogleTool: vi.fn(async (name: string) => ({
     response: { functionResponse: { name, response: { success: true, message: 'google mock' } } },
-    bulkLabelsToVerify: null,
   })),
 }));
 vi.mock('../../whatsapp-executors/iris-executors', () => ({
@@ -81,7 +80,6 @@ export function makeCtx(overrides: Partial<ToolExecutorContext> = {}): ToolExecu
     clipboardAssistant: null, taskScheduler: null, neuralOrganizer: null, smartSearch: null,
     memory: { storeFact: vi.fn(), searchSemantic: vi.fn(), getStats: vi.fn() } as unknown as ToolExecutorContext['memory'],
     knowledge: { save: vi.fn(), search: vi.fn() } as unknown as ToolExecutorContext['knowledge'],
-    getGenAI: vi.fn() as unknown as ToolExecutorContext['getGenAI'],
     requestConfirmation: vi.fn(async () => true),
     ...overrides,
   };

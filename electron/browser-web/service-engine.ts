@@ -1,5 +1,7 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { DEFAULT_FALLBACK_MODEL, DEFAULT_MODEL } from './constants';
+import { generateSessionText } from '../ai-provider/text';
+import type { Page } from 'playwright-core';
+import type { BrowserWebService } from '../browser-web-service';
+import { assertBackendTaskActive, runBackendTaskStage } from '../desktop-agent/task-cancellation';
 import { executeBrowserAction } from './action-executor';
 import { parseBrowserAction } from './action-parser';
 import { normalizeComparableUrl } from './normalizers';
@@ -16,11 +18,6 @@ import type { BrowserWebConstructor, BrowserWebEngineApi, PlaywrightModule } fro
 
 export function attachBrowserWebEngine(Service: BrowserWebConstructor): void {
   Object.assign(Service.prototype, {
-    getGenAI() {
-      if (!this.apiKey) throw new Error('API key de Gemini no configurada.');
-      if (!this.genAI) this.genAI = new GoogleGenerativeAI(this.apiKey);
-      return this.genAI;
-    },
     async getPlaywright() {
       if (!this.playwright) this.playwright = await import('playwright-core');
       return this.playwright;
@@ -37,40 +34,33 @@ export function attachBrowserWebEngine(Service: BrowserWebConstructor): void {
     launchPersistentContext(playwright: PlaywrightModule, profileId: string) {
       return launchPersistentContext(this, playwright, profileId);
     },
-    shouldNavigateToStartUrl(page: any, startUrl: string) {
+    shouldNavigateToStartUrl(page: Page, startUrl: string) {
       return normalizeComparableUrl(page.url?.() || '') !== normalizeComparableUrl(startUrl);
     },
-    collectSnapshot(page: any) {
-      return collectBrowserPageSnapshot(page);
+    collectSnapshot(page: Page, signal?: AbortSignal) {
+      return collectBrowserPageSnapshot(page, signal);
     },
-    decideNextAction(task: string, snapshot: BrowserPageSnapshot, history: BrowserHistoryEntry[]) {
-      return decideNextBrowserAction(this, task, snapshot, history);
+    decideNextAction(task: string, snapshot: BrowserPageSnapshot, history: BrowserHistoryEntry[], signal?: AbortSignal) {
+      return decideNextBrowserAction(this, task, snapshot, history, signal);
     },
-    executeAction(page: any, action: BrowserActionPayload) {
-      return executeBrowserAction(page, action);
+    executeAction(page: Page, action: BrowserActionPayload, signal?: AbortSignal) {
+      return executeBrowserAction(page, action, signal);
     },
-  } satisfies BrowserWebEngineApi & ThisType<any>);
+  } satisfies BrowserWebEngineApi & ThisType<BrowserWebService>);
 }
 
 async function decideNextBrowserAction(
-  service: any,
+  _service: BrowserWebService,
   task: string,
   snapshot: BrowserPageSnapshot,
   history: BrowserHistoryEntry[],
+  signal?: AbortSignal,
 ): Promise<BrowserActionPayload> {
   const prompt = buildBrowserActionPrompt(task, snapshot, history);
-  const parts: any[] = snapshot.screenshotBase64
-    ? [{ inlineData: { mimeType: 'image/png', data: snapshot.screenshotBase64 } }, { text: prompt }]
-    : [{ text: prompt }];
-
-  for (const modelId of [DEFAULT_MODEL, DEFAULT_FALLBACK_MODEL]) {
-    try {
-      const model = service.getGenAI().getGenerativeModel({ model: modelId });
-      const result = await model.generateContent(parts);
-      return parseBrowserAction(result.response.text());
-    } catch (err: any) {
-      if (modelId === DEFAULT_FALLBACK_MODEL) throw err;
-    }
-  }
-  throw new Error('No se pudo obtener una accion del modelo para browser_web.');
+  assertBackendTaskActive(signal);
+  let text: string;
+  try { text = await runBackendTaskStage(signal, () => generateSessionText(prompt, {
+    json: true, signal, images: snapshot.screenshotBase64 ? [`data:image/png;base64,${snapshot.screenshotBase64}`] : [],
+  })); } finally { assertBackendTaskActive(signal); }
+  return parseBrowserAction(text);
 }

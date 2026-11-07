@@ -16,6 +16,13 @@ import { createMainSupabaseClient } from './supabase-client-factory';
 let envLoaded = false;
 let hubClient: SupabaseClient | null = null;
 
+/** Retira la copia de main sin invalidar el token compartido con el renderer. */
+export async function discardHubDbClient(): Promise<void> {
+  const client = hubClient;
+  hubClient = null;
+  await client?.auth.dispose();
+}
+
 function ensureEnvLoaded(): void {
   if (envLoaded) return;
   envLoaded = true;

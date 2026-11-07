@@ -14,6 +14,7 @@ import type { MediaRef } from '../../shared/multimodal-input';
 import type { SendMessageStreamOptions, ToolCallInfo } from './types';
 import { executeGoogleWorkspaceTool } from './workspace-tools';
 import { executeIntegratedBrowserTool } from './integrated-browser-tools';
+import { isOpenAIModel } from '../../shared/model-providers';
 
 /**
  * Despacho de herramientas del turno. Resuelve primero contra las
@@ -46,6 +47,7 @@ export async function executeGeminiToolCall(
       generatedImages,
       options?.activeSkill,
       options?.signal,
+      isOpenAIModel(options?.model),
     );
     toolInfo.result = resultStr;
     allToolCalls.push(toolInfo);
@@ -83,6 +85,7 @@ function executeKnownTool(
   generatedImages: string[],
   activeSkill?: ActiveSkillContext | null,
   signal?: AbortSignal,
+  sampleVideo = false,
 ): Promise<string> {
   // Las herramientas de la Skill activa se resuelven primero: son las unicas
   // que dependen del contexto del turno.
@@ -90,7 +93,7 @@ function executeKnownTool(
     return executeSkillWorkspaceTool(toolName, args, activeSkill, signal);
   }
   if (GOOGLE_WORKSPACE_TOOL_NAMES.has(toolName)) return executeGoogleWorkspaceTool(toolName, args);
-  if (INTEGRATED_BROWSER_TOOL_NAMES.has(toolName)) return executeIntegratedBrowserTool(toolName, args, signal);
+  if (INTEGRATED_BROWSER_TOOL_NAMES.has(toolName)) return executeIntegratedBrowserTool(toolName, args, signal, sampleVideo);
   if (PROJECT_HUB_TOOL_NAMES.has(toolName)) return executeProjectHubTool(toolName, args);
   if (NATIVE_AI_TOOL_NAMES.has(toolName)) return executeNativeAiTool(toolName, args, generatedImages);
   return executeComputerToolAsJson(toolName, args, signal);

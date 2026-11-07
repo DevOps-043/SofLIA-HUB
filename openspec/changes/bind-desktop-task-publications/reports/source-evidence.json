@@ -1,0 +1,96 @@
+{
+  "count": 3597,
+  "before": "d05cfa9d9fc17dc03055265732812207db3eb15b1f70b2cc7a7a39fdd4fbc124",
+  "after": "d05cfa9d9fc17dc03055265732812207db3eb15b1f70b2cc7a7a39fdd4fbc124",
+  "changedDuringGate": [],
+  "copiedFilesMatching": 3577,
+  "deltaFromUnit44": [
+    {
+      "file": "electron/browser-web/service-lifecycle.ts",
+      "previousSha256": "6a9357cbbc9f54d9adf22d875439f138e96300b38a6945a867b424004486cb18",
+      "currentSha256": "34b34187086ea8e366532b9fcd1a10182e4ced9e164b1d6fe21b72d4d9790131"
+    },
+    {
+      "file": "electron/browser-web/service-runtime.ts",
+      "previousSha256": "806fe18b01aa28570b085f67627cadff1fa4a373bdb567603676adbc7b50c684",
+      "currentSha256": "7b273d738bd4a1a5a9f74014a9e76df45ffaefcb71492749cafd02f1c7db2af0"
+    },
+    {
+      "file": "electron/browser-web/types.ts",
+      "previousSha256": "7b9780f3eb5ad14cf0f50da7a574993202abef80406973c67b1fe8360dfc4d13",
+      "currentSha256": "de796ec67d9c794e4a69e0ef74f825dac6cfca912f3ab3d34900d8f41ab1ecfe"
+    },
+    {
+      "file": "electron/desktop-agent-service.ts",
+      "previousSha256": "c806f376338eb0c1bbf2cfb7c653e8adf01ba6c2b1ed57b4d257651d88af6288",
+      "currentSha256": "31226b205df7f3d83ca25c66463a50bb09bde94faeed2242a1909888fd960b2c"
+    },
+    {
+      "file": "electron/desktop-agent/backend-event-forwarding.ts",
+      "previousSha256": "45ef9521c5f02f3bfce77aeac1d8d730502dbaac7fea85515d0133aa9725db6d",
+      "currentSha256": "9e4cd9c2124c2a4f221a0811582c619bfac28da566037e01cf3ef8c5a4885515"
+    },
+    {
+      "file": "electron/desktop-agent/routing.ts",
+      "previousSha256": "e2eb7ec73af11b7b20e3c12b6d234c4138b4756f82db4fcc84563540a000254a",
+      "currentSha256": "fcad95a48310ec56af8250609cdb1245d970633f0b3e804e38a2d528dafc0467"
+    },
+    {
+      "file": "electron/desktop-agent/service-tasks.ts",
+      "previousSha256": "be6f4136c4d52a9fc675b7911bba47bebcba9ade9c8b9da03f8e244b82b127a7",
+      "currentSha256": "98225700642173c3657491d00e692c4c3184b009286f5c44b7f084548ab4138a"
+    },
+    {
+      "file": "electron/desktop-agent/task-control.ts",
+      "previousSha256": "e992d3f427b55351910261d65848a7d017fc7954f953e5a711c6b2eb229e2c23",
+      "currentSha256": "11225a5d04a01fc2f1601f9fed6f710ee980f64c58283bc6e465bd42e78a07a3"
+    },
+    {
+      "file": "electron/desktop-agent/task-entrypoint.ts",
+      "previousSha256": "b02ac09f4d41abb6d689ccbf827620ca88060ef1867c8b99c7a5c2e5de0ee216",
+      "currentSha256": "4d5fdf277f6c659c7b80483278b2b84fcc4559681956aad9c5e6a2bdc8fa47f1"
+    },
+    {
+      "file": "electron/main/startup.ts",
+      "previousSha256": "489b15a39521ac8259263131537424bd7ebec3c193caa0d27529594c9f838844",
+      "currentSha256": "ba0c40a19a351d457cebbc0e68047ce24d8c22d1451441490fdf3b962eb2a27e"
+    },
+    {
+      "file": "electron/memory/record-desktop-task.ts",
+      "previousSha256": "1b87bcff2551f3b46e02250c2bd53d8392eab14e962b19ed6798078847386be2",
+      "currentSha256": "bbed9b5cfcb75cc0e1e2314ee03e5eb7a78a5de66e293b5d007abfd9d2ed3287"
+    },
+    {
+      "file": "electron/windows-uia/queue.ts",
+      "previousSha256": "7042c6c3b3bae0c023da60a42ac67a6f10abb23991280d6daf6348eb929e5609",
+      "currentSha256": "710cfba96033219697de80f9d13a5e90a6f21d439caef75ea4a583900940f4da"
+    },
+    {
+      "file": "electron/windows-uia/runner.ts",
+      "previousSha256": "97da25d01fa0de919d48aaa195773eb62952df7866e31ceaa0d6c53303bdc543",
+      "currentSha256": "5a0ca8d14b6e55701265bb775ab392894c49a6920f7221398afe9e6c65d0c801"
+    },
+    {
+      "file": "electron/windows-uia/types.ts",
+      "previousSha256": "eb671ed74a5ffef2ffadb4cfb9368bb0663c40a0ac3eebc52187a88aebbac3da",
+      "currentSha256": "b7d6ed1eacd9b1069c1739ab90d1d00407ccea0b2b3c2ac1afa58c8dc625dcdd"
+    },
+    {
+      "file": "electron/__tests__/desktop-publication-queues.test.ts",
+      "previousSha256": null,
+      "currentSha256": "45f2557803592f4e30cf29060bc9e11d015438a1e5a9199a5fe077522bc18b7b"
+    },
+    {
+      "file": "electron/__tests__/desktop-task-publications.test.ts",
+      "previousSha256": null,
+      "currentSha256": "c0104193c8813e8e5cb271304323de8d9bb90850f0e03a6952d08362bc3c3c82"
+    },
+    {
+      "file": "electron/desktop-agent/task-publications.ts",
+      "previousSha256": null,
+      "currentSha256": "4b445979b676207a41fd2e3b1af2baf9cf6c282c76e9e1b7382a1cc20829a689"
+    }
+  ],
+  "dependenciesAndPolicyUnchanged": true,
+  "groundingModelPolicyUnchanged": true
+}

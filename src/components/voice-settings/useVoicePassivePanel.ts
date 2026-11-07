@@ -40,15 +40,23 @@ export function useVoicePassivePanel() {
   const [micResult, setMicResult] = useState<MicResult | null>(null);
   const [wakeWordsInput, setWakeWordsInput] = useState('');
   const wakeWordsTouched = useRef(false);
+  const lifecycle = useRef(0);
+  const refreshing = useRef(false);
+  useEffect(() => { const version = lifecycle.current + 1; lifecycle.current = version; return () => { lifecycle.current = version + 1; }; }, []);
 
   const refresh = useCallback(async () => {
-    if (!available) return;
-    const snapshot = await voicePassiveService.getStatus();
-    if (!snapshot.success || !snapshot.status || !snapshot.config) return;
-    setStatus(snapshot.status);
-    setConfig(snapshot.config);
-    // No pisar lo que el usuario esta escribiendo con el valor persistido.
-    if (!wakeWordsTouched.current) setWakeWordsInput(snapshot.config.wakeWords.join(', '));
+    if (!available || refreshing.current) return;
+    const version = lifecycle.current; refreshing.current = true;
+    try {
+      const snapshot = await voicePassiveService.getStatus();
+      if (version !== lifecycle.current) return;
+      if (!snapshot.success || !snapshot.status || !snapshot.config) { setStatus(null); setConfig(null); return; }
+      setStatus(snapshot.status); setConfig(snapshot.config);
+      // No pisar lo que el usuario está escribiendo con el valor persistido.
+      if (!wakeWordsTouched.current) setWakeWordsInput(snapshot.config.wakeWords.join(', '));
+    } catch {
+      if (version === lifecycle.current) { setStatus(null); setConfig(null); }
+    } finally { refreshing.current = false; }
   }, [available]);
 
   // El guard vive en un ref para que refreshDevices tenga identidad estable y
@@ -57,15 +65,16 @@ export function useVoicePassivePanel() {
   const refreshDevices = useCallback(async () => {
     if (!available || loadingDevicesRef.current) return;
     loadingDevicesRef.current = true;
+    const version = lifecycle.current;
     setLoadingDevices(true);
     try {
       const result = await voicePassiveService.listMicDevices();
-      if (result.success && result.devices) setMicDevices(result.devices);
+      if (version === lifecycle.current && result.success && result.devices) setMicDevices(result.devices);
     } catch {
       // El estado del runtime ya explica el fallo; no se duplica el error aqui.
     } finally {
       loadingDevicesRef.current = false;
-      setLoadingDevices(false);
+      if (version === lifecycle.current) setLoadingDevices(false);
     }
   }, [available]);
 
@@ -97,18 +106,20 @@ export function useVoicePassivePanel() {
     action: () => Promise<{ success: boolean; error?: string }>,
     okMessage: string,
   ) => {
+    const version = lifecycle.current;
     setBusy(true);
     setFeedback(null);
     try {
       const result = await action();
+      if (version !== lifecycle.current) return;
       setFeedback(result.success
         ? { tone: 'ok', message: okMessage }
         : { tone: 'error', message: result.error ?? 'Ocurrió un error inesperado.' });
     } catch (error) {
+      if (version !== lifecycle.current) return;
       setFeedback({ tone: 'error', message: error instanceof Error ? error.message : String(error) });
     } finally {
-      setBusy(false);
-      void refresh();
+      if (version === lifecycle.current) { setBusy(false); void refresh(); }
     }
   }, [refresh]);
 
@@ -117,10 +128,12 @@ export function useVoicePassivePanel() {
   const micDevice = config?.micDevice ?? null;
   const testMic = useCallback(async () => {
     if (testingMic) return;
+    const version = lifecycle.current;
     setTestingMic(true);
     setMicResult({ tone: 'info', message: 'Habla ahora durante 3 segundos…' });
     try {
       const result = await voicePassiveService.testMic(micDevice);
+      if (version !== lifecycle.current) return;
       if (!result.success) {
         setMicResult({ tone: 'warn', message: result.error ?? 'No se pudo probar el micrófono.' });
       } else if (result.hasSignal) {
@@ -132,12 +145,13 @@ export function useVoicePassivePanel() {
         });
       }
     } catch (error) {
+      if (version !== lifecycle.current) return;
       setMicResult({
         tone: 'warn',
         message: error instanceof Error ? error.message : 'No se pudo probar el micrófono.',
       });
     } finally {
-      setTestingMic(false);
+      if (version === lifecycle.current) setTestingMic(false);
     }
   }, [micDevice, testingMic]);
 
@@ -158,17 +172,19 @@ export function useVoicePassivePanel() {
     micResult,
     wakeWordsInput,
     parsedWakeWords,
-    modelInstalled: Boolean(status?.modelPath),
+    modelInstalled: Boolean(status?.modelInstalled),
     downloadProgress: status?.modelDownloadProgress ?? null,
     refreshDevices,
+    activateSession: () => void run(() => voicePassiveService.start(), 'Voz autorizada para esta sesión.'),
     setWakeWordsInput: (value: string) => {
       wakeWordsTouched.current = true;
       setWakeWordsInput(value);
     },
     installModel: (size?: 'small' | 'large') => void run(
       () => voicePassiveService.installModel(size),
-      size === 'large' ? 'Modelo grande instalado y activo.' : 'Modelo instalado correctamente.',
+      size === 'large' ? 'Modelo grande instalado.' : 'Modelo instalado correctamente.',
     ),
+    stopSession: () => void run(() => voicePassiveService.stop(), 'Captura de voz detenida.'),
     setEnabled: (next: boolean) => void run(
       () => voicePassiveService.setConfig({ enabled: next }),
       next ? 'Voz pasiva activada.' : 'Voz pasiva desactivada.',

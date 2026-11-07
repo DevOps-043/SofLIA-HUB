@@ -1,0 +1,77 @@
+{
+  "count": 3528,
+  "before": "79822107c1679939ebeb504f49fd499f3f86075eef6f5493674f2919bed3b7bd",
+  "after": "79822107c1679939ebeb504f49fd499f3f86075eef6f5493674f2919bed3b7bd",
+  "changedDuringGate": [],
+  "copiedFilesMatching": 3508,
+  "deltaFromUnit35": [
+    {
+      "file": "electron/__tests__/auth-state-contract.test.ts",
+      "previousSha256": "360c041b35f4b8eabd1af61c6344b52bf49ac3506baf796d7dca9bc4f2320808",
+      "currentSha256": "8ad8d7cf02ce3625e714624a9aba23f47b4c55e8b1a3ac55be90161aa72ae3f2"
+    },
+    {
+      "file": "electron/auth-state-handlers.ts",
+      "previousSha256": "47599c475942e1c7a88f4f4ecf1ba227a62f8997c1fb675cbb1659fb5999ad44",
+      "currentSha256": "41590288cefdf5a7bdafab6226eb1f868b4fc102c22253162b26d9ee9e283141"
+    },
+    {
+      "file": "electron/ipc/caller-authorization.ts",
+      "previousSha256": "76b064460b75a7b42580e3180e8b23c0607645fea43ffb312dff04b2fc3c5cc0",
+      "currentSha256": "b0cc32fe3e060303eae6a1f2f803bb37bf60f4c73bcca829244e1dbebc47209b"
+    },
+    {
+      "file": "electron/main/bootstrap.ts",
+      "previousSha256": "2411ca1579b390195f692507e4ebe57e03a850af4fe289069ed3dff07b07fecd",
+      "currentSha256": "4107834f082f5c49de60f2c88074d19354aa866b52bdc5457757ced429d8b81c"
+    },
+    {
+      "file": "electron/preload/auth-apis.ts",
+      "previousSha256": "f276a9680b1ce3985976e3448ff3df17c9baa28b08d9352a9115e4ce7e2452be",
+      "currentSha256": "a34473e184b6a352c8990eca5844fde76670fb4e8119a22935b34ea3dbc366ca"
+    },
+    {
+      "file": "src/services/auth-state.ts",
+      "previousSha256": "1f19f5a5fc8157d83339ac52d2f8beba4f4e65017c0dd8c618611ad663bb5b86",
+      "currentSha256": "6eb8deafbc57a86acd40d422e0cb9bea64e3082b2ffd121762edb4f4f975911d"
+    },
+    {
+      "file": "electron/__tests__/helpers/auth-source.fixture.ts",
+      "previousSha256": null,
+      "currentSha256": "e6345e69e15dc1f70db252cec3b90c11eba3154da85c52155a093cbed70e8935"
+    },
+    {
+      "file": "electron/__tests__/renderer-source.test.ts",
+      "previousSha256": null,
+      "currentSha256": "f9bafc31d482cf5959ddc9d6058579f6f081004b0108642e03583e22c415657f"
+    },
+    {
+      "file": "electron/ipc/auth-state-contract.ts",
+      "previousSha256": null,
+      "currentSha256": "42ce1d4f77bd46d21736a232d40a41f4d066129fc2f09576716a0ae339351c6d"
+    },
+    {
+      "file": "electron/ipc/renderer-source.ts",
+      "previousSha256": null,
+      "currentSha256": "0893a18253f62af8980824b28168086b4820628c53a16b91451fded1d48572ae"
+    },
+    {
+      "file": "src/shared/auth-state.ts",
+      "previousSha256": null,
+      "currentSha256": "d19dd9cde6660d1a4a50f322b1207f2677a137106603a3941e1495fd0b8c5885"
+    }
+  ],
+  "preexistingWhitespaceFilesUnchanged": [
+    "electron/__tests__/desktop-context-handlers.test.ts",
+    "electron/__tests__/orb-show-handler.test.ts",
+    "electron/desktop-context-handlers.ts",
+    "electron/meeting-live-handlers.ts",
+    "electron/preload/utility-apis.ts",
+    "electron/python-runtime-service.ts",
+    "electron/python-tools-service.ts",
+    "src/services/orb-service.ts",
+    "src/services/python-tools-service.ts",
+    "src/services/voice-passive-service.ts"
+  ],
+  "head": "e166d250629e503cf12f69449fb6d66e569134c8"
+}

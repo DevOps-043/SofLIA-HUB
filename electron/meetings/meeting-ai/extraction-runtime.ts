@@ -1,4 +1,4 @@
-import type { GoogleGenerativeAI } from '@google/generative-ai';
+import { getSessionOpenAIClient } from '../../ai-provider/session-client';
 import type { MeetingContextPack } from '../meeting-context-pack';
 import type { ExtractMeetingAssetInput } from './internal-types';
 import { EXTRACTION_MODEL } from './constants';
@@ -11,22 +11,23 @@ import {
 } from './ai-classification';
 
 export async function tryExtractMeetingWithAI(params: {
-  ai: GoogleGenerativeAI | null;
   input: ExtractMeetingAssetInput;
   contextPack: MeetingContextPack;
 }): Promise<unknown | null> {
-  if (!params.ai) return null;
-
   try {
-    const model = params.ai.getGenerativeModel({
-      model: EXTRACTION_MODEL,
-      generationConfig: { responseMimeType: 'application/json' },
-    });
-
-    const classificationResult = await model.generateContent(
-      buildClassificationPrompt(params.input, params.contextPack),
+    const client = await getSessionOpenAIClient();
+    const generate = async (prompt: string, maxOutputTokens: number) => {
+      const response = await client.responses.create({
+        model: EXTRACTION_MODEL, input: prompt, store: false,
+        max_output_tokens: maxOutputTokens, reasoning: { effort: 'low' },
+        text: { format: { type: 'json_object' } },
+      });
+      return response.output_text;
+    };
+    const classificationResult = await generate(
+      buildClassificationPrompt(params.input, params.contextPack), 2048,
     );
-    const classification = parseJson<AIClassification>(classificationResult.response.text());
+    const classification = parseJson<AIClassification>(classificationResult);
     const resolved = resolveAIClassification(classification, params.contextPack);
     console.log(
       `[MeetingAIService] Fase 1 completa: tipo=${resolved.resolvedType}, confianza=${resolved.resolvedConfidence.toFixed(2)}`,
@@ -43,13 +44,13 @@ export async function tryExtractMeetingWithAI(params: {
       classification?.alternativeTypes || [],
       classification?.detectedContext || {},
     );
-    const extractionResult = await model.generateContent(extractionPrompt);
-    const extraction = parseJson<unknown>(extractionResult.response.text());
+    const extractionResult = await generate(extractionPrompt, 8192);
+    const extraction = parseJson<unknown>(extractionResult);
     console.log(`[MeetingAIService] Fase 2 completa: extraccion con estrategia ${resolved.typeDefinition.displayName}`);
 
     return mergeClassificationIntoExtraction(extraction, classification, resolved);
-  } catch (error) {
-    console.warn('[MeetingAIService] AI extraction failed, using fallback:', error);
+  } catch {
+    console.warn('[MeetingAIService] Se utilizó extracción local tras fallar la inferencia.');
     return null;
   }
 }

@@ -1,0 +1,82 @@
+[
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-global-quality-2026-10-25\\build-final.log",
+    "bytes": 38603,
+    "sha256": "eb26313de487c4619cde7ebefe0c23593b9c193bba95f191c8066de0eff4fcc8"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-global-quality-2026-10-25\\coverage-baseline.log",
+    "bytes": 105388,
+    "sha256": "9277c1164d81179ba8167ab38e463a37b777665ac1635faa8bf5a9eaf9b3a42b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-global-quality-2026-10-25\\docs-final.log",
+    "bytes": 139,
+    "sha256": "db185e032c7f75d8716b686aac2fc0ea8acecba8a1e7c85a6b3d562a8843d3cf"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-global-quality-2026-10-25\\docs-system-final.log",
+    "bytes": 195,
+    "sha256": "675cbf97c62a3e05505a5329f40d896ebb441269ecd2d072a13e7cdca33e3b32"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-global-quality-2026-10-25\\gate-final.log",
+    "bytes": 123874,
+    "sha256": "98a7acbab23d377c403286c755b0a9107642c1ba2e8dfb1d54258bc57b261aa5"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-global-quality-2026-10-25\\harness-final.log",
+    "bytes": 144,
+    "sha256": "916e65bfd3de6fbfa30c2fa5e9d816f138601dd577b5d8ebf17711b92b2aeebd"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-global-quality-2026-10-25\\lint-directed.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-global-quality-2026-10-25\\lint-final-directed.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-global-quality-2026-10-25\\npm-audit-production.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-global-quality-2026-10-25\\npm-audit.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-global-quality-2026-10-25\\openspec-final.log",
+    "bytes": 62,
+    "sha256": "1991d7ad20aa701a8dec1f8bcf368d2e37d84912e6b31acaa4adb5557728c7ed"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-global-quality-2026-10-25\\policy-consumers-final.log",
+    "bytes": 1567,
+    "sha256": "330017c96bbb35576d3b7dcece78299cfccd14a1e4de9d5b45200d5f76ef7da6"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-global-quality-2026-10-25\\policy-tests-final.log",
+    "bytes": 983,
+    "sha256": "4a53409656f537e83c398820635469d0d36fe28d3b1dd65dbc421795a8b25869"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-global-quality-2026-10-25\\policy-tests.log",
+    "bytes": 896,
+    "sha256": "06197f925c366a7083ef59a96fc3970644eb8984a5368530e3e49bf1f4322dce"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-global-quality-2026-10-25\\typecheck-directed.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-global-quality-2026-10-25\\workflow-red.log",
+    "bytes": 2180,
+    "sha256": "d91b32ed8b5092341e7e830d608bb405ede0c6ff674fde649e1231c51d572532"
+  }
+]

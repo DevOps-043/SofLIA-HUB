@@ -1,4 +1,4 @@
-import { SOFLIA_DEFAULT_MODEL, SOFLIA_MAX_MODEL, SOFLIA_RUNTIME_MODEL } from '../shared/soflia-runtime-model';
+import { SOFLIA_DEFAULT_MODEL, SOFLIA_MAX_MODEL } from '../shared/soflia-runtime-model';
 
 export interface ThinkingOption {
   id: string;
@@ -8,7 +8,7 @@ export interface ThinkingOption {
   budget?: number;
 }
 
-export type ModelProvider = 'google' | 'openai';
+export type ModelProvider = 'openai';
 
 export type ModelIconKey = 'spark' | 'bolt' | 'nodes' | 'feather' | 'globe' | 'moon';
 
@@ -24,14 +24,6 @@ export interface ModelOption {
   thinkingOptions: ThinkingOption[];
 }
 
-const THINKING_OPTIONS_GEMINI3_FLASH: ThinkingOption[] = [
-  { id: 'low', name: 'Bajo', desc: 'Razonamiento ligero', level: 'low' },
-  { id: 'medium', name: 'Medio', desc: 'Razonamiento balanceado', level: 'medium' },
-  { id: 'high', name: 'Alto', desc: 'Maximo razonamiento', level: 'high' },
-];
-
-// El producto no expone un modo sin razonamiento. `xhigh` y `max` son
-// exclusivos de la familia OpenAI.
 const THINKING_OPTIONS_OPENAI: ThinkingOption[] = [
   { id: 'low', name: 'Bajo', desc: 'Razonamiento ligero', level: 'low' },
   { id: 'medium', name: 'Medio', desc: 'Razonamiento balanceado', level: 'medium' },
@@ -65,14 +57,5 @@ export const MODEL_OPTIONS: ModelOption[] = [
     defaultThinkingId: 'medium',
     thinkingOptions: THINKING_OPTIONS_OPENAI,
   },
-  {
-    id: SOFLIA_RUNTIME_MODEL,
-    name: 'SofLIA Pro',
-    desc: 'Capaz para comandos y acciones.',
-    icon: 'nodes',
-    provider: 'google',
-    thinkingType: 'level',
-    defaultThinkingId: 'medium',
-    thinkingOptions: THINKING_OPTIONS_GEMINI3_FLASH,
-  },
+
 ];

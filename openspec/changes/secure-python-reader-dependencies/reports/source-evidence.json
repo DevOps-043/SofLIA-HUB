@@ -1,0 +1,33 @@
+{
+  "stableSources": 3451,
+  "selected": {
+    ".github/workflows/python-reader-native.yml": "4d6d02542a1148d572b37799a869c1c850414e784b90f77ba9f15b6c91359786",
+    "electron/__tests__/python-runtime-support.test.ts": "eccff305a25f143138e67bd66c89f3d4a42cac56a36c3f5db9d29f38b3829f35",
+    "electron/__tests__/python-tools-contract.test.ts": "a3adec1b5e5d70437ee1cd7c47a2c61f02eaf5a63aaff8c864bf90bdff5f15e7",
+    "electron/__tests__/verify-packaged-python.test.ts": "f969e1b61887d1b38ca3aeb415c9619220f543d31754d09a54fce9d015598aa7",
+    "electron/python/tools-contract.ts": "d1584bde71cf30583891e57e2fadfcd66be9656d776b22bdb612458f0c667bca",
+    "python/bootstrap.lock": "aa3d7708559f5f2d628c7540f322102820cba87035e99a2d6e054e5710e8e7f3",
+    "python/tools_sidecar/document_budget.py": "5c9525152178cef847b7ec72e353f340c332a308d0fc2a13a7b42331368d96ec",
+    "python/tools_sidecar/document_errors.py": "ce5de7b8a041b93bdd9dff93df9250057c13ad73779c79f50daabb33720a7183",
+    "python/tools_sidecar/documents.py": "6b3aef24f2fe13ccaa3a42bebd9ea549866adf963f739006dea18e240096ebcf",
+    "python/tools_sidecar/main.py": "d13a13191ec678e595ac933d20747aa3523a3aa9854fb9aaa5a6d982b13e3ca1",
+    "python/tools_sidecar/office_preflight.py": "ac1bc0290efb6b80c0bf0076dea618c43d052398a5c1e2f62bd202c38e781a7e",
+    "python/tools_sidecar/privacy.py": "7cfc10085118f2b04d0e9c3c78435ccfd691e75acb440aad90d623832d7aa6c7",
+    "python/tools_sidecar/reader_dependencies.py": "417552519a30e368135155f593c5426c245b57417cfba9f4cae55294d4e99529",
+    "python/tools_sidecar/requirements.lock": "3e63710eaf70d9ea46f7790d4a95b378be8dfdfef00dffc16341c8951427b49d",
+    "python/tools_sidecar/requirements.txt": "a4b59804633d6d05a303bf9fc50f45b9aca626d7a0a4f0685251915646022bfd",
+    "python/tools_sidecar/tests/run_tests.py": "0db8c122f36b4259c6b7fa83362e8ba3fd5d602e9f780f59f8be0c087d286885",
+    "python/tools_sidecar/tests/test_document_resources.py": "2168fc0159bc0053a21168807a11e8d97d89f45ca0d9961b41b9523f7e1dcc6b",
+    "python/tools_sidecar/tests/test_documents_privacy.py": "df37d5b857af518ae3cfce75f40ce555ce9799a1ad43919856fa5c339f9d8793",
+    "python/tools_sidecar/tests/test_reader_dependencies.py": "1fa6161c27a81f95663a6144c57bf3b69fe0dc86493251c6ce51346c4b31de7b",
+    "python/tools_sidecar/tests/test_reader_native_build.py": "bfa06342c42036c322dc1a0601fe0ba592eebea5e08ce9d8d5e262865efb2f92",
+    "scripts/python-runtime-support.cjs": "ecf4a83337fc95f3db403ac40823a0ebe88ef9e9ffe489106ac284883938dc6b",
+    "scripts/quality/build-reader-wheel.py": "8c55f9b92feaf092f3bfc5c80e7f68a0743e632e84347b3f122a0bb69df84d56",
+    "scripts/quality/smoke-installer-win.mjs": "f53673b5cef76815efd0165ac4dcce0b44398a7f1bfad44774d2d5d968b26397",
+    "scripts/setup-python-runtime.js": "0325fa54f84e93147ce4b3e84ae8f5e41432582175b5aaf0f4ba3c3cff2242f3",
+    "scripts/verify-packaged-python.cjs": "fca4af4c997cda970530a52df8403c57306fd215d578d728f29e93f2645ada26",
+    "test/python-native-build.lock": "d86544a9b8d02b54c7711193d83a99a70ebbd7fe8c4918e995e76279a5ef9806"
+  },
+  "allStable": true,
+  "scope": "Fuentes de build y lector antes/después del gate y build; no perfiles ni .env"
+}

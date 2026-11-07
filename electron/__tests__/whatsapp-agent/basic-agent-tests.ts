@@ -92,20 +92,11 @@ export function registerBasicAgentTests(ctx: WhatsAppAgentTestContext): void {
     });
   });
 
-  describe('WA-034: updateApiKey resets genAI', () => {
-    it('should nullify genAI so next call creates a new instance', () => {
+  describe('Proveedor nativo del agente', () => {
+    it('resuelve OpenAI sin conservar un cliente Google', async () => {
       const { agent } = createAgentWithService(ctx);
-      agent.getGenAI();
-      agent.updateApiKey('new-key');
-      expect(agent.getGenAI()).toBeDefined();
-    });
-  });
-
-  describe('WA-035: getGenAI lazy initialization', () => {
-    it('should return a GoogleGenerativeAI instance', () => {
-      const genAI = createAgentWithService(ctx).agent.getGenAI();
-      expect(genAI).toBeDefined();
-      expect(genAI.getGenerativeModel).toBeDefined();
+      await expect(agent.getOpenAIClient()).resolves.toBeDefined();
+      expect('getGenAI' in agent).toBe(false);
     });
   });
 }

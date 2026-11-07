@@ -14,7 +14,7 @@ export function ListeningCard({ panel }: { panel: VoicePassivePanel }) {
   const {
     status, config, micDevices, loadingDevices, busy, testingMic, micResult,
     modelInstalled, wakeWordsInput, parsedWakeWords,
-    setEnabled, setMicDevice, setWakeWordsInput, saveWakeWords, refreshDevices, testMic,
+    setEnabled, setMicDevice, setWakeWordsInput, saveWakeWords, refreshDevices, testMic, activateSession, stopSession,
   } = panel;
 
   const runtimeReady = Boolean(status?.runtimeAvailable);
@@ -49,7 +49,7 @@ export function ListeningCard({ panel }: { panel: VoicePassivePanel }) {
           <p className="text-sm font-medium text-gray-900 dark:text-white">Activar voz pasiva</p>
           <p className="text-xs text-secondary mt-0.5">
             {canListen
-              ? 'Escucha continua de la palabra de activación al iniciar la app.'
+              ? 'La escucha requiere autorización al iniciar cada sesión.'
               : 'Disponible cuando el runtime y el modelo de voz estén instalados.'}
           </p>
         </div>
@@ -60,6 +60,15 @@ export function ListeningCard({ panel }: { panel: VoicePassivePanel }) {
           aria-label="Activar voz pasiva"
         />
       </div>
+
+      {config?.enabled && status?.approvalRequired && (
+        <Button variant="secondary" disabled={busy || !canListen} onClick={activateSession}>
+          Autorizar voz en esta sesión
+        </Button>
+      )}
+      {(busy || testingMic || status?.listening || status?.dictating) && (
+        <Button variant="secondary" onClick={stopSession}>Detener captura de voz</Button>
+      )}
 
       {/* Microfono */}
       <Field

@@ -1,28 +1,5 @@
-export type DesktopSessionKind =
-  | 'windows'
-  | 'macos'
-  | 'linux-x11'
-  | 'linux-wayland'
-  | 'linux-headless'
-  | 'unsupported';
-
-export type PlatformCapabilities = {
-  platform: NodeJS.Platform;
-  desktopSession: DesktopSessionKind;
-  screenshots: boolean;
-  activeWindow: boolean;
-  guiAutomation: boolean;
-  windowControls: boolean;
-  powerControls: boolean;
-  volumeControls: boolean;
-  wifiControls: boolean;
-  backgroundHost: boolean;
-  updater: boolean;
-  windowsUIA: boolean;
-  linuxXdotool: boolean;
-  unsupportedReason?: string;
-};
-
+import type { DesktopSessionKind, PlatformCapabilities } from '../src/shared/desktop-agent';
+export type { DesktopSessionKind, PlatformCapabilities } from '../src/shared/desktop-agent';
 const WAYLAND_DESKTOP_MESSAGE =
   'La automatizacion visual en Linux requiere una sesion X11 con xdotool. Wayland no permite controlar mouse/teclado de forma portable.';
 const HEADLESS_DESKTOP_MESSAGE =

@@ -1,0 +1,303 @@
+{
+  "nativeBefore": {
+    "sandbox": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-app-build-LkNd2k",
+    "expectedFailure": true,
+    "source": "src/components/confirm-action-modal/ConfirmActionModal.tsx",
+    "sourceSha256": "8b327aaf4ba1454053fb61fac81a8391330472e0e70bf89a1fdeb8efe339d3f4",
+    "report": {
+      "status": "failed",
+      "electron": "44.9.3",
+      "chromium": "152.0.7977.167",
+      "checks": [],
+      "artifacts": [],
+      "layouts": [],
+      "scope": "Componente local real, teclado y AX con foco emulado; no lector de pantalla ni certificación global.",
+      "focusEmulated": true,
+      "initialFocus": "Abrir confirmación",
+      "error": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'Abrir confirmación'\n- 'Cancelar'\n"
+    }
+  },
+  "restorationBefore": {
+    "sandbox": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-app-build-beogYB",
+    "originalBundle": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-app-build-DfUKX7",
+    "expectedFailure": true,
+    "componentSha256": "c511d0e67ef8814a63efe96b129a729d2a3b9a48936e7acae70093bb8ec24264",
+    "report": {
+      "status": "failed",
+      "electron": "44.9.3",
+      "chromium": "152.0.7977.167",
+      "checks": [
+        "modalidad nativa: Cancelar recibe foco y el fondo queda fuera de foco y árbol AX operativo",
+        "Tab y Shift+Tab recorren acciones del modal sin shortcuts por burbujeo",
+        "otra solicitud con texto idéntico renueva foco seguro"
+      ],
+      "artifacts": [],
+      "layouts": [],
+      "scope": "Componente local real, teclado y AX con foco emulado; no lector de pantalla ni certificación global.",
+      "focusEmulated": true,
+      "initialFocus": "Cancelar",
+      "restoration": {
+        "active": "",
+        "trace": [
+          {
+            "connected": false,
+            "before": ""
+          }
+        ]
+      },
+      "error": "Expected values to be strictly equal:\n\n'' !== 'open'\n"
+    }
+  },
+  "validRendererRed": {
+    "failed": 18,
+    "passed": 4
+  },
+  "invalidFirstRedExcluded": true,
+  "rendererPassed": 26,
+  "newRendererCases": 24,
+  "directedContractCasesPassed": 72,
+  "gestureBefore": {
+    "profile": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-app-build-m8Gjjr",
+    "reportSha256": "8b0d665aa08c04906f35ce774899e074fe5ce35fb04de6c60578a80c58759951",
+    "result": {
+      "before": "cancelar,cancelar,siempre,confirmar,cancelar",
+      "after": "cancelar,cancelar,siempre,confirmar,cancelar,confirmar",
+      "opened": false
+    }
+  },
+  "contrastBefore": {
+    "profile": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-app-build-39ZSn9",
+    "reportSha256": "568970024051fa0ecfe6d45187171e20be9966d2291140b8c4ecbe22d5afc02b",
+    "measurements": [
+      {
+        "theme": "dark",
+        "toolName": "execute_command",
+        "state": "default",
+        "hoverForced": false,
+        "foreground": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "background": [
+          254,
+          154,
+          0,
+          255
+        ],
+        "ratio": 2.134925984304926
+      },
+      {
+        "theme": "dark",
+        "toolName": "execute_command",
+        "state": "hover",
+        "hoverForced": true,
+        "foreground": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "background": [
+          225,
+          113,
+          0,
+          255
+        ],
+        "ratio": 3.199482614587377
+      },
+      {
+        "theme": "dark",
+        "toolName": "send_email",
+        "state": "default",
+        "hoverForced": false,
+        "foreground": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "background": [
+          43,
+          127,
+          255,
+          255
+        ],
+        "ratio": 3.7617777181367336
+      },
+      {
+        "theme": "dark",
+        "toolName": "send_email",
+        "state": "hover",
+        "hoverForced": true,
+        "foreground": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "background": [
+          21,
+          93,
+          252,
+          255
+        ],
+        "ratio": 5.245696961921662
+      },
+      {
+        "theme": "dark",
+        "toolName": "delete_item",
+        "state": "default",
+        "hoverForced": false,
+        "foreground": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "background": [
+          251,
+          44,
+          54,
+          255
+        ],
+        "ratio": 3.8075296430448775
+      },
+      {
+        "theme": "dark",
+        "toolName": "delete_item",
+        "state": "hover",
+        "hoverForced": true,
+        "foreground": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "background": [
+          231,
+          0,
+          11,
+          255
+        ],
+        "ratio": 4.7698900124065196
+      },
+      {
+        "theme": "light",
+        "toolName": "execute_command",
+        "state": "default",
+        "hoverForced": false,
+        "foreground": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "background": [
+          254,
+          154,
+          0,
+          255
+        ],
+        "ratio": 2.134925984304926
+      },
+      {
+        "theme": "light",
+        "toolName": "execute_command",
+        "state": "hover",
+        "hoverForced": true,
+        "foreground": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "background": [
+          225,
+          113,
+          0,
+          255
+        ],
+        "ratio": 3.199482614587377
+      },
+      {
+        "theme": "light",
+        "toolName": "send_email",
+        "state": "default",
+        "hoverForced": false,
+        "foreground": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "background": [
+          43,
+          127,
+          255,
+          255
+        ],
+        "ratio": 3.7617777181367336
+      },
+      {
+        "theme": "light",
+        "toolName": "send_email",
+        "state": "hover",
+        "hoverForced": true,
+        "foreground": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "background": [
+          21,
+          93,
+          252,
+          255
+        ],
+        "ratio": 5.245696961921662
+      },
+      {
+        "theme": "light",
+        "toolName": "delete_item",
+        "state": "default",
+        "hoverForced": false,
+        "foreground": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "background": [
+          251,
+          44,
+          54,
+          255
+        ],
+        "ratio": 3.8075296430448775
+      },
+      {
+        "theme": "light",
+        "toolName": "delete_item",
+        "state": "hover",
+        "hoverForced": true,
+        "foreground": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "background": [
+          231,
+          0,
+          11,
+          255
+        ],
+        "ratio": 4.7698900124065196
+      }
+    ]
+  },
+  "scope": "Datos ficticios; fuentes previas en copias temporales, sin sustitución del worktree."
+}

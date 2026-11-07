@@ -1,0 +1,820 @@
+{
+  "date": "2026-11-07",
+  "evaluatedAt": "2026-11-07T18:19:22.323098+00:00",
+  "scope": "Estimación experta del worktree local de escritorio; no certificación de producción ni ratio de horas SQALE.",
+  "head": "e166d250629e503cf12f69449fb6d66e569134c8",
+  "method": {
+    "criteria": 44,
+    "areas": 11,
+    "levels": [
+      0,
+      25,
+      50,
+      75,
+      100
+    ],
+    "formula": "Promedio de cuatro criterios por área, ponderado por su peso; se conserva la metodología anterior.",
+    "unchangedScores": "Sin evidencia suficiente de cierre, se mantiene la franja anterior; no se otorgan puntos por cantidad de pruebas o archivos."
+  },
+  "baseline": {
+    "file": "technical-debt-2026-10-19.json",
+    "sha256": "603432edc8252902cc4b962b32296f06a48b167c405048f7100ff03461102805",
+    "value": 50.375
+  },
+  "previousAssessment": {
+    "file": "technical-debt-reassessment-2026-10-25.json",
+    "value": 40.875,
+    "sha256": "b2fd197d4075724334e45a21ffa79aae9aa6cc29b3e6d4f9f303fc623d7923b7"
+  },
+  "score": {
+    "type": "Índice experto de brechas técnicas ponderadas; no ratio de esfuerzo SQALE",
+    "value": 38.875,
+    "roundedApproximation": 39,
+    "differencePoints": 11.5,
+    "differenceFromPreviousAssessment": 2.0,
+    "confidence": "media-baja: auditoría local y criterios ordinales, sin validación productiva",
+    "areas": [
+      {
+        "name": "Seguridad y privacidad",
+        "weight": 20,
+        "previous": 50,
+        "score": 37.5,
+        "contribution": 7.5,
+        "criteria": [
+          {
+            "name": "Credenciales de proveedor en cliente",
+            "previous": 75,
+            "current": 25,
+            "reason": "Renderer y preload excluyen claves de inferencia; chat OpenAI, medios y utilidades resuelven credenciales en main. Persisten rutas heredadas y administración de claves Google, por lo que no se acredita cierre total.",
+            "sources": [
+              "src/config.ts",
+              ".github/workflows/release.yml",
+              "docs/security/security-and-privacy.md",
+              "docs/architecture/ipc-and-integrations.md",
+              "src/services/gemini-chat/client.ts",
+              "electron/auth-state-handlers.ts",
+              "electron/ai-grounding-handler.ts",
+              "electron/ipc/renderer-source.ts",
+              "electron/ipc/auth-state-contract.ts",
+              "ai-specs/policies/tool-boundaries.md",
+              "config/vite/env-defines.mts",
+              "electron/ai-provider/session-client.ts",
+              "openspec/changes/retire-google-ai-provider/tasks.md"
+            ]
+          },
+          {
+            "name": "Autorización y schemas IPC heterogéneos",
+            "previous": 50,
+            "current": 50,
+            "reason": "Investigación, conversación, medios y comunicaciones tienen nuevas guardas verificadas. Persisten contratos heterogéneos y canales fuera de una auditoría uniforme integral.",
+            "sources": [
+              "src/config.ts",
+              ".github/workflows/release.yml",
+              "docs/security/security-and-privacy.md",
+              "docs/architecture/ipc-and-integrations.md",
+              "src/services/gemini-chat/client.ts",
+              "electron/auth-state-handlers.ts",
+              "electron/ai-grounding-handler.ts",
+              "electron/ipc/renderer-source.ts",
+              "electron/ipc/auth-state-contract.ts",
+              "ai-specs/policies/tool-boundaries.md"
+            ]
+          },
+          {
+            "name": "Guardas de agentes y límites runtime",
+            "previous": 25,
+            "current": 25,
+            "reason": "Se conservan HITL, catálogos acotados y aislamiento del plano de desarrollo. No hay verificación integral nueva de todos los agentes.",
+            "sources": [
+              "src/config.ts",
+              ".github/workflows/release.yml",
+              "docs/security/security-and-privacy.md",
+              "docs/architecture/ipc-and-integrations.md",
+              "src/services/gemini-chat/client.ts",
+              "electron/auth-state-handlers.ts",
+              "electron/ai-grounding-handler.ts",
+              "electron/ipc/renderer-source.ts",
+              "electron/ipc/auth-state-contract.ts",
+              "ai-specs/policies/tool-boundaries.md"
+            ]
+          },
+          {
+            "name": "CSP y defensa de fronteras",
+            "previous": 50,
+            "current": 50,
+            "reason": "Se conserva separación Electron y revocación en las fronteras migradas; no se demuestra cierre global de CSP y demás superficies.",
+            "sources": [
+              "src/config.ts",
+              ".github/workflows/release.yml",
+              "docs/security/security-and-privacy.md",
+              "docs/architecture/ipc-and-integrations.md",
+              "src/services/gemini-chat/client.ts",
+              "electron/auth-state-handlers.ts",
+              "electron/ai-grounding-handler.ts",
+              "electron/ipc/renderer-source.ts",
+              "electron/ipc/auth-state-contract.ts",
+              "ai-specs/policies/tool-boundaries.md"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Arquitectura y modularidad",
+        "weight": 12,
+        "previous": 43.75,
+        "score": 43.75,
+        "contribution": 5.25,
+        "criteria": [
+          {
+            "name": "Separación de procesos y dominios",
+            "previous": 25,
+            "current": 25,
+            "reason": "Se mantienen servicios, handlers, preload y wrappers tipados. La retirada del proveedor sigue parcial y existen excepciones heredadas.",
+            "sources": [
+              "electron/integrated-browser/service.ts",
+              "docs/architecture/frontend.md",
+              "docs/architecture/integrated-browser-platform.md",
+              "src/shared/auth-state.ts",
+              "electron/ipc/caller-authorization.ts",
+              "electron/main/bootstrap.ts",
+              "electron/preload/auth-apis.ts",
+              "src/services/auth-state.ts"
+            ]
+          },
+          {
+            "name": "Concentración del navegador",
+            "previous": 75,
+            "current": 75,
+            "reason": "El coordinador del navegador conserva 5532 segmentos de línea; su concentración material no fue refactorizada.",
+            "sources": [
+              "electron/integrated-browser/service.ts",
+              "docs/architecture/frontend.md",
+              "docs/architecture/integrated-browser-platform.md",
+              "src/shared/auth-state.ts",
+              "electron/ipc/caller-authorization.ts",
+              "electron/main/bootstrap.ts",
+              "electron/preload/auth-apis.ts",
+              "src/services/auth-state.ts"
+            ]
+          },
+          {
+            "name": "Componentes/hooks extensos",
+            "previous": 50,
+            "current": 50,
+            "reason": "Siguen tres fuentes productivas con más de 1000 segmentos: navegador, OrbMesh y reading-mode-content.",
+            "sources": [
+              "electron/integrated-browser/service.ts",
+              "docs/architecture/frontend.md",
+              "docs/architecture/integrated-browser-platform.md",
+              "src/shared/auth-state.ts",
+              "electron/ipc/caller-authorization.ts",
+              "electron/main/bootstrap.ts",
+              "electron/preload/auth-apis.ts",
+              "src/services/auth-state.ts"
+            ]
+          },
+          {
+            "name": "Fachadas y claridad de contratos",
+            "previous": 25,
+            "current": 25,
+            "reason": "Se redujeron setters y clientes muertos en capacidades migradas; la claridad de contratos global mantiene brechas menores.",
+            "sources": [
+              "electron/integrated-browser/service.ts",
+              "docs/architecture/frontend.md",
+              "docs/architecture/integrated-browser-platform.md",
+              "src/shared/auth-state.ts",
+              "electron/ipc/caller-authorization.ts",
+              "electron/main/bootstrap.ts",
+              "electron/preload/auth-apis.ts",
+              "src/services/auth-state.ts"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Calidad de código y tipado",
+        "weight": 12,
+        "previous": 37.5,
+        "score": 37.5,
+        "contribution": 4.5,
+        "criteria": [
+          {
+            "name": "TypeScript estricto y tipos de frontera",
+            "previous": 25,
+            "current": 25,
+            "reason": "TypeScript estricto se conserva. El análisis global mide los tipos débiles restantes; su reducción no elimina la brecha. Se mantienen 1097 mensajes no-explicit-any en producción, frente a 1416 en octubre.",
+            "sources": [
+              "eslint.config.mjs",
+              "scripts/quality/lint-changed.mjs",
+              "src/services/iris-data/projects.ts",
+              "openspec/changes/gate-global-quality-and-workflow-integrity/reports/gate-summary.json"
+            ]
+          },
+          {
+            "name": "Baseline lint y ejecutabilidad global",
+            "previous": 50,
+            "current": 50,
+            "reason": "El lint global aún contiene errores históricos; la compuerta incremental prohíbe deuda nueva, sin ampliar supresiones. Resultado: 1269 errores y 31 avisos productivos; total de src/electron: 1679 errores y 31 avisos.",
+            "sources": [
+              "eslint.config.mjs",
+              "scripts/quality/lint-changed.mjs",
+              "src/services/iris-data/projects.ts",
+              "openspec/changes/gate-global-quality-and-workflow-integrity/reports/gate-summary.json"
+            ]
+          },
+          {
+            "name": "Errores silenciosos y consistencia",
+            "previous": 50,
+            "current": 50,
+            "reason": "deleteProject sigue ignorando errores intermedios y ejecutando cuatro borrados separados. Se controlaron errores de IA, pero no la consistencia global.",
+            "sources": [
+              "eslint.config.mjs",
+              "scripts/quality/lint-changed.mjs",
+              "src/services/iris-data/projects.ts",
+              "openspec/changes/gate-global-quality-and-workflow-integrity/reports/gate-summary.json"
+            ]
+          },
+          {
+            "name": "Disciplina local y supresiones",
+            "previous": 25,
+            "current": 25,
+            "reason": "No se bajaron pisos de cobertura ni se añadieron exclusiones para aprobar. Persisten incidencias históricas fuera del delta.",
+            "sources": [
+              "eslint.config.mjs",
+              "scripts/quality/lint-changed.mjs",
+              "src/services/iris-data/projects.ts",
+              "openspec/changes/gate-global-quality-and-workflow-integrity/reports/gate-summary.json"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Pruebas y calidad funcional",
+        "weight": 15,
+        "previous": 31.25,
+        "score": 31.25,
+        "contribution": 4.6875,
+        "criteria": [
+          {
+            "name": "Amplitud y casos negativos existentes",
+            "previous": 25,
+            "current": 25,
+            "reason": "Se verifican casos negativos, permisos, cancelación, sesión y contratos de SDK con transportes ficticios. No se considera cobertura completa del producto.",
+            "sources": [
+              "vitest.config.ts",
+              "scripts/quality/run-gate.mjs",
+              "openspec/changes/authorize-auth-state-publication/reports/verification.md",
+              "openspec/changes/authorize-auth-state-publication/reports/regression-summary.json"
+            ]
+          },
+          {
+            "name": "Cobertura medida y umbrales",
+            "previous": 25,
+            "current": 25,
+            "reason": "V8 incluye toda producción TS/TSX, también fuentes no importadas, con inventario y pisos versionados. Sigue siendo control de no retroceso local.",
+            "sources": [
+              "vitest.config.ts",
+              "scripts/quality/run-gate.mjs",
+              "openspec/changes/authorize-auth-state-publication/reports/verification.md",
+              "openspec/changes/authorize-auth-state-publication/reports/regression-summary.json",
+              "config/coverage-policy.json",
+              "scripts/quality/check-coverage.mjs",
+              "scripts/quality/check-coverage.test.mjs",
+              "openspec/changes/gate-global-quality-and-workflow-integrity/reports/coverage-evidence.json"
+            ]
+          },
+          {
+            "name": "E2E empaquetado y proveedores/Python en gate",
+            "previous": 50,
+            "current": 50,
+            "reason": "Persisten E2E instalado, cuentas/proveedores reales y acreditación multiplataforma sin ejecutar.",
+            "sources": [
+              "vitest.config.ts",
+              "scripts/quality/run-gate.mjs",
+              "openspec/changes/authorize-auth-state-publication/reports/verification.md",
+              "openspec/changes/authorize-auth-state-publication/reports/regression-summary.json"
+            ]
+          },
+          {
+            "name": "Reproducibilidad de la suite",
+            "previous": 25,
+            "current": 25,
+            "reason": "La compuerta local y el build aislado aportan reproducibilidad del worktree; no acreditan CI remoto Node 24 o todos los sistemas operativos.",
+            "sources": [
+              "vitest.config.ts",
+              "scripts/quality/run-gate.mjs",
+              "openspec/changes/authorize-auth-state-publication/reports/verification.md",
+              "openspec/changes/authorize-auth-state-publication/reports/regression-summary.json"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Datos e integridad",
+        "weight": 10,
+        "previous": 50,
+        "score": 50.0,
+        "contribution": 5.0,
+        "criteria": [
+          {
+            "name": "Orden y evidencia de RLS/migraciones",
+            "previous": 75,
+            "current": 75,
+            "reason": "No se aplicaron migraciones ni se renovó la inspección remota. La evidencia IRIS del 22 de octubre conserva brechas de RLS y políticas permisivas sin cierre acreditado.",
+            "sources": [
+              "docs/reports/iris-access-2026-10-22.md",
+              "database/lia/migrations/hub-service-state.sql",
+              "src/services/iris-data/projects.ts",
+              "docs/operations/release-and-recovery.md"
+            ]
+          },
+          {
+            "name": "Atomicidad del borrado de proyectos",
+            "previous": 50,
+            "current": 50,
+            "reason": "deleteProject mantiene cuatro escrituras independientes; no existe una operación transaccional verificada que cierre el borrado.",
+            "sources": [
+              "docs/reports/iris-access-2026-10-22.md",
+              "database/lia/migrations/hub-service-state.sql",
+              "src/services/iris-data/projects.ts",
+              "docs/operations/release-and-recovery.md"
+            ]
+          },
+          {
+            "name": "Respaldo, retención y recuperación",
+            "previous": 50,
+            "current": 50,
+            "reason": "Hay mecanismos locales previos, sin nueva demostración integral de retención, restauración, RPO o RTO.",
+            "sources": [
+              "docs/reports/iris-access-2026-10-22.md",
+              "database/lia/migrations/hub-service-state.sql",
+              "src/services/iris-data/projects.ts",
+              "docs/operations/release-and-recovery.md"
+            ]
+          },
+          {
+            "name": "Constraints e idempotencia existentes",
+            "previous": 25,
+            "current": 25,
+            "reason": "Se conservan constraints e idempotencia previos; ownership e invariantes entre organizaciones requieren verificación de servidor.",
+            "sources": [
+              "docs/reports/iris-access-2026-10-22.md",
+              "database/lia/migrations/hub-service-state.sql",
+              "src/services/iris-data/projects.ts",
+              "docs/operations/release-and-recovery.md"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Dependencias y cadena de suministro",
+        "weight": 8,
+        "previous": 18.75,
+        "score": 25.0,
+        "contribution": 2.0,
+        "criteria": [
+          {
+            "name": "Avisos en dependencias de producción",
+            "previous": 25,
+            "current": 25,
+            "reason": "La auditoría de producción actual conserva 17 paquetes afectados: 14 moderate y 3 low; cero high/critical tras los parches compatibles.",
+            "sources": [
+              "package.json",
+              "package-lock.json",
+              "python/tools_sidecar/requirements.lock",
+              "openspec/changes/secure-python-reader-dependencies/tasks.md",
+              "scripts/quality/check-supply-chain.mjs",
+              "openspec/changes/patch-november-advisories/reports/dependency-audit.json"
+            ]
+          },
+          {
+            "name": "Avisos en herramientas de desarrollo",
+            "previous": 0,
+            "current": 25,
+            "reason": "La auditoría completa conserva avisos adicionales en herramientas de desarrollo, incluidas cadenas ESLint/minimatch/glob. La ausencia de avisos de octubre ya no es vigente.",
+            "sources": [
+              "package.json",
+              "package-lock.json",
+              "python/tools_sidecar/requirements.lock",
+              "openspec/changes/secure-python-reader-dependencies/tasks.md",
+              "scripts/quality/check-supply-chain.mjs",
+              "openspec/changes/patch-november-advisories/reports/dependency-audit.json"
+            ]
+          },
+          {
+            "name": "Locks y revisión de ganchos",
+            "previous": 25,
+            "current": 25,
+            "reason": "Se revisaron integridades y cambios del lock; tres nodos parcheados no incorporan scripts de instalación. Se reconciliaron también paquetes físicos, sin ejecutar ganchos.",
+            "sources": [
+              "package.json",
+              "package-lock.json",
+              "python/tools_sidecar/requirements.lock",
+              "openspec/changes/secure-python-reader-dependencies/tasks.md",
+              "scripts/quality/check-supply-chain.mjs",
+              "openspec/changes/patch-november-advisories/reports/dependency-audit.json"
+            ]
+          },
+          {
+            "name": "Completitud del control automatizado incluido Python",
+            "previous": 25,
+            "current": 25,
+            "reason": "Persisten verificaciones nativas y el artefacto seguro de Python para macOS Intel sin entorno disponible; no se afirma matriz completa.",
+            "sources": [
+              "package.json",
+              "package-lock.json",
+              "python/tools_sidecar/requirements.lock",
+              "openspec/changes/secure-python-reader-dependencies/tasks.md",
+              "scripts/quality/check-supply-chain.mjs",
+              "openspec/changes/patch-november-advisories/reports/dependency-audit.json"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "CI/CD, empaquetado y publicación",
+        "weight": 8,
+        "previous": 37.5,
+        "score": 37.5,
+        "contribution": 3.0,
+        "criteria": [
+          {
+            "name": "Publicar condicionado al mismo commit verificado",
+            "previous": 25,
+            "current": 25,
+            "reason": "La publicación sigue condicionada a verificación del mismo commit, pero no se ejecutó el candidato integrado en CI remoto.",
+            "sources": [
+              ".github/workflows/ci.yml",
+              ".github/workflows/release.yml",
+              ".github/workflows/python-readers.yml",
+              "docs/operations/release-and-recovery.md"
+            ]
+          },
+          {
+            "name": "Paridad de build Linux",
+            "previous": 25,
+            "current": 25,
+            "reason": "El build aislado incluye Linux en la configuración canónica; no acredita instalación Linux nativa.",
+            "sources": [
+              ".github/workflows/ci.yml",
+              ".github/workflows/release.yml",
+              ".github/workflows/python-readers.yml",
+              "docs/operations/release-and-recovery.md"
+            ]
+          },
+          {
+            "name": "Consistencia de Node y matriz de plataformas",
+            "previous": 50,
+            "current": 50,
+            "reason": "La ejecución local usa Node 26 y CI declara Node 24. La matriz de SO y macOS Intel siguen pendientes.",
+            "sources": [
+              ".github/workflows/ci.yml",
+              ".github/workflows/release.yml",
+              ".github/workflows/python-readers.yml",
+              "docs/operations/release-and-recovery.md"
+            ]
+          },
+          {
+            "name": "Firma/notarización e inmutabilidad del pipeline",
+            "previous": 50,
+            "current": 50,
+            "reason": "Las referencias de Actions están fijadas y verificadas; firma Windows y notarización Apple no se acreditan.",
+            "sources": [
+              ".github/workflows/ci.yml",
+              ".github/workflows/release.yml",
+              ".github/workflows/python-readers.yml",
+              "docs/operations/release-and-recovery.md",
+              "scripts/quality/workflow-integrity.mjs",
+              "scripts/quality/workflow-integrity.test.mjs",
+              "openspec/changes/gate-global-quality-and-workflow-integrity/reports/workflow-evidence.json"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Observabilidad y operación",
+        "weight": 5,
+        "previous": 50,
+        "score": 50.0,
+        "contribution": 2.5,
+        "criteria": [
+          {
+            "name": "Adopción de logs estructurados",
+            "previous": 50,
+            "current": 50,
+            "reason": "La adopción de createLogger sigue parcial frente a console; el conteo textual no acredita ausencia global de PII. Hay 35 archivos con createLogger y 991 coincidencias console.",
+            "sources": [
+              "docs/operations/release-and-recovery.md",
+              "electron/utils/logger-options.ts",
+              "docs/plans/technical-debt-reduction.md",
+              "electron/auth-state-handlers.ts"
+            ]
+          },
+          {
+            "name": "Correlación transversal",
+            "previous": 50,
+            "current": 50,
+            "reason": "Las rutas migradas mantienen guardas y diagnósticos controlados; no hay correlación transversal completa demostrada.",
+            "sources": [
+              "docs/operations/release-and-recovery.md",
+              "electron/utils/logger-options.ts",
+              "docs/plans/technical-debt-reduction.md",
+              "electron/auth-state-handlers.ts"
+            ]
+          },
+          {
+            "name": "Objetivos y alertas demostrados en repo",
+            "previous": 50,
+            "current": 50,
+            "reason": "No hay nueva evidencia operativa de SLO y alertas globales medidos.",
+            "sources": [
+              "docs/operations/release-and-recovery.md",
+              "electron/utils/logger-options.ts",
+              "docs/plans/technical-debt-reduction.md",
+              "electron/auth-state-handlers.ts"
+            ]
+          },
+          {
+            "name": "Diagnóstico y estados operativos",
+            "previous": 50,
+            "current": 50,
+            "reason": "Se mejoran rechazos y fallback de IA; persisten diagnóstico y recuperación unificados pendientes.",
+            "sources": [
+              "docs/operations/release-and-recovery.md",
+              "electron/utils/logger-options.ts",
+              "docs/plans/technical-debt-reduction.md",
+              "electron/auth-state-handlers.ts"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Rendimiento y escalabilidad",
+        "weight": 4,
+        "previous": 50,
+        "score": 50.0,
+        "contribution": 2.0,
+        "criteria": [
+          {
+            "name": "Instrumentación y benchmark existentes",
+            "previous": 25,
+            "current": 25,
+            "reason": "Se conserva instrumentación previa, sin benchmark representativo nuevo.",
+            "sources": [
+              "docs/architecture/load-and-scalability.md",
+              "src/services/iris-data/projects.ts",
+              "openspec/changes/scale-hub-data-800-users/tasks.md"
+            ]
+          },
+          {
+            "name": "Carga real de 800 usuarios verificada",
+            "previous": 75,
+            "current": 75,
+            "reason": "Los 800 usuarios concurrentes siguen como objetivo; no hay resultado reproducible acreditado de esa carga.",
+            "sources": [
+              "docs/architecture/load-and-scalability.md",
+              "src/services/iris-data/projects.ts",
+              "openspec/changes/scale-hub-data-800-users/tasks.md"
+            ]
+          },
+          {
+            "name": "Consultas y paginación",
+            "previous": 50,
+            "current": 50,
+            "reason": "getProjects aún usa select(*) sin paginación. No hay cierre global de consultas y volúmenes.",
+            "sources": [
+              "docs/architecture/load-and-scalability.md",
+              "src/services/iris-data/projects.ts",
+              "openspec/changes/scale-hub-data-800-users/tasks.md"
+            ]
+          },
+          {
+            "name": "Presupuestos y regresión en CI",
+            "previous": 50,
+            "current": 50,
+            "reason": "Las cuotas de inferencia son guardas de recursos, sin presupuestos globales de latencia verificados en CI.",
+            "sources": [
+              "docs/architecture/load-and-scalability.md",
+              "src/services/iris-data/projects.ts",
+              "openspec/changes/scale-hub-data-800-users/tasks.md"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Documentación y gobierno",
+        "weight": 3,
+        "previous": 31.25,
+        "score": 31.25,
+        "contribution": 0.9375,
+        "criteria": [
+          {
+            "name": "Estructura, enlaces y catálogo",
+            "previous": 0,
+            "current": 0,
+            "reason": "Catálogo, inventario y enlaces se comprueban con las herramientas canónicas; no se equipara esa validación con actualidad semántica integral.",
+            "sources": [
+              "docs/README.md",
+              "docs/architecture/load-and-scalability.md",
+              "docs/plans/technical-debt-reduction.md",
+              "openspec/changes/authorize-auth-state-publication/reports/verification.md"
+            ]
+          },
+          {
+            "name": "Actualidad semántica de runbooks",
+            "previous": 50,
+            "current": 50,
+            "reason": "Se actualizaron contratos migrados, pero los runbooks mantienen referencias y validaciones operativas pendientes.",
+            "sources": [
+              "docs/README.md",
+              "docs/architecture/load-and-scalability.md",
+              "docs/plans/technical-debt-reduction.md",
+              "openspec/changes/authorize-auth-state-publication/reports/verification.md"
+            ]
+          },
+          {
+            "name": "Cierre de cambios OpenSpec",
+            "previous": 50,
+            "current": 50,
+            "reason": "Los cambios activos y casillas abiertas se vuelven a contar; revisión independiente y archivo siguen pendientes. Se midieron 135 cambios, 91 sin casillas abiertas y 215 casillas abiertas antes del cierre de esta evidencia.",
+            "sources": [
+              "docs/README.md",
+              "docs/architecture/load-and-scalability.md",
+              "docs/plans/technical-debt-reduction.md",
+              "openspec/changes/authorize-auth-state-publication/reports/verification.md"
+            ]
+          },
+          {
+            "name": "Trazabilidad y límites declarados",
+            "previous": 25,
+            "current": 25,
+            "reason": "Se conservan fuentes, hashes y recibos. Falta revisión independiente y acreditación operativa global.",
+            "sources": [
+              "docs/README.md",
+              "docs/architecture/load-and-scalability.md",
+              "docs/plans/technical-debt-reduction.md",
+              "openspec/changes/authorize-auth-state-publication/reports/verification.md"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Accesibilidad y UX",
+        "weight": 3,
+        "previous": 50,
+        "score": 50.0,
+        "contribution": 1.5,
+        "criteria": [
+          {
+            "name": "Semántica y teclado existentes",
+            "previous": 25,
+            "current": 25,
+            "reason": "Se conservan controles y semántica existentes; no se ejecutó auditoría integral nueva de teclado y semántica.",
+            "sources": [
+              "docs/ux/accessibility.md",
+              "openspec/changes/harden-action-confirmation-dialog/tasks.md",
+              "openspec/changes/harden-select-dropdown-interaction/reports/verification.md"
+            ]
+          },
+          {
+            "name": "Auditoría accesible automatizada",
+            "previous": 75,
+            "current": 75,
+            "reason": "No se encontró axe/pa11y en manifest o CI ni auditoría integral nueva con lector de pantalla.",
+            "sources": [
+              "docs/ux/accessibility.md",
+              "openspec/changes/harden-action-confirmation-dialog/tasks.md",
+              "openspec/changes/harden-select-dropdown-interaction/reports/verification.md"
+            ]
+          },
+          {
+            "name": "Movimiento y equivalentes semánticos",
+            "previous": 50,
+            "current": 50,
+            "reason": "No se acredita equivalente semántico completo de canvas/orbe ni movimiento reducido global.",
+            "sources": [
+              "docs/ux/accessibility.md",
+              "openspec/changes/harden-action-confirmation-dialog/tasks.md",
+              "openspec/changes/harden-select-dropdown-interaction/reports/verification.md"
+            ]
+          },
+          {
+            "name": "Regresión visual y flujos completos",
+            "previous": 50,
+            "current": 50,
+            "reason": "No se ejecutó regresión visual ni revisión instalada multiplataforma.",
+            "sources": [
+              "docs/ux/accessibility.md",
+              "openspec/changes/harden-action-confirmation-dialog/tasks.md",
+              "openspec/changes/harden-select-dropdown-interaction/reports/verification.md"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "verification": {
+    "status": "Compuerta local, build aislado y comprobaciones documentales aprobados.",
+    "date": "2026-11-07",
+    "gateExit": 0,
+    "buildExit": 0,
+    "testsPassed": 7096,
+    "testsSkipped": 5,
+    "testFilesPassed": 596,
+    "testFilesSkipped": 2,
+    "toolingTests": 64,
+    "pythonTests": 33,
+    "lintChangedFiles": 794,
+    "productionFiles": 2633,
+    "coverage": {
+      "lines": 60.93,
+      "statements": 59.37,
+      "functions": 55.86,
+      "branches": 52.7
+    },
+    "sourceSha256": "cab2e3cb755a04df62493bbc00087ec62eaf807ab1ff45f729daeff02701b2d3",
+    "realProviders": false,
+    "installedApplicationTested": false,
+    "independentReview": false,
+    "integratedBranchesTested": false,
+    "receipts": {
+      "gate.log": {
+        "path": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-openai-meeting-extraction-2026-11-07\\gate.log",
+        "sha256": "75017901e3a8a2cd7539b190a4212821e60df933921044d3a3f2c95c6df0fc09"
+      },
+      "build.log": {
+        "path": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-openai-meeting-extraction-2026-11-07\\build.log",
+        "sha256": "f880958570a94665827ee43e20ee86abaf8ea09e95e1e17f65dead651253e1a0"
+      },
+      "lint-summary.json": {
+        "path": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-openai-meeting-extraction-2026-11-07\\lint-summary.json",
+        "sha256": "698a15122e698324130c0316ed0f4c98dbcfab9b40a05ad17ae010a619d29bab"
+      },
+      "static-audit.json": {
+        "path": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-openai-meeting-extraction-2026-11-07\\static-audit.json",
+        "sha256": "72d91c8fab68f85b61ce0e4c3e4aee5e714157b2b1658cc8c883942df0922272"
+      },
+      "docs-check-final.log": {
+        "path": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-openai-meeting-extraction-2026-11-07\\docs-check-final.log",
+        "sha256": "b792d57e30b93eeb007295fefc6f2367784735497a8ed31127867e8830124e6f"
+      },
+      "docs-system-final.log": {
+        "path": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-openai-meeting-extraction-2026-11-07\\docs-system-final.log",
+        "sha256": "eb9732a75c4e973678677430b02bb1db722a3e735e671c9e7e4afb59202cf86a"
+      },
+      "openspec-final.log": {
+        "path": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-openai-meeting-extraction-2026-11-07\\openspec-final.log",
+        "sha256": "0ff312c209fcf6846dcea707f13233687ce976f007684adacd42c157c487fd4e"
+      },
+      "package.json": {
+        "path": "package.json",
+        "sha256": "7a0eacea26b61cd35bc0d4b28fa5c1f8bbfa3717f0ab1424fd59fc88a6834347"
+      },
+      "package-lock.json": {
+        "path": "package-lock.json",
+        "sha256": "77bc00691779dd7714cb47915a7e117a490bd4ec106d3827b1d580bf1ff8c7cd"
+      }
+    }
+  },
+  "limitations": [
+    "La retirada integral de Gemini sigue abierta; el inventario directo contiene 56 archivos operativos.",
+    "La simulación de ramas encontró conflictos y no ejecutó el producto combinado.",
+    "RLS, transacciones, carga, accesibilidad integral, cuentas reales y entrega multiplataforma no se acreditan."
+  ],
+  "measurements": {
+    "lint": {
+      "all": {
+        "errors": 1679,
+        "warnings": 31
+      },
+      "production": {
+        "errors": 1269,
+        "warnings": 31,
+        "explicitAny": 1097
+      }
+    },
+    "static": {
+      "productionFiles": 2633,
+      "largeFiles": [
+        {
+          "path": "electron/integrated-browser/service.ts",
+          "lines": 5532
+        },
+        {
+          "path": "src/components/orb/OrbMesh.tsx",
+          "lines": 1077
+        },
+        {
+          "path": "electron/integrated-browser/reading-mode-content.ts",
+          "lines": 1012
+        }
+      ],
+      "loggerFiles": 35,
+      "consoleOccurrences": 991,
+      "openSpecChanges": 135,
+      "changesWithoutUncheckedBoxes": 91,
+      "uncheckedBoxes": 215
+    },
+    "sourceSha256": "cab2e3cb755a04df62493bbc00087ec62eaf807ab1ff45f729daeff02701b2d3"
+  }
+}

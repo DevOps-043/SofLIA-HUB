@@ -1,0 +1,38 @@
+{
+  "fecha": "2026-10-22",
+  "rama": "codex/reduce-technical-debt",
+  "base": "e166d250629e503cf12f69449fb6d66e569134c8",
+  "estado": "Implementación verificada localmente, sin commit ni despliegue",
+  "compuerta": {
+    "comando": "npm run verify:pr",
+    "salida": 0,
+    "vitest": {
+      "archivosAprobados": 436,
+      "archivosOmitidos": 2,
+      "pruebasAprobadas": 4476,
+      "pruebasOmitidas": 5,
+      "pruebasFallidas": 0,
+      "duracionSegundos": 195.29
+    },
+    "toolingNodeAprobadas": 4,
+    "cambiosOpenSpecValidos": 71,
+    "canalesInventariados": 494
+  },
+  "lintComparadoConBase": {
+    "alcance": "28 archivos TypeScript modificados, configuración actual para ambas versiones",
+    "erroresBase": 67,
+    "erroresActuales": 34,
+    "erroresEliminados": 33,
+    "incidenciasNuevas": 0,
+    "advertenciasBase": 0,
+    "advertenciasActuales": 0
+  },
+  "revision": "Autorrevisión adversarial; revisión independiente pendiente",
+  "logsTemporales": "C:/Users/fysg5/AppData/Local/Temp/soflia-debt-refactor-2026-10-22",
+  "limites": [
+    "Sin pruebas con proveedores reales ni instaladores",
+    "Sin SQL remoto, rotación de claves ni publicación",
+    "Almacén OAuth heredado y claves compartidas del build pendientes",
+    "Sin reevaluación del porcentaje global de deuda"
+  ]
+}

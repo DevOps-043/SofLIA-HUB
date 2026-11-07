@@ -1,0 +1,62 @@
+{
+  "fecha": "2026-10-22",
+  "rama": "codex/reduce-technical-debt",
+  "baseGit": "e166d250629e503cf12f69449fb6d66e569134c8",
+  "compuerta": {
+    "comando": "npm run verify:pr",
+    "salida": 0,
+    "archivosAprobados": 444,
+    "archivosOmitidos": 2,
+    "pruebasAprobadas": 4609,
+    "pruebasOmitidas": 5,
+    "pruebasFallidas": 0,
+    "duracionSegundos": 209.3,
+    "casosAgregados": 64,
+    "pruebasToolingAprobadas": 4,
+    "archivosLintIncremental": 70,
+    "elementosOpenSpecValidados": 75
+  },
+  "lineaBaseDirigida": { "archivos": 4, "pruebas": 48, "salida": 0 },
+  "verificacionDirigida": { "archivos": 10, "pruebas": 172, "salida": 0 },
+  "revisionChatDirigida": { "archivos": 4, "pruebas": 65, "salida": 0 },
+  "smtpChatFinales": { "archivos": 2, "pruebas": 12, "salida": 0 },
+  "build": {
+    "comando": "npm run app:smoke:build",
+    "salida": 0,
+    "fuentes": 3275,
+    "artefactos": 6,
+    "archivosEnvCopiados": false,
+    "empaquetado": false,
+    "aplicacionIniciada": false,
+    "informe": "build-summary.json"
+  },
+  "compatibilidadElectron": {
+    "electron": "44.5.1",
+    "node": "24.21.0",
+    "nodemailer": "10.2.1",
+    "cjs": true,
+    "mime": true,
+    "informe": "electron-node-compatibility.json"
+  },
+  "auditoria": {
+    "paquetesAfectadosAntes": 28,
+    "paquetesAfectadosDespues": 27,
+    "highAntes": 9,
+    "highDespues": 8,
+    "produccionAntes": 17,
+    "produccionDespues": 16,
+    "avisosNodemailerRetirados": 8,
+    "paquetesAfectadosNuevos": []
+  },
+  "canalesIPC": 494,
+  "archivosInventariadosDePruebas": 612,
+  "revision": "Autorrevisión adversarial; revisión independiente pendiente",
+  "limites": [
+    "Sin mensajes, archivos, cuentas o credenciales reales",
+    "Google simulado; SMTP loopback con autenticación ficticia, sin validación TLS de producción",
+    "Confirmación nativa probada por contrato con mock; sin inspección humana nativa",
+    "Sin instalador, aplicación iniciada ni Linux/macOS nativos",
+    "Otros canales Gmail, custodia SMTP y transacción IRIS pendientes",
+    "Sin nuevo índice global de deuda"
+  ]
+}

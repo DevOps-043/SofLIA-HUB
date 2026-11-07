@@ -21,7 +21,6 @@ export function buildToolContext(state: AgentLoopState): ToolExecutorContext {
       ? { executeCustomTemplate: (payload) => state.agent.workspaceAutomationService!.executeCustomTemplate(payload) }
       : null,
     ownerKey: resolveWhatsAppOwnerKey(state.senderNumber, state.isGroup),
-    getGenAI: () => state.agent.getGenAI(),
     skipConfirmations: state.options.skipConfirmations === true,
     requestConfirmation: (jid, sender, tool, desc, args) =>
       state.requestConfirmation(jid, sender, tool, desc, args),

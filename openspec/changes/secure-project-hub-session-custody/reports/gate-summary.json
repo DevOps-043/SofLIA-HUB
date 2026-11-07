@@ -1,0 +1,40 @@
+{
+  "date": "2026-10-22",
+  "command": "npm run verify:pr",
+  "exitCode": 0,
+  "base": "e166d250629e503cf12f69449fb6d66e569134c8",
+  "checks": [
+    "adapters:check",
+    "harness:validate",
+    "audit:supply-chain",
+    "docs:system:check",
+    "docs:check",
+    "skills:seed:check",
+    "openspec:validate",
+    "test:quality",
+    "typecheck",
+    "lint:changed",
+    "test"
+  ],
+  "tests": {
+    "passed": 4964,
+    "skipped": 5,
+    "filesPassed": 464,
+    "filesSkipped": 2,
+    "seconds": 253.9
+  },
+  "lintFiles": 157,
+  "directed": {
+    "passed": 87,
+    "files": 7,
+    "newCases": 68
+  },
+  "native": {
+    "processes": 3,
+    "realOsCipher": true,
+    "realCredentials": false
+  },
+  "independentReview": "pendiente",
+  "globalDebtRecalculated": false,
+  "remoteMutations": false
+}

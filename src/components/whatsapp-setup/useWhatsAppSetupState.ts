@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { getWhatsAppApi } from '../../services/whatsapp-api';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_WHATSAPP_PERSONALIZATION, DEFAULT_WHATSAPP_STATUS } from './defaultStatus';
 import type {
   WhatsAppAccessPermission,
@@ -30,7 +31,23 @@ export function useWhatsAppSetupState({ actor, apiKey, historyEnabled = true, is
   const [historyEvents, setHistoryEvents] = useState<WhatsAppConversationHistoryEvent[]>([]);
   const [historyStats, setHistoryStats] = useState<WhatsAppConversationHistoryStats | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const initialized = useRef(false);
+  const view = useMemo(() => ({ isOpen, userId: actor?.userId, organizationId: actor?.organizationId }), [isOpen, actor?.userId, actor?.organizationId]);
+  const [previousView, setPreviousView] = useState(view);
+  const activeView = useRef<typeof view | null>(null);
+  if (previousView !== view) {
+    setPreviousView(view); setStatus(DEFAULT_WHATSAPP_STATUS); setHistoryEvents([]); setHistoryStats(null); setConnecting(false); setHistoryLoading(false); setError(null);
+    setNumberInput(''); setMasterNumberInput(''); setGroupInput(''); setIsGroupPolicyDropdownOpen(false); setSelectedPersonalizationTarget('global'); setPersonalizationDraft(DEFAULT_WHATSAPP_PERSONALIZATION);
+  }
+  useLayoutEffect(() => {
+    activeView.current = view;
+    return () => { if (activeView.current === view) activeView.current = null; };
+  }, [view]);
+  const current = useCallback(() => activeView.current === view && view.isOpen, [view]);
+  const run = useCallback(async <T,>(action: () => Promise<T>): Promise<T | undefined> => {
+    if (!current()) return;
+    try { const result = await action(); return current() ? result : undefined; }
+    catch { if (current()) setError('No se pudo completar la operación de WhatsApp.'); return undefined; }
+  }, [current]);
 
   const currentPersonalization = useMemo(
     () => getPersonalizationForSelection(status, selectedPersonalizationTarget),
@@ -39,42 +56,22 @@ export function useWhatsAppSetupState({ actor, apiKey, historyEnabled = true, is
 
   useEffect(() => {
     if (!isOpen || !window.whatsApp) return;
-    const loadStatus = async () => setStatus(await window.whatsApp!.getStatus());
-
-    loadStatus();
-    if (apiKey) window.whatsApp.setApiKey(apiKey);
-    window.whatsApp.onQR((qr: string) => {
-      setStatus((previous) => ({ ...previous, qr }));
-      setConnecting(false);
-    });
-    window.whatsApp.onStatusChange((nextStatus: WhatsAppStatus) => {
-      setStatus(nextStatus);
-      if (nextStatus.connected) {
-        setConnecting(false);
-        setError(null);
-      }
-    });
-    initialized.current = true;
-    return () => {
-      window.whatsApp?.removeListeners();
-      initialized.current = false;
-    };
-  }, [apiKey, isOpen]);
+    const api = getWhatsAppApi();
+    void Promise.resolve().then(() => run(() => api.getStatus())).then(result => { if (!result || !current()) return; if (result.success === false) setError(result.error || 'No se pudo consultar WhatsApp.'); else setStatus(result); });
+    const offQR = api.onQR(qr => { if (!current()) return; setStatus(previous => ({ ...previous, qr })); setConnecting(false); });
+    const offStatus = api.onStatusChange(nextStatus => { if (!current()) return; setStatus(nextStatus); if (nextStatus.connected) { setConnecting(false); setError(null); } });
+    return () => { if (activeView.current === view) activeView.current = null; if (typeof offQR === 'function') offQR(); if (typeof offStatus === 'function') offStatus(); if (typeof offQR !== 'function' && typeof offStatus !== 'function') api.removeListeners(); };
+  }, [isOpen, view, run, current]);
 
   const refreshHistory = useCallback(async () => {
-    if (!window.whatsApp || !historyEnabled) return;
-    setHistoryLoading(true);
+    if (!window.whatsApp || !historyEnabled || !current()) return; setHistoryLoading(true);
     try {
-      const [eventsResult, statsResult] = await Promise.all([
-        window.whatsApp.getConversationHistory({ limit: 25 }),
-        window.whatsApp.getConversationHistoryStats(actor),
-      ]);
-      if (eventsResult.success) setHistoryEvents(eventsResult.data || []);
+      const results = await run(() => Promise.all([getWhatsAppApi().getConversationHistory({ limit: 25, actor }), getWhatsAppApi().getConversationHistoryStats(actor)]));
+      if (!results || !current()) return; const [eventsResult, statsResult] = results;
+      if (eventsResult.success) setHistoryEvents(eventsResult.data || []); else setError(eventsResult.error || 'No se pudo consultar historial.');
       if (statsResult.success) setHistoryStats(statsResult.data || null);
-    } finally {
-      setHistoryLoading(false);
-    }
-  }, [actor, historyEnabled]);
+    } finally { if (current()) setHistoryLoading(false); }
+  }, [actor, historyEnabled, current, run]);
 
   useEffect(() => {
     if (!isOpen || !window.whatsApp || !historyEnabled) return;
@@ -101,33 +98,31 @@ export function useWhatsAppSetupState({ actor, apiKey, historyEnabled = true, is
   }, [selectedPersonalizationTarget, status.allowedGroups, status.allowedNumbers, status.groupPersonalizations, status.whitelistEnabled]);
 
   const handleConnect = useCallback(async () => {
-    if (!window.whatsApp) return;
-    setConnecting(true);
-    setError(null);
-    if (apiKey) await window.whatsApp.setApiKey(apiKey);
-    const result = await window.whatsApp.connect();
-    if (!result.success) {
-      setError(result.error || 'Error al conectar');
-      setConnecting(false);
-    }
-  }, [apiKey]);
+    if (!window.whatsApp || !current()) return; setConnecting(true); setError(null);
+    if (apiKey) { const saved = await run(() => getWhatsAppApi().setApiKey(apiKey)); if (!saved || !saved.success) { if (current()) { setConnecting(false); if (saved) setError(saved.error || 'No se guardó la clave.'); } return; } }
+    const result = await run(() => getWhatsAppApi().connect());
+    if (!result || !result.success) { if (current()) { setConnecting(false); if (result) setError(result.error || 'No se pudo conectar.'); } }
+  }, [apiKey, current, run]);
 
   const handleDisconnect = useCallback(async () => {
-    if (!window.whatsApp) return;
-    await window.whatsApp.disconnect();
-    setStatus((previous) => ({ ...previous, connected: false, phoneNumber: null, qr: null }));
-  }, []);
+    if (!window.whatsApp || !current()) return;
+    const result = await run(() => getWhatsAppApi().disconnect()); if (!result || !current()) return;
+    if (!result.success) { setError(result.error || 'No se pudo desconectar.'); return; }
+    setStatus(previous => ({ ...previous, connected: false, phoneNumber: null, qr: null }));
+  }, [current, run]);
 
   const handleUpdateGroupConfig = useCallback(async (updates: Partial<WhatsAppStatus>) => {
-    if (!window.whatsApp) return;
-    const result = await window.whatsApp.setGroupConfig({ ...updates, actor });
+    if (!window.whatsApp || !current()) return;
+    const result = await run(() => getWhatsAppApi().setGroupConfig({ ...updates, actor }));
+    if (!result || !current()) return;
     if (result.success) setStatus((previous) => ({ ...previous, ...updates }));
     else setError(result.error || 'Error al actualizar configuracion');
-  }, [actor]);
+  }, [actor, current, run]);
 
   const handleUpdateWhitelistEnabled = useCallback(async (whitelistEnabled: boolean) => {
-    if (!window.whatsApp) return;
-    const result = await window.whatsApp.setPersonalization({ actor, whitelistEnabled });
+    if (!window.whatsApp || !current()) return;
+    const result = await run(() => getWhatsAppApi().setPersonalization({ actor, whitelistEnabled }));
+    if (!result || !current()) return;
     if (result.success) {
       setStatus((previous) => ({ ...previous, whitelistEnabled }));
       if (!whitelistEnabled && selectedPersonalizationTarget.startsWith('contact:')) {
@@ -137,18 +132,19 @@ export function useWhatsAppSetupState({ actor, apiKey, historyEnabled = true, is
     } else {
       setError(result.error || 'Error al actualizar whitelist');
     }
-  }, [actor, selectedPersonalizationTarget]);
+  }, [actor, selectedPersonalizationTarget, current, run]);
 
   const patchPersonalizationDraft = useCallback((patch: Partial<WhatsAppAgentPersonalization>) => {
     setPersonalizationDraft((previous) => ({ ...previous, ...patch }));
   }, []);
 
   const handleSavePersonalization = useCallback(async () => {
-    if (!window.whatsApp) return;
+    if (!window.whatsApp || !current()) return;
     const normalizedDraft = normalizePersonalizationDraft(personalizationDraft);
     const parsed = parsePersonalizationTarget(selectedPersonalizationTarget);
     const update = { actor, ...buildPersonalizationUpdate(parsed, normalizedDraft, status.whitelistEnabled) };
-    const result = await window.whatsApp.setPersonalization(update);
+    const result = await run(() => getWhatsAppApi().setPersonalization(update));
+    if (!result || !current()) return;
     if (!result.success) {
       setError(result.error || 'Error al guardar personalizacion');
       return;
@@ -178,10 +174,10 @@ export function useWhatsAppSetupState({ actor, apiKey, historyEnabled = true, is
       };
     });
     setError(null);
-  }, [actor, personalizationDraft, selectedPersonalizationTarget, status.whitelistEnabled]);
+  }, [actor, personalizationDraft, selectedPersonalizationTarget, status.whitelistEnabled, current, run]);
 
   const handleAddNumber = useCallback(async () => {
-    if (!window.whatsApp || !numberInput.trim()) return;
+    if (!window.whatsApp || !numberInput.trim() || !current()) return;
     const cleaned = numberInput.replace(/[^0-9]/g, '');
     if (cleaned.length < 10) {
       setError('Ingresa un numero valido (minimo 10 digitos con codigo de pais)');
@@ -192,7 +188,8 @@ export function useWhatsAppSetupState({ actor, apiKey, historyEnabled = true, is
       return;
     }
     const updated = [...status.allowedNumbers, cleaned];
-    await window.whatsApp.setAllowedNumbers(updated, actor);
+    const numbersResult = await run(() => getWhatsAppApi().setAllowedNumbers(updated, actor));
+    if (!numbersResult || !current()) return; if (!numbersResult.success) { setError(numbersResult.error || 'No se guardaron los números.'); return; }
     setStatus((previous) => ({
       ...previous,
       allowedNumbers: updated,
@@ -200,13 +197,17 @@ export function useWhatsAppSetupState({ actor, apiKey, historyEnabled = true, is
     }));
     setNumberInput('');
     setError(null);
-  }, [actor, numberInput, status.allowedNumbers]);
+  }, [actor, numberInput, status.allowedNumbers, current, run]);
 
   const handleRemoveNumber = useCallback(async (number: string) => {
-    if (!window.whatsApp) return;
+    if (!window.whatsApp || !current()) return;
     const updated = status.allowedNumbers.filter((item) => item !== number);
-    await window.whatsApp.setAllowedNumbers(updated, actor);
-    await window.whatsApp.setAccessConfig({ actor, contactPermissions: { [number]: null } });
+    const numbersResult = await run(() => getWhatsAppApi().setAllowedNumbers(updated, actor));
+    if (!numbersResult || !current()) return; if (!numbersResult.success) { setError(numbersResult.error || 'No se guardaron los números.'); return; }
+    setStatus(previous => { const contacts = { ...previous.contactPersonalizations }; delete contacts[number]; return { ...previous, allowedNumbers: updated, whitelistEnabled: updated.length > 0 && previous.whitelistEnabled, contactPersonalizations: contacts }; });
+    if (selectedPersonalizationTarget === `contact:${number}`) setSelectedPersonalizationTarget('global');
+    const cleared = await run(() => getWhatsAppApi().setAccessConfig({ actor, contactPermissions: { [number]: null } }));
+    if (!cleared || !current()) return; if (!cleared.success) { setError(cleared.error || 'Se quitó el número, pero no se actualizaron sus permisos.'); return; }
     setStatus((previous) => {
       const nextContacts = { ...previous.contactPersonalizations };
       const nextPermissions = { ...previous.contactPermissions };
@@ -221,38 +222,40 @@ export function useWhatsAppSetupState({ actor, apiKey, historyEnabled = true, is
       };
     });
     if (selectedPersonalizationTarget === `contact:${number}`) setSelectedPersonalizationTarget('global');
-  }, [actor, selectedPersonalizationTarget, status.allowedNumbers]);
+  }, [actor, selectedPersonalizationTarget, status.allowedNumbers, current, run]);
 
   const handleSaveMasterNumber = useCallback(async () => {
-    if (!window.whatsApp) return;
+    if (!window.whatsApp || !current()) return;
     const cleaned = masterNumberInput.replace(/[^0-9]/g, '');
     if (masterNumberInput.trim() && cleaned.length < 10) {
       setError('Ingresa un numero maestro valido con codigo de pais');
       return;
     }
-    const result = await window.whatsApp.setAccessConfig({ actor, masterNumber: cleaned || null });
+    const result = await run(() => getWhatsAppApi().setAccessConfig({ actor, masterNumber: cleaned || null }));
+    if (!result || !current()) return;
     if (!result.success) {
       setError(result.error || 'Error al guardar numero maestro');
       return;
     }
     setStatus((previous) => ({ ...previous, masterNumber: cleaned }));
     setError(null);
-  }, [actor, masterNumberInput]);
+  }, [actor, masterNumberInput, current, run]);
 
   const handleToggleContactPermission = useCallback(async (
     number: string,
     permission: WhatsAppAccessPermission,
     enabled: boolean,
   ) => {
-    if (!window.whatsApp) return;
+    if (!window.whatsApp || !current()) return;
     const currentPermissions = new Set(status.contactPermissions?.[number] || []);
     if (enabled) currentPermissions.add(permission);
     else currentPermissions.delete(permission);
     const nextPermissions = Array.from(currentPermissions);
-    const result = await window.whatsApp.setAccessConfig({
+    const result = await run(() => getWhatsAppApi().setAccessConfig({
       actor,
       contactPermissions: { [number]: nextPermissions.length > 0 ? nextPermissions : null },
-    });
+    }));
+    if (!result || !current()) return;
     if (!result.success) {
       setError(result.error || 'Error al actualizar permisos');
       return;
@@ -264,41 +267,46 @@ export function useWhatsAppSetupState({ actor, apiKey, historyEnabled = true, is
       return { ...previous, contactPermissions };
     });
     setError(null);
-  }, [actor, status.contactPermissions]);
+  }, [actor, status.contactPermissions, current, run]);
 
   const handleToggleMasterPermission = useCallback(async (
     permission: WhatsAppAccessPermission,
     enabled: boolean,
   ) => {
-    if (!window.whatsApp) return;
+    if (!window.whatsApp || !current()) return;
     const currentPermissions = new Set(status.masterPermissions || []);
     if (enabled) currentPermissions.add(permission);
     else currentPermissions.delete(permission);
     const masterPermissions = Array.from(currentPermissions);
-    const result = await window.whatsApp.setAccessConfig({ actor, masterPermissions });
+    const result = await run(() => getWhatsAppApi().setAccessConfig({ actor, masterPermissions }));
+    if (!result || !current()) return;
     if (!result.success) {
       setError(result.error || 'Error al actualizar permisos maestros');
       return;
     }
     setStatus((previous) => ({ ...previous, masterPermissions }));
     setError(null);
-  }, [actor, status.masterPermissions]);
+  }, [actor, status.masterPermissions, current, run]);
 
   const handleAddGroup = useCallback(async () => {
-    if (!window.whatsApp || !groupInput.trim()) return;
+    if (!window.whatsApp || !groupInput.trim() || !current()) return;
     const cleaned = groupInput.trim();
     if (status.allowedGroups.includes(cleaned)) {
       setError('Ese grupo ya esta en la lista');
       return;
     }
-    await handleUpdateGroupConfig({ allowedGroups: [...status.allowedGroups, cleaned] });
+    const allowedGroups = [...status.allowedGroups, cleaned];
+    const groupResult = await run(() => getWhatsAppApi().setGroupConfig({ actor, allowedGroups }));
+    if (!groupResult || !current()) return; if (!groupResult.success) { setError(groupResult.error || 'No se guardó el grupo.'); return; }
+    setStatus(previous => ({ ...previous, allowedGroups }));
     setGroupInput('');
-  }, [groupInput, handleUpdateGroupConfig, status.allowedGroups]);
+  }, [actor, groupInput, status.allowedGroups, current, run]);
 
   const handleRemoveGroup = useCallback(async (jid: string) => {
-    if (!window.whatsApp) return;
+    if (!window.whatsApp || !current()) return;
     const allowedGroups = status.allowedGroups.filter((group) => group !== jid);
-    const result = await window.whatsApp.setGroupConfig({ allowedGroups });
+    const result = await run(() => getWhatsAppApi().setGroupConfig({ allowedGroups }));
+    if (!result || !current()) return;
     if (!result.success) {
       setError(result.error || 'Error al actualizar grupos');
       return;
@@ -306,7 +314,7 @@ export function useWhatsAppSetupState({ actor, apiKey, historyEnabled = true, is
     setStatus((previous) => {
       return { ...previous, allowedGroups };
     });
-  }, [status.allowedGroups]);
+  }, [status.allowedGroups, current, run]);
 
   return {
     connecting, error, groupInput, handleAddGroup, handleAddNumber, handleConnect,

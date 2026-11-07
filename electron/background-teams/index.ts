@@ -1,22 +1,20 @@
 import path from 'node:path';
-import { GoogleGenAI } from '@google/genai';
 import type { BrowserWindow } from 'electron';
 import { getAuthState, onAuthStateChange } from '../main/auth-state';
 import { getSofiaSessionUserId } from '../main/sofia-session';
 import { getHubSessionUserId } from '../main/hub-session';
-import { getWhatsAppOpenAIClient } from '../wa-agent/openai-client';
+import { getSessionOpenAIClient } from '../ai-provider/session-client';
 import { getSofiaClient } from '../iris/clients';
 import { getHubDbClient } from '../hub-db-client';
-import { isOpenAIModel } from '../../src/shared/model-providers';
-import type { BackgroundScope } from '../../src/shared/background-teams';
+import { BACKGROUND_MODELS, type BackgroundScope } from '../../src/shared/background-teams';
 import { BackgroundTeamService } from './service';
 import { BackgroundRepository } from './repository';
-import { GeminiBackgroundProvider, OpenAIBackgroundProvider } from './providers';
+import { OpenAIBackgroundProvider } from './providers';
 import { registerBackgroundTeamHandlers } from './handlers';
 import { ArtifactViewerService, registerArtifactViewerHandlers } from '../artifact-viewer';
 import { prepareOrganizationDocument } from '../organization-branding/document-branding';
 
-export async function initializeBackgroundTeams(input: { getWindow(): BrowserWindow | null; geminiKey(): string | null }): Promise<() => void> {
+export async function initializeBackgroundTeams(input: { getWindow(): BrowserWindow | null }): Promise<() => void> {
   const { app, safeStorage } = await import('electron');
   const current = () => {
     const auth = getAuthState();
@@ -55,17 +53,10 @@ export async function initializeBackgroundTeams(input: { getWindow(): BrowserWin
     },
     provider: async job => {
       await authorize(job.scope);
-      if (isOpenAIModel(job.model)) return new OpenAIBackgroundProvider(await getWhatsAppOpenAIClient(), job.model);
-      let key: string | null = null;
-      if (job.scope.dataUserId) {
-        const result = await getHubDbClient().rpc('get_api_key', { p_provider: 'gemini' }).abortSignal(AbortSignal.timeout(15_000));
-        if (result.error) throw new Error('No se pudo consultar la configuración de Gemini.');
-        key = typeof result.data === 'string' ? result.data : null;
-      }
-      key ||= input.geminiKey();
-      if (!key?.trim()) throw new Error('Gemini no está configurado.');
+      if (!BACKGROUND_MODELS.some(model => model === job.model)) throw new Error('Modelo de equipo no disponible.');
+      const client = await getSessionOpenAIClient();
       await authorize(job.scope);
-      return new GeminiBackgroundProvider(new GoogleGenAI({ apiKey: key }), job.model);
+      return new OpenAIBackgroundProvider(client, job.model);
     },
   });
   const unbind = registerBackgroundTeamHandlers(service, input.getWindow);

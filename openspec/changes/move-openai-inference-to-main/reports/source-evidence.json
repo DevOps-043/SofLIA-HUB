@@ -1,0 +1,179 @@
+{
+  "count": 3622,
+  "before": "c91627a732feaded3562a2b89d0a57deb4e50768887662d396a2dec4303bd78d",
+  "after": "c91627a732feaded3562a2b89d0a57deb4e50768887662d396a2dec4303bd78d",
+  "changedDuringGate": [],
+  "copiedFilesMatching": 3602,
+  "deltaFromUnit46": [
+    {
+      "file": "config/vite/env-defines.mts",
+      "previousSha256": "4d2ae6bd33f1ebbdd654dd59757604b371b018664b41dead9d085fe75acae70b",
+      "currentSha256": "db3be6b404a16790d8ab017db7b45015d2c171c2a977effeb41655155d5b5383"
+    },
+    {
+      "file": "electron/__tests__/auth-state-contract.test.ts",
+      "previousSha256": "8ad8d7cf02ce3625e714624a9aba23f47b4c55e8b1a3ac55be90161aa72ae3f2",
+      "currentSha256": "68718cce2307086999cd7dd0fa1f84624e5058bafae95991dc11cf091593d7f5"
+    },
+    {
+      "file": "electron/auth-state-handlers.ts",
+      "previousSha256": "41590288cefdf5a7bdafab6226eb1f868b4fc102c22253162b26d9ee9e283141",
+      "currentSha256": "a9d1ba1013a894c8f1810074bcee36e691b8fb9a00403311c230f9dc0d9605d9"
+    },
+    {
+      "file": "electron/main/bootstrap.ts",
+      "previousSha256": "df732619bd1c771f2f0f0b5e3c7f5938ebbfaf11544bf7f1062a42493e08938a",
+      "currentSha256": "ee4d5726dcb02036010dac8c802748962e1616d627ef86b0110d5ebb11e993cd"
+    },
+    {
+      "file": "electron/preload.ts",
+      "previousSha256": "441d6d37a912e85361726af54ca609b0b2ccecc9da544ba913c4feec5a022c6a",
+      "currentSha256": "ab6d742346da9202d50a2736b16b3e814c2042b855939415ea1b40bda55defd5"
+    },
+    {
+      "file": "electron/preload/channel-group-5.ts",
+      "previousSha256": "05f590ee2e504a74c330c1b188c4b71f3431960cc8fec1fab9a58c94f1b94c90",
+      "currentSha256": "2f745115cbb6ed6358d6ae4f39ecfd6a1e9575cc20859747a44b8f3e340a0e0d"
+    },
+    {
+      "file": "src/config.ts",
+      "previousSha256": "547aaa50ef4792c7a9a6c55a734051064b7ee07b1420946eb7e16ec5ecc0a269",
+      "currentSha256": "2a8cc30ba05f92d7a5030a66ccf4cf14af5c35dfe1afc306b07e35e2765ada40",
+      "testedSha256": "7d7d2aa7c35ff3db30538ab20d4d74d8b64e7cc56ffd99647aab8a2fc0ed9d00"
+    },
+    {
+      "file": "src/services/openai-chat/client.ts",
+      "previousSha256": "62be1e303329d902a8dde897b125eb7015624b20fba0e2eb5e5e77c46b9d16db",
+      "currentSha256": "c1aebe3bffa3c611a9e3c8d5c7dd3c0fa2bbf627a4a744ea4de10e2b5ce38dcb"
+    },
+    {
+      "file": "src/services/openai-chat/send-message-stream.ts",
+      "previousSha256": "85558b5878472ef5ca5b98de28d5667a69ae667ed175739e1fc63777b54bd470",
+      "currentSha256": "562ec31a220c725c3f1d354fca5006cd49db7dd42633d99fe75996e494b52a80"
+    },
+    {
+      "file": "src/shared/grounded-generation.ts",
+      "previousSha256": "52a8c0264ef27867039b2143699c64e33571ef4c2f3517c64654fde51fe111f2",
+      "currentSha256": "590ecdd77f1dcac2f00ac37669ed643609a910f09760815053db809b903e1a26"
+    },
+    {
+      "file": "vite.config.mts",
+      "previousSha256": "5ad33902e4a5d6fc71a8302d97ca1e9215855e5e3daa8e89be07ebceda10c162",
+      "currentSha256": "2dcfa1d44ec6bd3da81f959fb7cb3ab7979f192755c7863dd1b4c265556b4972"
+    },
+    {
+      "file": "electron/__tests__/openai-runtime-contracts.test.ts",
+      "previousSha256": null,
+      "currentSha256": "cfdf10628aa7bdf849e6659db854f7875768af8201348b41225ea1d3c954fde5"
+    },
+    {
+      "file": "electron/__tests__/openai-runtime-credentials.test.ts",
+      "previousSha256": null,
+      "currentSha256": "f9821affd7547f17a310b34f8a6c138d9696767a1d237d186a11b5bdc99f2289"
+    },
+    {
+      "file": "electron/__tests__/openai-runtime-ipc.test.ts",
+      "previousSha256": null,
+      "currentSha256": "3947bca5f508f9141a108051955e262bc18e839619966014f81eff67a447623d"
+    },
+    {
+      "file": "electron/__tests__/openai-runtime-jobs.test.ts",
+      "previousSha256": null,
+      "currentSha256": "ff4c3f44e23d0237401fad7d6e8456f3cc603843447d7f34277f07a904db8a27"
+    },
+    {
+      "file": "electron/__tests__/openai-runtime-provider.test.ts",
+      "previousSha256": null,
+      "currentSha256": "694ce3acb436c68c267a6368e5d85a3bd271b91711f5b202dd08fade4f4c49f8"
+    },
+    {
+      "file": "electron/__tests__/openai-session-binding.test.ts",
+      "previousSha256": null,
+      "currentSha256": "f6f0609a638ab1d3a5acfe6f21ce635a21ed8e2cd4a3bf2f7605ab83151be1a4"
+    },
+    {
+      "file": "electron/openai-runtime/credentials.ts",
+      "previousSha256": null,
+      "currentSha256": "031534b08eba8c6ee943d9253efe497e80b1a07e418ec2acc73722e9b79713cb"
+    },
+    {
+      "file": "electron/openai-runtime/index.ts",
+      "previousSha256": null,
+      "currentSha256": "5109a22f7473efb337f9e2a114087b7c99801c449763fe498b29ff4c1660d8f6"
+    },
+    {
+      "file": "electron/openai-runtime/job-service.ts",
+      "previousSha256": null,
+      "currentSha256": "b4a3641dd698cc7ae3c6c237e337db87cb78c7afcff9d050ff449e0d8a55af7e"
+    },
+    {
+      "file": "electron/openai-runtime/provider-errors.ts",
+      "previousSha256": null,
+      "currentSha256": "d8b212aa848872066a75d0ec47d3db6f9db18f124c1171252b688daf7de6149d"
+    },
+    {
+      "file": "electron/openai-runtime/provider.ts",
+      "previousSha256": null,
+      "currentSha256": "9c6a11ba6c8d20485d7ea52d9c03ebd139d29817743106e0e02c46cdc3e406a7"
+    },
+    {
+      "file": "electron/openai-runtime/scope-registry.ts",
+      "previousSha256": null,
+      "currentSha256": "eabd3e6599a138ae38683b5e895fa18ab6a1d291fa8e3d2c4a6135fcb9edaa48"
+    },
+    {
+      "file": "electron/openai-runtime/session-binding.ts",
+      "previousSha256": null,
+      "currentSha256": "fd92e7936f3565733e79f8d324bd31b752ad190618f106b6f87129e456796e3d"
+    },
+    {
+      "file": "electron/openai-runtime/types.ts",
+      "previousSha256": null,
+      "currentSha256": "92a97ae03f684509891c0a31223a31a5c44f9c8e90ed4d0af27f4c6a2e6a4217"
+    },
+    {
+      "file": "electron/preload/openai-runtime-api.ts",
+      "previousSha256": null,
+      "currentSha256": "20c2da64c2be6f6578cc03e9405f8411b6e5aac538275238b4844a4755518922"
+    },
+    {
+      "file": "src/__tests__/services/native-openai-client.test.ts",
+      "previousSha256": null,
+      "currentSha256": "15647fbfcc9c2c4240654d6be676ee570a31199ef6d7bf7c6798d539618f3ea2"
+    },
+    {
+      "file": "src/__tests__/services/native-openai-consumers.test.ts",
+      "previousSha256": null,
+      "currentSha256": "c85ae783317369e21f261df1b4317d3c634cdbbaf340bb83b6bc359c37215e65"
+    },
+    {
+      "file": "src/services/openai-chat/native-responses.ts",
+      "previousSha256": null,
+      "currentSha256": "4a7e248cc3e8109b48553ae471ea92deac87c7c51566c0a16cd9aade107c3aef"
+    },
+    {
+      "file": "src/shared/bounded-json.ts",
+      "previousSha256": null,
+      "currentSha256": "91e014524340dcebbd4a77832641ecc8404c70c5a8c42e6125e61c1e949ed63e"
+    },
+    {
+      "file": "src/shared/openai-runtime.ts",
+      "previousSha256": null,
+      "currentSha256": "d1ad7537f99b12824af3d30a586dcb3324f14d000cca201a856b18c02b87e0a4"
+    }
+  ],
+  "dependenciesAndPolicyUnchanged": true,
+  "groundingModelPolicyUnchanged": true,
+  "postGateFormatting": {
+    "file": "src/config.ts",
+    "reason": "Eliminar línea vacía sobrante al final detectada por git diff --check.",
+    "beforeSha256": "7d7d2aa7c35ff3db30538ab20d4d74d8b64e7cc56ffd99647aab8a2fc0ed9d00",
+    "afterSha256": "2a8cc30ba05f92d7a5030a66ccf4cf14af5c35dfe1afc306b07e35e2765ada40",
+    "onlyTerminalWhitespaceChanged": true,
+    "transpiledJavaScriptIdentical": true,
+    "gateAndBuildUsedBeforeSha256": true,
+    "finalInventorySha256": "5e65eceb6f3dbb131a36d8bb52ab22e7a6581b39afa611f09f990e3aabd06d32",
+    "copiedBuildSourcesComparedWith": "Inventario durante la compuerta, antes de normalizar EOF."
+  },
+  "finalInventorySha256": "5e65eceb6f3dbb131a36d8bb52ab22e7a6581b39afa611f09f990e3aabd06d32"
+}

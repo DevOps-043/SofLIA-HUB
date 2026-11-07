@@ -1,0 +1,31 @@
+{
+  "tarball": "onnxruntime-node-1.30.0.tgz",
+  "integrity": "sha512-twhs1C2C/BFkz1yc5OY0KIU2GUq6DURO7hD4bx5Q2Qy3nAMJwRXW8xU3NVczE29VA9lolLOYepoD8fjTGOfIqw==",
+  "registry": "https://registry.npmjs.org/",
+  "version": "1.30.0",
+  "platform": "win32",
+  "arch": "x64",
+  "matched": [
+    {
+      "file": "bin/napi-v6/win32/x64/DirectML.dll",
+      "sha256": "234e8898778cdec88d3cb0539508273494082812c968699f3de665a018971625"
+    },
+    {
+      "file": "bin/napi-v6/win32/x64/dxcompiler.dll",
+      "sha256": "593d42df78c7f9cbd97c1374af107cfe20985759f98b77afc1448fe41ee3cc76"
+    },
+    {
+      "file": "bin/napi-v6/win32/x64/dxil.dll",
+      "sha256": "cf9a3981263f8ec30c9905d136eeaf4b4573209c602198671b958ec86905dea8"
+    },
+    {
+      "file": "bin/napi-v6/win32/x64/onnxruntime_binding.node",
+      "sha256": "ddd428464069b84414d34ec1796c7c2a69c33a976e4b0390692629e394f92fa1"
+    },
+    {
+      "file": "bin/napi-v6/win32/x64/onnxruntime.dll",
+      "sha256": "508c362f5673483dd3a086379c392795b2e42d10d5e6f3f90ebd7ac21c97af67"
+    }
+  ],
+  "allSelectedMatch": true
+}

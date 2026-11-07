@@ -17,7 +17,7 @@ export function registerCalendarConnectionTests(ctx: CalendarServiceTestContext)
     ctx.getService().setConfig({});
     const result = await ctx.getService().connectGoogle();
     expect(result.success).toBe(false);
-    expect(result.error).toContain('Google OAuth credentials not configured');
+    expect(result.error).toContain('Google OAuth no está configurado');
   });
 
   it('CAL-004: loadConnections emits connected for each saved connection', () => {

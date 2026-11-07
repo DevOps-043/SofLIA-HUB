@@ -11,37 +11,18 @@
 // =============================================================================
 import { EventEmitter } from 'node:events';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { SidecarConnection, SidecarConnectionError, sidecarLaunchError, sidecarStopError } from './python/sidecar-connection';
 import { app } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 
-export interface DocumentTable {
-  rows: string[][];
-  page?: number;
-  sheet?: string;
-  slide?: number;
-  index?: number;
-}
-
-export interface ParsedDocument {
-  markdown: string;
-  tables: DocumentTable[];
-  metadata: Record<string, unknown>;
-}
-
-export interface PiiEntity {
-  type: string;
-  start: number;
-  end: number;
-}
-
-export interface RedactionResult {
-  redacted: string;
-  entities: PiiEntity[];
-  engine: string;
-  redactedCount: number;
-}
-
+import type { ParsedDocument, PiiEntity, RedactionResult, PrivacyConfig } from '../src/shared/python-tools';
+export type { DocumentTable, ParsedDocument, PiiEntity, RedactionResult, PrivacyConfig } from '../src/shared/python-tools';
+import { PythonPrivacyStore } from './python/privacy-store';
+import { createLogger } from './utils/logger';
+import { assertToolsOperation, projectDocument, projectPii, projectRedaction, toolsFailure, validateToolsText, type PythonToolsOperationContext } from './python/tools-contract';
+export type { PythonToolsOperationContext } from './python/tools-contract';
+const log = createLogger('python-tools');
 export interface SidecarError {
   code: string;
   message: string;
@@ -51,11 +32,6 @@ export interface SidecarError {
 export type ToolsResult<T> =
   | { success: true; data: T }
   | { success: false; error: SidecarError };
-
-interface PendingRequest {
-  resolve: (value: ToolsResult<unknown>) => void;
-  timer: NodeJS.Timeout;
-}
 
 const DOCUMENT_TIMEOUT_MS = 60_000; // pdfplumber puede tardar en PDFs largos
 const QUICK_TIMEOUT_MS = 10_000;
@@ -68,28 +44,18 @@ export function isSidecarDocument(filePath: string): boolean {
   return SIDECAR_DOCUMENT_EXTENSIONS.includes(path.extname(filePath).toLowerCase());
 }
 
-export interface PrivacyConfig {
-  /** Redactar la PII de los documentos antes de que lleguen al modelo. */
-  redactDocuments: boolean;
-}
-
-const DEFAULT_PRIVACY_CONFIG: PrivacyConfig = {
-  // OPT-IN a proposito: activarlo por defecto cambiaria en silencio el contenido
-  // que ve el modelo. El usuario decide.
-  redactDocuments: false,
-};
-
 export class PythonToolsService extends EventEmitter {
-  private proc: ChildProcessWithoutNullStreams | null = null;
-  private pending = new Map<number, PendingRequest>();
-  private nextId = 1;
-  private stdoutBuffer = '';
+  private connection: SidecarConnection | null = null;
+  private retiring: SidecarConnection | null = null;
   private restarts = 0;
-  private stopping = false;
-  private startPromise: Promise<void> | null = null;
+  private stopPromise: Promise<void> | null = null;
+  private lifecycleVersion = 0;
   private lastError: string | null = null;
-  private privacy: PrivacyConfig = { ...DEFAULT_PRIVACY_CONFIG };
-  private privacyLoaded = false;
+  private readonly closingReaders = new Set<SidecarConnection>();
+  private readonly privacyStore = new PythonPrivacyStore(() => this.getPrivacyConfigPath(), () => {
+    void this.stop().catch(() => log.warn({ code: 'SIDECAR_STOP_UNCONFIRMED' }, 'No se confirmó el cierre del lector al cambiar privacidad.'));
+  });
+
 
   /** true si el runtime Python y el sidecar existen en disco. */
   isAvailable(): boolean {
@@ -99,225 +65,134 @@ export class PythonToolsService extends EventEmitter {
   getStatus(): { available: boolean; running: boolean; lastError: string | null; privacy: PrivacyConfig } {
     return {
       available: this.isAvailable(),
-      running: this.proc !== null,
+      running: this.connection !== null,
       lastError: this.lastError,
       privacy: this.getPrivacyConfig(),
     };
   }
 
-  getPrivacyConfig(): PrivacyConfig {
-    if (!this.privacyLoaded) {
-      this.privacyLoaded = true;
-      try {
-        const raw = fs.readFileSync(this.getPrivacyConfigPath(), 'utf8');
-        this.privacy = { ...DEFAULT_PRIVACY_CONFIG, ...(JSON.parse(raw) as Partial<PrivacyConfig>) };
-      } catch {
-        this.privacy = { ...DEFAULT_PRIVACY_CONFIG };
-      }
-    }
-    return { ...this.privacy };
-  }
-
-  setPrivacyConfig(updates: Partial<PrivacyConfig>): PrivacyConfig {
-    this.privacy = { ...this.getPrivacyConfig(), ...updates };
-    try {
-      fs.writeFileSync(this.getPrivacyConfigPath(), JSON.stringify(this.privacy, null, 2), 'utf8');
-    } catch (error) {
-      console.error(`[PythonTools] No se pudo guardar privacy.json: ${error instanceof Error ? error.message : error}`);
-    }
-    return { ...this.privacy };
-  }
-
+  getPrivacyConfig(): PrivacyConfig { return this.privacyStore.get(); }
+  setPrivacyConfig(updates: Partial<PrivacyConfig>): PrivacyConfig { return this.privacyStore.set(updates); }
+  capturePrivacyContext() { return this.privacyStore.capture(); }
   /**
    * Lee un documento. Si la redaccion esta activada, la PII se elimina DENTRO
    * del sidecar: el dato sensible nunca llega a Electron ni, por tanto, al modelo.
    */
-  async parseDocument(filePath: string, maxPages = 200): Promise<ToolsResult<ParsedDocument>> {
-    return this.send<ParsedDocument>('parse_document', {
-      file_path: filePath,
-      max_pages: maxPages,
-      redact: this.getPrivacyConfig().redactDocuments,
-    }, DOCUMENT_TIMEOUT_MS);
+  async parseDocument(filePath: string, maxPages = 200, context?: PythonToolsOperationContext): Promise<ToolsResult<ParsedDocument>> {
+    try {
+      assertToolsOperation(context);
+      if (typeof filePath !== 'string' || !filePath || filePath.length > 4096 || filePath.includes('\0') || !path.isAbsolute(filePath)
+        || !isSidecarDocument(filePath) || !Number.isSafeInteger(maxPages) || maxPages < 1 || maxPages > 200) throw new Error('TOOLS_INVALID_INPUT');
+      const policy = this.capturePrivacyContext();
+      return await this.send<ParsedDocument>('parse_document', { file_path: filePath, max_pages: maxPages, redact: policy.config.redactDocuments },
+        DOCUMENT_TIMEOUT_MS, { signal: context?.signal, assertCurrent: () => { policy.assertCurrent(); assertToolsOperation(context); } });
+    } catch (error) { return toolsFailure(error instanceof Error ? error.message : undefined); }
   }
 
-  async redactText(text: string): Promise<ToolsResult<RedactionResult>> {
-    return this.send<RedactionResult>('redact_text', { text }, QUICK_TIMEOUT_MS);
+  async redactText(text: string, context?: PythonToolsOperationContext): Promise<ToolsResult<RedactionResult>> {
+    try { validateToolsText(text); assertToolsOperation(context); return await this.send<RedactionResult>('redact_text', { text }, QUICK_TIMEOUT_MS, context); }
+    catch (error) { return toolsFailure(error instanceof Error ? error.message : undefined); }
   }
 
-  async analyzePii(text: string): Promise<ToolsResult<{ entities: PiiEntity[]; engine: string }>> {
-    return this.send('analyze_pii', { text }, QUICK_TIMEOUT_MS);
+  async analyzePii(text: string, context?: PythonToolsOperationContext): Promise<ToolsResult<{ entities: PiiEntity[]; engine: string }>> {
+    try { validateToolsText(text); assertToolsOperation(context); return await this.send('analyze_pii', { text }, QUICK_TIMEOUT_MS, context); }
+    catch (error) { return toolsFailure(error instanceof Error ? error.message : undefined); }
   }
 
   async stop(): Promise<void> {
-    this.stopping = true;
-    const proc = this.proc;
-    if (!proc) return;
-    try {
-      await this.send('shutdown', {}, 2_000);
-    } catch { /* se fuerza el kill abajo */ }
-    if (!proc.killed) proc.kill();
-    this.proc = null;
+    this.lifecycleVersion++;
+    if (this.stopPromise) return this.stopPromise;
+    const connection = this.connection ?? this.retiring; this.connection = null;
+    if (connection) this.trackClosing(connection);
+    const operation = connection?.stop() ?? Promise.resolve(); this.stopPromise = operation;
+    try { await operation; }
+    catch (error) {
+      if (connection && error instanceof SidecarConnectionError && error.code === 'SIDECAR_STOP_UNCONFIRMED') {
+        this.trackRetiring(connection); this.lastError = error.message;
+      }
+      throw error;
+    }
+    finally { if (this.stopPromise === operation) this.stopPromise = null; }
   }
 
   // ── Internals ──────────────────────────────────────────────────────────────
 
-  private async send<T>(cmd: string, params: Record<string, unknown>, timeoutMs: number): Promise<ToolsResult<T>> {
-    if (!this.isAvailable()) {
-      return {
-        success: false,
-        error: {
-          code: 'SIDECAR_UNAVAILABLE',
-          message: 'El runtime Python no esta instalado. Ejecuta "npm run python:setup" o reinstala la app.',
-          recoverable: true,
-        },
-      };
+  /** La copia pertenece al selector main; cierre sin confirmar difiere su limpieza. */
+  async releaseDocumentCopy(remove: () => Promise<void>): Promise<boolean> {
+    if (this.closingReaders.size) {
+      void Promise.all([...this.closingReaders].map(reader => reader.closed)).then(remove)
+        .catch(() => log.warn({ code: 'DOCUMENT_CLEANUP_PENDING' }, 'No se confirmó la limpieza de una copia temporal.'));
+      return false;
     }
+    try { await remove(); return true; }
+    catch { log.warn({ code: 'DOCUMENT_CLEANUP_PENDING' }, 'No se confirmó la limpieza de una copia temporal.'); return false; }
+  }
+
+  private async send<T>(cmd: string, params: Record<string, unknown>, timeoutMs: number, context?: PythonToolsOperationContext): Promise<ToolsResult<T>> {
+    const version = this.lifecycleVersion; let started = false;
+    const cancel = () => { if (version === this.lifecycleVersion) void this.stop().catch(() => log.warn({ code: 'SIDECAR_STOP_UNCONFIRMED' }, 'No se confirmó el cierre del lector cancelado.')); };
     try {
-      await this.ensureProcess();
+      assertToolsOperation(context);
+      if (!this.isAvailable()) return toolsFailure('SIDECAR_UNAVAILABLE');
+      context?.signal?.addEventListener('abort', cancel, { once: true }); started = true;
+      const connection = await this.ensureProcess();
+      assertToolsOperation(context);
+      if (version !== this.lifecycleVersion || connection !== this.connection) throw new SidecarConnectionError('SIDECAR_STOPPED', 'La petición Python fue cancelada.');
+      const response = await connection.request(cmd, params, timeoutMs);
+      assertToolsOperation(context);
+      if (version !== this.lifecycleVersion || connection !== this.connection) throw new SidecarConnectionError('SIDECAR_STOPPED', 'La petición Python fue cancelada.');
+      if (response.ok === true) {
+        const data = cmd === 'parse_document' ? projectDocument(response.data, params.redact === true)
+          : cmd === 'redact_text' ? projectRedaction(response.data, params.text as string) : projectPii(response.data, params.text as string);
+        return { success: true, data: data as T };
+      }
+      const error = response.error && typeof response.error === 'object' ? response.error as Partial<SidecarError> : {};
+      return toolsFailure(error.code);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.lastError = message;
-      return { success: false, error: { code: 'SIDECAR_START_FAILED', message, recoverable: true } };
-    }
-
-    const id = this.nextId++;
-    return await new Promise<ToolsResult<T>>((resolve) => {
-      const timer = setTimeout(() => {
-        this.pending.delete(id);
-        resolve({
-          success: false,
-          error: { code: 'TIMEOUT', message: `El sidecar no respondio a '${cmd}' en ${timeoutMs} ms.`, recoverable: true },
-        });
-      }, timeoutMs);
-      this.pending.set(id, { resolve: resolve as (value: ToolsResult<unknown>) => void, timer });
-
-      const payload = `${JSON.stringify({ id, cmd, params })}\n`;
-      this.proc?.stdin.write(payload, (writeError) => {
-        if (!writeError) return;
-        clearTimeout(timer);
-        this.pending.delete(id);
-        resolve({
-          success: false,
-          error: { code: 'SIDECAR_WRITE_FAILED', message: writeError.message, recoverable: true },
-        });
-      });
-    });
+      let code = error instanceof SidecarConnectionError ? error.code : error instanceof Error ? error.message : undefined;
+      // Una petición retirada no puede sobrescribir el diagnóstico del hijo nuevo.
+      if (version === this.lifecycleVersion) this.lastError = toolsFailure(code).error.message;
+      if (started && version === this.lifecycleVersion) {
+        try { await this.stop(); } catch { code = 'SIDECAR_STOP_UNCONFIRMED'; }
+      }
+      return toolsFailure(code);
+    } finally { context?.signal?.removeEventListener('abort', cancel); }
   }
 
-  private ensureProcess(): Promise<void> {
-    if (this.proc) return Promise.resolve();
-    if (this.startPromise) return this.startPromise;
-    if (this.restarts >= MAX_RESTARTS) {
-      // Evita un bucle de arranque/crash. El contador se resetea con un
-      // arranque sano (evento 'ready') o al reiniciar la app.
-      return Promise.reject(new Error('El sidecar de herramientas fallo repetidamente; se deshabilito hasta reiniciar la app.'));
-    }
-
-    this.startPromise = new Promise<void>((resolve, reject) => {
-      const proc = spawn(this.getPythonPath(), ['-u', this.getSidecarPath()], {
-        stdio: ['pipe', 'pipe', 'pipe'],
-        windowsHide: true,
-        env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
-      });
-      this.proc = proc;
-      this.stopping = false;
-      this.stdoutBuffer = '';
-
-      const readyTimer = setTimeout(() => reject(new Error('Timeout esperando el arranque del sidecar de herramientas.')), 15_000);
-      const onReady = () => { clearTimeout(readyTimer); resolve(); };
-      this.once('ready', onReady);
-
-      proc.stdout.setEncoding('utf8');
-      proc.stdout.on('data', (chunk: string) => this.handleStdout(chunk));
-      proc.stderr.setEncoding('utf8');
-      proc.stderr.on('data', (chunk: string) => {
-        const text = chunk.trim();
-        if (text) console.warn(`[PythonTools][stderr] ${text}`);
-      });
-      proc.on('exit', (code) => this.handleExit(code));
-      proc.on('error', (error) => {
-        clearTimeout(readyTimer);
-        this.lastError = error.message;
-        reject(error);
-      });
-    });
-
-    void this.startPromise.finally(() => { this.startPromise = null; });
-    return this.startPromise;
-  }
-
-  private handleStdout(chunk: string): void {
-    this.stdoutBuffer += chunk;
-    let newlineIndex = this.stdoutBuffer.indexOf('\n');
-    while (newlineIndex !== -1) {
-      const line = this.stdoutBuffer.slice(0, newlineIndex).trim();
-      this.stdoutBuffer = this.stdoutBuffer.slice(newlineIndex + 1);
-      if (line) this.handleMessage(line);
-      newlineIndex = this.stdoutBuffer.indexOf('\n');
-    }
-  }
-
-  private handleMessage(line: string): void {
-    let msg: Record<string, unknown>;
-    try {
-      msg = JSON.parse(line) as Record<string, unknown>;
-    } catch {
-      console.warn(`[PythonTools] Linea no-JSON del sidecar: ${line.slice(0, 200)}`);
-      return;
-    }
-
-    if (msg.event === 'ready') {
-      this.restarts = 0; // arranque sano: se recupera el presupuesto de reintentos
-      this.emit('ready');
-      return;
-    }
-    if (msg.event === 'error') {
-      this.lastError = String(msg.message ?? 'Error del sidecar de herramientas');
-      console.error(`[PythonTools] ${this.lastError}`);
-      return;
-    }
-
-    if (typeof msg.id !== 'number') return;
-    const pending = this.pending.get(msg.id);
-    if (!pending) return;
-    clearTimeout(pending.timer);
-    this.pending.delete(msg.id);
-
-    if (msg.ok === true) {
-      pending.resolve({ success: true, data: (msg.data ?? {}) as never });
-      return;
-    }
-    const error = (msg.error ?? {}) as Partial<SidecarError>;
-    pending.resolve({
-      success: false,
-      error: {
-        code: String(error.code ?? 'UNKNOWN'),
-        message: String(error.message ?? 'Error desconocido del sidecar.'),
-        recoverable: error.recoverable === true,
+  private async ensureProcess(): Promise<SidecarConnection> {
+    const version = this.lifecycleVersion;
+    if (this.stopPromise) await this.stopPromise;
+    if (version !== this.lifecycleVersion) throw new SidecarConnectionError('SIDECAR_STOPPED', 'El arranque Python fue cancelado.');
+    if (this.retiring) throw sidecarStopError();
+    if (this.connection) { const current = this.connection; await current.start(); return current; }
+    if (this.restarts >= MAX_RESTARTS) throw new SidecarConnectionError('SIDECAR_START_FAILED', 'El sidecar de herramientas falló repetidamente; reinicia la app.');
+    let proc: ChildProcessWithoutNullStreams;
+    try { proc = spawn(this.getPythonPath(), ['-u', this.getSidecarPath()], {
+      stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
+    }); } catch (error) { this.restarts++; throw sidecarLaunchError(error); }
+    const connection = new SidecarConnection(proc, { protocol: 1, readyTimeoutMs: 15_000,
+      onMessage: message => {
+        if (this.connection !== connection) return;
+        if (message.event === 'ready') { this.restarts = 0; this.lastError = null; this.emit('ready'); }
+        else if (message.event === 'error') this.lastError = 'El sidecar de herramientas informó un error.';
+      },
+      onClosed: (error, intentional) => {
+        if (this.connection !== connection) return;
+        this.connection = null; this.lifecycleVersion++; this.lastError = error.message;
+        if (error.code === 'SIDECAR_STOP_UNCONFIRMED') this.trackRetiring(connection);
+        if (!intentional) this.restarts++;
       },
     });
+    this.connection = connection; await connection.start(); return connection;
   }
 
-  private handleExit(code: number | null): void {
-    this.proc = null;
-    for (const [, pending] of this.pending) {
-      clearTimeout(pending.timer);
-      pending.resolve({
-        success: false,
-        error: { code: 'SIDECAR_CRASHED', message: 'El sidecar de herramientas termino inesperadamente.', recoverable: true },
-      });
-    }
-    this.pending.clear();
-    if (this.stopping) return;
-    if (code !== 0) {
-      this.restarts += 1;
-      console.warn(`[PythonTools] Sidecar finalizo con codigo ${code}. Reintentos usados: ${this.restarts}/${MAX_RESTARTS}.`);
-    }
-    // No se relanza aqui: el arranque es perezoso y la siguiente peticion lo
-    // revive (si aun quedan reintentos).
-    if (this.restarts >= MAX_RESTARTS) {
-      this.lastError = 'El sidecar de herramientas fallo repetidamente; se deshabilita hasta reiniciar la app.';
-    }
+  private trackRetiring(connection: SidecarConnection): void {
+    this.trackClosing(connection);
+    this.retiring = connection;
+    void connection.closed.then(() => { if (this.retiring === connection) this.retiring = null; });
+  }
+  private trackClosing(connection: SidecarConnection): void {
+    this.closingReaders.add(connection); void connection.closed.then(() => { this.closingReaders.delete(connection); });
   }
 
   private getPythonPath(): string {
@@ -338,3 +213,4 @@ export class PythonToolsService extends EventEmitter {
 }
 
 export const pythonToolsService = new PythonToolsService();
+

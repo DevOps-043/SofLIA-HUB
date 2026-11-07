@@ -25,14 +25,14 @@ describe('GmailService messages and labels', () => {
     expect(result.success).toBe(true);
     expect(result.messages!.length).toBeGreaterThan(0);
     expect(result.nextPageToken).toBe('page-2');
-    expect(mockMessagesList).toHaveBeenCalledWith(expect.objectContaining({ userId: 'me', maxResults: 10 }));
+    expect(mockMessagesList).toHaveBeenCalledWith(expect.objectContaining({ userId: 'me', maxResults: 10 }), expect.objectContaining({ retry: false, signal: expect.any(AbortSignal) }));
   });
 
   it('GML-004: trashMessage calls Gmail trash API', async () => {
     const result = await service.trashMessage('msg-to-trash');
 
     expect(result.success).toBe(true);
-    expect(mockMessagesTrash).toHaveBeenCalledWith({ userId: 'me', id: 'msg-to-trash' });
+    expect(mockMessagesTrash).toHaveBeenCalledWith({ userId: 'me', id: 'msg-to-trash' }, expect.objectContaining({ retry: false, signal: expect.any(AbortSignal) }));
   });
 
   it('GML-008: getLabels returns Gmail labels', async () => {
@@ -50,21 +50,21 @@ describe('GmailService messages and labels', () => {
     const result = await service.getMessages();
 
     expect(result.success).toBe(false);
-    expect(result.error).toBe('Google no conectado');
+    expect(result.error).toBe('No se pudo completar la operación Gmail. Revisa la cuenta, los datos y la confirmación.');
   });
 
   it('GML-011: modifyLabels maps names to IDs and creates missing labels', async () => {
-    const result = await service.modifyLabels('msg-1', ['Newsletter', 'Work'], ['INBOX', 'Missing']);
+    const result = await service.modifyLabels('msg-1', ['Newsletter', 'Work'], ['INBOX']);
 
     expect(result.success).toBe(true);
     expect(mockLabelsCreate).toHaveBeenCalledWith(expect.objectContaining({
       userId: 'me',
       requestBody: expect.objectContaining({ name: 'Newsletter' }),
-    }));
+    }), expect.objectContaining({ retry: false }));
     expect(mockMessagesModify).toHaveBeenCalledWith({
       userId: 'me',
       id: 'msg-1',
       requestBody: { addLabelIds: ['lbl-new', 'lbl-1'], removeLabelIds: ['INBOX'] },
-    });
+    }, expect.objectContaining({ retry: false }));
   });
 });

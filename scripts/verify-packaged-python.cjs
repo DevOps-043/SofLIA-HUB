@@ -1,6 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { pythonExecutable, validateRuntime } = require('./python-runtime-support.cjs');
+const { TOOLS_RUNTIME_FILES, pythonExecutable, validateRuntime } = require('./python-runtime-support.cjs');
 
 module.exports = async function verifyPackagedPython(context) {
   const platform = context.electronPlatformName;
@@ -13,7 +13,7 @@ module.exports = async function verifyPackagedPython(context) {
   const sidecar = path.join(resourcesDir, 'python-sidecar', 'main.py');
   const toolsSidecar = path.join(resourcesDir, 'python-tools', 'main.py');
 
-  for (const requiredPath of [executable, sidecar, toolsSidecar]) {
+  for (const requiredPath of [executable, sidecar, ...TOOLS_RUNTIME_FILES.map(file => path.join(path.dirname(toolsSidecar), file))]) {
     const stat = fs.existsSync(requiredPath) ? fs.statSync(requiredPath) : null;
     if (!stat?.isFile() || stat.size === 0) {
       throw new Error(`[Instalador] Recurso Python ausente o incompleto: ${requiredPath}`);
@@ -21,6 +21,6 @@ module.exports = async function verifyPackagedPython(context) {
   }
 
   // La misma compuerta de preparación comprueba versión, pip, voz y documentos.
-  validateRuntime(runtimeDir, platform);
+  validateRuntime(runtimeDir, platform, path.dirname(toolsSidecar));
   console.log(`[Instalador] Runtime Python y ambos sidecars verificados: ${executable}`);
 };

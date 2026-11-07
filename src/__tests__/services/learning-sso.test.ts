@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { deferred, session as qaSession } from '../contexts/auth-lifecycle.fixture';
 
 // `vi.mock` se eleva al inicio del archivo: la fabrica no puede leer una
 // variable de modulo declarada despues.
@@ -37,7 +38,52 @@ describe('learning-sso: canje del ticket', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  it('una señal cancelada no comienza el canje', async () => {
+    const controller = new AbortController(); controller.abort();
+    await expect(exchangeTicketForSofiaSession(TICKET, VERIFIER, controller.signal)).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetch).not.toHaveBeenCalled(); expect(verifyOtp).not.toHaveBeenCalled();
+  });
+
+  it('cancelar durante lectura del cuerpo impide OTP', async () => {
+    const body = deferred<{ tokenHash: string }>();
+    const json = vi.fn(() => body.promise);
+    vi.mocked(fetch).mockResolvedValue({ ok: true, status: 200, json } as unknown as Response);
+    const controller = new AbortController();
+    const outcome = exchangeTicketForSofiaSession(TICKET, VERIFIER, controller.signal).catch((error: unknown) => error);
+    await vi.waitFor(() => expect(json).toHaveBeenCalledOnce());
+    controller.abort(); body.resolve({ tokenHash: 'hash-ficticio' });
+    expect(await outcome).toMatchObject({ name: 'AbortError' });
+    expect(verifyOtp).not.toHaveBeenCalled();
+    expect(vi.mocked(fetch).mock.calls[0][1]?.signal).toBe(controller.signal);
+  });
+
+  it('cancelar tras OTP no entrega la sesión ni reintenta', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { tokenHash: 'hash-ficticio' }));
+    const otp = deferred<{ data: { session: ReturnType<typeof qaSession> }; error: null }>();
+    verifyOtp.mockReturnValue(otp.promise);
+    const controller = new AbortController();
+    const outcome = exchangeTicketForSofiaSession(TICKET, VERIFIER, controller.signal).catch((error: unknown) => error);
+    await vi.waitFor(() => expect(verifyOtp).toHaveBeenCalledOnce());
+    controller.abort(); otp.resolve({ data: { session: qaSession() }, error: null });
+    expect(await outcome).toMatchObject({ name: 'AbortError' }); expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it('cancelar backoff retira espera/listener sin reintento', async () => {
+    vi.useFakeTimers();
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(503, {}));
+    const controller = new AbortController();
+    const remove = vi.spyOn(controller.signal, 'removeEventListener');
+    const outcome = exchangeTicketForSofiaSession(TICKET, VERIFIER, controller.signal).catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(vi.getTimerCount()).toBe(1);
+    controller.abort();
+    expect(await outcome).toMatchObject({ name: 'AbortError' });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(vi.getTimerCount()).toBe(0); expect(remove).toHaveBeenCalledOnce(); expect(fetch).toHaveBeenCalledOnce();
   });
 
   it('devuelve la sesion SOFIA cuando el canje prospera', async () => {

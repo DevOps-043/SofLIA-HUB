@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "at": "2026-10-24T07:03:34.951Z",
+  "exitCode": 0,
+  "sourceFiles": 3436,
+  "envFilesCopied": false,
+  "packaged": false,
+  "applicationStarted": false,
+  "sandbox": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-app-build-mEWb1K",
+  "outputs": [
+    {
+      "file": "dist/index.html",
+      "bytes": 548,
+      "sha256": "654b719d808d17e72f559179ae89d81da168204a7d0cc080deb92c74df820805"
+    },
+    {
+      "file": "dist-electron/main.js",
+      "bytes": 199532,
+      "sha256": "3d55388def7a197cf9ba376728ace909e7bb3914cb3bc29098922d76f0d32ef0"
+    },
+    {
+      "file": "dist-electron/preload.js",
+      "bytes": 48857,
+      "sha256": "3dc4c65558a3e95a20ea7c986707156c706eb67d942bc274f5a70eefd0d45d6a"
+    },
+    {
+      "file": "dist/presentation/presentation-runtime.iife.js",
+      "bytes": 895486,
+      "sha256": "23a06410288a6b71a84f73b141b879ecedea86faf3788f3ccc4747d3f5f1e162"
+    },
+    {
+      "file": "dist/audiovisual/film-runtime.iife.js",
+      "bytes": 223019,
+      "sha256": "1e497c8583b88e5b2c8ff1299eb48e121afc5a3073a06351f574841a0d61109d"
+    },
+    {
+      "file": "dist/zoom-runtime/index.html",
+      "bytes": 489,
+      "sha256": "86ccc046c0eb931d8fe2599ac3d0a3de8dc73fea00df5ec2b8cdbac705b6b9fb"
+    }
+  ],
+  "copied": [
+    {
+      "file": "scripts/python-runtime-support.cjs",
+      "sha256": "ecf4a83337fc95f3db403ac40823a0ebe88ef9e9ffe489106ac284883938dc6b"
+    },
+    {
+      "file": "scripts/setup-python-runtime.js",
+      "sha256": "0325fa54f84e93147ce4b3e84ae8f5e41432582175b5aaf0f4ba3c3cff2242f3"
+    },
+    {
+      "file": "scripts/verify-packaged-python.cjs",
+      "sha256": "fca4af4c997cda970530a52df8403c57306fd215d578d728f29e93f2645ada26"
+    },
+    {
+      "file": "scripts/quality/smoke-installer-win.mjs",
+      "sha256": "f53673b5cef76815efd0165ac4dcce0b44398a7f1bfad44774d2d5d968b26397"
+    },
+    {
+      "file": "scripts/quality/build-reader-wheel.py",
+      "sha256": "8c55f9b92feaf092f3bfc5c80e7f68a0743e632e84347b3f122a0bb69df84d56"
+    },
+    {
+      "file": "electron/python/tools-contract.ts",
+      "sha256": "d1584bde71cf30583891e57e2fadfcd66be9656d776b22bdb612458f0c667bca"
+    }
+  ],
+  "stableSources": 3451,
+  "downloadedWheelsRehashed": 60,
+  "pythonRuntimeCertified": false
+}

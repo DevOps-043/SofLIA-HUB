@@ -1,0 +1,36 @@
+{
+  "previousConsumerSources": [
+    {
+      "module": "semantic-memory-recovery",
+      "previousSha256": "5e8e1c6b062186fea38e13c7cda77b986c2a8bb412ec67beeecb650e0db6cd81",
+      "currentSha256": "2a4e349adbaa2107e8a421b7863cb70be9327f85e0ae91b75f5b85401d007f5a"
+    },
+    {
+      "module": "sqlite-store-recovery",
+      "previousSha256": "874b849d89483b9f995e490132c4a3a100c313acb30bdae88106c6878f200395",
+      "currentSha256": "640345928527cdb69c17f6dfcc8850d8ba9afb02c32d419e7c727e38cf71c75a"
+    },
+    {
+      "module": "sync-state-recovery",
+      "previousSha256": "15737b26c9867acbb2e35ed764eec042d75ae08049632a5fbec156220a9b7794",
+      "currentSha256": "bc9bcd4b1349cf2e81036b766797041972818fb23a1b82839cf5ccc5a8e3f7e1"
+    }
+  ],
+  "restoration": {
+    "restored": true,
+    "restoredSources": {
+      "sqlite-store-recovery": "B11139FB06D802E6206339D86E002A97B427CF1EB9488271A85FAA487D8E8E9B",
+      "sync-state-recovery": "217B417EDBAB1E88E1E513A6371534E3FD0B588AF6D9CBD9FBA9255315305CBD",
+      "semantic-memory-recovery": "2A4E349ADBAA2107E8A421B7863CB70BE9327F85E0AE91B75F5B85401D007F5A"
+    }
+  },
+  "restorationReceiptSha256": "cfa8bc5f28b6107502192116313b8acd3616ef7ea6fbe63ebfd4bdc30cd9b3e0",
+  "previousCodeFailures": 8,
+  "previousCodeNotSelected": 107,
+  "journalCompensationFailuresBeforeFix": 1,
+  "directedCasesPassed": 205,
+  "newCases": 26,
+  "coreCases": 17,
+  "consumerCases": 9,
+  "scope": "Disco temporal propio, errores controlados y mismo fixture consumidor antes/después"
+}

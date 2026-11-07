@@ -1,0 +1,147 @@
+{
+  "baseline": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-app-build-2hYUOV",
+  "facades": [
+    {
+      "file": "src/services/voice-passive-service.ts",
+      "methods": 10,
+      "namesAndArgumentsPreserved": true
+    },
+    {
+      "file": "src/services/orb-service.ts",
+      "methods": 21,
+      "namesAndArgumentsPreserved": true
+    }
+  ],
+  "channels": 495,
+  "uniqueChannels": 495,
+  "channelsUnchanged": true,
+  "dependenciesAdded": false,
+  "immutableSources": [
+    "python/sidecar/main.py",
+    "python/tools_sidecar/main.py",
+    "electron/python-tools-service.ts",
+    "electron/python/sidecar-connection.ts",
+    "electron/python/ndjson.ts"
+  ],
+  "protocols": {
+    "voice": 4,
+    "tools": 1
+  },
+  "mainOnlyAdditions": [
+    "configureCaptureAuthorization",
+    "callback de ID de dictado/voz",
+    "control de activación de setConfig"
+  ],
+  "publicDtoChanges": [
+    "modelInstalled y approvalRequired",
+    "sin pythonPath/modelPath ni errores libres"
+  ],
+  "globalDebtRecalculated": false,
+  "sources": [
+    {
+      "path": "electron/voice/session.ts",
+      "sha256": "764309de10680f032e63a6dbb23a052102386e86fdceec4762403cbc4611facd"
+    },
+    {
+      "path": "electron/voice/contract.ts",
+      "sha256": "15ab41e9c74ab15b760e0afcf39a821829687ba9cf41822eec42985505271fee"
+    },
+    {
+      "path": "electron/voice/event-owner.ts",
+      "sha256": "3c58f50ec2b2d12811e6fdae0487e2eef1c2383557003dce3ee7a0de4dfa710f"
+    },
+    {
+      "path": "electron/voice/synthesis-queue.ts",
+      "sha256": "8f5c0349b43031684b40388f8fd3e8866506cfdd257b18799d6d47fd85ff36f8"
+    },
+    {
+      "path": "electron/voice-passive-handlers.ts",
+      "sha256": "28891f7551d37cdd4497879823f60da0706902d2aba7c95889e6249c01ebd032"
+    },
+    {
+      "path": "electron/orb-ipc-handlers.ts",
+      "sha256": "e8a6a2e3533d6384c96cbfa0f43c6e7802cc61010110fe3d6376c07105a5b2b5"
+    },
+    {
+      "path": "electron/orb-tts.ts",
+      "sha256": "f10dbe4c652306c8290732bc4ac4a3b2bcac93251ab98f14a022ae8f9d4ff2c0"
+    },
+    {
+      "path": "electron/python-runtime-service.ts",
+      "sha256": "27a62f9611d62d9839ccabd68f4f1b6143a7db7cd5796c142fae4681e606dfe2"
+    },
+    {
+      "path": "electron/meeting-live/transcription-port.ts",
+      "sha256": "d39dea2e42f9d10040ff4eba73a35a5b671c5c6c67120888c8744d0cc56615e1"
+    },
+    {
+      "path": "electron/meeting-live-handlers.ts",
+      "sha256": "1e4dcbc8e9b7f4a3e1648f22a278d8c939206c677fe5accbd78c8f1cbcdd0446"
+    },
+    {
+      "path": "electron/ipc/caller-authorization.ts",
+      "sha256": "76b064460b75a7b42580e3180e8b23c0607645fea43ffb312dff04b2fc3c5cc0"
+    },
+    {
+      "path": "electron/main/startup.ts",
+      "sha256": "bb1617cad5bd0f80628c6dad468e5b1c53ed93f2f2c1f22ba7c328b028456d53"
+    },
+    {
+      "path": "electron/main/runtime-state.ts",
+      "sha256": "7f5187a38f32d47ca4226acfbf2bf34baf811246eb555e6f43274af0e269cf37"
+    },
+    {
+      "path": "electron/main/app-lifecycle.ts",
+      "sha256": "acec0423b48f4296d0e418ea7953346dca4e68d3fbd1bf8a3aa23129907ed6df"
+    },
+    {
+      "path": "electron/preload/local-voice-api.ts",
+      "sha256": "2ee9367b99f09ece389d424aeba61bbf21f0aa7f8882e2bdd5edb8dbab6e6f81"
+    },
+    {
+      "path": "electron/preload/orb-api.ts",
+      "sha256": "3131b1320f179b2c0e359bbb94868ac5f444bf8f3a73a0ef2b42d66599dd9493"
+    },
+    {
+      "path": "electron/preload/utility-apis.ts",
+      "sha256": "8f4d42eb5e7d3d1e565840b9cbcc8503044137b33e779f451f2ffd66d785a53d"
+    },
+    {
+      "path": "electron/integrated-browser/voice.ts",
+      "sha256": "1d6988a24e00481f1dec4c3acceda38879eef68e2b3fe4b2e88fb9a58d69822f"
+    },
+    {
+      "path": "src/shared/local-voice.ts",
+      "sha256": "7cad859d8b8f54f50dca0a224d9482fc3ede16a7098bf81d1da728e1301fd7f5"
+    },
+    {
+      "path": "src/shared/orb.ts",
+      "sha256": "b63ba8e9d35639db62e74cb2f075fc38320ec9d655e89a8a13dbaed22e9004a5"
+    },
+    {
+      "path": "src/services/voice-passive-service.ts",
+      "sha256": "b47e6f145488fdf606b8cc7ca8a267e13615445f003b850863792eb0f13fc8f7"
+    },
+    {
+      "path": "src/services/orb-service.ts",
+      "sha256": "281b7d605b1afbc4ba56dc358596455bb193e6de1ac5edd7a179cb99eb3101e2"
+    },
+    {
+      "path": "src/components/voice-settings/useVoicePassivePanel.ts",
+      "sha256": "6332300752f0f7a8cf2bc899e2edbebce6bc24130dbfd6d7a762fce26742f4e3"
+    },
+    {
+      "path": "src/components/voice-settings/ListeningCard.tsx",
+      "sha256": "2213877456fbf487af118c6957bea078e8126143c2d1b81659b957dcd3654925"
+    },
+    {
+      "path": "src/components/voice-settings/RuntimeStatusCard.tsx",
+      "sha256": "f74a6859f89a46523778a3b356bcb4fe40d6b477cf48dabaf843f270c9fc737d"
+    },
+    {
+      "path": "package.json",
+      "sha256": "265c2947410ff18bebedcae17bde3cf0bfc6d0c3dc77df7a1c787a447daea0c4"
+    }
+  ],
+  "afterGateRechecked": true
+}

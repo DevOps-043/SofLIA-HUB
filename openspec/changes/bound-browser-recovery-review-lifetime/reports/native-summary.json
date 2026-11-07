@@ -1,0 +1,226 @@
+{
+  "finalProfile": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-browser-smoke-zXzCva",
+  "phases": [
+    {
+      "phase": "exercise",
+      "checks": 12,
+      "sha256": "2d65f707abe7cfd4539d60dca63584812ac7ce95a52e1e0c4b670092d4163560"
+    },
+    {
+      "phase": "restore",
+      "checks": 4,
+      "sha256": "e29bdb1ee4c58def249ac03a6eaabe3267a89fd2b0c0723c9bdb3a70a62145d2"
+    },
+    {
+      "phase": "lifecycle",
+      "checks": 8,
+      "sha256": "b83db7815a25956b800d90b878b99d9c9ef97298a5b4d483d20b5e7b5e4a9d60"
+    },
+    {
+      "phase": "vault",
+      "checks": 11,
+      "sha256": "fcf41db6960dba6a5f78b4c266233e8df163c2d233992a8a834b0c2ff6b4a1ac"
+    },
+    {
+      "phase": "autosave",
+      "checks": 11,
+      "sha256": "b543e5ec6a41fb70ed8f10abf4c42eb5b1317a4225446d79f63f71af59f5e2ac"
+    },
+    {
+      "phase": "zoom-startup",
+      "checks": 11,
+      "sha256": "3eb89b0b685720c8cf2501c19edf514a1be6b79a777fe77bce11dcd9346cde04"
+    },
+    {
+      "phase": "zoom",
+      "checks": 15,
+      "sha256": "aa6edccc18989b1b81419e33e8e8f28d6dec6973ef2fec5d8d4f13f45417b752"
+    },
+    {
+      "phase": "safety",
+      "checks": 12,
+      "sha256": "f3136daa2ee56366a41fe45c04ad259478a970151e861c7d1945aea3b50e2883"
+    },
+    {
+      "phase": "passkeys",
+      "checks": 9,
+      "sha256": "44176e59dfd6d5420e0f1265016f90ad13a3d03322b69b508e2d1e273a5fefc3"
+    },
+    {
+      "phase": "extensions",
+      "checks": 5,
+      "sha256": "d49f2d171cc77e0edceeda48e3428fc0c78b7fcc316ddb30b2ab81c8842986eb"
+    },
+    {
+      "phase": "policies",
+      "checks": 27,
+      "sha256": "422d46b91c9565de153615194c49fd1ec583d36ec2d989d7c7c86f93cd990905"
+    },
+    {
+      "phase": "perception",
+      "checks": 7,
+      "sha256": "3fbce1b0b839607c48a23af976cdf4e83d1b3c9747b3391ba5e00ad2100a2904"
+    }
+  ],
+  "totalChecks": 132,
+  "perception": {
+    "status": "passed",
+    "phase": "perception",
+    "electron": "44.9.3",
+    "checks": [
+      "pausa/reactivación descarta frame pendiente y serializa una captura nativa nueva",
+      "dos solicitudes compatibles comparten un único frame nativo",
+      "DOM productivo en mundo aislado y frame real se publican bajo un ciclo vigente",
+      "navegación ABA a la misma URL no recupera un frame del documento anterior",
+      "cierre lógico descarta también lectura DOM pendiente sin error del ciclo anterior",
+      "cambio de política durante un frame nativo impide publicarlo",
+      "timer por evento se cancela al pausar y no se convierte en polling"
+    ],
+    "artifacts": [
+      {
+        "file": "frame-1.png",
+        "bytes": 17445,
+        "sha256": "99bbfaa0a0270947ecbe51e58049442b434eee168673fefa36b34b40bb3a7b09"
+      },
+      {
+        "file": "frame-2.png",
+        "bytes": 21943,
+        "sha256": "bc3689950010fd2f39463792db369400583b13c8d4aedb5c92b8ebec6bb99600"
+      },
+      {
+        "file": "frame-3.png",
+        "bytes": 21943,
+        "sha256": "bc3689950010fd2f39463792db369400583b13c8d4aedb5c92b8ebec6bb99600"
+      },
+      {
+        "file": "frame-4.png",
+        "bytes": 21943,
+        "sha256": "bc3689950010fd2f39463792db369400583b13c8d4aedb5c92b8ebec6bb99600"
+      },
+      {
+        "file": "frame-5.png",
+        "bytes": 21943,
+        "sha256": "bc3689950010fd2f39463792db369400583b13c8d4aedb5c92b8ebec6bb99600"
+      }
+    ],
+    "frames": [
+      {
+        "width": 983,
+        "height": 704,
+        "empty": false
+      },
+      {
+        "width": 983,
+        "height": 672,
+        "empty": false
+      },
+      {
+        "width": 983,
+        "height": 672,
+        "empty": false
+      },
+      {
+        "width": 983,
+        "height": 672,
+        "empty": false
+      },
+      {
+        "width": 983,
+        "height": 672,
+        "empty": false
+      }
+    ],
+    "captureErrors": [],
+    "limitations": [],
+    "scope": "Módulos productivos con Electron/DOM reales; el servicio completo y sus permisos se verifican por separado.",
+    "firstPaintReady": true,
+    "maximumConcurrentCaptures": 1
+  },
+  "compiledSources": [
+    {
+      "source": "electron/integrated-browser/recovery-review-lifetime.ts",
+      "sourceSha256": "f7aefb216a8e6d255c08fbdfdba35ec628726ef04976393bcf1204837eda1694",
+      "compiledSha256": "626562d7c9db1fb6322788b4dc69944572c8dec27b24fca5af8278c183c0f89b"
+    },
+    {
+      "source": "electron/integrated-browser/policy-file-recovery.ts",
+      "sourceSha256": "58fab08265c63a230181293507a2cecae9d3f960c1ff25789328120c14bcae3e",
+      "compiledSha256": "35e257212c3214633e66f3f3b9ef4c3a3fae9269b61773dc78134d1788dba1be"
+    },
+    {
+      "source": "electron/integrated-browser/semantic-memory-recovery.ts",
+      "sourceSha256": "5e8e1c6b062186fea38e13c7cda77b986c2a8bb412ec67beeecb650e0db6cd81",
+      "compiledSha256": "91db8f1377571625fc87ae0e656f3fcb4fa646132c1ad94439c7a5506875eaab"
+    },
+    {
+      "source": "electron/integrated-browser/sqlite-store-recovery.ts",
+      "sourceSha256": "874b849d89483b9f995e490132c4a3a100c313acb30bdae88106c6878f200395",
+      "compiledSha256": "91649029b5426f14ecaf702bd90a954eec19e1979806e25576b9b9426f45b12c"
+    },
+    {
+      "source": "electron/integrated-browser/sync-state-recovery.ts",
+      "sourceSha256": "15737b26c9867acbb2e35ed764eec042d75ae08049632a5fbec156220a9b7794",
+      "compiledSha256": "b5cda7981f26b395cda1411300bd81508b22749b2faa76ab03e360882d813379"
+    },
+    {
+      "source": "electron/integrated-browser/perception-state.ts",
+      "sourceSha256": "c54b989e848b639b27c80368a03cfe05bf846970f0f6282f798df973d0c1f422",
+      "compiledSha256": "e71fa9452a0edd6e27699be1a7c01bbc02bbe346fd15054bc2a9885c5e4df386"
+    }
+  ],
+  "baseline": [
+    {
+      "iteration": 1,
+      "exitCode": 0,
+      "log": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\baseline-01.log"
+    },
+    {
+      "iteration": 2,
+      "exitCode": 0,
+      "log": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\baseline-02.log"
+    },
+    {
+      "iteration": 3,
+      "exitCode": 0,
+      "log": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\baseline-03.log"
+    },
+    {
+      "iteration": 4,
+      "exitCode": 0,
+      "log": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\baseline-04.log"
+    },
+    {
+      "iteration": 5,
+      "exitCode": 0,
+      "log": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\baseline-05.log"
+    },
+    {
+      "iteration": 6,
+      "exitCode": 0,
+      "log": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\baseline-06.log"
+    },
+    {
+      "iteration": 7,
+      "exitCode": 0,
+      "log": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\baseline-07.log"
+    },
+    {
+      "iteration": 8,
+      "exitCode": 0,
+      "log": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\baseline-08.log"
+    },
+    {
+      "iteration": 9,
+      "exitCode": 0,
+      "log": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\baseline-09.log"
+    },
+    {
+      "iteration": 10,
+      "exitCode": 0,
+      "log": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\baseline-10.log"
+    }
+  ],
+  "unknownHistoricalLockHolder": true,
+  "persistentLocksMayReject": true,
+  "remoteExecuted": false
+}

@@ -1,11 +1,11 @@
-import type { GoogleGenerativeAI } from '@google/generative-ai';
+import type { DesktopInference } from './inference';
 import type { DesktopAgentConfig, StrategicPlan, TaskPlan } from '../desktop-agent-types';
 import { parseVisionResponse } from './parsers';
 import { buildFlatPlanPrompt, buildStrategicPlanPrompt } from './planning-prompts';
 import { selectTeam, TEAM_COORDINATOR_INSTRUCTION } from '../../src/shared/agent-teams/policy';
 import { assertTeamActive, runAgentTeam } from '../../src/shared/agent-teams/runner';
 interface CreateDesktopTaskPlanInput {
-  ai: GoogleGenerativeAI;
+  ai: DesktopInference;
   config: DesktopAgentConfig;
   task: string;
   screenshotBase64: string;
@@ -47,8 +47,7 @@ export async function createDesktopTaskPlan(input: CreateDesktopTaskPlanInput): 
     const team = await runAgentTeam({
       plan: teamPlan, surface: 'computer', source: input.contextoEntorno, signal: input.signal,
       generate: async worker => {
-        const model = ai.getGenerativeModel({ model: config.model, systemInstruction: worker.instruction, generationConfig: { maxOutputTokens: worker.maxOutputTokens } });
-        return (await model.generateContent(worker.input, { signal: worker.signal })).response.text();
+        return ai(`${worker.instruction}\n\n${worker.input}`, { signal: worker.signal, maxOutputTokens: worker.maxOutputTokens });
       },
       onEvent: event => console.info('[Equipo planificación]', JSON.stringify(event)),
     });
@@ -61,13 +60,11 @@ export async function createDesktopTaskPlan(input: CreateDesktopTaskPlanInput): 
 
   if (config.hierarchicalPlanningEnabled) {
     try {
-      const proModel = ai.getGenerativeModel({ model: config.proactiveModel });
-      const result = await proModel.generateContent([
-        { inlineData: { mimeType: 'image/png', data: screenshotBase64 } },
-        { text: buildStrategicPlanPrompt(planningTask, promptOptions) },
-      ], { signal: input.signal });
+      const result = await ai(buildStrategicPlanPrompt(planningTask, promptOptions), {
+        images: [`data:image/png;base64,${screenshotBase64}`], json: true, signal: input.signal,
+      });
       assertTeamActive(input.signal);
-      const parsed = parseVisionResponse(result.response.text()) as ParsedPlan;
+      const parsed = parseVisionResponse(result) as ParsedPlan;
 
       if (parsed.phases && parsed.phases.length > 0) {
         const strategicPlan: StrategicPlan = {
@@ -107,14 +104,12 @@ export async function createDesktopTaskPlan(input: CreateDesktopTaskPlanInput): 
     }
   }
 
-  const model = ai.getGenerativeModel({ model: config.model });
   try {
-    const result = await model.generateContent([
-      { inlineData: { mimeType: 'image/png', data: screenshotBase64 } },
-      { text: buildFlatPlanPrompt(planningTask, promptOptions) },
-    ], { signal: input.signal });
+    const result = await ai(buildFlatPlanPrompt(planningTask, promptOptions), {
+      images: [`data:image/png;base64,${screenshotBase64}`], json: true, signal: input.signal,
+    });
     assertTeamActive(input.signal);
-    const parsed = parseVisionResponse(result.response.text()) as ParsedPlan;
+    const parsed = parseVisionResponse(result) as ParsedPlan;
     return {
       strategicPlan: null,
       taskPlan: {

@@ -1,4 +1,4 @@
-export { createComputerUseClient, loadGenAiSdk, type CuClient, type CuClientOptions, type CuTurn } from './client';
+export { createComputerUseClient, type CuClient, type CuClientOptions, type CuTurn } from './client';
 export { mapCuFunctionCall, denormalizar, normalizarTeclas, extraerSafety } from './action-mapping';
 export { createDesktopCuDriver, ejecutarAccionDesktop, type DesktopCuDriverDeps } from './desktop-driver';
 export { createBrowserCuDriver, traducirTeclasPlaywright, type PlaywrightPage } from './browser-driver';

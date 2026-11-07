@@ -1,0 +1,164 @@
+{
+  "date": "2026-10-22",
+  "base": "e166d250629e503cf12f69449fb6d66e569134c8",
+  "publicMethodsPreserved": true,
+  "count": 26,
+  "methods": [
+    {
+      "name": "addEvidence",
+      "parameters": [
+        "input: { workspaceId: string; projectId: string; evidence: Record<string, unknown> }"
+      ]
+    },
+    {
+      "name": "addMember",
+      "parameters": [
+        "input: { workspaceId: string; projectId: string; userId: string; role: string }"
+      ]
+    },
+    {
+      "name": "completeUpload",
+      "parameters": [
+        "input: { workspaceId: string; projectId: string; evidenceId: string }"
+      ]
+    },
+    {
+      "name": "createBrowserCollection",
+      "parameters": [
+        "input: { workspaceId: string; projectId: string; collection: Record<string, unknown> }"
+      ]
+    },
+    {
+      "name": "createProject",
+      "parameters": [
+        "input: { workspaceId: string; project: Record<string, unknown> }"
+      ]
+    },
+    {
+      "name": "createTask",
+      "parameters": [
+        "input: { workspaceId: string; projectId: string; task: Record<string, unknown> }"
+      ]
+    },
+    {
+      "name": "createUploadIntent",
+      "parameters": [
+        "input: { workspaceId: string; projectId: string; files: Record<string, unknown>[] }"
+      ]
+    },
+    {
+      "name": "exchangeSofiaToken",
+      "parameters": [
+        "sofiaAccessToken: string"
+      ]
+    },
+    {
+      "name": "findProjectWorkspace",
+      "parameters": [
+        "projectId: string"
+      ]
+    },
+    {
+      "name": "getAnalytics",
+      "parameters": [
+        "input: { workspaceId: string; projectId: string }"
+      ]
+    },
+    {
+      "name": "getDownload",
+      "parameters": [
+        "input: { workspaceId: string; projectId: string; evidenceId: string }"
+      ]
+    },
+    {
+      "name": "getEvidence",
+      "parameters": [
+        "input: { workspaceId: string; projectId: string; evidenceId: string }"
+      ]
+    },
+    {
+      "name": "getProject",
+      "parameters": [
+        "input: { workspaceId: string; projectId: string }"
+      ]
+    },
+    {
+      "name": "getStatus",
+      "parameters": []
+    },
+    {
+      "name": "importMeeting",
+      "parameters": [
+        "input: { workspaceId: string; projectId: string; idempotencyKey: string; meeting: Record<string, unknown> }"
+      ]
+    },
+    {
+      "name": "listEvidence",
+      "parameters": [
+        "input: { workspaceId: string; projectId: string }"
+      ]
+    },
+    {
+      "name": "listMembers",
+      "parameters": [
+        "input: { workspaceId: string; projectId: string }"
+      ]
+    },
+    {
+      "name": "listProjects",
+      "parameters": [
+        "input: { workspaceId: string; search?: string; cursor?: string }"
+      ]
+    },
+    {
+      "name": "listTasks",
+      "parameters": [
+        "input: { workspaceId: string; projectId: string }"
+      ]
+    },
+    {
+      "name": "logout",
+      "parameters": []
+    },
+    {
+      "name": "removeMember",
+      "parameters": [
+        "input: { workspaceId: string; projectId: string; memberId: string }"
+      ]
+    },
+    {
+      "name": "restore",
+      "parameters": []
+    },
+    {
+      "name": "retryAuthentication",
+      "parameters": []
+    },
+    {
+      "name": "updateMember",
+      "parameters": [
+        "input: { workspaceId: string; projectId: string; memberId: string; role: string }"
+      ]
+    },
+    {
+      "name": "updateProject",
+      "parameters": [
+        "input: { workspaceId: string; projectId: string; updates: Record<string, unknown> }"
+      ]
+    },
+    {
+      "name": "updateTask",
+      "parameters": [
+        "input: { workspaceId: string; projectId: string; taskId: string; updates: Record<string, unknown> }"
+      ]
+    }
+  ],
+  "constructor": "baseUrl conserva su argumento y default; storage opcional permite inyectar custodia en pruebas",
+  "layersReviewed": [
+    "electron/project-hub-handlers.ts",
+    "electron/preload/project-hub-api.ts",
+    "electron/preload/channel-group-5.ts",
+    "src/services/project-hub-api.ts"
+  ],
+  "ipcSecurityCertified": false
+}

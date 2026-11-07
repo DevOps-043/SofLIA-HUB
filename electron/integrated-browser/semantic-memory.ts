@@ -1,18 +1,10 @@
-import { GoogleGenAI } from '@google/genai';
+import { embedSessionTexts } from '../ai-provider/embeddings';
 import { BROWSER_SEMANTIC_LIMITS as LIMIT, validateBrowserSemanticRequest, type BrowserSemanticRequest, type BrowserSemanticResponse, type BrowserSemanticSource } from '../../src/shared/browser-semantic-memory';
 import { BrowserSemanticMemoryStore, EMPTY_SEMANTIC_SNAPSHOT, normalizeSemanticVector, semanticSource } from './semantic-memory-store';
 
 export type SemanticEmbedder = (texts: string[], query: boolean, signal: AbortSignal) => Promise<number[][]>;
-export function googleSemanticEmbedder(key: () => string | null): SemanticEmbedder {
-  return async (texts, query, signal) => {
-    const apiKey = key();
-    if (!apiKey) throw new Error('Configura Gemini antes de reconstruir o buscar.');
-    const result = await new GoogleGenAI({ apiKey }).models.embedContent({ model: 'gemini-embedding-001', contents: texts,
-      config: { outputDimensionality: LIMIT.dimensions, taskType: query ? 'RETRIEVAL_QUERY' : 'RETRIEVAL_DOCUMENT', abortSignal: signal, httpOptions: { timeout: 30_000 } } });
-    if (!result.embeddings || result.embeddings.length !== texts.length) throw new Error('Respuesta de memoria incompleta.');
-    return result.embeddings.map(item => normalizeSemanticVector(item.values));
-  };
-}
+const openAISemanticEmbedder: SemanticEmbedder = async (texts, _query, signal) =>
+  (await embedSessionTexts(texts, LIMIT.dimensions, signal)).map(normalizeSemanticVector);
 export interface SemanticContext {
   guard: () => void;
   sources: () => Promise<BrowserSemanticSource[]>;
@@ -32,8 +24,7 @@ function cancellable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
 export class BrowserSemanticMemory {
   private active: { location: string; controller: AbortController } | null = null;
   private revision = 0;
-  constructor(private readonly store = new BrowserSemanticMemoryStore(), private embed: SemanticEmbedder = googleSemanticEmbedder(() => null)) {}
-  configureKey(provider: () => string | null): void { this.embed = googleSemanticEmbedder(provider); }
+  constructor(private readonly store = new BrowserSemanticMemoryStore(), private readonly embed: SemanticEmbedder = openAISemanticEmbedder) {}
   cancel(): void { this.active?.controller.abort(); }
   prepareRecovery(guard: () => void) {
     if (this.active) throw new Error('Cancela la operación de memoria antes de recuperarla.');

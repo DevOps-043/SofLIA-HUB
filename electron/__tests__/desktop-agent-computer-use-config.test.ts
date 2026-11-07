@@ -6,31 +6,31 @@ import {
   resolveComputerUseModel,
 } from '../desktop-agent/gemini-cu/model-registry';
 import { splitKeyCombination } from '../desktop-agent/keyboard-controls';
-import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
+import { SOFLIA_DEFAULT_MODEL } from '../../src/shared/soflia-runtime-model';
 
 describe('Registro de modelos de Computer Use', () => {
-  it('CUM-001: el perfil recomendado es el modelo de Computer Use de Google', () => {
-    expect(COMPUTER_USE_MODEL_DEFAULTS.recommended).toBe(SOFLIA_RUNTIME_MODEL);
-    expect(resolveComputerUseModel(DEFAULT_CONFIG).model).toBe(SOFLIA_RUNTIME_MODEL);
-    expect(resolveComputerUseModel(DEFAULT_CONFIG).provider).toBe('google');
+  it('CUM-001: el perfil recomendado es el modelo de Computer Use de OpenAI', () => {
+    expect(COMPUTER_USE_MODEL_DEFAULTS.recommended).toBe(SOFLIA_DEFAULT_MODEL);
+    expect(resolveComputerUseModel(DEFAULT_CONFIG).model).toBe(SOFLIA_DEFAULT_MODEL);
+    expect(resolveComputerUseModel(DEFAULT_CONFIG).provider).toBe('openai');
   });
 
   it('CUM-002: los perfiles heredados permanecen en el modelo único', () => {
-    expect(resolveComputerUseModel(DEFAULT_CONFIG, 'compatibility').model).toBe(SOFLIA_RUNTIME_MODEL);
-    expect(resolveComputerUseModel(DEFAULT_CONFIG, 'economy').model).toBe(SOFLIA_RUNTIME_MODEL);
+    expect(resolveComputerUseModel(DEFAULT_CONFIG, 'compatibility').model).toBe(SOFLIA_DEFAULT_MODEL);
+    expect(resolveComputerUseModel(DEFAULT_CONFIG, 'economy').model).toBe(SOFLIA_DEFAULT_MODEL);
   });
 
   it('CUM-003: una configuracion heredada no puede reactivar otro modelo', () => {
     const config = { ...DEFAULT_CONFIG, computerUseModel: 'gemini-4.0-flash' };
 
-    expect(resolveComputerUseModel(config).model).toBe(SOFLIA_RUNTIME_MODEL);
+    expect(resolveComputerUseModel(config).model).toBe(SOFLIA_DEFAULT_MODEL);
   });
 
   it('CUM-004: un modelo en blanco cae al default en vez de llamar a la API sin modelo', () => {
     const config = { ...DEFAULT_CONFIG, computerUseModel: '   ', computerUseFallbackModel: '  ' };
 
-    expect(resolveComputerUseModel(config).model).toBe(SOFLIA_RUNTIME_MODEL);
-    expect(resolveComputerUseModel(config, 'compatibility').model).toBe(SOFLIA_RUNTIME_MODEL);
+    expect(resolveComputerUseModel(config).model).toBe(SOFLIA_DEFAULT_MODEL);
+    expect(resolveComputerUseModel(config, 'compatibility').model).toBe(SOFLIA_DEFAULT_MODEL);
   });
 
   it('CUM-005: no existe degradacion silenciosa de perfil', () => {
@@ -40,7 +40,7 @@ describe('Registro de modelos de Computer Use', () => {
   });
 
   it('CUM-006: el motor CU y la deteccion de inyeccion vienen activados', () => {
-    expect(DEFAULT_CONFIG.computerUseEngine).toBe('gemini');
+    expect(DEFAULT_CONFIG.computerUseEngine).toBe('openai');
     expect(DEFAULT_CONFIG.computerUsePromptInjectionDetection).toBe(true);
     // La captura por monitor activo es lo que mantiene legibles los controles
     // y hace convertible la coordenada en un escritorio de 3 pantallas.

@@ -1,0 +1,11 @@
+# Contexto del cambio
+
+- Objetivo: retirar MSAL afectado por GHSA-xcx6-jx8p-x3h5 y reparar intercambio OAuth de calendario con vínculo por intento y limpieza verificable.
+- Usuario o actor: persona autenticada que conecta Google/Microsoft mediante IPC existente; proveedores y callback loopback son fronteras no confiables.
+- Alcance: MSAL 7.1.1, PublicClientApplication sin secreto, state/PKCE y nonce OIDC Microsoft; receptor HTTP estricto compartido, navegador del sistema y ventana local de estado/cancelación; invalidación de sesión antes/después de esperas y custodia existente.
+- No objetivos: nuevos scopes/canales, cambiar registros de proveedores o secretos/.env, autenticación real con cuentas, persistir caché MSAL o renovar Microsoft, modificar conexiones guardadas, backend o SQL, despliegue.
+- Restricciones: preservar veintidós unidades y worktrees; misma rama sin concurrencia física. No exponer códigos/verificadores/tokens a renderer/logs, no admitir endpoints arbitrarios ni efectos tras contexto inválido.
+- Contratos afectados: API interna de ventana OAuth recibe prueba/guard; servicios públicos conservan respuesta y cuatro capas. URI/puerto callback 8234 se mantiene. El login ocurre en navegador externo; la ventana local mantiene cierre para cancelar.
+- Riesgo y HITL: cambio de autenticación sensible, scopes iguales y conexión iniciada explícitamente por usuario; QA usa HTTP local, SDK/transporte controlados y shell falso, sin navegador/cuentas reales. Sin aprobación adicional para implementar código reversible.
+- Criterios verificables: cliente actual falla sin secreto (confirmado invalid_client_credential), público soportado; state ajeno/path/método/host/duplicados/código URL no completan; proof S256 vinculada; servidor escucha antes de abrir navegador; cancelación, timeout, EADDRINUSE, error y A/B/A cierran recursos; no se persiste tras sesión inválida; SDK real sin red externa, audit/gate/build y smoke nativo con fixtures.
+- Incertidumbres: no certifica consentimientos/tenant/registro real, ni renovación Microsoft/caché persistida. Cambios v6/v7 afectan acquireTokenInteractive; el flujo manual getAuthCodeUrl/acquireTokenByCode se conserva y se prueba con SDK nuevo. Se mantiene deuda del secreto Google distribuido hasta backend apropiado.

@@ -1,6 +1,4 @@
-import { getWhatsAppOpenAIClient } from './wa-agent/openai-client';
-import { GoogleGenAI } from '@google/genai';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getSessionOpenAIClient } from './ai-provider/session-client';
 import type { WhatsAppService } from './whatsapp-service';
 import type { CalendarService } from './calendar-service';
 import type { GmailService } from './gmail-service';
@@ -28,14 +26,12 @@ import { buildWhatsAppVoiceTransport, deliverWhatsAppAgentReply } from './wa-age
 import { openVoiceCall } from './voice-call/delivery';
 import type { AgentLoopOptions, PendingConfirmation } from './wa-agent/types';
 
-type GeminiTextHistoryEntry = { role: string; parts: Array<{ text: string }> };
+type TextHistoryEntry = { role: string; parts: Array<{ text: string }> };
 
-const conversations = new Map<string, GeminiTextHistoryEntry[]>();
+const conversations = new Map<string, TextHistoryEntry[]>();
 const pendingConfirmations = new Map<string, PendingConfirmation>();
 
 export class WhatsAppAgent {
-  genAI: GoogleGenerativeAI | null = null;
-  genAiClient: GoogleGenAI | null = null;
   calendarService: CalendarService | null = null;
   gmailService: GmailService | null = null;
   driveService: DriveService | null = null;
@@ -68,12 +64,9 @@ export class WhatsAppAgent {
   setPassiveSkillsService(service: PassiveSkillsService): void { this.passiveSkillsService = service; console.log('[WhatsApp Agent] Passive skills service connected'); }
   setCommunicationHubService(service: CommunicationHubService): void { this.communicationHubService = service; console.log('[WhatsApp Agent] Communication Hub connected'); }
   setNeuralOrganizer(service: NeuralOrganizerService): void { this.neuralOrganizer = service; console.log('[WhatsApp Agent] Neural Organizer connected'); }
-  updateApiKey(key: string): void { this.apiKey = key; this.genAI = null; this.genAiClient = null; }
+  updateApiKey(key: string): void { this.apiKey = key; }
   /** Cliente OpenAI del usuario actual para conversación y presentaciones. */
-  getOpenAIClient() { return getWhatsAppOpenAIClient(); }
-  /** Gemini permanece disponible para transcripción y herramientas especializadas. */
-  getGenAI(): GoogleGenerativeAI { this.genAI ||= new GoogleGenerativeAI(this.apiKey); return this.genAI; }
-  getGenAiClient(): GoogleGenAI { this.genAiClient ||= new GoogleGenAI({ apiKey: this.apiKey }); return this.genAiClient; }
+  getOpenAIClient() { return getSessionOpenAIClient(); }
 
   /**
    * `forceVoice` marca el turno que llego hablado: la respuesta sale hablada
@@ -97,7 +90,7 @@ export class WhatsAppAgent {
     return handleWhatsAppMediaMessage({ waService: this.waService, runAgentLoop: (...args) => this.runAgentLoop(...args), jid, senderNumber, buffer, fileName, mimetype, text, isGroup, groupPassiveHistory });
   }
   async handleAudio(jid: string, senderNumber: string, audioBuffer: Buffer, isGroup = false, groupPassiveHistory = ''): Promise<void> {
-    await handleWhatsAppAudioMessage({ waService: this.waService, getGenAI: () => this.getGenAI(), jid, senderNumber, audioBuffer, isGroup, groupPassiveHistory, handleTextMessage: (targetJid, sender, message, group, history, forceVoice) => this.handleMessage(targetJid, sender, message, group, history, forceVoice) });
+    await handleWhatsAppAudioMessage({ waService: this.waService, getOpenAIClient: () => this.getOpenAIClient(), jid, senderNumber, audioBuffer, isGroup, groupPassiveHistory, handleTextMessage: (targetJid, sender, message, group, history, forceVoice) => this.handleMessage(targetJid, sender, message, group, history, forceVoice) });
   }
 
   /**

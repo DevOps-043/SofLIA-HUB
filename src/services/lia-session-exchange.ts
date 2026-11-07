@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
 import { sofiaSupa } from '../lib/sofia-client';
 import { supabase } from '../lib/supabase';
+import { throwIfAuthCancelled, waitForAuthRetry } from './auth-cancellation';
 
 const FUNCTION_NAME = 'sofia-session-exchange';
 const MAX_ATTEMPTS = 3;
@@ -24,31 +25,38 @@ export class LiaSessionExchangeError extends Error {
 export async function exchangeSofiaForLiaSession(
   expectedEmail: string,
   suppliedAccessToken?: string | null,
+  signal?: AbortSignal,
 ): Promise<Session> {
+  throwIfAuthCancelled(signal);
   const accessToken = suppliedAccessToken || await getSofiaAccessToken();
+  throwIfAuthCancelled(signal);
   if (!accessToken) throw new LiaSessionExchangeError('not_authenticated', false);
 
   let lastError: LiaSessionExchangeError | null = null;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+    throwIfAuthCancelled(signal);
     try {
-      return await exchangeOnce(expectedEmail, accessToken);
+      return await exchangeOnce(expectedEmail, accessToken, signal);
     } catch (error) {
+      throwIfAuthCancelled(signal);
       const exchangeError = toExchangeError(error);
       lastError = exchangeError;
       if (!exchangeError.retryable || attempt === MAX_ATTEMPTS - 1) throw exchangeError;
-      await wait(RETRY_DELAYS_MS[attempt] || RETRY_DELAYS_MS[RETRY_DELAYS_MS.length - 1]);
+      await waitForAuthRetry(RETRY_DELAYS_MS[attempt] || RETRY_DELAYS_MS[RETRY_DELAYS_MS.length - 1], signal);
     }
   }
 
   throw lastError || new LiaSessionExchangeError('exchange_unavailable', true);
 }
 
-async function exchangeOnce(expectedEmail: string, accessToken: string): Promise<Session> {
+async function exchangeOnce(expectedEmail: string, accessToken: string, signal?: AbortSignal): Promise<Session> {
+  throwIfAuthCancelled(signal);
   const { data, error } = await supabase.functions.invoke<ExchangePayload>(FUNCTION_NAME, {
     body: {},
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 
+  throwIfAuthCancelled(signal);
   if (error) throw error;
   if (!data || typeof data.tokenHash !== 'string' || !data.tokenHash) {
     throw new LiaSessionExchangeError(readResponseCode(data), false);
@@ -58,6 +66,7 @@ async function exchangeOnce(expectedEmail: string, accessToken: string): Promise
     token_hash: data.tokenHash,
     type: 'magiclink',
   });
+  throwIfAuthCancelled(signal);
   if (verificationError || !verification.session) {
     throw new LiaSessionExchangeError('exchange_unavailable', true);
   }
@@ -101,8 +110,4 @@ function readStatus(error: unknown): number {
 
 function normalizeEmail(value: string | null | undefined): string {
   return value?.trim().toLowerCase() || '';
-}
-
-function wait(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 }

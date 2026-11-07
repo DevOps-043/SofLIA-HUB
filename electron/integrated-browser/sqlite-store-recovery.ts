@@ -3,6 +3,8 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { safeStorage } from 'electron';
+import { createRecoveryReviewLifetime } from './recovery-review-lifetime';
+import { publishRecoveryFile } from './recovery-file-publication';
 
 const MAX = 128 * 1024 * 1024;
 const error = () => new Error('No se pudo respaldar o recuperar el almacén SQLite. Se conservan los archivos disponibles.');
@@ -37,20 +39,11 @@ function unpack(file: string, data: Buffer): Buffer {
   if (!value || Object.keys(value).sort().join(',') !== 'data,scope,version' || value.version !== 1 || value.scope !== path.resolve(file) || typeof value.data !== 'string') throw error();
   const output = Buffer.from(value.data, 'base64'); if (output.length > MAX || output.toString('base64') !== value.data) throw error(); return output;
 }
-function cleanup(file: string, committed = false): void {
+function cleanup(file: string): void {
   try { fs.unlinkSync(file); } catch (cause) {
     if ((cause as NodeJS.ErrnoException).code === 'ENOENT') return;
-    if (!committed) throw cause;
-    console.warn('[Navegador][SQLite] Publicación completada; queda un temporal de limpieza.');
+    throw cause;
   }
-}
-function publish(file: string, data: Buffer, guard: () => void, exclusive = false): void {
-  const temporary = `${file}.${randomUUID()}.tmp`; let created = false; let committed = false;
-  try {
-    guard(); const fd = fs.openSync(temporary, 'wx', 0o600); created = true;
-    try { fs.writeFileSync(fd, data); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
-    guard(); if (exclusive) fs.linkSync(temporary, file); else fs.renameSync(temporary, file); committed = true;
-  } finally { if (created) cleanup(temporary, committed); }
 }
 function damaged(file: string): string[] {
   const prefix = `${path.basename(file)}.damaged-`;
@@ -89,7 +82,7 @@ export function backupSqlite(file: string, db: DatabaseSync, guard: () => void =
     const fd = fs.openSync(temporary, 'wx', 0o600); created = true; fs.closeSync(fd);
     db.prepare('VACUUM INTO ?').run(temporary);
     const data = read(temporary); if (!data) throw error();
-    publish(backup, pack(file, data), guard, previous === null);
+    publishRecoveryFile(backup, pack(file, data), guard, previous === null);
   } finally { if (created) cleanup(temporary); }
 }
 export function refreshSqliteBackup(file: string, db: DatabaseSync, validate?: (db: DatabaseSync) => unknown): void {
@@ -131,21 +124,28 @@ export function prepareSqliteRecovery(file: string, schema: SqliteRecoverySchema
     } finally { db?.close(); if (created) cleanup(temporary); }
   };
   let projected = project();
-  const expires = Date.now() + 300_000; let used = false; guard();
+  const lifetime = createRecoveryReviewLifetime(); guard();
+  const assertCurrent = () => { guard(); if (lifetime.expired()) throw error(); };
   return { get count() { return projected.count; }, commit: () => {
-    guard(); if (used || Date.now() > expires) throw error(); used = true; noSidecars(file);
+    guard(); if (!lifetime.consume()) throw error(); noSidecars(file);
     if (!same(original, read(file)) || !same(backup, read(sqliteBackupPath(file), MAX * 2))) throw error();
     // La retención puede vencer durante el diálogo; aplicar otra vez antes de publicar.
-    projected = project(); guard();
-    let quarantine: string | undefined; let committed = false;
+    projected = project(); assertCurrent();
+    let quarantine: string | undefined; let archived = false; let committed = false;
     try {
       if (original !== null) {
         if (damaged(file).length >= 5) throw error();
-        quarantine = `${file}.damaged-${randomUUID()}.bin`; publish(quarantine, pack(file, original), guard, true);
+        quarantine = `${file}.damaged-${randomUUID()}.bin`; publishRecoveryFile(quarantine, pack(file, original), assertCurrent, true);
+        archived = true;
       }
-      guard(); noSidecars(file);
+      assertCurrent(); noSidecars(file);
       if (!same(original, read(file)) || !same(backup, read(sqliteBackupPath(file), MAX * 2))) throw error();
-      publish(file, projected.data, guard, original === null); committed = true;
-    } finally { if (quarantine && !committed) cleanup(quarantine); }
+      publishRecoveryFile(file, projected.data, assertCurrent, original === null); committed = true;
+    } finally {
+      if (quarantine && archived && !committed) {
+        try { cleanup(quarantine); }
+        catch { console.warn('[Navegador][SQLite] Recuperación no publicada; quedó una copia protegida pendiente de limpieza.'); }
+      }
+    }
   } };
 }

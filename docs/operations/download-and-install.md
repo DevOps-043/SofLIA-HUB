@@ -237,10 +237,14 @@ export function DownloadSection() {
 
 | | Windows | macOS |
 |---|---------|-------|
-| **OS** | Windows 10+ (64-bit) | macOS 12 Monterey+ |
+| **OS** | Windows 10+ (64-bit) | macOS 13 Ventura+ |
 | **RAM** | 4 GB mínimo, 8 GB recomendado | 4 GB mínimo, 8 GB recomendado |
 | **Disco** | ~300 MB | ~300 MB |
 | **Red** | Conexión a internet requerida | Conexión a internet requerida |
+
+El mínimo macOS corresponde a [Electron 44](https://www.electronjs.org/blog/electron-44-0).
+La preparación actual del lector Python para Intel sigue pendiente de una wheel
+segura verificada; consultar [estado y alcance](../security/python-document-boundary.md).
 
 ---
 

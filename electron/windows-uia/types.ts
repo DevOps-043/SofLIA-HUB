@@ -3,9 +3,10 @@ import type { UIElement } from '../desktop-agent-types';
 export type WindowsUIAStatus = 'idle' | 'executing';
 export type WindowsUIAFailureCategory = 'none' | 'explicit_fail' | 'verification' | 'timeout' | 'no_elements' | 'no_window' | 'cancelled' | 'error';
 
-export interface WindowsUIATaskOptions { maxSteps?: number }
+export interface WindowsUIATaskOptions { maxSteps?: number; signal?: AbortSignal }
 
 export interface WindowsUIAQueueEntry {
+  execute?: () => Promise<string>;
   task: string;
   options?: WindowsUIATaskOptions;
   resolve: (value: string) => void;

@@ -1,0 +1,9 @@
+{
+  "generatedFile": "C:\\Users\\fysg5\\Desktop\\SofLIA\\Pulse Hub\\SofLIA-HUB\\desktop-agent-config.json",
+  "tracked": false,
+  "removed": true,
+  "absentBefore": true,
+  "cause": "Prueba negativa detectó fallback no retirado aún",
+  "verifiedAbsentAfter": true,
+  "savedArtifactSha256": "1add87e2adcd4160cf75f2892cde5acbb7a695872592a96e93a713e19bebf862"
+}

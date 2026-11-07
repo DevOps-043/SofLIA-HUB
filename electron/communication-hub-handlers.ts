@@ -1,37 +1,19 @@
-import { ipcMain } from 'electron';
+import type { BrowserWindow } from 'electron';
 import type { CommunicationHubService } from './communication-hub/service';
-import { handleIPC } from './utils/ipc-helpers';
+import { communicationGateway } from './communication-hub/ipc-gateway';
+import { communicationActor, communicationConnection, communicationMessage, communicationPolicy, communicationPreferences } from './communication-hub/ipc-contract';
+import type { ChannelScheduleRequest } from './communication-hub/types';
 
-export function registerCommunicationHubHandlers(service: CommunicationHubService): void {
-  ipcMain.handle('channels:get-capabilities', (_event, actor?: any) =>
-    handleIPC(async () => service.getCapabilities(actor || undefined)));
-
-  ipcMain.handle('channels:get-personal-status', (_event, actor?: any) =>
-    handleIPC(async () => service.getPersonalStatus(actor || undefined)));
-
-  ipcMain.handle('channels:update-personal-preferences', (_event, actor: any, updates: any) =>
-    handleIPC(async () => service.updatePersonalPreferences(actor || undefined, updates || {})));
-
-  ipcMain.handle('channels:get-org-status', (_event, actor?: any) =>
-    handleIPC(async () => service.getOrgStatus(actor || undefined)));
-
-  ipcMain.handle('channels:update-org-connection', (_event, actor: any, update: any) =>
-    handleIPC(async () => service.updateOrgConnection(actor || undefined, update || {})));
-
-  ipcMain.handle('channels:update-policy', (_event, actor: any, updates: any) =>
-    handleIPC(async () => service.updatePolicy(actor || undefined, updates || {})));
-
-  ipcMain.handle('channels:list-identities', (_event, actor?: any) =>
-    handleIPC(async () => service.listIdentities(actor || undefined)));
-
-  ipcMain.handle('channels:list-history', (_event, actor?: any) =>
-    handleIPC(async () => service.listHistory(actor || undefined)));
-
-  ipcMain.handle('channels:send-message', (_event, request: any) =>
-    handleIPC(async () => service.sendMessage(request || {})));
-
-  ipcMain.handle('channels:schedule-message', (_event, request: any) =>
-    handleIPC(async () => service.scheduleMessage(request || {})));
-
-  console.log('[CommunicationHubHandlers] Registered successfully');
+export function registerCommunicationHubHandlers(service: CommunicationHubService, windows: () => (BrowserWindow | null)[]): void {
+  const { register } = communicationGateway(service, windows);
+  register('channels:get-capabilities', 1, (args, actor) => service.getCapabilities(communicationActor(args[0], actor)));
+  register('channels:get-personal-status', 1, (args, actor) => service.getPersonalStatus(communicationActor(args[0], actor)));
+  register('channels:get-org-status', 1, (args, actor) => service.getOrgStatus(communicationActor(args[0], actor)));
+  register('channels:list-identities', 1, (args, actor) => service.listIdentities(communicationActor(args[0], actor)));
+  register('channels:list-history', 1, (args, actor) => service.listHistory(communicationActor(args[0], actor)));
+  register('channels:update-personal-preferences', 2, (args, actor) => service.updatePersonalPreferences(communicationActor(args[0], actor), communicationPreferences(args[1])));
+  register('channels:update-org-connection', 2, (args, actor) => service.updateOrgConnection(communicationActor(args[0], actor), communicationConnection(args[1])));
+  register('channels:update-policy', 2, (args, actor) => service.updatePolicy(communicationActor(args[0], actor), communicationPolicy(args[1])));
+  register('channels:send-message', 1, (args, actor) => service.sendMessage(communicationMessage(args[0], actor, false)));
+  register('channels:schedule-message', 1, (args, actor) => service.scheduleMessage(communicationMessage(args[0], actor, true) as ChannelScheduleRequest));
 }

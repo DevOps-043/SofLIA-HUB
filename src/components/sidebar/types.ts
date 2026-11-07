@@ -1,4 +1,5 @@
 import type { MouseEvent } from 'react';
+import type { ProjectNavigation } from '../project-workspace/types';
 import type { Conversation } from '../../services/chat-service';
 import type { Folder } from '../../services/folder-service';
 import type { IrisIssue, IrisProject, IrisTeam } from '../../lib/iris-client';
@@ -6,6 +7,7 @@ import type { SofiaOrganization } from '../../lib/sofia-client';
 import type { ThemeMode } from '../../hooks/useTheme';
 
 export interface SidebarProps {
+  projectNavigation?: ProjectNavigation;
   isOpen: boolean;
   position?: 'left' | 'right' | 'bottom';
   onToggle: () => void;

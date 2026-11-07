@@ -24,10 +24,12 @@ function fixture() {
     pathMemoryService: { stop: vi.fn() },
     clipboardAssistant: { stop: vi.fn() },
     meetingPassiveDetectionService: { stopPolling: vi.fn() },
+    calendarService: { dispose: vi.fn() },
   };
   const controls = { createWindow: vi.fn(), routeShareLinkToRenderer: vi.fn(), routeAuthCallbackToRenderer: vi.fn(), routeMeetingTriggerToRenderer: vi.fn(), routeLearningSessionToRenderer: vi.fn() };
-  registerAppLifecycle({ services, state, controls });
-  return { events, services, state, controls };
+  const stopRemoteNodes = vi.fn(async () => undefined);
+  registerAppLifecycle({ services, state, controls, stopRemoteNodes });
+  return { events, services, state, controls, stopRemoteNodes };
 }
 
 const settle = async () => { for (let i = 0; i < 8; i += 1) await Promise.resolve(); };
@@ -67,6 +69,8 @@ describe('cierre de la aplicación', () => {
     f.events.emit('will-quit', { preventDefault: vi.fn() });
     expect(f.services.pathMemoryService.stop).toHaveBeenCalledOnce();
     expect(f.services.updaterService.stop).toHaveBeenCalledOnce();
+    expect(f.services.calendarService.dispose).toHaveBeenCalledOnce();
+    expect(f.stopRemoteNodes).toHaveBeenCalledOnce();
     expect(globalShortcut.unregisterAll).toHaveBeenCalledOnce();
   });
 

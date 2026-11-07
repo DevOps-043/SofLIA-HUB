@@ -1,0 +1,8 @@
+{
+  "count": 3482,
+  "before": "e6a0eafd596d39f35eb8e9e944107112de339ebaeb309b7358b8ccd9ff9e6632",
+  "after": "e6a0eafd596d39f35eb8e9e944107112de339ebaeb309b7358b8ccd9ff9e6632",
+  "changed": [],
+  "copiedFilesMatching": 3462,
+  "scope": "Fuentes build, Python, workflows y configuración ESLint; excluye secretos y perfiles."
+}

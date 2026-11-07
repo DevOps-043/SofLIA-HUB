@@ -53,7 +53,6 @@ export function createMainServices(modules: any) {
     enabled: false,
     schedule: '0 8 * * 1-5',
     ownerNumber: '',
-    apiKey: '',
   }, waService);
   const telegramService = new modules.TelegramService();
   const communicationHubService = new modules.CommunicationHubService({

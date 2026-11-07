@@ -1,10 +1,10 @@
-import type { GoogleGenerativeAI } from '@google/generative-ai';
+import type { DesktopInference } from './inference';
 import type { StrategicPlan, TaskPlan } from '../desktop-agent-types';
 import { parseVisionResponse } from './parsers';
 import { buildPhaseCompletionPrompt } from './planning-prompts';
 
 interface CheckPhaseCompletionInput {
-  ai: GoogleGenerativeAI;
+  ai: DesktopInference;
   modelName: string;
   screenshotBase64: string;
   strategicPlan: StrategicPlan | null;
@@ -19,19 +19,17 @@ type PhaseCompletionPayload = {
 };
 
 export async function checkStrategicPhaseCompletion(input: CheckPhaseCompletionInput): Promise<void> {
-  const { ai, modelName, screenshotBase64, strategicPlan, currentPlan, currentStep, emit } = input;
+  const { ai, screenshotBase64, strategicPlan, currentPlan, currentStep, emit } = input;
   if (!strategicPlan) return;
 
   const phase = strategicPlan.phases[strategicPlan.currentPhaseIndex];
   if (!phase || phase.status !== 'in_progress') return;
 
   try {
-    const model = ai.getGenerativeModel({ model: modelName });
-    const result = await model.generateContent([
-      { inlineData: { mimeType: 'image/png', data: screenshotBase64 } },
-      { text: buildPhaseCompletionPrompt(phase) },
-    ]);
-    const parsed = parseVisionResponse(result.response.text()) as PhaseCompletionPayload;
+    const result = await ai(buildPhaseCompletionPrompt(phase), {
+      images: [`data:image/png;base64,${screenshotBase64}`], json: true,
+    });
+    const parsed = parseVisionResponse(result) as PhaseCompletionPayload;
 
     if (!parsed.completed) {
       return;

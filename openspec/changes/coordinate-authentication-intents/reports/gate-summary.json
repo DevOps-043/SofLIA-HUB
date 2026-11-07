@@ -1,0 +1,77 @@
+{
+  "exitCode": 0,
+  "durationSeconds": 330.3921748,
+  "stages": [
+    {
+      "script": "adapters:check",
+      "exitCode": 0
+    },
+    {
+      "script": "harness:validate",
+      "exitCode": 0
+    },
+    {
+      "script": "audit:supply-chain",
+      "exitCode": 0
+    },
+    {
+      "script": "runtime:stable",
+      "exitCode": 0
+    },
+    {
+      "script": "docs:system:check",
+      "exitCode": 0
+    },
+    {
+      "script": "docs:check",
+      "exitCode": 0
+    },
+    {
+      "script": "skills:seed:check",
+      "exitCode": 0
+    },
+    {
+      "script": "openspec:validate",
+      "exitCode": 0
+    },
+    {
+      "script": "test:quality",
+      "exitCode": 0
+    },
+    {
+      "script": "python-tools:test",
+      "exitCode": 0
+    },
+    {
+      "script": "typecheck",
+      "exitCode": 0
+    },
+    {
+      "script": "lint:changed",
+      "exitCode": 0
+    },
+    {
+      "script": "test",
+      "exitCode": 0
+    }
+  ],
+  "tests": {
+    "passed": 5989,
+    "skipped": 5,
+    "total": 5994
+  },
+  "files": {
+    "passed": 516,
+    "skipped": 2,
+    "total": 518
+  },
+  "toolingTests": 51,
+  "pythonTests": 33,
+  "pythonVersion": "3.12.11",
+  "lintFiles": 440,
+  "markdownFiles": 788,
+  "stableSources": 3523,
+  "node": "v26.7.0",
+  "electron": "44.9.3",
+  "remoteExecuted": false
+}

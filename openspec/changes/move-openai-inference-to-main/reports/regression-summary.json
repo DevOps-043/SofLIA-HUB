@@ -1,0 +1,19 @@
+{
+  "red": {
+    "failed": 1,
+    "passed": 0,
+    "sha256": "fed00ff87d0880e5c81a937be5ef4a7909a40cb3e732c0632646eabef2b6b1c0"
+  },
+  "structuredErrorRed": {
+    "failed": 2,
+    "passed": 13,
+    "sha256": "e2709ec142184bb29ea29375f8410df0905824e3069846c2b5a242fa41171fb8"
+  },
+  "directed": {
+    "passed": 194,
+    "failed": 0,
+    "newCases": 74,
+    "sha256": "48cf1aea7cc7a6d9f028f1e4b3e7c1d4f690bd0442a56ea064a3435700e041c4"
+  },
+  "scope": "SDK OpenAI real con fetch ficticio, handlers/preload/puerto y consumidores reales con efectos sustituidos; transición Auth/Lia. Sin GUI/cuentas/claves reales."
+}

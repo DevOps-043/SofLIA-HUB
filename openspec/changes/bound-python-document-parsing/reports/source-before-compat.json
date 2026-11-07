@@ -1,0 +1,55 @@
+{
+  "at": "2026-10-24T02:42:10.5961918Z",
+  "sources": [
+    {
+      "includedInAppBuild": false,
+      "file": "python/tools_sidecar/documents.py",
+      "sha256": "3e9b6c1225890da769c53fefe37a574e1c3c97b4e5191c29df9e3eb67d2b34e4"
+    },
+    {
+      "includedInAppBuild": false,
+      "file": "python/tools_sidecar/document_errors.py",
+      "sha256": "ce5de7b8a041b93bdd9dff93df9250057c13ad73779c79f50daabb33720a7183"
+    },
+    {
+      "includedInAppBuild": false,
+      "file": "python/tools_sidecar/document_budget.py",
+      "sha256": "b1361a448be7c3b50b8e359e2af0215a79925e491288c36013dcfde2e7be0b26"
+    },
+    {
+      "includedInAppBuild": false,
+      "file": "python/tools_sidecar/office_preflight.py",
+      "sha256": "ac1bc0290efb6b80c0bf0076dea618c43d052398a5c1e2f62bd202c38e781a7e"
+    },
+    {
+      "includedInAppBuild": false,
+      "file": "python/tools_sidecar/main.py",
+      "sha256": "d13a13191ec678e595ac933d20747aa3523a3aa9854fb9aaa5a6d982b13e3ca1"
+    },
+    {
+      "includedInAppBuild": false,
+      "file": "python/tools_sidecar/tests/test_document_resources.py",
+      "sha256": "2168fc0159bc0053a21168807a11e8d97d89f45ca0d9961b41b9523f7e1dcc6b"
+    },
+    {
+      "includedInAppBuild": false,
+      "file": "python/tools_sidecar/tests/test_documents_privacy.py",
+      "sha256": "003e1170a5835168a4dfbbc6ef66fc93662200a7536cbf0b3d1ce85f6da2f231"
+    },
+    {
+      "includedInAppBuild": false,
+      "file": "python/tools_sidecar/tests/run_tests.py",
+      "sha256": "49e85658031b4fffcc8fe810191245672276fe1361810b34a4de575810bac6db"
+    },
+    {
+      "includedInAppBuild": true,
+      "file": "electron/python/tools-contract.ts",
+      "sha256": "278c8acd18940a942b862b3a97d6968a780e820e09b7319d586ad6cd85ee7d12"
+    },
+    {
+      "includedInAppBuild": true,
+      "file": "electron/__tests__/python-tools-contract.test.ts",
+      "sha256": "0fffb76d623ec74af556c5cea5202c148f5c6ccb3b12e734fa36c79b1ce1704a"
+    }
+  ]
+}

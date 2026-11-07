@@ -1,0 +1,46 @@
+{
+  "comando": "npm run app:smoke:build",
+  "directorioTemporal": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-app-build-2gQZ5Q",
+  "node": "v26.7.0",
+  "informe": {
+    "version": 1,
+    "at": "2026-10-22T18:29:44.076Z",
+    "exitCode": 0,
+    "sourceFiles": 3258,
+    "envFilesCopied": false,
+    "packaged": false,
+    "applicationStarted": false
+  },
+  "artefactos": [
+    {
+      "ruta": "dist/index.html",
+      "bytes": 460,
+      "sha256": "bdb2484780176affc31296dc8bd80f31108d440f4045630e40f7658cf6f96def"
+    },
+    {
+      "ruta": "dist-electron/main.js",
+      "bytes": 184091,
+      "sha256": "1646e453e117ca109ce4d6bae41c54953ee4605a3a00c2be31d08568a9534142"
+    },
+    {
+      "ruta": "dist-electron/preload.js",
+      "bytes": 46394,
+      "sha256": "eeada63a0898031de86184458c636e6a43dc8696cfafb250e59eca40896c1c7c"
+    },
+    {
+      "ruta": "dist/presentation/presentation-runtime.iife.js",
+      "bytes": 895486,
+      "sha256": "23a06410288a6b71a84f73b141b879ecedea86faf3788f3ccc4747d3f5f1e162"
+    },
+    {
+      "ruta": "dist/audiovisual/film-runtime.iife.js",
+      "bytes": 223019,
+      "sha256": "1e497c8583b88e5b2c8ff1299eb48e121afc5a3073a06351f574841a0d61109d"
+    },
+    {
+      "ruta": "dist/zoom-runtime/index.html",
+      "bytes": 489,
+      "sha256": "86ccc046c0eb931d8fe2599ac3d0a3de8dc73fea00df5ec2b8cdbac705b6b9fb"
+    }
+  ]
+}

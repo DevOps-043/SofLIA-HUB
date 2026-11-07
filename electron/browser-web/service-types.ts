@@ -1,4 +1,4 @@
-import type { GoogleGenerativeAI } from '@google/generative-ai';
+import type { Page } from 'playwright-core';
 import type {
   BrowserActionPayload,
   BrowserHistoryEntry,
@@ -38,16 +38,15 @@ export interface BrowserWebRuntimeApi {
 }
 
 export interface BrowserWebEngineApi {
-  getGenAI(): GoogleGenerativeAI;
   getPlaywright(): Promise<PlaywrightModule>;
   ensurePage(options?: BrowserTaskOptions): Promise<any>;
   disposeBrowserResources(): Promise<void>;
   launchBrowser(playwright: PlaywrightModule): Promise<any>;
   launchPersistentContext(playwright: PlaywrightModule, profileId: string): Promise<any>;
-  shouldNavigateToStartUrl(page: any, startUrl: string): boolean;
-  collectSnapshot(page: any): Promise<BrowserPageSnapshot>;
-  decideNextAction(task: string, snapshot: BrowserPageSnapshot, history: BrowserHistoryEntry[]): Promise<BrowserActionPayload>;
-  executeAction(page: any, action: BrowserActionPayload): Promise<void>;
+  shouldNavigateToStartUrl(page: Page, startUrl: string): boolean;
+  collectSnapshot(page: Page, signal?: AbortSignal): Promise<BrowserPageSnapshot>;
+  decideNextAction(task: string, snapshot: BrowserPageSnapshot, history: BrowserHistoryEntry[], signal?: AbortSignal): Promise<BrowserActionPayload>;
+  executeAction(page: Page, action: BrowserActionPayload, signal?: AbortSignal): Promise<void>;
 }
 
 export type BrowserTaskFinalStatus = 'completed' | 'failed' | 'cancelled' | 'error';

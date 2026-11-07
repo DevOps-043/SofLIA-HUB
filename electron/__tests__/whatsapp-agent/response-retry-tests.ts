@@ -42,7 +42,6 @@ export function registerResponseRetryTests(ctx: ResponseRetryContext): void {
       vi.mocked(detectActionRequest).mockReturnValue(true);
       vi.mocked(executeWhatsAppTools).mockResolvedValueOnce({
         responses: [{ functionResponse: { name: 'web_search', response: { success: true, results: 'Capitulo 5 del CCNA' } } }],
-        bulkLabelsToVerify: null,
       });
 
       ctx.mockSendMessage

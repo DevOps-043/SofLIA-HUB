@@ -1,3 +1,5 @@
+import { captureSessionOperation } from '../ai-provider/session-operation';
+import { EMBEDDING_MODEL } from '../ai-provider/embeddings';
 export async function embedAndStoreMemoryChunks(
   service: any,
   sessionKey: string,
@@ -6,23 +8,26 @@ export async function embedAndStoreMemoryChunks(
   startTime: number,
   endTime: number,
 ): Promise<void> {
-  if (!service.db || !service.apiKey) return;
+  if (!service.db) return;
 
-  const chunks = service.chunkText(text);
-  const phoneNumber = sessionKey.includes(':') ? sessionKey.split(':').pop()! : sessionKey;
-  for (const chunk of chunks) {
-    try {
-      const embedding = await service.embedText(chunk);
+  const operation = captureSessionOperation();
+  try {
+    const chunks = service.chunkText(text);
+    const phoneNumber = sessionKey.includes(':') ? sessionKey.split(':').pop()! : sessionKey;
+    for (const chunk of chunks) {
+      operation.assert();
+      const embedding = await service.embedText(chunk, operation.signal);
+      operation.assert();
       if (!embedding) continue;
       service.db.prepare(`
         INSERT INTO memory_chunks (session_key, phone_number, chunk_text, embedding, source_type, source_start_time, source_end_time)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(sessionKey, phoneNumber, chunk, JSON.stringify(embedding), sourceType, startTime, endTime);
-    } catch (err: any) {
-      console.error('[MemoryService] embedAndStoreChunks error:', err.message);
+      `).run(sessionKey, phoneNumber, chunk, JSON.stringify({ model: EMBEDDING_MODEL, vector: embedding }), sourceType, startTime, endTime);
     }
+  } finally {
+    operation.dispose();
+    service.embeddingCache.delete(sessionKey);
   }
-  service.embeddingCache.delete(sessionKey);
 }
 
 export async function embedConversationMemoryChunks(

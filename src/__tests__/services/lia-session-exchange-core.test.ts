@@ -34,6 +34,14 @@ describe('Nucleo del intercambio federado SOFIA', () => {
     expect(readBearerToken(null)).toBeNull();
   });
 
+  it('registra la etapa federada sin exponer el fallo de almacenamiento al cliente', async () => {
+    const reportUnavailable = vi.fn();
+    vi.mocked(dependencies.recordFederatedIdentity).mockRejectedValueOnce(new Error('detalle-privado-ficticio'));
+    const result = await exchangeSofiaSession('Bearer token-ficticio', { ...dependencies, reportUnavailable });
+    expect(result).toEqual({ status: 503, body: { code: 'exchange_unavailable' } });
+    expect(reportUnavailable).toHaveBeenCalledExactlyOnceWith('federated_identity');
+  });
+
   it('AUTH-030: token ausente se niega antes de cualquier operacion administrativa', async () => {
     const result = await exchangeSofiaSession(null, dependencies);
 

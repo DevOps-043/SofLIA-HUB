@@ -1,0 +1,14 @@
+{
+  "red": {
+    "failed": 5,
+    "passed": 0,
+    "sha256": "6b061503303c366c2e936630522c5956d5d5eaf6d5e978a5f574b8a97a63ed25"
+  },
+  "directed": {
+    "passed": 226,
+    "failed": 0,
+    "newCases": 77,
+    "sha256": "94d8325d752f60ea5bf33c6f684b6cdd9efbc28fefb56093942c04055aacf994"
+  },
+  "scope": "Wrapper/preload/allowlist/handler, dispatcher sustituido y pruebas existentes de herramientas con puertos sustituidos. Sin GUI, correo, cuentas ni recursos reales del usuario."
+}

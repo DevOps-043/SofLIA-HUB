@@ -1,0 +1,16 @@
+{
+  "stableSources": 3480,
+  "inventoryUnchanged": true,
+  "selected": {
+    "package.json": "0d0e757fe046711c52f8508f89f4253876048fed2f78bf9af18411a60f7be734",
+    "package-lock.json": "16e0accb2c755825427afaa8f41e1a0760627d67a8b8305e2cc0ccb79d9563c1",
+    "eslint.config.mjs": "71bddd70770c231d71cdad77f0288ea73e7d649cbb198a0b1ce336a952e9f526",
+    "scripts/quality/document-export-dependencies.test.mjs": "655c932deeafbcc3f53e45c62c7b45361dcd936c8cc6e177a1321354437193cb",
+    "scripts/quality/smoke-document-export.mjs": "e5d248978c6e4bd0c44d09ca7a16c59ac1dd98484991b9f4a52f768c13b83e42",
+    "test/manual/document-export/contracts.cjs": "bc4f25ceee9427c72a78484d9c9f4c741e0cb728b2864e900ac7a6f4f35f0343",
+    "test/manual/document-export/main.cjs": "54bddb2db408c89c29b40b133b35f37dc77d0b5307061e7a56799978599ab78e",
+    "electron/presentation-export/pptx.ts": "7737edf8d915ed28107803599a2add8d5c3a5b519ea7acbfa68be6de41f2c260",
+    "electron/presentation-export/legacy.ts": "114472c934401be9da77a2a9fe615cd4c7784fd0fc531588045faddb572e462c"
+  },
+  "sourceSnapshotSha256": "aee5b9963e1ba0f309862d1f186babcb821d45609efff4f2543dde118197fb12"
+}

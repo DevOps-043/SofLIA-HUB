@@ -1,0 +1,17 @@
+{
+  "stableSources": 3470,
+  "inventoryUnchanged": true,
+  "selected": {
+    "package.json": "ccbd3632bbf4e170115dc49b41da5831d36d3c45567c5d9c8062f76c6e4414d0",
+    "package-lock.json": "d8c8533741d9cd64fd0a20f8ab952a2684e6a8be5408bb3bf78b45cfb7243f2c",
+    "eslint.config.mjs": "3c66d8998b90392c468c38d9579856090f652b0593e5127cb88e4f84505888ea",
+    "electron/calendar/oauth-proof.ts": "f13d37ea00ea8d8a57346f67ad604b45addfca9e06dcf90749c0a6c0e72f3799",
+    "electron/calendar/oauth-receiver.ts": "efe742952c444e93ca9c62f679890cfe55a85a546b1b1992d3fd15dd7e4de07c",
+    "electron/calendar/oauth-window.ts": "0603a5756d094f21b653aa689b5daf4b8360ee4fe8a9c48b2f4a4667c6d7aa7c",
+    "electron/calendar/google-oauth.ts": "7d958a3c7b05ad946e4634ba12e1f97bda54cf438e5d59ee17ffdc6517c4a6e3",
+    "electron/calendar/microsoft-oauth.ts": "2b1778ca0de3b70012e16c7399ea2d455bf3cffb6cf56ae9feb0615d09fa4845",
+    "scripts/quality/smoke-calendar-oauth.mjs": "bf29478f05cf770142a853e296d86bd78dc4e9dc865016dada573c50dd066938",
+    "test/manual/calendar-oauth/main.cjs": "0441f5874c7b6ccbc29c8c9869e946ef3ea28cab7c845fe5fcdb6a318f37c542"
+  },
+  "sourceSnapshotSha256": "ebac980cfe89a5ca50e985a979367ca317e07c786d183622454269e304bb44a2"
+}

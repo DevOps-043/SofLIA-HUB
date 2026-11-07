@@ -1,4 +1,4 @@
-import type { GoogleGenerativeAI } from '@google/generative-ai';
+import type { DesktopInference } from './inference';
 import type { DesktopActionPayload, DesktopAgentConfig } from '../desktop-agent-types';
 import { getErrorMessage } from './error-utils';
 import {
@@ -9,13 +9,14 @@ import {
 type ObservationIntervalRef = ReturnType<typeof setInterval> | null;
 
 export function startContinuousDesktopObservation(input: {
+  signal?: AbortSignal;
+  onCycleEnd?: () => void;
   currentInterval: ObservationIntervalRef;
   stopObservation: () => void;
-  apiKey: string;
   objective: string;
   reactionRules?: string;
   config: DesktopAgentConfig;
-  ai: GoogleGenerativeAI;
+  ai: DesktopInference;
   isRunning: () => boolean;
   setRunning: (running: boolean) => void;
   setStatusObserving: () => void;
@@ -26,11 +27,12 @@ export function startContinuousDesktopObservation(input: {
   emit: (eventName: string, payload?: unknown) => void;
 }): ObservationIntervalRef {
   if (input.currentInterval) input.stopObservation();
-  if (!input.apiKey) throw new Error('API key de Gemini no configurada.');
 
   input.setStatusObserving();
   input.calculateScreenScale();
   return startDesktopAgentObservation({
+    signal: input.signal,
+    onCycleEnd: input.onCycleEnd,
     objective: input.objective,
     reactionRules: input.reactionRules,
     intervalMs: input.config.continuousObservationInterval,

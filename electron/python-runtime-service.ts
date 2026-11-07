@@ -15,30 +15,12 @@ import { app } from 'electron';
 import https from 'node:https';
 import path from 'node:path';
 import fs from 'node:fs';
+import { SidecarConnection, SidecarConnectionError, sidecarLaunchError, sidecarStopError } from './python/sidecar-connection';
 
-export interface VoicePassiveConfig {
-  enabled: boolean;
-  wakeWords: string[];
-  modelPath?: string;
-  micDevice?: string | number | null;
-  /** Voz Piper para el TTS local de la orbe (id del catalogo). */
-  ttsVoice: string;
-  /** Velocidad de habla (0.5-2.0). */
-  ttsSpeed: number;
-}
+import type { VoicePassiveConfig as PublicVoicePassiveConfig, TtsVoiceInfo, MicDeviceInfo } from '../src/shared/local-voice';
+export type { TtsVoiceInfo, MicDeviceInfo } from '../src/shared/local-voice';
 
-export interface TtsVoiceInfo {
-  id: string;
-  label: string;
-  installed: boolean;
-}
-
-export interface MicDeviceInfo {
-  index: number;
-  name: string;
-  default: boolean;
-}
-
+export interface VoicePassiveConfig extends PublicVoicePassiveConfig { modelPath?: string }
 export interface PythonRuntimeStatus {
   runtimeAvailable: boolean;
   sidecarRunning: boolean;
@@ -73,12 +55,6 @@ export interface SpeechStartResult {
   success: boolean;
   speechId?: string;
   error?: string;
-}
-
-interface PendingRequest {
-  resolve: (value: Record<string, unknown>) => void;
-  reject: (reason: Error) => void;
-  timer: NodeJS.Timeout;
 }
 
 const DEFAULT_CONFIG: VoicePassiveConfig = {
@@ -120,14 +96,18 @@ function hasContent(filePath: string): boolean {
 
 export class PythonRuntimeService extends EventEmitter {
   private config: VoicePassiveConfig = { ...DEFAULT_CONFIG };
-  private proc: ChildProcessWithoutNullStreams | null = null;
-  private pending = new Map<number, PendingRequest>();
-  private nextId = 1;
+  private connection: SidecarConnection | null = null;
+  private retiring: SidecarConnection | null = null;
+  private get proc(): ChildProcessWithoutNullStreams | null { return this.connection?.process ?? null; }
   private listening = false;
   private restarts = 0;
   private stopping = false;
   private lastError: string | null = null;
-  private stdoutBuffer = '';
+  private stopPromise: Promise<void> | null = null;
+  private restartTimer?: ReturnType<typeof setTimeout>;
+  private lifecycleVersion = 0;
+  private wakeVersion = 0;
+  private wakeStartPromise: Promise<{ success: boolean; error?: string }> | null = null;
   private modelDownloadProgress: number | null = null;
   private ttsDownloadProgress: number | null = null;
   private dictating = false;
@@ -137,6 +117,21 @@ export class PythonRuntimeService extends EventEmitter {
   private dictationStartPromise: Promise<DictationStartResult> | null = null;
   private activeSpeechId: string | null = null;
   private speechSequence = 0;
+  private captureAuthorization: (command: string, params: Record<string, unknown>) => void = () => { throw new Error('voice_approval_required'); };
+
+  /** Guardia exclusiva de main; no forma parte del catálogo IPC. */
+  configureCaptureAuthorization(authorize: (command: string, params: Record<string, unknown>) => void): void {
+    this.captureAuthorization = authorize;
+  }
+
+  private assertCaptureAuthorized(command: string, params: Record<string, unknown>): void {
+    if (command !== 'start_wake' && command !== 'start_dictation' && command !== 'mic_probe') return;
+    this.captureAuthorization(command, params);
+    if (command === 'mic_probe') return;
+    const expectedModel = command === 'start_wake' ? this.resolveWakeModelPath() : this.resolveDictationModelPath();
+    if (params.device !== (this.config.micDevice ?? null) || !expectedModel || params.model_path !== expectedModel
+      || command === 'start_wake' && JSON.stringify(params.wake_words) !== JSON.stringify(this.config.wakeWords)) throw new Error('voice_approval_required');
+  }
 
   async init(): Promise<void> {
     this.loadConfig();
@@ -145,12 +140,18 @@ export class PythonRuntimeService extends EventEmitter {
       return;
     }
     console.log(`[PythonRuntime] Runtime Python disponible: ${this.getPythonPath()}`);
-    if (this.config.enabled) {
-      await this.startPassiveListening();
-    }
+    // enabled es una preferencia; el coordinador main revisa la sesión antes de activar.
   }
 
   async startPassiveListening(): Promise<{ success: boolean; error?: string }> {
+    if (this.wakeStartPromise) return this.wakeStartPromise;
+    this.cancelRestart();
+    const operation = this.startWake(this.lifecycleVersion, this.wakeVersion); this.wakeStartPromise = operation;
+    try { return await operation; }
+    finally { if (this.wakeStartPromise === operation) this.wakeStartPromise = null; }
+  }
+
+  private async startWake(version: number, wakeVersion: number): Promise<{ success: boolean; error?: string }> {
     try {
       if (this.listening) return { success: true };
       if (this.activeDictationSessionId || this.dictating) {
@@ -163,6 +164,7 @@ export class PythonRuntimeService extends EventEmitter {
         return { success: false, error: msg };
       }
       await this.ensureSidecar();
+      this.assertLifecycle(version, wakeVersion);
       // Timeout amplio: el modelo grande tarda en cargar la primera vez.
       const res = await this.sendCommand('start_wake', {
         model_path: modelPath,
@@ -172,6 +174,7 @@ export class PythonRuntimeService extends EventEmitter {
         // peticion perdia las palabras iniciales mientras Vosk lo cargaba.
         preload_dictation_model: this.resolveDictationModelPath() ?? '',
       }, MODEL_START_TIMEOUT_MS);
+      this.assertLifecycle(version, wakeVersion);
       if (res.ok !== true) {
         const msg = String(res.error ?? 'El sidecar rechazo start_wake');
         this.lastError = msg;
@@ -183,47 +186,55 @@ export class PythonRuntimeService extends EventEmitter {
       return { success: true };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      this.lastError = msg;
+      if (version === this.lifecycleVersion && wakeVersion === this.wakeVersion) { this.lastError = msg; this.listening = false; }
       console.error(`[PythonRuntime] Error iniciando escucha pasiva: ${msg}`);
       return { success: false, error: msg };
     }
   }
 
   async stopPassiveListening(): Promise<void> {
-    if (!this.proc) { this.listening = false; return; }
+    this.cancelRestart(); this.wakeVersion++; this.wakeStartPromise = null; this.listening = false;
+    const connection = this.connection; if (!connection) return;
     try {
-      await this.sendCommand('stop_wake', {});
+      await connection.request('stop_wake', {}, COMMAND_TIMEOUT_MS);
     } catch { /* el sidecar puede haber muerto; el kill de stop() cubre este caso */ }
-    this.listening = false;
   }
 
   async stop(): Promise<void> {
-    this.stopping = true;
-    const proc = this.proc;
+    this.cancelRestart(); this.stopping = true; this.lifecycleVersion++; this.wakeVersion++;
+    const connection = this.connection ?? this.retiring; this.connection = null;
+    this.wakeStartPromise = null; this.dictationStartPromise = null;
     this.activeDictationSessionId = null;
     this.activeSpeechId = null;
     this.dictating = false;
-    if (!proc) return;
-    try {
-      await this.sendCommand('shutdown', {}, 2_000);
-    } catch { /* forzamos kill abajo */ }
-    if (!proc.killed) proc.kill();
-    this.proc = null;
     this.listening = false;
     this.wakeSuspended = false;
+    if (this.stopPromise) return this.stopPromise;
+    const operation = connection?.stop() ?? Promise.resolve(); this.stopPromise = operation;
+    try { await operation; }
+    catch (error) {
+      if (connection && error instanceof SidecarConnectionError && error.code === 'SIDECAR_STOP_UNCONFIRMED') {
+        this.trackRetiring(connection); this.lastError = error.message;
+      }
+      throw error;
+    }
+    finally { if (this.stopPromise === operation) this.stopPromise = null; }
   }
 
   getConfig(): VoicePassiveConfig {
     return { ...this.config, wakeWords: [...this.config.wakeWords] };
   }
 
-  async setConfig(partial: Partial<VoicePassiveConfig>): Promise<VoicePassiveConfig> {
-    const wasListening = this.listening;
+  async setConfig(partial: Partial<VoicePassiveConfig>, activate = true): Promise<VoicePassiveConfig> {
+    const version = this.lifecycleVersion;
+    const wasListening = this.listening || this.wakeStartPromise !== null;
     this.config = { ...this.config, ...partial };
+    if (!this.config.enabled) this.cancelRestart();
     this.saveConfig();
+    if (!activate) return this.getConfig();
     if (wasListening) {
       await this.stopPassiveListening();
-      if (this.config.enabled) await this.startPassiveListening();
+      if (this.config.enabled && version === this.lifecycleVersion && !this.stopping) await this.startPassiveListening();
     } else if (this.config.enabled && this.isRuntimeAvailable()) {
       await this.startPassiveListening();
     }
@@ -253,13 +264,14 @@ export class PythonRuntimeService extends EventEmitter {
    * Inicia un unico dictado libre y devuelve el ID propietario de sus eventos.
    * Llamadas simultaneas comparten la misma promesa: nunca crean dos listeners.
    */
-  async startDictation(): Promise<DictationStartResult> {
+  async startDictation(onCreated?: (sessionId: string) => void): Promise<DictationStartResult> {
     if (this.dictationStartPromise) return this.dictationStartPromise;
     if (this.activeDictationSessionId && this.dictating) {
+      onCreated?.(this.activeDictationSessionId);
       return { success: true, sessionId: this.activeDictationSessionId };
     }
 
-    const operation = this.startDictationTransaction();
+    const operation = this.startDictationTransaction(onCreated);
     this.dictationStartPromise = operation;
     try {
       return await operation;
@@ -268,7 +280,8 @@ export class PythonRuntimeService extends EventEmitter {
     }
   }
 
-  private async startDictationTransaction(): Promise<DictationStartResult> {
+  private async startDictationTransaction(onCreated?: (sessionId: string) => void): Promise<DictationStartResult> {
+    const version = this.lifecycleVersion;
     // El dictado usa el modelo grande si esta instalado (sin gramatica: aprovecha
     // toda su precision); el wake word se queda con el pequeño.
     const modelPath = this.resolveDictationModelPath();
@@ -277,7 +290,9 @@ export class PythonRuntimeService extends EventEmitter {
     }
 
     const sessionId = this.createDictationSessionId();
-    const shouldRestoreWakeOnFailure = this.listening || this.wakeSuspended;
+    const shouldRestoreWakeOnFailure = this.listening || this.wakeSuspended || this.wakeStartPromise !== null;
+    this.cancelRestart(); this.wakeVersion++; this.wakeStartPromise = null;
+    const wakeVersion = this.wakeVersion;
     this.activeDictationSessionId = sessionId;
     this.dictating = true;
     if (this.listening) {
@@ -286,12 +301,16 @@ export class PythonRuntimeService extends EventEmitter {
     }
 
     try {
+      onCreated?.(sessionId);
       await this.ensureSidecar();
+      this.assertLifecycle(version);
+      if (this.activeDictationSessionId !== sessionId) throw new Error('La sesión de dictado fue cancelada.');
       const response = await this.sendCommand('start_dictation', {
         model_path: modelPath,
         device: this.config.micDevice ?? null,
         session_id: sessionId,
       }, MODEL_START_TIMEOUT_MS);
+      this.assertLifecycle(version);
       if (response.ok !== true) {
         throw new Error(String(response.error ?? 'El sidecar rechazo start_dictation'));
       }
@@ -306,8 +325,8 @@ export class PythonRuntimeService extends EventEmitter {
         this.activeDictationSessionId = null;
         this.dictating = false;
       }
-      this.lastError = message;
-      if (shouldRestoreWakeOnFailure) {
+      if (version === this.lifecycleVersion) this.lastError = message;
+      if (shouldRestoreWakeOnFailure && version === this.lifecycleVersion && wakeVersion === this.wakeVersion && !this.stopping) {
         this.wakeSuspended = false;
         if (this.config.enabled) await this.startPassiveListening();
       }
@@ -335,9 +354,12 @@ export class PythonRuntimeService extends EventEmitter {
    * el cierre explicito de la ventana desde main.
    */
   async resumeWakeAfterConversation(sessionId?: string | null, force = false): Promise<void> {
+    const version = this.lifecycleVersion;
     const activeSessionId = this.activeDictationSessionId;
     if (!force && activeSessionId && activeSessionId !== sessionId) return;
     if (activeSessionId) await this.stopDictation(activeSessionId);
+    if (version !== this.lifecycleVersion || this.stopping) return;
+    if (this.activeDictationSessionId && this.activeDictationSessionId !== activeSessionId) return;
     this.dictating = false;
     if (!this.wakeSuspended && this.listening) return;
     this.wakeSuspended = false;
@@ -352,16 +374,19 @@ export class PythonRuntimeService extends EventEmitter {
   // ── TTS local (Piper) ──────────────────────────────────────────────────────
 
   /** Sintetiza texto con Piper; el audio llega como eventos 'tts-chunk'. */
-  async speak(text: string): Promise<SpeechStartResult> {
+  async speak(text: string, onCreated?: (speechId: string) => void): Promise<SpeechStartResult> {
+    const version = this.lifecycleVersion;
     const speechId = this.createSpeechId();
     this.activeSpeechId = speechId;
     try {
+      onCreated?.(speechId);
       const paths = this.resolvePiperPaths();
       if (!paths) {
         this.activeSpeechId = null;
         return { success: false, error: 'Piper TTS no instalado. Descarga la voz desde Configuracion → Voz.' };
       }
       await this.ensureSidecar();
+      this.assertLifecycle(version);
       const res = await this.sendCommand('tts_speak', {
         text,
         voice_path: paths.voicePath,
@@ -369,6 +394,7 @@ export class PythonRuntimeService extends EventEmitter {
         utterance_id: speechId,
         speed: this.config.ttsSpeed,
       });
+      this.assertLifecycle(version);
       if (res.ok !== true) {
         if (this.activeSpeechId === speechId) this.activeSpeechId = null;
         return { success: false, error: String(res.error ?? 'El sidecar rechazo tts_speak') };
@@ -403,9 +429,12 @@ export class PythonRuntimeService extends EventEmitter {
 
   /** Lista los microfonos disponibles (via sounddevice en el sidecar). */
   async listMicDevices(): Promise<{ success: boolean; devices?: MicDeviceInfo[]; error?: string }> {
+    const version = this.lifecycleVersion;
     try {
       await this.ensureSidecar();
+      this.assertLifecycle(version);
       const res = await this.sendCommand('list_devices', {});
+      this.assertLifecycle(version);
       if (res.ok !== true) return { success: false, error: String(res.error ?? 'No se pudieron listar los microfonos.') };
       return { success: true, devices: (res.devices as MicDeviceInfo[]) ?? [] };
     } catch (error) {
@@ -415,9 +444,12 @@ export class PythonRuntimeService extends EventEmitter {
 
   /** Captura ~3s del microfono indicado y mide si hay señal de voz. */
   async probeMic(device: string | number | null): Promise<{ success: boolean; rms?: number; peak?: number; hasSignal?: boolean; error?: string }> {
+    const version = this.lifecycleVersion;
     try {
       await this.ensureSidecar();
+      this.assertLifecycle(version);
       const res = await this.sendCommand('mic_probe', { device, seconds: 3 }, 15_000);
+      this.assertLifecycle(version);
       if (res.ok !== true) return { success: false, error: String(res.error ?? 'No se pudo probar el microfono.') };
       return {
         success: true,
@@ -508,6 +540,7 @@ export class PythonRuntimeService extends EventEmitter {
 
   /** Descarga el modelo Vosk español indicado (small ~39MB / large ~1.4GB). */
   async installModel(size: VoskModelSize = 'small'): Promise<{ success: boolean; error?: string }> {
+    const version = this.lifecycleVersion;
     const modelDir = VOSK_MODELS[size]?.dir;
     if (!modelDir) return { success: false, error: `Modelo desconocido: ${String(size)}` };
     // El wake word SIEMPRE necesita el modelo pequeño (el grande no soporta
@@ -540,9 +573,9 @@ export class PythonRuntimeService extends EventEmitter {
       console.log(`[PythonRuntime] Modelo Vosk (${size}) instalado correctamente.`);
       // Reiniciar la escucha para que tome el modelo recien instalado (el
       // grande tiene prioridad en resolveModelPath).
-      if (this.config.enabled) {
+      if (this.config.enabled && version === this.lifecycleVersion && !this.stopping) {
         await this.stopPassiveListening();
-        void this.startPassiveListening();
+        if (this.config.enabled && version === this.lifecycleVersion && !this.stopping) void this.startPassiveListening();
       }
       return { success: true };
     } catch (error) {
@@ -597,36 +630,23 @@ export class PythonRuntimeService extends EventEmitter {
    * duplicaria el trafico stdio. Devuelve false si el sidecar no esta corriendo.
    */
   sendNotification(cmd: string, params: Record<string, unknown>): boolean {
-    const proc = this.proc;
-    if (!proc || proc.stdin.destroyed) return false;
-    return proc.stdin.write(`${JSON.stringify({ cmd, params })}\n`);
+    this.assertCaptureAuthorized(cmd, params);
+    return this.connection?.notify(cmd, params) ?? false;
   }
 
-  /** Garantiza que el sidecar este corriendo (lo lanza si es necesario). */
+  /** Garantiza ready de la generación vigente antes de usarla. */
   async ensureSidecarRunning(): Promise<void> {
-    await this.ensureSidecar();
+    const version = this.lifecycleVersion; await this.ensureSidecar(); this.assertLifecycle(version);
   }
 
-  /** Ejecuta un comando arbitrario en el sidecar (base para futuras capacidades Python). */
+  /** Comando interno del sidecar; no se expone como primitiva IPC genérica. */
   async sendCommand(cmd: string, params: Record<string, unknown>, timeoutMs = COMMAND_TIMEOUT_MS): Promise<Record<string, unknown>> {
-    const proc = this.proc;
-    if (!proc || proc.stdin.destroyed) throw new Error('El sidecar Python no esta en ejecucion.');
-    const id = this.nextId++;
-    const payload = `${JSON.stringify({ id, cmd, params })}\n`;
-    return await new Promise<Record<string, unknown>>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        this.pending.delete(id);
-        reject(new Error(`Timeout esperando respuesta del sidecar para '${cmd}'.`));
-      }, timeoutMs);
-      this.pending.set(id, { resolve, reject, timer });
-      proc.stdin.write(payload, (err) => {
-        if (err) {
-          clearTimeout(timer);
-          this.pending.delete(id);
-          reject(err);
-        }
-      });
-    });
+    this.assertCaptureAuthorized(cmd, params);
+    const connection = this.connection; const version = this.lifecycleVersion;
+    if (!connection) throw new SidecarConnectionError('SIDECAR_UNAVAILABLE', 'El sidecar Python no está en ejecución.');
+    const response = await connection.request(cmd, params, timeoutMs);
+    if (connection !== this.connection) throw new SidecarConnectionError('SIDECAR_STOPPED', 'La petición Python fue cancelada.');
+    this.assertLifecycle(version); return response;
   }
 
   // ── Internals ──────────────────────────────────────────────────────────────
@@ -704,90 +724,45 @@ export class PythonRuntimeService extends EventEmitter {
   }
 
   private async ensureSidecar(): Promise<void> {
-    if (this.proc) return;
-    try {
-      this.assertRuntimeAvailable();
-    } catch (error) {
-      this.lastError = error instanceof Error ? error.message : String(error);
-      throw error;
-    }
-    const pythonPath = this.getPythonPath();
-    const sidecarPath = this.getSidecarPath();
+    const version = this.lifecycleVersion;
+    if (this.stopPromise) await this.stopPromise;
+    if (version !== this.lifecycleVersion) throw new SidecarConnectionError('SIDECAR_STOPPED', 'El arranque Python fue cancelado.');
+    if (this.retiring) throw sidecarStopError();
+    if (this.connection) return this.connection.start();
+    try { this.assertRuntimeAvailable(); }
+    catch (error) { this.lastError = error instanceof Error ? error.message : String(error); throw error; }
+    const pythonPath = this.getPythonPath(); const sidecarPath = this.getSidecarPath();
     const runtimeLib = path.join(path.dirname(path.dirname(pythonPath)), 'lib');
     const libraryPath = process.platform === 'linux'
-      ? [runtimeLib, process.env.LD_LIBRARY_PATH].filter(Boolean).join(path.delimiter)
-      : process.env.LD_LIBRARY_PATH;
-    console.log(`[PythonRuntime] Lanzando sidecar: ${sidecarPath}`);
-    const proc = spawn(pythonPath, ['-u', sidecarPath], {
-      stdio: ['pipe', 'pipe', 'pipe'],
-      windowsHide: true,
-      env: { ...process.env, PYTHONIOENCODING: 'utf-8', LD_LIBRARY_PATH: libraryPath },
+      ? [runtimeLib, process.env.LD_LIBRARY_PATH].filter(Boolean).join(path.delimiter) : process.env.LD_LIBRARY_PATH;
+    let proc: ChildProcessWithoutNullStreams;
+    try { proc = spawn(pythonPath, ['-u', sidecarPath], { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true,
+      env: { ...process.env, PYTHONIOENCODING: 'utf-8', LD_LIBRARY_PATH: libraryPath } }); }
+    catch (error) { const failure = sidecarLaunchError(error); this.lastError = failure.message; throw failure; }
+    const connection = new SidecarConnection(proc, { protocol: 4, readyTimeoutMs: COMMAND_TIMEOUT_MS,
+      onMessage: message => {
+        if (this.connection === connection) { if (message.event === 'ready') this.lastError = null; this.handleMessage(message); }
+      },
+      onClosed: (error, intentional) => {
+        if (this.connection !== connection) return;
+        this.connection = null; this.lifecycleVersion++; this.lastError = error.message;
+        if (error.code === 'SIDECAR_STOP_UNCONFIRMED') this.trackRetiring(connection);
+        this.handleExit(intentional || error.code === 'SIDECAR_STOP_UNCONFIRMED');
+      },
     });
-    this.proc = proc;
-    this.stopping = false;
-    this.stdoutBuffer = '';
-
-    proc.stdout.setEncoding('utf8');
-    proc.stdout.on('data', (chunk: string) => this.handleStdout(chunk));
-    proc.stderr.setEncoding('utf8');
-    proc.stderr.on('data', (chunk: string) => {
-      const text = chunk.trim();
-      if (text) console.warn(`[PythonRuntime][stderr] ${text}`);
-    });
-    proc.on('exit', (code) => this.handleExit(code));
-    proc.on('error', (err) => {
-      // spawn() reporta sus fallos (ENOENT, EACCES) de forma asincrona por aqui.
-      // 'error' en un EventEmitter SIN listener es una excepcion no capturada que
-      // mata el proceso main, asi que el fallo se degrada a estado consultable +
-      // rechazo de quien espera, y solo se re-emite si alguien escucha.
-      const message = `No se pudo lanzar el sidecar Python: ${err.message}`;
-      console.error(`[PythonRuntime] ${message}`);
-      this.lastError = message;
-      if (this.proc === proc) this.proc = null;
-      this.rejectPending(new Error(message));
-      this.emit('sidecar-failed', new Error(message));
-      if (this.listenerCount('error') > 0) this.emit('error', err);
-    });
-
-    await this.waitForReady();
+    this.connection = connection; this.stopping = false;
+    return connection.start();
   }
 
-  private waitForReady(timeoutMs = COMMAND_TIMEOUT_MS): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const cleanup = () => {
-        clearTimeout(timer);
-        this.removeListener('sidecar-ready', onReady);
-        this.removeListener('sidecar-failed', onFailed);
-      };
-      const timer = setTimeout(() => {
-        cleanup();
-        reject(new Error('Timeout esperando el evento ready del sidecar.'));
-      }, timeoutMs);
-      const onReady = () => { cleanup(); resolve(); };
-      // Sin esto, un spawn fallido dejaba al llamador esperando el timeout completo.
-      const onFailed = (error: Error) => { cleanup(); reject(error); };
-      this.once('sidecar-ready', onReady);
-      this.once('sidecar-failed', onFailed);
-    });
-  }
-
-  private rejectPending(error: Error): void {
-    for (const [, pending] of this.pending) {
-      clearTimeout(pending.timer);
-      pending.reject(error);
+  private assertLifecycle(version: number, wakeVersion?: number): void {
+    if (this.stopping || version !== this.lifecycleVersion || wakeVersion !== undefined && wakeVersion !== this.wakeVersion) {
+      throw new SidecarConnectionError('SIDECAR_STOPPED', 'La operación de voz fue cancelada.');
     }
-    this.pending.clear();
   }
-
-  private handleStdout(chunk: string): void {
-    this.stdoutBuffer += chunk;
-    let newlineIdx = this.stdoutBuffer.indexOf('\n');
-    while (newlineIdx !== -1) {
-      const line = this.stdoutBuffer.slice(0, newlineIdx).trim();
-      this.stdoutBuffer = this.stdoutBuffer.slice(newlineIdx + 1);
-      if (line) this.handleMessage(line);
-      newlineIdx = this.stdoutBuffer.indexOf('\n');
-    }
+  private cancelRestart(): void { clearTimeout(this.restartTimer); this.restartTimer = undefined; }
+  private trackRetiring(connection: SidecarConnection): void {
+    this.retiring = connection; this.cancelRestart();
+    void connection.closed.then(() => { if (this.retiring === connection) this.retiring = null; });
   }
 
   private getCurrentDictationEvent(msg: Record<string, unknown>): DictationEventPayload | null {
@@ -807,23 +782,7 @@ export class PythonRuntimeService extends EventEmitter {
     };
   }
 
-  private handleMessage(line: string): void {
-    let msg: Record<string, unknown>;
-    try {
-      msg = JSON.parse(line) as Record<string, unknown>;
-    } catch {
-      console.warn(`[PythonRuntime] Linea no-JSON del sidecar: ${line.slice(0, 200)}`);
-      return;
-    }
-    if (typeof msg.id === 'number') {
-      const pending = this.pending.get(msg.id);
-      if (pending) {
-        clearTimeout(pending.timer);
-        this.pending.delete(msg.id);
-        pending.resolve(msg);
-      }
-      return;
-    }
+  private handleMessage(msg: Record<string, unknown>): void {
     switch (msg.event) {
       case 'ready':
         this.emit('sidecar-ready');
@@ -927,15 +886,12 @@ export class PythonRuntimeService extends EventEmitter {
     }
   }
 
-  private handleExit(code: number | null): void {
-    console.log(`[PythonRuntime] Sidecar finalizo con codigo ${code ?? 'null'}.`);
-    this.proc = null;
+  private handleExit(intentional: boolean): void {
     const interruptedDictationSessionId = this.activeDictationSessionId;
     const interruptedSpeechId = this.activeSpeechId;
     this.activeDictationSessionId = null;
     this.activeSpeechId = null;
     this.dictating = false;
-    this.rejectPending(new Error('El sidecar Python finalizo inesperadamente.'));
     if (interruptedDictationSessionId) {
       this.emit('dictation-timeout', {
         sessionId: interruptedDictationSessionId,
@@ -951,11 +907,14 @@ export class PythonRuntimeService extends EventEmitter {
     }
     const wasListening = this.listening;
     this.listening = false;
-    if (!this.stopping && wasListening && this.restarts < MAX_RESTARTS) {
-      this.restarts += 1;
-      const delay = 1_000 * this.restarts;
-      console.log(`[PythonRuntime] Reiniciando escucha pasiva en ${delay}ms (intento ${this.restarts}/${MAX_RESTARTS})...`);
-      setTimeout(() => { void this.startPassiveListening(); }, delay);
+    if (!intentional && !this.stopping && this.config.enabled && wasListening && this.restarts < MAX_RESTARTS) {
+      this.restarts += 1; this.cancelRestart();
+      const wakeVersion = this.wakeVersion;
+      this.restartTimer = setTimeout(() => {
+        this.restartTimer = undefined;
+        if (!this.stopping && wakeVersion === this.wakeVersion
+          && this.config.enabled && !this.wakeSuspended) void this.startPassiveListening();
+      }, 1000 * this.restarts);
     }
   }
 
@@ -989,3 +948,4 @@ export class PythonRuntimeService extends EventEmitter {
 }
 
 export const pythonRuntimeService = new PythonRuntimeService();
+

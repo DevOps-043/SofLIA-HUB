@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { transcribeAudio } from '../../../services/flow-service';
+import { getPublicAiErrorMessage } from '../../../services/gemini-chat/public-error';
 
 const MIN_AUDIO_BYTES = 512;
 const DEFAULT_AUDIO_MIME_TYPE = 'audio/webm';
@@ -89,9 +90,9 @@ export function useDictation(setInput: (updater: (current: string) => string) =>
             return;
           }
           setInput((current) => appendTranscript(current, transcript));
-        } catch (error: any) {
-          console.error('Dictation transcription error:', error);
-          setErrorMessage(error?.message || 'No pude transcribir el audio.');
+        } catch (error: unknown) {
+          console.error('[Dictado] No se pudo transcribir el audio.');
+          setErrorMessage(getPublicAiErrorMessage(error, { generic: 'No pude transcribir el audio. Intenta de nuevo.' }));
         } finally {
           setIsTranscribing(false);
         }

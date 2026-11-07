@@ -5,7 +5,7 @@ import { createToolDispatcher, toolsForRole } from '../agent-runtime/tools';
 import type { AgentRun, AgentScope } from '../../src/shared/agent-runtime';
 
 const scope: AgentScope = { userId: 'usuario-a', organizationId: null };
-const input = { title: 'Reunión de prueba', source: 'Ana entregará el reporte.\nFecha sin confirmar.', provider: 'gemini' as const };
+const input = { title: 'Reunión de prueba', source: 'Ana entregará el reporte.\nFecha sin confirmar.', provider: 'openai' as const };
 function setup(execute = vi.fn(async (invocation: AgentInvocation) => ({ text: 'Acuerdo con evidencia L1: ' + invocation.role, inputTokens: 20, outputTokens: 10 }))) {
   let stored: AgentRun[] = [];
   const repository: RunRepository = { encrypted: true, load: () => structuredClone(stored), save: (_scope, runs) => { stored = structuredClone(runs); } };

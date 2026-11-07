@@ -1,5 +1,4 @@
 export interface NeuralOrganizerOptions {
-  apiKey: string;
   notifyCallback?: (message: string) => Promise<void>;
 }
 

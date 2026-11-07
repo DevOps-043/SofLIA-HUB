@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "at": "2026-10-24T07:45:42.713Z",
+  "exitCode": 0,
+  "sourceFiles": 3443,
+  "envFilesCopied": false,
+  "packaged": false,
+  "applicationStarted": false,
+  "sandbox": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-app-build-JInnT3",
+  "outputs": [
+    {
+      "file": "dist/index.html",
+      "bytes": 548,
+      "sha256": "c992e39258ff5b8930af205d457ca6eee1f52265c4353f93b956cd35e015795d"
+    },
+    {
+      "file": "dist-electron/main.js",
+      "bytes": 199532,
+      "sha256": "3d55388def7a197cf9ba376728ace909e7bb3914cb3bc29098922d76f0d32ef0"
+    },
+    {
+      "file": "dist-electron/preload.js",
+      "bytes": 48857,
+      "sha256": "3dc4c65558a3e95a20ea7c986707156c706eb67d942bc274f5a70eefd0d45d6a"
+    },
+    {
+      "file": "dist/presentation/presentation-runtime.iife.js",
+      "bytes": 895486,
+      "sha256": "23a06410288a6b71a84f73b141b879ecedea86faf3788f3ccc4747d3f5f1e162"
+    },
+    {
+      "file": "dist/audiovisual/film-runtime.iife.js",
+      "bytes": 223019,
+      "sha256": "1e497c8583b88e5b2c8ff1299eb48e121afc5a3073a06351f574841a0d61109d"
+    },
+    {
+      "file": "dist/zoom-runtime/index.html",
+      "bytes": 489,
+      "sha256": "86ccc046c0eb931d8fe2599ac3d0a3de8dc73fea00df5ec2b8cdbac705b6b9fb"
+    }
+  ],
+  "copied": [
+    {
+      "file": "scripts/quality/check-electron-stability.mjs",
+      "sha256": "9788d7415b171ef9a4d5ef27a6fcba23e9b5109ecbfae84430a253b96bbe5eed"
+    },
+    {
+      "file": "scripts/quality/check-electron-stability.test.mjs",
+      "sha256": "5d9efc24d7ef1e6b404886b8afe6053284afd1719abbdb40a0c7982da8272af2"
+    },
+    {
+      "file": "scripts/quality/run-gate.mjs",
+      "sha256": "8a47dde387c80a024c814df8a58dfe727aa404aac9e516c245870432ae16f816"
+    },
+    {
+      "file": "test/manual/browser-native/zoom.cjs",
+      "sha256": "f3d2f753af750b943b13fcd065f04343ce4a79806ba58dfc4458b1b28729b942"
+    },
+    {
+      "file": "package.json",
+      "sha256": "7c975037bc04b423ac5f7f4c25a9415b038bf463e2ee42549b15c0cfbbaff0fa"
+    },
+    {
+      "file": "package-lock.json",
+      "sha256": "61e4c0b6dffcf8e7452562f33b246ff3aff94ebafb648d1e61dd6c7e8778b1b8"
+    }
+  ],
+  "stableSources": 3461,
+  "installerCertified": false
+}

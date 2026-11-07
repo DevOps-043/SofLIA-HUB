@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "at": "2026-10-23T04:14:22.676Z",
+  "exitCode": 0,
+  "sourceFiles": 3359,
+  "envFilesCopied": false,
+  "packaged": false,
+  "applicationStarted": false,
+  "sandbox": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-app-build-cdEdi7",
+  "productionSources": [
+    {
+      "file": "electron/project-hub-handlers.ts",
+      "sha256": "fac5388073dc6ab721ec4e99f2dd8457581e8f9a114080239f3a79bb6a7025a4",
+      "buildMatches": true
+    },
+    {
+      "file": "electron/project-hub/service.ts",
+      "sha256": "5a13d5201234d9df7c86c6b5023ed1e206665523b6573340bee2e8715703d844",
+      "buildMatches": true
+    },
+    {
+      "file": "electron/project-hub/upload-handlers.ts",
+      "sha256": "6909a645c57b803b8a130afe4a6657fa4d28068fc0534188874f737772a71dad",
+      "buildMatches": true
+    },
+    {
+      "file": "electron/project-hub/upload-files.ts",
+      "sha256": "645ea5f61c41cf0209997d928adc3258a0ce0bb3a95e892aba4d5c9e8af9a0e5",
+      "buildMatches": true
+    },
+    {
+      "file": "electron/project-hub/upload-target.ts",
+      "sha256": "c2354ddff0fcc94ba5d10f20c53523b88620df49fbddae20d5e234482a296021",
+      "buildMatches": true
+    },
+    {
+      "file": "electron/project-hub/file-format.ts",
+      "sha256": "ec04e10c3909876dc03eabfc3b5ad94fe5eb03512d626d138080317d7545bc52",
+      "buildMatches": true
+    },
+    {
+      "file": "electron/project-hub/file-operations.ts",
+      "sha256": "9494397b3b3a2ba6aa0613ffeffdeee644ff77ad63f60fba2c2bbdb860b5c061",
+      "buildMatches": true
+    },
+    {
+      "file": "electron/project-hub/storage-target.ts",
+      "sha256": "a056edcbd506045a781e62eb350816929a871877862a5ae1b004972457e8d070",
+      "buildMatches": true
+    },
+    {
+      "file": "electron/project-hub/download.ts",
+      "sha256": "7068e6a45b69860ba90619bb1ca90a36546b788467587765a5b51b1569967364",
+      "buildMatches": true
+    },
+    {
+      "file": "electron/project-hub/download-target.ts",
+      "sha256": "592c260ee489418b1a6c1c383496a34d62ee0991dbed4df5c1001a4d564bafa1",
+      "buildMatches": true
+    },
+    {
+      "file": "electron/project-hub/download-destination.ts",
+      "sha256": "d3bacbcfddd7c351a81bf5954b744ef7ae7d0a81516e3cc9d3e03beeb6af5cc3",
+      "buildMatches": true
+    },
+    {
+      "file": "electron/project-hub/download-handlers.ts",
+      "sha256": "534cde42c062ae9e18cfa9a63fcfad96eda6cd53ce5f41532f2502d5012099df",
+      "buildMatches": true
+    },
+    {
+      "file": "electron/preload/project-hub-api.ts",
+      "sha256": "8c0ae14d74b6266fe5a94acb0940ad9c826645861053472720d0e8f49fa2415c",
+      "buildMatches": true
+    },
+    {
+      "file": "electron/preload/channel-group-5.ts",
+      "sha256": "9a3c1eff3f33fe150120023e039c98e2325167b3ad9bb85255538a3b7d65aa64",
+      "buildMatches": true
+    },
+    {
+      "file": "src/shared/project-hub.ts",
+      "sha256": "6b3eac6368b86e1fd7180d8f0d89b4e02f8ccc383a8c97d60ee20c246f1fba88",
+      "buildMatches": true
+    },
+    {
+      "file": "src/shared/project-hub-files.ts",
+      "sha256": "390d924f9ad290a9d74c66b78b9523963f3a13d18806a2dd4a922c21ebd091c3",
+      "buildMatches": true
+    },
+    {
+      "file": "src/services/project-hub-api.ts",
+      "sha256": "050d6878243c4d5f4945b37dd3c2759f327609e9d204acb94cf77ef271e3e94a",
+      "buildMatches": true
+    },
+    {
+      "file": "src/components/project-hub/useProjectFileDownload.ts",
+      "sha256": "c64c9455b74cc0e37d0c8c32005533a04335ad2fc647fc09253ff01fe0ac6286",
+      "buildMatches": true
+    },
+    {
+      "file": "src/components/project-hub/UnifiedProjectHub.tsx",
+      "sha256": "321db3c1b0583f6d73e449ca383adbf2f2e49db11166c9e7bcafe017bcf15d7a",
+      "buildMatches": true
+    }
+  ],
+  "artifacts": [
+    {
+      "file": "dist/index.html",
+      "bytes": 460
+    },
+    {
+      "file": "dist-electron/main.js",
+      "bytes": 195748
+    },
+    {
+      "file": "dist-electron/preload.js",
+      "bytes": 46449
+    },
+    {
+      "file": "dist/presentation/presentation-runtime.iife.js",
+      "bytes": 895486
+    },
+    {
+      "file": "dist/audiovisual/film-runtime.iife.js",
+      "bytes": 223019
+    },
+    {
+      "file": "dist/zoom-runtime/index.html",
+      "bytes": 489
+    }
+  ]
+}

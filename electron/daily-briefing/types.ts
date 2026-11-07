@@ -2,7 +2,6 @@ export interface DailyBriefingConfig {
   enabled: boolean;
   schedule: string;
   ownerNumber: string;
-  apiKey: string;
 }
 
 export interface DailyBriefingStatus {

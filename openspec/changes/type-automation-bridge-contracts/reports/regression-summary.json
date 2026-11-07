@@ -1,0 +1,15 @@
+{
+  "red": {
+    "failed": 9,
+    "passed": 3,
+    "sha256": "09820563ae65c841c4d3408f7fdabb19320a7db0ae54cee8f39c7376d588dbaa"
+  },
+  "directed": {
+    "passed": 147,
+    "failed": 0,
+    "sha256": "7a07a95368fcce4f61308e10d86cf73e51bbd0fe520c4980fabca1748adb2fdd"
+  },
+  "wrapperInitial": "El supuesto red corrió tras editar; fue verde y no acredita causalidad.",
+  "compileNegativeCases": 7,
+  "scope": "Servicios y transporte sustituidos; sin acciones nativas, GUI, cuentas ni red reales."
+}

@@ -1,0 +1,19 @@
+{
+  "status": "verificado_localmente",
+  "at": "2026-10-30T20:24:07.582Z",
+  "gateExitCode": 0,
+  "buildExitCode": 0,
+  "docsSystemExitCode": 0,
+  "docsLinksExitCode": 0,
+  "strictOpenSpecExitCode": 0,
+  "scopedWorktreeAndIndexWhitespaceExitCode": 0,
+  "newSourcesWithoutTrailingWhitespace": true,
+  "postGateFormattingOnly": "src/config.ts: whitespace terminal; JavaScript transpilado idéntico.",
+  "finalSourceInventorySha256": "5e65eceb6f3dbb131a36d8bb52ab22e7a6581b39afa611f09f990e3aabd06d32",
+  "rootConfigNotGenerated": true,
+  "activeMarkdownFiles": 866,
+  "independentReview": "pendiente",
+  "archived": false,
+  "goal": "active",
+  "docsLogSha256": "127f0d1b1bc75adb072d8fa2f4c0d7b951eda74dfdb867179536885c86fcb4ca"
+}

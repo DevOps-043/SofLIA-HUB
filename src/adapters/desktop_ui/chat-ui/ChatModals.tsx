@@ -6,7 +6,7 @@ import type { ChatUIController } from './useChatUIController';
 
 export function ChatModals({ controller }: { controller: ChatUIController }) {
   const modals = controller.state.skillModals;
-  const confirmation = controller.state.confirmation;
+  const confirmation = controller.state.confirmation.modal;
 
   const closeSkillEditor = () => {
     modals.setEditorOpen(false);
@@ -31,20 +31,18 @@ export function ChatModals({ controller }: { controller: ChatUIController }) {
       />
       <ImageZoomModal image={controller.state.images.zoomed} onClose={() => controller.state.images.setZoomed(null)} />
       <ConfirmActionModal
-        isOpen={!!confirmation.modal}
-        toolName={confirmation.modal?.toolName || ''}
-        description={confirmation.modal?.description || ''}
-        onAlways={confirmation.modal?.allowAlways ? () => {
-          confirmation.modal?.resolve('always');
-          confirmation.setModal(null);
+        isOpen={!!confirmation}
+        toolName={confirmation?.toolName || ''}
+        description={confirmation?.description || ''}
+        requestId={confirmation?.requestId}
+        onAlways={confirmation?.allowAlways ? () => {
+          confirmation.resolve('always');
         } : undefined}
         onConfirm={() => {
-          confirmation.modal?.resolve(true);
-          confirmation.setModal(null);
+          confirmation?.resolve(true);
         }}
         onCancel={() => {
-          confirmation.modal?.resolve(false);
-          confirmation.setModal(null);
+          confirmation?.resolve(false);
         }}
       />
     </>

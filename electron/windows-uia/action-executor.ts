@@ -1,4 +1,5 @@
 import { screen as electronScreen } from 'electron';
+import { assertBackendTaskActive, runBackendTaskStage } from '../desktop-agent/task-cancellation';
 import type { WindowsUIAServiceCore } from './core';
 import type { WindowsUIAActionPayload, WindowsUIASnapshot } from './types';
 
@@ -6,27 +7,29 @@ export async function executeAction(
   service: WindowsUIAServiceCore,
   action: WindowsUIAActionPayload,
   snapshot: WindowsUIASnapshot,
+  signal?: AbortSignal,
 ): Promise<void> {
+  assertBackendTaskActive(signal);
   switch (action.action) {
     case 'focus_window':
-      await service.desktopAgent.focusWindow(action.windowTitle || snapshot.currentWindowTitle);
+      await runBackendTaskStage(signal, () => service.desktopAgent.focusWindow(action.windowTitle || snapshot.currentWindowTitle));
       return;
     case 'click_element':
-      await clickElement(service, snapshot, action.elementId);
+      await runBackendTaskStage(signal, () => clickElement(service, snapshot, action.elementId));
       return;
     case 'type_in_element':
-      await clickElement(service, snapshot, action.elementId);
-      await new Promise((resolve) => setTimeout(resolve, 150));
-      await service.desktopAgent.keyboardType(action.text || '');
+      await runBackendTaskStage(signal, () => clickElement(service, snapshot, action.elementId));
+      await runBackendTaskStage(signal, () => new Promise(resolve => setTimeout(resolve, 150)));
+      await runBackendTaskStage(signal, () => service.desktopAgent.keyboardType(action.text || ''));
       return;
     case 'key':
-      await service.desktopAgent.keyboardKey(action.key || 'enter');
+      await runBackendTaskStage(signal, () => service.desktopAgent.keyboardKey(action.key || 'enter'));
       return;
     case 'scroll':
-      await service.desktopAgent.mouseScroll(action.direction || 'down', action.amount || 3);
+      await runBackendTaskStage(signal, () => service.desktopAgent.mouseScroll(action.direction || 'down', action.amount || 3));
       return;
     case 'wait':
-      await new Promise((resolve) => setTimeout(resolve, Math.max(500, (action.amount || 1) * 1000)));
+      await runBackendTaskStage(signal, () => new Promise(resolve => setTimeout(resolve, Math.max(500, (action.amount || 1) * 1000))));
       return;
     default:
       throw new Error(`Accion no soportada por windows_uia: ${action.action}`);

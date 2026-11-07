@@ -13,10 +13,16 @@ export function RemoteNodesPanel({ controller }: { controller: AutomationOpsCont
         <StatusBadge value={controller.data.hostStatus?.running ? 'completed' : 'failed'} styles={RUN_STATUS_STYLES} />
       </summary>
       <div className="mt-4 space-y-3">
+        {controller.data.hostStatus?.migration_notice && <p role="status" className="text-xs text-gray-500 dark:text-gray-400">{controller.data.hostStatus.migration_notice}</p>}
+        {controller.data.hostStatus?.token && <label className="block space-y-1 text-xs text-gray-500 dark:text-gray-400">
+          <span>Token de este equipo</span>
+          <input type="password" aria-label="Token de este equipo" readOnly autoComplete="off" className={inputClass} value={controller.data.hostStatus.token} onFocus={event => event.currentTarget.select()} />
+          <span className="block">Selecciona y copia este token para emparejar desde otro equipo. Compártelo sólo con personas autorizadas.</span>
+        </label>}
         <div className="grid grid-cols-3 gap-2">
           <input className={inputClass} value={remote.name} onChange={(event) => remote.setName(event.target.value)} placeholder="Nombre" />
           <input className={inputClass} value={remote.baseUrl} onChange={(event) => remote.setBaseUrl(event.target.value)} placeholder="Base URL" />
-          <input className={inputClass} value={remote.token} onChange={(event) => remote.setToken(event.target.value)} placeholder="Token" />
+          <input type="password" autoComplete="new-password" spellCheck={false} className={inputClass} value={remote.token} onChange={(event) => remote.setToken(event.target.value)} placeholder="Token" />
         </div>
         <div className="flex gap-2">
           <button type="button" className="rounded-xl bg-accent hover:bg-accent/90 text-white py-2 px-4 text-xs font-semibold transition disabled:opacity-40" onClick={() => void controller.runner.runAction('register-remote-node', async () => {

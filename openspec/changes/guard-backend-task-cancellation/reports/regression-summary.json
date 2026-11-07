@@ -1,0 +1,20 @@
+{
+  "nativeRed": {
+    "failed": 1,
+    "passed": 3,
+    "sha256": "0368317a96552b4981a6bc152c409998a419256ae0ac3ae31cdd0ea79e39fe35",
+    "scope": "Proceso sustituido: programa no escribe variables automáticas constantes; sin consulta nativa real."
+  },
+  "red": {
+    "failed": 3,
+    "passed": 0,
+    "sha256": "6f37e69a6de2bec8bba0349a4aef8de2def14964c31c0b17a4b794355163fb75"
+  },
+  "directed": {
+    "passed": 198,
+    "failed": 0,
+    "newCases": 44,
+    "sha256": "9f20bed3de43e13736a275e270ce52b7bad6fffa04c54e05fb979655a494f295"
+  },
+  "scope": "Servicios, colas, bucles, ejecutores y planificadores web/UIA reales, modelos/páginas/entrada sustituidos; sin GUI/cuentas/claves reales."
+}

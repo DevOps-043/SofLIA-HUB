@@ -1,0 +1,441 @@
+{
+  "at": "2026-10-25T16:42:42.669Z",
+  "manifestSha256": "497634e40237c151f24a557f48e4c84c2430d63af98102d4962c16fddd5c0b3a",
+  "lockBeforeSha256": "16e0accb2c755825427afaa8f41e1a0760627d67a8b8305e2cc0ccb79d9563c1",
+  "lockAfterSha256": "00907dbd199e00edf4b4fdf18392c367c355ed381f0cb55ff41714aa19cb7f9e",
+  "delta": {
+    "added": [],
+    "removed": [
+      {
+        "file": "node_modules/@jimp/bmp/node_modules/@jimp/utils",
+        "version": "0.22.12"
+      },
+      {
+        "file": "node_modules/@jimp/core",
+        "version": "1.6.1"
+      },
+      {
+        "file": "node_modules/@jimp/core/node_modules/mime",
+        "version": "3.0.0"
+      },
+      {
+        "file": "node_modules/@jimp/custom/node_modules/@jimp/utils",
+        "version": "0.22.12"
+      },
+      {
+        "file": "node_modules/@jimp/file-ops",
+        "version": "1.6.1"
+      },
+      {
+        "file": "node_modules/@jimp/gif/node_modules/@jimp/utils",
+        "version": "0.22.12"
+      },
+      {
+        "file": "node_modules/@jimp/jpeg/node_modules/@jimp/utils",
+        "version": "0.22.12"
+      },
+      {
+        "file": "node_modules/@jimp/plugin-gaussian/node_modules/@jimp/utils",
+        "version": "0.22.12"
+      },
+      {
+        "file": "node_modules/@jimp/plugin-invert/node_modules/@jimp/utils",
+        "version": "0.22.12"
+      },
+      {
+        "file": "node_modules/@jimp/plugin-normalize/node_modules/@jimp/utils",
+        "version": "0.22.12"
+      },
+      {
+        "file": "node_modules/@jimp/plugin-resize/node_modules/zod",
+        "version": "3.25.76"
+      },
+      {
+        "file": "node_modules/@jimp/plugin-scale/node_modules/@jimp/utils",
+        "version": "0.22.12"
+      },
+      {
+        "file": "node_modules/@jimp/plugin-shadow/node_modules/@jimp/utils",
+        "version": "0.22.12"
+      },
+      {
+        "file": "node_modules/@jimp/plugins/node_modules/@jimp/plugin-blur",
+        "version": "0.22.12"
+      },
+      {
+        "file": "node_modules/@jimp/plugins/node_modules/@jimp/plugin-resize",
+        "version": "0.22.12"
+      },
+      {
+        "file": "node_modules/@jimp/plugins/node_modules/@jimp/utils",
+        "version": "0.22.12"
+      },
+      {
+        "file": "node_modules/@jimp/png/node_modules/@jimp/utils",
+        "version": "0.22.12"
+      },
+      {
+        "file": "node_modules/@jimp/types",
+        "version": "1.6.1"
+      },
+      {
+        "file": "node_modules/@jimp/types/node_modules/zod",
+        "version": "3.25.76"
+      },
+      {
+        "file": "node_modules/await-to-js",
+        "version": "3.0.0"
+      }
+    ],
+    "changed": [
+      {
+        "file": "node_modules/@jimp/plugin-blur",
+        "before": "1.6.1",
+        "after": "0.22.12",
+        "fields": [
+          "version",
+          "resolved",
+          "integrity",
+          "peer",
+          "dependencies",
+          "engines",
+          "peerDependencies"
+        ]
+      },
+      {
+        "file": "node_modules/@jimp/plugin-resize",
+        "before": "1.6.1",
+        "after": "0.22.12",
+        "fields": [
+          "version",
+          "resolved",
+          "integrity",
+          "peer",
+          "dependencies",
+          "engines",
+          "peerDependencies"
+        ]
+      },
+      {
+        "file": "node_modules/@jimp/utils",
+        "before": "1.6.1",
+        "after": "0.22.12",
+        "fields": [
+          "version",
+          "resolved",
+          "integrity",
+          "peer",
+          "dependencies",
+          "engines"
+        ]
+      }
+    ]
+  },
+  "physical": [
+    {
+      "file": "node_modules/@jimp/plugin-blur",
+      "version": "0.22.12",
+      "packageJsonSha256": "ef31122f9996b9b24114614330ad9bc1416825aa4d9d003dbade5d6d1d2bfca9",
+      "integrity": "sha512-S0vJADTuh1Q9F+cXAwFPlrKWzDj2F9t/9JAbUvaaDuivpyWuImEKXVz5PUZw2NbpuSHjwssbTpOZ8F13iJX4uw=="
+    },
+    {
+      "file": "node_modules/@jimp/plugin-resize",
+      "version": "0.22.12",
+      "packageJsonSha256": "554cb6531977bdf910deac96f79a54cb1376384462aad2d380d4f50747399c98",
+      "integrity": "sha512-3NyTPlPbTnGKDIbaBgQ3HbE6wXbAlFfxHVERmrbqAi8R3r6fQPxpCauA8UVDnieg5eo04D0T8nnnNIX//i/sXg=="
+    },
+    {
+      "file": "node_modules/@jimp/utils",
+      "version": "0.22.12",
+      "packageJsonSha256": "bc6f1969566b7b46d343a81b5f86dfdcd4d412306826ccb92cba272a86cf62ea",
+      "integrity": "sha512-yJ5cWUknGnilBq97ZXOyOS0HhsHOyAyjHwYfHxGbSyMTohgQI6sVyE8KPgDwH8HHW/nMKXk8TrSwAE71zt716Q=="
+    }
+  ],
+  "installHooksUnchanged": [
+    "@0.9.9",
+    "node_modules/@fission-ai/openspec@1.8.0",
+    "node_modules/@google/genai@2.16.0",
+    "node_modules/@whiskeysockets/baileys@7.0.0-rc14",
+    "node_modules/active-win@8.2.1",
+    "node_modules/electron-winstaller@5.4.0",
+    "node_modules/fsevents@2.3.3",
+    "node_modules/msw@2.15.0",
+    "node_modules/onnxruntime-node@1.30.0",
+    "node_modules/protobufjs@7.6.5",
+    "node_modules/tesseract.js@7.0.0"
+  ],
+  "tarballs": [
+    {
+      "name": "@jimp/plugin-blur",
+      "version": "0.22.12",
+      "archiveSha256": "93d6a00b2091753b246e5589b78682676dff2af8e7ac80b2dbd0e44f4d9f2e02",
+      "integrity": "sha512-S0vJADTuh1Q9F+cXAwFPlrKWzDj2F9t/9JAbUvaaDuivpyWuImEKXVz5PUZw2NbpuSHjwssbTpOZ8F13iJX4uw==",
+      "files": [
+        {
+          "file": "LICENSE",
+          "sha256": "942eab097945c835cf41abcbf1b9a6659c5d0c3493e60c56796d2e045c219278"
+        },
+        {
+          "file": "dist/blur-tables.js",
+          "sha256": "32e45f7ce0fcb2d644e96f0328829d90e093663eda3fc27d471702b06d09c7f4"
+        },
+        {
+          "file": "es/blur-tables.js",
+          "sha256": "8f3c0650976b71cfcaa9357370294b736f7f18dd71fec69e3e2ce7e7701ac4d2"
+        },
+        {
+          "file": "src/blur-tables.js",
+          "sha256": "6c383bdfe0bc5a775022791f8068711a8fdc9bebbd3d3c7201c6596dab790b96"
+        },
+        {
+          "file": "dist/index.js",
+          "sha256": "c1ac39d637311637ecf81bd19516be30412946d3ffea847bd1f56850f22f09f9"
+        },
+        {
+          "file": "es/index.js",
+          "sha256": "2d1b2b0e0bd4a986812af8f07799620db6879ed14d7efd3eeb62ca73380c2b25"
+        },
+        {
+          "file": "src/index.js",
+          "sha256": "b7f447af9e838be7ac1c7de54059cffd82dff680471419e5a48343cbea0482f2"
+        },
+        {
+          "file": "package.json",
+          "sha256": "ef31122f9996b9b24114614330ad9bc1416825aa4d9d003dbade5d6d1d2bfca9"
+        },
+        {
+          "file": "dist/blur-tables.js.map",
+          "sha256": "66342b1b0e528f85b4ae7e13a6b0a5b4380f85dccc6c7a57ee3c9998507b91ee"
+        },
+        {
+          "file": "es/blur-tables.js.map",
+          "sha256": "ed247599234205d03007bc42cf2a15d0a67adca83c28f0583805bee5481e1fa4"
+        },
+        {
+          "file": "dist/index.js.map",
+          "sha256": "ba62bc0463026800600ff3b7bcd8ba8f9acbd57011e29107580b8c480d23ac84"
+        },
+        {
+          "file": "es/index.js.map",
+          "sha256": "754e16c967feb7d333bc174fd3a9d28800fac41d44866f85ab17a0da6d866025"
+        },
+        {
+          "file": "CHANGELOG.md",
+          "sha256": "c38afd80fe96c5bf10f064cb3566885b585e8bb1a3396dd107720e6fdb5f99ae"
+        },
+        {
+          "file": "README.md",
+          "sha256": "f7faa4b446e5ad85415bf69237541c6509e8af77c5520a6d696d62754076ad7d"
+        },
+        {
+          "file": "index.d.ts",
+          "sha256": "e915ce3f54434f4abed13be2211b7c1e5df7d93f54c5b1a40e83cc5c541c32a8"
+        }
+      ]
+    },
+    {
+      "name": "@jimp/plugin-resize",
+      "version": "0.22.12",
+      "archiveSha256": "744ba8d13144c9752595e238d72d4bc0e99ea89bf01defc3180fc3c598bee792",
+      "integrity": "sha512-3NyTPlPbTnGKDIbaBgQ3HbE6wXbAlFfxHVERmrbqAi8R3r6fQPxpCauA8UVDnieg5eo04D0T8nnnNIX//i/sXg==",
+      "files": [
+        {
+          "file": "LICENSE",
+          "sha256": "942eab097945c835cf41abcbf1b9a6659c5d0c3493e60c56796d2e045c219278"
+        },
+        {
+          "file": "dist/index.js",
+          "sha256": "b491d7570368341f3f452758f4defe11bff50f4fd3dfb7bd5896539fbcd7ae24"
+        },
+        {
+          "file": "es/index.js",
+          "sha256": "9488632e51b2f9e5fa98dec6340bb859ef478e146df2719d2985d21b13a1f799"
+        },
+        {
+          "file": "src/index.js",
+          "sha256": "b04722a4219af80e3899865919e5d20f3a9af504dff598c80e9a9a13ea89b571"
+        },
+        {
+          "file": "dist/modules/resize.js",
+          "sha256": "4cceed53fd19766b08b46a2dc9f952c7b43f8e0cd3fe0c6f297ebd4c84475571"
+        },
+        {
+          "file": "es/modules/resize.js",
+          "sha256": "a436acbea2e66822ae5f66852c2088116468d11d5955963c4a418dbb9621dd39"
+        },
+        {
+          "file": "src/modules/resize.js",
+          "sha256": "f43e9f1d2ce207219e23bd0b953f0cf9d79e30b2d43ecb69f0912666b74e8f8f"
+        },
+        {
+          "file": "test/resize.test.js",
+          "sha256": "31d7da4278dea25f4027fe6a43cb05293774fe6b4f5cec25bf1cda2ed0ec069c"
+        },
+        {
+          "file": "dist/modules/resize2.js",
+          "sha256": "48ace16ec249a72bd9fe4f447360b0231f471d6a53ede28c008148bdb4aff305"
+        },
+        {
+          "file": "es/modules/resize2.js",
+          "sha256": "006bc2bffb7ab58a1c212615dae761318d6ad3c2a6527f9fb61812c567ed5545"
+        },
+        {
+          "file": "src/modules/resize2.js",
+          "sha256": "2eb5cbfb072155e6b8f50402b8d6c14aefa60c1890ae2210c97355df7f90fe13"
+        },
+        {
+          "file": "package.json",
+          "sha256": "554cb6531977bdf910deac96f79a54cb1376384462aad2d380d4f50747399c98"
+        },
+        {
+          "file": "dist/index.js.map",
+          "sha256": "1755791ea2accc76924b24cb6e10aec3f67c90935a45741a670cb7d3bb0e3532"
+        },
+        {
+          "file": "es/index.js.map",
+          "sha256": "1e2515470a117607c9a8f6473b4fd3aad39cf321c7aa7c3c8726281616787411"
+        },
+        {
+          "file": "dist/modules/resize.js.map",
+          "sha256": "0918252790cc4bf4793a93889f7b905493af935fb931e99bc2da5d594cf55143"
+        },
+        {
+          "file": "es/modules/resize.js.map",
+          "sha256": "1b750e15eb19f507e91d44e03bab5ed7039548e9b071290118d1d6e9adf472f8"
+        },
+        {
+          "file": "dist/modules/resize2.js.map",
+          "sha256": "19f6e3c7e6dddbace6093325f64740fffd5dd14fd8a2691c6bfc171c3cf33b05"
+        },
+        {
+          "file": "es/modules/resize2.js.map",
+          "sha256": "417ca4b81d7b76c4cf991de1ecc41aec18eb7cd525760943966611d09607ea22"
+        },
+        {
+          "file": "CHANGELOG.md",
+          "sha256": "12497eabec5d8cbcc9c6e02b58ce7a0441f4a7302dd67393736ab002fde8f31e"
+        },
+        {
+          "file": "README.md",
+          "sha256": "edc97fce54eca246402a5c15241e63cbe5fd4a9e9ee892ee298efea26b1155bd"
+        },
+        {
+          "file": "index.d.ts",
+          "sha256": "e9a33a3158e0ab04dffb3a07f42cc83f84735a65f078996690c38ec336371f1c"
+        }
+      ]
+    },
+    {
+      "name": "@jimp/utils",
+      "version": "0.22.12",
+      "archiveSha256": "69b6cd60cf6a2bf563840331d5658707f571f16cf18624245832552782685f74",
+      "integrity": "sha512-yJ5cWUknGnilBq97ZXOyOS0HhsHOyAyjHwYfHxGbSyMTohgQI6sVyE8KPgDwH8HHW/nMKXk8TrSwAE71zt716Q==",
+      "files": [
+        {
+          "file": "LICENSE",
+          "sha256": "942eab097945c835cf41abcbf1b9a6659c5d0c3493e60c56796d2e045c219278"
+        },
+        {
+          "file": "dist/index.js",
+          "sha256": "2ffae75af2ce006e847225aaad4533aa1d5b224141e6857548668631dcaab044"
+        },
+        {
+          "file": "es/index.js",
+          "sha256": "7ef17a556e300145171ad0d4082665a0634c2c3df9eb5e149d56196dbeeab3cf"
+        },
+        {
+          "file": "src/index.js",
+          "sha256": "6b2d5f54af0dc8a7f0b25a56e0a3d852443d0ad71cb40e920a24c81a92455690"
+        },
+        {
+          "file": "package.json",
+          "sha256": "bc6f1969566b7b46d343a81b5f86dfdcd4d412306826ccb92cba272a86cf62ea"
+        },
+        {
+          "file": "dist/index.js.map",
+          "sha256": "5692aee54de2034a4e852ace3a4d85ab0d7ac442b746039d02555e8c68a3d63d"
+        },
+        {
+          "file": "es/index.js.map",
+          "sha256": "9c9b60591ae00208afb4fef992df907785b84451b43c97184bb1d02415d899df"
+        },
+        {
+          "file": "CHANGELOG.md",
+          "sha256": "ca3bd264b302d307da593df5e775a1ef6b26a3348f553c7b908c79c4ae7de27f"
+        },
+        {
+          "file": "README.md",
+          "sha256": "3b6d592d8714775bb490077d7b74c6c9832ead4f01ef9661fa65b9e018d2f0af"
+        },
+        {
+          "file": "index.d.ts",
+          "sha256": "b58ec7858306de232fe71000d2fc25cd8921c38222765bfe187270fab9a5c17f"
+        }
+      ]
+    }
+  ],
+  "audits": [
+    {
+      "scope": "all",
+      "before": {
+        "info": 0,
+        "low": 0,
+        "moderate": 6,
+        "high": 6,
+        "critical": 0,
+        "total": 12
+      },
+      "after": {
+        "info": 0,
+        "low": 0,
+        "moderate": 7,
+        "high": 0,
+        "critical": 0,
+        "total": 7
+      },
+      "advisoriesBefore": [
+        "https://github.com/advisories/GHSA-5v7r-6r5c-r473",
+        "https://github.com/advisories/GHSA-mrhx-c7xc-m3w5"
+      ],
+      "advisoriesAfter": [
+        "https://github.com/advisories/GHSA-5v7r-6r5c-r473"
+      ],
+      "newAffectedPackages": [],
+      "newAffectedNodes": [],
+      "beforeSha256": "b0cc9ed2678f3bb53ea3e32b07c92269b61b69262e0ca1bdac1f4903f613a0c9",
+      "afterSha256": "0ac2ed6e0fd63547b66c18e60b016948018d2d1a549e72947cd08e759a4c56f9"
+    },
+    {
+      "scope": "production",
+      "before": {
+        "info": 0,
+        "low": 0,
+        "moderate": 6,
+        "high": 6,
+        "critical": 0,
+        "total": 12
+      },
+      "after": {
+        "info": 0,
+        "low": 0,
+        "moderate": 7,
+        "high": 0,
+        "critical": 0,
+        "total": 7
+      },
+      "advisoriesBefore": [
+        "https://github.com/advisories/GHSA-5v7r-6r5c-r473",
+        "https://github.com/advisories/GHSA-mrhx-c7xc-m3w5"
+      ],
+      "advisoriesAfter": [
+        "https://github.com/advisories/GHSA-5v7r-6r5c-r473"
+      ],
+      "newAffectedPackages": [],
+      "newAffectedNodes": [],
+      "beforeSha256": "b0cc9ed2678f3bb53ea3e32b07c92269b61b69262e0ca1bdac1f4903f613a0c9",
+      "afterSha256": "0ac2ed6e0fd63547b66c18e60b016948018d2d1a549e72947cd08e759a4c56f9"
+    }
+  ],
+  "productionBaseline": "Copia exacta del manifiesto/lock previos auditada sin instalar la versión anterior.",
+  "residual": "file-type 16.5.4 y su cadena heredada; siete paquetes moderados, un aviso directo. No equivale a seguridad de todo el producto."
+}

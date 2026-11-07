@@ -78,12 +78,13 @@ export interface MediaEnvelope {
     source?: string;
     window?: MediaWindow;
     frameCount?: number;
+    transcribed?: boolean;
   }>;
   rejected: MediaRejection[];
   /** Resolucion aplicada al turno; ausente cuando no viajo ningun medio. */
   resolution?: MediaResolutionLevel;
   /** Costo estimado en tokens de los medios enviados. */
-  estimatedTokens: number;
+  estimatedTokens: number | null;
 }
 
 /**

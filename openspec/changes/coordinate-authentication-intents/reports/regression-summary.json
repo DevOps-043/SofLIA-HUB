@@ -1,0 +1,660 @@
+{
+  "sourcesBefore": [
+    {
+      "source": "src/__tests__/contexts/auth-context/setup.tsx",
+      "previousSha256": "c087668bc613071f8b1a2c122cb202095e42d348c4199956f99ce0011a6163b2",
+      "currentSha256": "87c479bdc1edbe99ee410fc92d49a868ee7922e1928a9455a51d405b00a78fb5"
+    },
+    {
+      "source": "src/__tests__/contexts/auth-context/sofia-mock.ts",
+      "previousSha256": "321c89774d8eb873085d1eaaf8db1a30db243f3a080ca2bf5113b57d41997c32",
+      "currentSha256": "7526b3534c4571cd2ffb2e0dee20f794c2bdfa46ae8d047315c7b60328c8fcfc"
+    },
+    {
+      "source": "src/__tests__/contexts/auth-lifecycle.fixture.ts",
+      "previousSha256": "eb6d42e75ddfc90dbb03fa5cfd3469b2be9d1081c85f11eb17ef45ac398a22fa",
+      "currentSha256": "2f5f66ecf525572909205eb831cc144617048f6d234505508355d1d2abd1b823"
+    },
+    {
+      "source": "src/__tests__/contexts/use-learning-sso.test.tsx",
+      "previousSha256": "228742d3cb0cd361cb82b8a1cff4037961c39781cbbc391ed3d3134538c530a0",
+      "currentSha256": "138f9a90cb985033bdb1fc24548d5f70963452044e3585733ce067cc4d88a0ac"
+    },
+    {
+      "source": "src/__tests__/services/chat-session-sdk.test.ts",
+      "previousSha256": "9039f87854d979db9a40210f3ed03608aea54f1bc54812443ee98c035533430b",
+      "currentSha256": "2d9a252b9ec1a5db34f5759ab9a736a323f4f5f2d1d9747260dc2b38e87762b4"
+    },
+    {
+      "source": "src/__tests__/services/learning-sso.test.ts",
+      "previousSha256": "1a2aa515345d8d65f01d62460cadec7b28b6240b4d4472a0b32c4eebc2c30acf",
+      "currentSha256": "5db5735e3b92750758f9aee9c663173928301d7d3bb1eb42ef0310a6ea718497"
+    },
+    {
+      "source": "src/contexts/auth/useAuthLifecycle.ts",
+      "previousSha256": "61b5e509d61ec2917eef598660b2316a1a22cbb19f65504922f8e8534ac3bd1e",
+      "currentSha256": "c3fc9d6a8b8ca5ca60839c82a27335298294e486c89f24094a9b8310b806a91b"
+    },
+    {
+      "source": "src/contexts/auth/useAuthProviderModel.ts",
+      "previousSha256": "5e00445b4318c478ae1e884149ee44635a09007bc0d2575718ec6da8c29da26f",
+      "currentSha256": "ab8ccda0360d4c96f74a59c535902bbca48201411cd0b7a58e8ffcbe5c1668fb"
+    },
+    {
+      "source": "src/contexts/auth/useAuthState.ts",
+      "previousSha256": "082fe70bc0480f8c461136e827ffb78ad25f7e1ea0fe7e8fbd7da5bbd7384a31",
+      "currentSha256": "0dfa70bf996da963f023d39f3b36dad7c46d49909644fed7bb6e42ec2b5c0503"
+    },
+    {
+      "source": "src/contexts/auth/useLearningSso.ts",
+      "previousSha256": "765bcdfb2aaed9f56dab550755a95c3a6d8bef357d21b034d5c2ee102921ea2a",
+      "currentSha256": "b110e4381e17b07e5039480d7bde67d62fe79de38c872ac67ff483965c175bcc"
+    },
+    {
+      "source": "src/contexts/auth/useSignOut.ts",
+      "previousSha256": "0f508023868f447e86406c7a4fb548a56ddab4248fd68fbc572f0f7ba17a6f56",
+      "currentSha256": "2b2e0deddbc34ce1fbe254c7b06ddf0c0d0478b280a071f0a543f3fe9fc715da"
+    },
+    {
+      "source": "src/contexts/auth/useSofiaContextRetry.ts",
+      "previousSha256": "6337922ceee5814741fcbedf801faadc3584fdb3afdd952eb1f2cd76be57d441",
+      "currentSha256": "c953ba9494d04ff471726045e3e1d8afd98d9d513f0cd71c1782a0fe356639cd"
+    },
+    {
+      "source": "src/contexts/auth/useSofiaResolver.ts",
+      "previousSha256": "8755c44b09b54f36fb1810cc7deb3cfbd4bf4354845253df4b930efdf3a02a20",
+      "currentSha256": "b73dff2913dcfd6b80e5d3fb87b88885dae4abbdbc51acb2aa1becc8bd21393c"
+    },
+    {
+      "source": "src/contexts/auth/useSofiaSignIn.ts",
+      "previousSha256": "72f9f68a479ddc842bea892604dfcd908e8e7b0852572e4d7bee69d978a479bc",
+      "currentSha256": "560932fb4fa7da436194e9556b59d9234210f428a4e1418443efab2bd4ca8b7b"
+    },
+    {
+      "source": "src/services/learning-sso.ts",
+      "previousSha256": "189abdb2cd0998235983f742c87268f3fed593bbacc1929bf3157d695ed02e5b",
+      "currentSha256": "d4067a549db263ec801ff5967ccbc7358b6c8d5990a36ec14fa88f8482a2c4b6"
+    },
+    {
+      "source": "src/services/lia-session-exchange.ts",
+      "previousSha256": "b1e9140286c5bd610e98ff4ebe57b9050a2047465d308a71f4975aecf607b770",
+      "currentSha256": "49865d69e7b07a532ec2920f6a1f055052bed19a1a8bab441e16ec0c12371282"
+    },
+    {
+      "source": "src/services/sofia-auth.ts",
+      "previousSha256": "43beddd8bf1e2a96987075c5c73d6f3ef667dbf0893fc43e9539165db2561c91",
+      "currentSha256": "d518b23c20c86b152b99dcc704bc20b1bc0e38a30c6859f3ca8b131026ef99e3"
+    }
+  ],
+  "red": {
+    "failed": 7,
+    "passed": 1,
+    "logSha256": "aefc5a426a57f9db3dd6739a8cd8f2fd65348f620e0dc6893a5458f6a1e1fb1e"
+  },
+  "fixtureAdjustments": {
+    "missingPrivateDependencies": [
+      "operations",
+      "setLoading"
+    ],
+    "argumentExpectationFailure": {
+      "passed": 73,
+      "failed": 1
+    },
+    "explicitSdkSession": true
+  },
+  "directed": {
+    "passed": 120,
+    "failed": 0,
+    "files": [
+      {
+        "file": "src/__tests__/contexts/auth-intent-ownership.test.tsx",
+        "cases": 17,
+        "checks": [
+          {
+            "name": "Ownership integrado de intenciones Auth un login pendiente no restaura identidad después de pedir cierre",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth cierra estado y publica revocación antes de esperar logout o lectura de token",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth ordena mutaciones SDK y sólo acepta el acceso más reciente",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth acepta SIGNED_IN del propio login sin disparar dos recuperaciones",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth un reintento del directorio no publica contexto después del cierre",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth cancelar SSO mientras se crea la solicitud impide abrir navegador",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth cancelar SSO tras reclamar el retorno impide completar identidad",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth el finally de un retorno SSO anterior no termina la solicitud nueva",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth un SIGNED_OUT del logout físico anterior no cancela el login en espera",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth un cierre externo revoca el login activo y no acepta su resultado tardío",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth rechaza un resultado de login incompatible con el último sujeto SDK observado",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth una publicación positiva pendiente no reemplaza la revocación",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth un error tardío de publicación o retry se maneja sin exponer detalles",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth desmontar durante login impide publicar y comenzar recuperación",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth StrictMode restaura con la activación vigente y descarta la anterior",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth desmontar SSO durante creación no abre navegador ni conserva retorno",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth el renderer orbe nunca publica acceso o revocación",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/__tests__/contexts/auth-lifecycle-cancellation.test.tsx",
+        "cases": 27,
+        "checks": [
+          {
+            "name": "Vigencia de restauración y eventos Auth suscribe antes de leer y el callback no devuelve una promesa",
+            "status": "passed"
+          },
+          {
+            "name": "Vigencia de restauración y eventos Auth descarta restauración inicial tras cierre, SOFIA=true",
+            "status": "passed"
+          },
+          {
+            "name": "Vigencia de restauración y eventos Auth descarta restauración inicial tras cierre, SOFIA=false",
+            "status": "passed"
+          },
+          {
+            "name": "Vigencia de restauración y eventos Auth un error inicial anterior no borra la sesión nueva ni registra el error libre",
+            "status": "passed"
+          },
+          {
+            "name": "Vigencia de restauración y eventos Auth descarta resolución denied de una identidad anterior",
+            "status": "passed"
+          },
+          {
+            "name": "Vigencia de restauración y eventos Auth descarta resolución error de una identidad anterior",
+            "status": "passed"
+          },
+          {
+            "name": "Vigencia de restauración y eventos Auth A/B/A no rehabilita una resolución antigua",
+            "status": "passed"
+          },
+          {
+            "name": "Vigencia de restauración y eventos Auth INITIAL_SESSION tardío no revierte un cierre",
+            "status": "passed"
+          },
+          {
+            "name": "Vigencia de restauración y eventos Auth desmontar libera la suscripción y descarta la lectura pendiente",
+            "status": "passed"
+          },
+          {
+            "name": "Vigencia de restauración y eventos Auth al cambiar de sujeto limpia datos anteriores antes de resolver el nuevo",
+            "status": "passed"
+          },
+          {
+            "name": "Cancelación de recuperación Lia integrada al lifecycle cancela tras lectura sin publicar ni iniciar canje",
+            "status": "passed"
+          },
+          {
+            "name": "Cancelación de recuperación Lia integrada al lifecycle cancela tras refresh sin publicar ni iniciar canje",
+            "status": "passed"
+          },
+          {
+            "name": "Cancelación de recuperación Lia integrada al lifecycle cancela tras canje sin enviar OTP",
+            "status": "passed"
+          },
+          {
+            "name": "Cancelación de recuperación Lia integrada al lifecycle cancela tras OTP para a sin publicar ni cerrar otra sesión",
+            "status": "passed"
+          },
+          {
+            "name": "Cancelación de recuperación Lia integrada al lifecycle cancela tras OTP para otro sin publicar ni cerrar otra sesión",
+            "status": "passed"
+          },
+          {
+            "name": "Errores y recursos del ciclo Auth un evento inicial síncrono evita una lectura redundante",
+            "status": "passed"
+          },
+          {
+            "name": "Errores y recursos del ciclo Auth un refresh vigente conserva identidad y recupera Lia sin vaciar datos",
+            "status": "passed"
+          },
+          {
+            "name": "Errores y recursos del ciclo Auth un fallo de suscripción bloquea incluso un callback retenido y no filtra detalles",
+            "status": "passed"
+          },
+          {
+            "name": "Errores y recursos del ciclo Auth un fallo vigente al resolver se maneja sin rechazo libre",
+            "status": "passed"
+          },
+          {
+            "name": "Errores y recursos del ciclo Auth unsubscribe conserva su receptor y no rehabilita la operación si falla",
+            "status": "passed"
+          },
+          {
+            "name": "Errores y recursos del ciclo Auth StrictMode descarta la primera restauración y conserva la segunda",
+            "status": "passed"
+          },
+          {
+            "name": "Errores y recursos del ciclo Auth restaurar Lia sincroniza perfil una vez y un rechazo auxiliar no borra la sesión",
+            "status": "passed"
+          },
+          {
+            "name": "Errores y recursos del ciclo Auth una recuperación ya cancelada no lee SDK ni degrada datos",
+            "status": "passed"
+          },
+          {
+            "name": "Cancelación y reintentos del canje Lia una señal cancelada impide comenzar el canje",
+            "status": "passed"
+          },
+          {
+            "name": "Cancelación y reintentos del canje Lia cancelar backoff libera timer/listener y no reintenta",
+            "status": "passed"
+          },
+          {
+            "name": "Cancelación y reintentos del canje Lia un reintento vigente recupera sesión y libera su listener",
+            "status": "passed"
+          },
+          {
+            "name": "Cancelación y reintentos del canje Lia un fallo permanente vigente conserva la denegación sin reintentos",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/__tests__/contexts/auth-operations-sdk.test.ts",
+        "cases": 2,
+        "checks": [
+          {
+            "name": "Ownership con SDK Supabase real y transporte ficticio SIGNED_IN propio y TOKEN_REFRESHED no cancelan al propietario válido",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership con SDK Supabase real y transporte ficticio SIGNED_OUT físico anterior no revoca otro acceso que espera la cola",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/__tests__/contexts/auth-operations.test.ts",
+        "cases": 7,
+        "checks": [
+          {
+            "name": "Coordinador privado de intenciones Auth invalida A/B/A antes de esperar y final antiguo no libera intención nueva",
+            "status": "passed"
+          },
+          {
+            "name": "Coordinador privado de intenciones Auth cierre bloquea restauración espontánea hasta otra intención",
+            "status": "passed"
+          },
+          {
+            "name": "Coordinador privado de intenciones Auth el sujeto Auth observado prevalece, sin usar un ID de perfil",
+            "status": "passed"
+          },
+          {
+            "name": "Coordinador privado de intenciones Auth sólo retiene una continuación pendiente y libera la sustituida",
+            "status": "passed"
+          },
+          {
+            "name": "Coordinador privado de intenciones Auth cancelar pendiente libera su listener antes de terminar el activo",
+            "status": "passed"
+          },
+          {
+            "name": "Coordinador privado de intenciones Auth un rechazo libera cola y los eventos del escritor revocado no cancelan al pendiente",
+            "status": "passed"
+          },
+          {
+            "name": "Coordinador privado de intenciones Auth dispose es idempotente, no ejecuta trabajo retenido y activate crea otra señal",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/__tests__/contexts/AuthContext.test.tsx",
+        "cases": 20,
+        "checks": [
+          {
+            "name": "AuthContext initialization AUTH-001: AuthProvider initializes with loading=true",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext initialization AUTH-005: auth state change subscribes to session refresh sources",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext session actions AUTH-002: signInWithSofia sets user and Lia session on success",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext session actions AUTH-003: signOut clears user and session",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext session actions AUTH-004: setCurrentOrganization is callable without SOFIA context",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext Lia degraded mode AUTH-006: Lia sync failures mark the session as degraded without blocking SOFIA access",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext intercambio automatico de conversaciones AUTH-024: dos contraseñas incorrectas previas no se propagan al servicio operativo",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext intercambio automatico de conversaciones AUTH-025: una denegacion secundaria conserva SOFIA y muestra un estado no tecnico",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext intercambio automatico de conversaciones AUTH-026: reintentar recupera conversaciones sin pedir otra contraseña",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext intercambio automatico de conversaciones AUTH-027: una sesion operativa de otro correo se cierra localmente antes del intercambio",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext intercambio automatico de conversaciones AUTH-028: la restauracion persistida intercambia automaticamente con el token SOFIA",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext intercambio automatico de conversaciones AUTH-035: un fallo 5xx se reintenta de forma acotada y recupera la sesion",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext intercambio automatico de conversaciones AUTH-036: el canje para otro correo se revoca localmente y nunca habilita datos ajenos",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext persistencia de sesion AUTH-010: un fallo transitorio de SOFIA conserva la sesion y degrada solo el directorio",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext persistencia de sesion AUTH-013: el directorio caido no se lleva por delante las conversaciones",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext persistencia de sesion AUTH-016: el directorio se recupera solo cuando SOFIA vuelve, sin tocar nada",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext persistencia de sesion AUTH-015: una sesion sin token verificable pide volver a iniciar sesion, no reintentos",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext persistencia de sesion AUTH-014: el reintento manual recupera el directorio sin reiniciar la app",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext persistencia de sesion AUTH-011: un perfil valido sin membresia activa cierra la sesion",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext persistencia de sesion AUTH-012: una restauracion valida mantiene al usuario autenticado con su contexto",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/__tests__/contexts/use-learning-sso.test.tsx",
+        "cases": 10,
+        "checks": [
+          {
+            "name": "useLearningSso abre el navegador y queda en espera",
+            "status": "passed"
+          },
+          {
+            "name": "useLearningSso descarta un retorno cuyo state no corresponde a la solicitud viva",
+            "status": "passed"
+          },
+          {
+            "name": "useLearningSso ignora un retorno cuando no hay ninguna solicitud viva",
+            "status": "passed"
+          },
+          {
+            "name": "useLearningSso completa la sesion cuando el retorno correlaciona",
+            "status": "passed"
+          },
+          {
+            "name": "useLearningSso no consume dos veces el mismo retorno",
+            "status": "passed"
+          },
+          {
+            "name": "useLearningSso traduce un retorno de acceso denegado sin canjear",
+            "status": "passed"
+          },
+          {
+            "name": "useLearningSso cierra la sesion cuando el perfil no tiene membresia activa",
+            "status": "passed"
+          },
+          {
+            "name": "useLearningSso muestra un mensaje no tecnico si el canje falla",
+            "status": "passed"
+          },
+          {
+            "name": "useLearningSso no se suscribe ni ofrece el flujo con el interruptor apagado",
+            "status": "passed"
+          },
+          {
+            "name": "useLearningSso permite cancelar la espera",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/__tests__/services/chat-session-sdk.test.ts",
+        "cases": 2,
+        "checks": [
+          {
+            "name": "adaptador de revisión con SDK Supabase real y transporte ficticio revisa sesión en memoria y recibe revocación real del SDK al cerrar",
+            "status": "passed"
+          },
+          {
+            "name": "adaptador de revisión con SDK Supabase real y transporte ficticio renovación real del SDK conserva sujeto/ciclo sin persistir tokens del fixture",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/__tests__/services/learning-sso.test.ts",
+        "cases": 13,
+        "checks": [
+          {
+            "name": "learning-sso: canje del ticket una señal cancelada no comienza el canje",
+            "status": "passed"
+          },
+          {
+            "name": "learning-sso: canje del ticket cancelar durante lectura del cuerpo impide OTP",
+            "status": "passed"
+          },
+          {
+            "name": "learning-sso: canje del ticket cancelar tras OTP no entrega la sesión ni reintenta",
+            "status": "passed"
+          },
+          {
+            "name": "learning-sso: canje del ticket cancelar backoff retira espera/listener sin reintento",
+            "status": "passed"
+          },
+          {
+            "name": "learning-sso: canje del ticket devuelve la sesion SOFIA cuando el canje prospera",
+            "status": "passed"
+          },
+          {
+            "name": "learning-sso: canje del ticket no reintenta cuando el acceso esta denegado",
+            "status": "passed"
+          },
+          {
+            "name": "learning-sso: canje del ticket no reintenta un ticket invalido",
+            "status": "passed"
+          },
+          {
+            "name": "learning-sso: canje del ticket reintenta de forma acotada ante un fallo transitorio",
+            "status": "passed"
+          },
+          {
+            "name": "learning-sso: canje del ticket trata un fallo de red como reintentable",
+            "status": "passed"
+          },
+          {
+            "name": "learning-sso: canje del ticket falla si la respuesta no trae la prueba de acceso",
+            "status": "passed"
+          },
+          {
+            "name": "learning-sso: canje del ticket falla si el canje del enlace magico no produce sesion",
+            "status": "passed"
+          },
+          {
+            "name": "learning-sso: generacion de la solicitud produce un desafio S256 en base64url derivado del verificador",
+            "status": "passed"
+          },
+          {
+            "name": "learning-sso: generacion de la solicitud genera una solicitud distinta cada vez",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/__tests__/services/sofia-auth-cancellation.test.ts",
+        "cases": 8,
+        "checks": [
+          {
+            "name": "Cancelación de etapas del servicio SOFIA real no inicia traducción ni SDK con una señal cancelada",
+            "status": "passed"
+          },
+          {
+            "name": "Cancelación de etapas del servicio SOFIA real cancelar tras traducción impide iniciar autenticación SDK",
+            "status": "passed"
+          },
+          {
+            "name": "Cancelación de etapas del servicio SOFIA real cancelar tras SDK impide resolver y persistir perfil",
+            "status": "passed"
+          },
+          {
+            "name": "Cancelación de etapas del servicio SOFIA real cancelar perfil login no guarda snapshot ni cierra otra sesión",
+            "status": "passed"
+          },
+          {
+            "name": "Cancelación de etapas del servicio SOFIA real cancelar perfil sso no guarda snapshot ni cierra otra sesión",
+            "status": "passed"
+          },
+          {
+            "name": "Cancelación de etapas del servicio SOFIA real el éxito vigente conserva identidad de perfil y sesión Auth sin equipararlas",
+            "status": "passed"
+          },
+          {
+            "name": "Cancelación de etapas del servicio SOFIA real retira el snapshot local sin mutar el SDK",
+            "status": "passed"
+          },
+          {
+            "name": "Cancelación de etapas del servicio SOFIA real un almacenamiento local fallido no impide intentar el cierre SDK",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/__tests__/services/sofia-auth-login.test.ts",
+        "cases": 12,
+        "checks": [
+          {
+            "name": "sofia-auth/login resolveLoginEmail resuelve el correo pasando el identificador tal cual a la funcion",
+            "status": "passed"
+          },
+          {
+            "name": "sofia-auth/login resolveLoginEmail acepta un nombre de usuario, no solo un correo",
+            "status": "passed"
+          },
+          {
+            "name": "sofia-auth/login resolveLoginEmail nunca consulta la tabla de usuarios",
+            "status": "passed"
+          },
+          {
+            "name": "sofia-auth/login resolveLoginEmail devuelve null sin consultar cuando el identificador esta vacio",
+            "status": "passed"
+          },
+          {
+            "name": "sofia-auth/login resolveLoginEmail devuelve null cuando el usuario no existe",
+            "status": "passed"
+          },
+          {
+            "name": "sofia-auth/login resolveLoginEmail trata una cadena vacia devuelta por la funcion como usuario inexistente",
+            "status": "passed"
+          },
+          {
+            "name": "sofia-auth/login resolveLoginEmail lanza error ante fallos de consulta (conexion/BD/permisos)",
+            "status": "passed"
+          },
+          {
+            "name": "sofia-auth/login mapSupabaseAuthError traduce credenciales invalidas sin revelar detalles",
+            "status": "passed"
+          },
+          {
+            "name": "sofia-auth/login mapSupabaseAuthError traduce email no confirmado",
+            "status": "passed"
+          },
+          {
+            "name": "sofia-auth/login mapSupabaseAuthError traduce rate limiting",
+            "status": "passed"
+          },
+          {
+            "name": "sofia-auth/login mapSupabaseAuthError traduce errores de red",
+            "status": "passed"
+          },
+          {
+            "name": "sofia-auth/login mapSupabaseAuthError usa mensaje generico para errores desconocidos (anti-enumeracion)",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/__tests__/services/sofia-auth-session.test.ts",
+        "cases": 2,
+        "checks": [
+          {
+            "name": "restauracion verificable de SOFIA no fabrica una sesion desde el snapshot local",
+            "status": "passed"
+          },
+          {
+            "name": "restauracion verificable de SOFIA conserva una sesion real con credenciales",
+            "status": "passed"
+          }
+        ]
+      }
+    ],
+    "newCases": 38,
+    "jsonSha256": "5e542b715a68079f842d1b40565e473fc7ef7fd6273a8cf006ac4182ab60bed5"
+  },
+  "scope": "Proveedor, hooks y servicios reales; SDK real con transporte ficticio aislado. Sin red/cuentas reales, JWT criptográfico, RLS o I/O físico revocado."
+}

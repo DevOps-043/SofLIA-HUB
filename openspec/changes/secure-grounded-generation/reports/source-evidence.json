@@ -1,0 +1,86 @@
+{
+  "count": 3568,
+  "before": "3feb0b6abe9a44b097fcc3db5f12d2001b166ac280786e7ea5ece4aa3f0aec18",
+  "after": "3feb0b6abe9a44b097fcc3db5f12d2001b166ac280786e7ea5ece4aa3f0aec18",
+  "changedDuringGate": [],
+  "copiedFilesMatching": 3548,
+  "deltaFromUnit40": [
+    {
+      "file": "electron/ai-grounding-handler.ts",
+      "previousSha256": "679579a8b179a05ebe6003fc9e9ff5575891d9afa7ddb11a9ff46f4177f99dc2",
+      "currentSha256": "86ed9ab304cdac128a748cb50bf31e9084240a772bed360d7497a64bcd45c33b"
+    },
+    {
+      "file": "electron/main/bootstrap.ts",
+      "previousSha256": "0c3e280f4f5b18fae7fd56f420cb122719fd0e3b364e28babb9109e63df1929a",
+      "currentSha256": "df732619bd1c771f2f0f0b5e3c7f5938ebbfaf11544bf7f1062a42493e08938a"
+    },
+    {
+      "file": "electron/preload.ts",
+      "previousSha256": "67bc0ea75c3378d831ef355205d3c0c29ff268b819604a7bde92ce28362627ca",
+      "currentSha256": "441d6d37a912e85361726af54ca609b0b2ccecc9da544ba913c4feec5a022c6a"
+    },
+    {
+      "file": "electron/preload/channel-group-4.ts",
+      "previousSha256": "b5d1dfd6251a8f770c6511dd1eb409a558d9d91929c8be043e6de38e56ec0885",
+      "currentSha256": "ed1a44b980b51fdd96c8786d62f8ec5e6d0ed63799d3bb54d2a2bb584b911966"
+    },
+    {
+      "file": "src/__tests__/services/gemini-chat.test.ts",
+      "previousSha256": "cdb51228f56b1133dd28e1f957ba93767b02ba6e6a0a66399f95257910983f4e",
+      "currentSha256": "95e379916985f10c4c7425e68435608a91f60419f410e7fde02549e3358b5b4a"
+    },
+    {
+      "file": "src/services/gemini-chat/sources.ts",
+      "previousSha256": "4b34363175dd2058fe828ae69858be61b430893acd015c262d047cd1fc01fb0f",
+      "currentSha256": "b43e5a506c512ff6c46f3fd1a5f8b057edddf87311497a6080cd36738174bea7"
+    },
+    {
+      "file": "src/services/gemini-chat/web-grounding.ts",
+      "previousSha256": "d82ee8f964d48f2f4274de34aeb7d3ed7b3d96080e65d51b48a0a53347869473",
+      "currentSha256": "4d53110ef74431d6cae9b065a18e1e82bcf5d29e39fd6d20a60afbb061a428c8"
+    },
+    {
+      "file": "electron/__tests__/grounded-generation.test.ts",
+      "previousSha256": null,
+      "currentSha256": "3a941c433216536d590e8bd44f15ca375fae88dbb0f3231735dd0fc678932c84"
+    },
+    {
+      "file": "electron/__tests__/grounded-http.test.ts",
+      "previousSha256": null,
+      "currentSha256": "13dc7357443e75b8658edb37bae73f0aa99f804d8545e4f1492a0da74503e720"
+    },
+    {
+      "file": "electron/ai-grounding-service.ts",
+      "previousSha256": null,
+      "currentSha256": "0ce141fd2b9fbeac6e67d536945141812857c7a7837424ffa012356c7714333d"
+    },
+    {
+      "file": "electron/preload/grounding-api.ts",
+      "previousSha256": null,
+      "currentSha256": "4dffdd476a31847e2b18843f0f8ee57e20d12d15af14fed1e44c37b3d87deba2"
+    },
+    {
+      "file": "src/__tests__/services/grounding-bridge.test.ts",
+      "previousSha256": null,
+      "currentSha256": "b0430c940ac85de0a9e3abe53c7fd413d57bc2ae45debb854d88088497d52392"
+    },
+    {
+      "file": "src/services/grounded-generation.ts",
+      "previousSha256": null,
+      "currentSha256": "e9cece2f1776d7f2571f4edfe0dce0ba255df2461934a3f1f1deb6ab626aa2c9"
+    },
+    {
+      "file": "src/shared/grounded-generation.ts",
+      "previousSha256": null,
+      "currentSha256": "52a8c0264ef27867039b2143699c64e33571ef4c2f3517c64654fde51fe111f2"
+    },
+    {
+      "file": "src/shared/grounded-http.ts",
+      "previousSha256": null,
+      "currentSha256": "9c621fbb07cb1dddc95873057c989e96607060a478489599534360969288f6ae"
+    }
+  ],
+  "dependenciesAndPolicyUnchanged": true,
+  "groundingModelPolicyUnchanged": true
+}

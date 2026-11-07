@@ -5,6 +5,10 @@ import { normalizePhone } from '../iris/phone';
 import { normalizePhoneNumber, numbersMatch } from '../whatsapp/phone-utils';
 import { authorizeChannelTool, authorizeHubAdminAction, getCapabilitiesForRole, isOrgAdminRole } from './authorization';
 import { rankUsersByPhoneMatch } from './phone-match';
+import { assertCommunicationOperation, assertCommunicationPrincipal, communicationOperation, confirmCommunicationEffect, requireCommunicationOrganization, withoutCommunicationOperation } from './operation-context';
+import { COMMUNICATION_IPC_LIMITS as ipcLimits } from '../../src/shared/communication-hub-ipc';
+import { createLogger } from '../utils/logger';
+const log = createLogger('canales');
 import {
   appendAuditEvent,
   getOrCreateChannelPolicy,
@@ -28,11 +32,24 @@ import type {
   OrgConnectionUpdate,
   ResolvedChannelPrincipal,
 } from './types';
+import type { TelegramConfigUpdates } from '../telegram/types';
+import { communicationConnectionPreview } from './ipc-contract';
 
 type CommunicationHubDeps = {
-  waService: any;
-  telegramService: any;
-  remoteNodeService?: any;
+  waService: {
+    getStatus(): { masterNumber?: string; allowedNumbers?: string[]; connected?: boolean };
+    connect(): Promise<void>;
+    disconnect(): Promise<void>;
+    saveApiKey(key: string): Promise<void>;
+    sendText(recipient: string, text: string): Promise<void>;
+    getConversationHistory(filters: { limit: number }): unknown;
+  };
+  telegramService: {
+    getStatus(): Promise<Record<string, unknown>>;
+    updateConfig(updates: TelegramConfigUpdates): Promise<Record<string, unknown>>;
+    sendMessage(recipient: string, text: string): Promise<Record<string, unknown>>;
+  };
+  remoteNodeService?: { listNodes(): Promise<{ id: string; visibility?: string | null; owner_user_id?: string | null }[]> | { id: string; visibility?: string | null; owner_user_id?: string | null }[] };
 };
 
 type SofiaUserRow = {
@@ -67,6 +84,16 @@ export class CommunicationHubService extends EventEmitter {
     return structuredClone(this.ensureState());
   }
 
+  /** Administración del transporte físico: nunca aceptar un actor del renderer. */
+  async authorizeDeviceAction(provider: ChannelProvider, detail?: string): Promise<void> {
+    const op = communicationOperation(); if (!op) throw new Error('Falta contexto nativo de comunicación.');
+    requireCommunicationOrganization();
+    const principal = await this.resolvePrincipalForActor(op.actor, provider);
+    if (!authorizeHubAdminAction(principal, 'administracion-dispositivo').allowed) throw new Error('Se requiere administración de comunicaciones.');
+    if (detail) await this.confirmForPrincipal(principal, `Administración del dispositivo compartido (${provider}):\n${detail}`);
+    op.assert();
+  }
+
   async getCapabilities(actor?: ChannelActorInput): Promise<Record<string, unknown>> {
     const principal = await this.resolvePrincipalForActor(actor, 'whatsapp');
     return {
@@ -87,14 +114,22 @@ export class CommunicationHubService extends EventEmitter {
       success: true,
       principal,
       preferences,
-      whatsapp: this.deps.waService.getStatus(),
-      telegram: await this.deps.telegramService.getStatus(),
+      whatsapp: communicationStatus(this.deps.waService.getStatus()),
+      telegram: communicationStatus(await this.deps.telegramService.getStatus()),
     };
   }
 
   async updatePersonalPreferences(actor: ChannelActorInput | undefined, updates: Record<string, unknown>): Promise<Record<string, unknown>> {
     const principal = await this.resolvePrincipalForActor(actor, 'whatsapp');
     if (!principal.active || !principal.userId) return { success: false, error: 'No hay usuario activo para preferencias personales.' };
+    if (typeof updates.telegramChatId === 'string' && updates.telegramChatId.trim()) {
+      const existing = this.ensureState().telegramIdentities[updates.telegramChatId.trim()];
+      if (communicationOperation() && existing && existing.userId !== principal.userId) throw new Error('Ese chat pertenece a otro usuario.');
+      await this.confirmForPrincipal(principal, `Vincular chat Telegram: ${updates.telegramChatId.trim()}`);
+      assertCommunicationOperation();
+      const current = this.ensureState().telegramIdentities[updates.telegramChatId.trim()];
+      if (communicationOperation() && current && current.userId !== principal.userId) throw new Error('Ese chat pertenece a otro usuario.');
+    }
     const preferences = getOrCreatePersonalPreferences(this.ensureState(), principal.userId);
     for (const key of ['whatsappEnabled', 'telegramEnabled', 'notificationsEnabled', 'remindersEnabled', 'ownDeviceControlEnabled'] as const) {
       if (typeof updates[key] === 'boolean') preferences[key] = updates[key] as boolean;
@@ -108,12 +143,13 @@ export class CommunicationHubService extends EventEmitter {
       };
     }
     preferences.updatedAt = new Date().toISOString();
-    this.recordAudit(principal, 'personal_preferences.update', true, { metadata: { updates } });
+    this.recordAudit({ ...principal, scope: 'personal' }, 'personal_preferences.update', true, { metadata: { updates } });
     this.saveState();
     return { success: true, preferences };
   }
 
   async getOrgStatus(actor?: ChannelActorInput): Promise<Record<string, unknown>> {
+    requireCommunicationOrganization();
     const principal = await this.resolvePrincipalForActor(actor, 'whatsapp');
     const admin = authorizeHubAdminAction(principal, 'channels:get-org-status');
     this.recordAudit(principal, 'channels:get-org-status', admin.allowed, { reason: admin.reason });
@@ -123,41 +159,47 @@ export class CommunicationHubService extends EventEmitter {
       success: true,
       principal,
       policy: getOrCreateChannelPolicy(this.ensureState(), organizationId, principal.userId),
-      whatsapp: this.deps.waService.getStatus(),
-      telegram: await this.deps.telegramService.getStatus(),
+      whatsapp: communicationStatus(this.deps.waService.getStatus()),
+      telegram: communicationStatus(await this.deps.telegramService.getStatus()),
     };
   }
 
   async updateOrgConnection(actor: ChannelActorInput | undefined, update: OrgConnectionUpdate): Promise<Record<string, unknown>> {
+    requireCommunicationOrganization();
     const principal = await this.resolvePrincipalForActor(actor, update.provider);
     const admin = authorizeHubAdminAction(principal, 'channels:update-org-connection');
     this.recordAudit(principal, 'channels:update-org-connection', admin.allowed, { reason: admin.reason, metadata: { provider: update.provider } });
     if (!admin.allowed) return { success: false, error: admin.reason };
 
+    await this.confirmForPrincipal(principal, `Cambiar conexión ${update.provider}: ${communicationConnectionPreview(update)}`);
+    assertCommunicationOperation();
     if (update.provider === 'telegram') {
-      return this.deps.telegramService.updateConfig(update.updates || {});
+      return communicationStatus(await withoutCommunicationOperation(() => this.deps.telegramService.updateConfig(update.updates || {}))) as Record<string, unknown>;
     }
 
     if (update.action === 'connect') {
-      await this.deps.waService.connect();
+      await withoutCommunicationOperation(() => this.deps.waService.connect());
       return { success: true };
     }
     if (update.action === 'disconnect') {
-      await this.deps.waService.disconnect();
+      await withoutCommunicationOperation(() => this.deps.waService.disconnect());
       return { success: true };
     }
     if (update.action === 'set-api-key') {
-      await this.deps.waService.saveApiKey(update.apiKey || '');
+      await withoutCommunicationOperation(() => this.deps.waService.saveApiKey(update.apiKey || ''));
       return { success: true };
     }
     return { success: false, error: 'Actualizacion de conexion no reconocida.' };
   }
 
   async updatePolicy(actor: ChannelActorInput | undefined, updates: Partial<ChannelPolicy>): Promise<Record<string, unknown>> {
+    requireCommunicationOrganization();
     const principal = await this.resolvePrincipalForActor(actor, 'whatsapp');
     const admin = authorizeHubAdminAction(principal, 'channels:update-policy');
     this.recordAudit(principal, 'channels:update-policy', admin.allowed, { reason: admin.reason, metadata: { updates } });
     if (!admin.allowed) return { success: false, error: admin.reason };
+    await this.confirmForPrincipal(principal, `Cambiar política de canales:\n${JSON.stringify(updates)}`);
+    assertCommunicationOperation();
     const organizationId = this.requireOrganizationId(principal);
     const current = getOrCreateChannelPolicy(this.ensureState(), organizationId, principal.userId);
     const next: ChannelPolicy = {
@@ -176,53 +218,61 @@ export class CommunicationHubService extends EventEmitter {
   }
 
   async listIdentities(actor?: ChannelActorInput): Promise<Record<string, unknown>> {
+    requireCommunicationOrganization();
     const principal = await this.resolvePrincipalForActor(actor, 'telegram');
     const admin = authorizeHubAdminAction(principal, 'channels:list-identities');
     this.recordAudit(principal, 'channels:list-identities', admin.allowed, { reason: admin.reason });
     if (!admin.allowed) return { success: false, error: admin.reason };
-    return { success: true, telegram: Object.values(this.ensureState().telegramIdentities) };
+    return { success: true, telegram: Object.values(this.ensureState().telegramIdentities).filter(row => !communicationOperation() || row.organizationId === principal.organizationId).slice(0, communicationOperation() ? ipcLimits.listItems : undefined) };
   }
 
   async listHistory(actor?: ChannelActorInput): Promise<Record<string, unknown>> {
+    requireCommunicationOrganization();
     const principal = await this.resolvePrincipalForActor(actor, 'whatsapp');
     const admin = authorizeHubAdminAction(principal, 'channels:list-history');
     this.recordAudit(principal, 'channels:list-history', admin.allowed, { reason: admin.reason });
     if (!admin.allowed) return { success: false, error: admin.reason };
     return {
       success: true,
-      audit: this.ensureState().audit,
-      scheduledMessages: this.ensureState().scheduledMessages,
-      whatsapp: await this.deps.waService.getConversationHistory({ limit: 50 }),
+      audit: this.ensureState().audit.filter(row => !communicationOperation() || row.organizationId === principal.organizationId && (isOrganizationalAudit(row) || row.userId === principal.userId)).slice(0, communicationOperation() ? ipcLimits.listItems : undefined),
+      scheduledMessages: this.ensureState().scheduledMessages.filter(row => !communicationOperation() || row.organizationId === principal.organizationId && (row.scope === 'organization' || row.createdBy === principal.userId)).slice(0, communicationOperation() ? ipcLimits.listItems : undefined),
+      whatsapp: communicationOperation() ? [] : await this.deps.waService.getConversationHistory({ limit: 50 }),
     };
   }
 
   async sendMessage(request: ChannelMessageRequest): Promise<Record<string, unknown>> {
+    if (request.scope === 'organization') requireCommunicationOrganization();
     const principal = await this.resolvePrincipalForActor(request.actor, request.provider);
-    const requiredCapability: ChannelCapability = request.scope === 'organization' ? 'broadcasts' : 'messaging';
+    const requiredCapability: ChannelCapability = request.scope === 'organization' ? 'broadcasts' : request.provider === 'whatsapp' && request.recipient.endsWith('@g.us') ? 'groups' : 'messaging';
     const allowed = principal.active && principal.capabilities.includes(requiredCapability);
     const reason = allowed ? undefined : `Permiso requerido: ${requiredCapability}.`;
-    this.recordAudit(principal, 'channels:send-message', allowed, {
+    this.recordAudit({ ...principal, scope: request.scope }, 'channels:send-message', allowed, {
       reason,
       targetId: request.recipient,
       metadata: { provider: request.provider, scope: request.scope },
     });
     if (!allowed) return { success: false, error: reason };
-    if (request.provider === 'telegram') return this.deps.telegramService.sendMessage(request.recipient, request.text);
-    await this.deps.waService.sendText(toWhatsAppJid(request.recipient), request.text);
+    await this.confirmForPrincipal(principal, `Enviar por ${request.provider} a ${request.recipient}:\n${request.text}`);
+    assertCommunicationOperation();
+    if (request.provider === 'telegram') return withoutCommunicationOperation(() => this.deps.telegramService.sendMessage(request.recipient, request.text));
+    await withoutCommunicationOperation(() => this.deps.waService.sendText(toWhatsAppJid(request.recipient), request.text));
     return { success: true };
   }
 
   async scheduleMessage(request: ChannelScheduleRequest): Promise<Record<string, unknown>> {
+    if (request.scope === 'organization') requireCommunicationOrganization();
     const principal = await this.resolvePrincipalForActor(request.actor, request.provider);
     const admin = request.scope === 'organization'
       ? authorizeHubAdminAction(principal, 'channels:schedule-message')
-      : { allowed: principal.active && principal.capabilities.includes('personal_reminders'), reason: undefined };
-    this.recordAudit(principal, 'channels:schedule-message', admin.allowed, {
+      : { allowed: principal.active && principal.capabilities.includes('personal_reminders') && (request.provider !== 'whatsapp' || !request.recipient.endsWith('@g.us') || principal.capabilities.includes('groups')), reason: undefined };
+    this.recordAudit({ ...principal, scope: request.scope }, 'channels:schedule-message', admin.allowed, {
       reason: admin.reason,
       targetId: request.recipient,
       metadata: { scheduledAt: request.scheduledAt, provider: request.provider, scope: request.scope },
     });
     if (!admin.allowed) return { success: false, error: admin.reason || 'No tienes permisos para programar este mensaje.' };
+    await this.confirmForPrincipal(principal, `Programar por ${request.provider} a ${request.recipient}, ${request.scheduledAt}:\n${request.text}`);
+    assertCommunicationOperation();
     const scheduled: ChannelScheduledMessage = {
       id: randomUUID(),
       provider: request.provider,
@@ -284,10 +334,16 @@ export class CommunicationHubService extends EventEmitter {
   }
 
   async resolvePrincipalForActor(actor: ChannelActorInput | undefined, provider: ChannelProvider): Promise<ResolvedChannelPrincipal> {
+    const operation = communicationOperation();
+    if (operation && (actor?.userId !== operation.actor.userId || actor?.organizationId !== operation.actor.organizationId)) throw new Error('Actor de comunicación no autorizado.');
     if (actor?.userId) {
       const profile = await this.fetchSofiaProfileByUserId(actor.userId, actor.organizationId || undefined);
-      if (profile) return this.buildPrincipalFromProfile(provider, profile.user, profile.memberships, actor.organizationId || undefined);
+      if (profile) {
+        const principal = this.buildPrincipalFromProfile(provider, profile.user, profile.memberships, actor.organizationId || undefined);
+        assertCommunicationPrincipal(principal); return principal;
+      }
     }
+    if (operation) throw new Error('No se acreditó el perfil SOFIA.');
     return this.buildLegacyPrincipal(provider);
   }
 
@@ -323,14 +379,14 @@ export class CommunicationHubService extends EventEmitter {
   }
 
   private async fetchSofiaProfileByPhone(normalizedPhone: string): Promise<{ user: SofiaUserRow; memberships: SofiaMembershipRow[] } | null> {
-    const sofia = getSofiaClient();
+    const sofia = withoutCommunicationOperation(getSofiaClient);
     if (!sofia || !normalizedPhone) return null;
     const { data: users, error } = await sofia
       .from('users')
       .select('id, username, email, first_name, last_name, display_name, phone')
       .not('phone', 'is', null);
     if (error || !users) {
-      if (error) console.warn(`[CommunicationHub] Error consultando usuarios SOFIA por telefono: ${error.message}`);
+      if (error) log.warn({ code: 'sofia_users_unavailable' }, 'No se pudieron consultar usuarios SOFIA por teléfono.');
       return null;
     }
 
@@ -353,20 +409,24 @@ export class CommunicationHubService extends EventEmitter {
   }
 
   private async fetchSofiaProfileByUserId(userId: string, organizationId?: string): Promise<{ user: SofiaUserRow; memberships: SofiaMembershipRow[] } | null> {
-    const sofia = getSofiaClient();
+    assertCommunicationOperation();
+    const sofia = withoutCommunicationOperation(getSofiaClient);
     if (!sofia || !userId) return null;
-    const { data: user, error } = await sofia
+    const query = sofia
       .from('users')
       .select('id, username, email, first_name, last_name, display_name, phone')
-      .eq('id', userId)
-      .maybeSingle();
+      .eq('id', userId);
+    const signal = communicationOperation()?.signal;
+    const { data: user, error } = await (signal ? query.abortSignal(signal) : query).maybeSingle();
+    assertCommunicationOperation();
     if (error || !user) return null;
     const memberships = await this.fetchActiveMemberships(userId, organizationId);
     return { user: user as SofiaUserRow, memberships };
   }
 
   private async fetchActiveMemberships(userId: string, organizationId?: string): Promise<SofiaMembershipRow[]> {
-    const sofia = getSofiaClient();
+    assertCommunicationOperation();
+    const sofia = withoutCommunicationOperation(getSofiaClient);
     if (!sofia) return [];
     let query = sofia
       .from('organization_users')
@@ -374,9 +434,11 @@ export class CommunicationHubService extends EventEmitter {
       .eq('user_id', userId)
       .eq('status', 'active');
     if (organizationId) query = query.eq('organization_id', organizationId);
-    const { data, error } = await query;
+    const signal = communicationOperation()?.signal;
+    const { data, error } = await (signal ? query.abortSignal(signal) : query);
+    assertCommunicationOperation();
     if (error) {
-      console.warn(`[CommunicationHub] Error consultando membresias SOFIA: ${error.message}`);
+      log.warn({ code: 'sofia_memberships_unavailable' }, 'No se pudieron consultar membresías SOFIA.');
       return [];
     }
     return (data || []) as SofiaMembershipRow[];
@@ -458,6 +520,15 @@ export class CommunicationHubService extends EventEmitter {
     );
   }
 
+  private async confirmForPrincipal(principal: ResolvedChannelPrincipal, detail: string): Promise<void> {
+    await confirmCommunicationEffect(detail); assertCommunicationOperation();
+    const op = communicationOperation();
+    if (!op) return;
+    const current = await this.resolvePrincipalForActor(op.actor, principal.provider);
+    assertCommunicationOperation();
+    if (current.role !== principal.role || current.organizationId !== principal.organizationId) throw new Error('Los permisos cambiaron durante la aprobación.');
+  }
+
   private recordAudit(
     principal: ResolvedChannelPrincipal,
     action: string,
@@ -489,6 +560,7 @@ export class CommunicationHubService extends EventEmitter {
   }
 
   private ensureState(): CommunicationHubState {
+    assertCommunicationOperation();
     if (!this.state) this.init();
     return this.state!;
   }
@@ -496,6 +568,20 @@ export class CommunicationHubService extends EventEmitter {
   private saveState(): void {
     saveCommunicationHubState(this.ensureState());
   }
+}
+
+/** Estado operativo mínimo en IPC; el plano runtime conserva su contrato nativo. */
+function communicationStatus(value: unknown): unknown {
+  if (!communicationOperation()) return value;
+  if (!value || typeof value !== 'object') return {};
+  const record = value as Record<string, unknown>;
+  return Object.fromEntries(['success', 'connected', 'configured', 'enabled', 'polling'].filter(key => typeof record[key] === 'boolean').map(key => [key, record[key]]));
+}
+
+/** Eventos antiguos sin alcance probado sólo son visibles para su propio actor. */
+function isOrganizationalAudit(event: ChannelAuditEvent): boolean {
+  return event.scope === 'organization' && event.action !== 'personal_preferences.update'
+    && (event.metadata?.scope === 'organization' || ['channels:get-org-status', 'channels:update-org-connection', 'channels:update-policy', 'channels:list-identities', 'channels:list-history'].includes(event.action));
 }
 
 function toWhatsAppJid(recipient: string): string {

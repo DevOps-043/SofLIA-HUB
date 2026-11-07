@@ -31,7 +31,7 @@ interface ProcessChatMessageInput {
   thinkingOption?: ThinkingOption;
   personalization?: { nickname?: string; occupation?: string; tone?: string; instructions?: string };
   isPromptOptimizerMode: boolean;
-  optimizerTarget: 'chatgpt' | 'claude' | 'gemini';
+  optimizerTarget: 'chatgpt' | 'claude';
   isImageGenMode: boolean;
   activeSkill: ActiveSkillState | null;
   /** Conversación persistida o borrador estable durante el montaje del chat. */
@@ -158,7 +158,7 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
     });
     log(`completado (${fullText.length} chars, ${sources?.length || 0} fuentes)`);
   } catch (error) {
-    console.error(`[SofLIA-Gen ${genId}] error:`, error);
+    console.error(`[SofLIA-Gen ${genId}] No se pudo completar la respuesta:`, getPublicAiErrorMessage(error));
     settle({ text: getPublicAiErrorMessage(error) });
   } finally {
     // Garantía final: si por CUALQUIER camino no se resolvió, quitar el "..."

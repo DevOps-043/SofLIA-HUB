@@ -1,0 +1,25 @@
+{
+  "status": "passed",
+  "electron": "44.5.1",
+  "checks": [
+    "main-frame-autorizado",
+    "ventana-ajena-denegada",
+    "ventana-ausente-denegada",
+    "payload-ajeno-denegado",
+    "cancelacion-sin-escritura",
+    "aprobacion-simulada-con-destino",
+    "subida-nativa-sin-rutas-renderer",
+    "descarga-nativa-sin-url-ruta-renderer",
+    "navegacion-invalida-y-libera",
+    "documento-ajeno-denegado"
+  ],
+  "hiddenWindows": true,
+  "profileIsolated": true,
+  "sandbox": true,
+  "contextIsolation": true,
+  "nativeIpc": true,
+  "serviceSimulated": true,
+  "dialogSimulated": true,
+  "networkBlocked": true,
+  "realCredentialsUsed": false
+}

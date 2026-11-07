@@ -1,3 +1,5 @@
+import type { CalibrationMode, CalibrationPointResult, CalibrationMonitorReport, CalibrationReport } from '../../src/shared/desktop-agent';
+export type { CalibrationMode, CalibrationPointResult, CalibrationMonitorReport, CalibrationReport } from '../../src/shared/desktop-agent';
 import { screen as electronScreen } from 'electron';
 import type { DesktopAgentConfig } from './agent-config';
 import type { ScreenshotVirtualBounds } from './types';
@@ -5,42 +7,6 @@ import { buildScreenshotLayout, computeAdaptiveTargetSize } from './screenshot-l
 import { dipToScreenPoint, mapDipPointToScreenshotPoint, mapScreenshotToDipPoint } from './screenshot-coordinates';
 
 type Point = { x: number; y: number };
-
-/**
- * 'passive' valida solo la aritmetica de coordenadas y NUNCA toca el mouse.
- * 'cursor' agrega el round-trip real SetCursorPos/GetCursorPos, que secuestra
- * el puntero del usuario y por eso solo corre a peticion explicita.
- */
-export type CalibrationMode = 'cursor' | 'passive';
-
-export type CalibrationPointResult = {
-  dip: Point;
-  imagen: Point | null;
-  esperadoFisico: Point;
-  /** Solo en modo 'cursor': posicion fisica real leida tras mover el puntero. */
-  obtenidoFisico: Point | null;
-  deltaPx: number;
-  ok: boolean;
-};
-
-export type CalibrationMonitorReport = {
-  monitor: string;
-  boundsDip: ScreenshotVirtualBounds;
-  scaleFactor: number;
-  puntos: CalibrationPointResult[];
-  ok: boolean;
-  /** Motivo por el que el round-trip de cursor no pudo leerse, si aplica. */
-  errorCursor?: string;
-};
-
-export type CalibrationReport = {
-  ok: boolean;
-  modo: CalibrationMode;
-  toleranciaPx: number;
-  monitores: CalibrationMonitorReport[];
-  generadoEn: number;
-  error?: string;
-};
 
 export type CalibrationDeps = {
   config: DesktopAgentConfig;

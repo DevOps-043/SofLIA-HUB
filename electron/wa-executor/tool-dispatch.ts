@@ -16,10 +16,10 @@ import { executeProfileTool, isProfileTool } from './handlers/profile';
 import { executeRemoteNodeTool, isRemoteNodeTool } from './handlers/remote-nodes';
 import { executeUseComputerTool } from './handlers/use-computer';
 import type { FunctionResponse, ToolExecutorContext } from './types';
+import { unexpectedToolFailure } from './unexpected-failure';
 
 type DispatchResult = {
   response: FunctionResponse;
-  bulkLabelsToVerify: Set<string> | null;
 };
 
 export async function dispatchTool(
@@ -29,18 +29,17 @@ export async function dispatchTool(
   jid: string,
   senderNumber: string,
   isGroup: boolean,
-  bulkLabelsToVerify: Set<string> | null,
 ): Promise<DispatchResult> {
-  const delegated = await tryDelegatedTool(toolName, toolArgs, ctx, jid, senderNumber, bulkLabelsToVerify);
+  const delegated = await tryDelegatedTool(toolName, toolArgs, ctx, jid, senderNumber);
   if (delegated) return delegated;
 
   const dynamicResult = await executeDynamicTool(toolName, toolArgs, ctx, jid, senderNumber, isGroup);
-  if (dynamicResult) return { response: dynamicResult, bulkLabelsToVerify };
+  if (dynamicResult) return { response: dynamicResult };
 
   const specialized = await trySpecializedTool(toolName, toolArgs, ctx, jid, senderNumber, isGroup);
-  if (specialized) return { response: specialized, bulkLabelsToVerify };
+  if (specialized) return { response: specialized };
 
-  return executeFallbackTool(toolName, toolArgs, bulkLabelsToVerify);
+  return executeFallbackTool(toolName, toolArgs);
 }
 
 async function tryDelegatedTool(
@@ -49,27 +48,26 @@ async function tryDelegatedTool(
   ctx: ToolExecutorContext,
   jid: string,
   senderNumber: string,
-  bulkLabelsToVerify: Set<string> | null,
 ): Promise<DispatchResult | null> {
   if (isGoogleTool(toolName)) {
-    const result = await executeGoogleTool(toolName, toolArgs, ctx, bulkLabelsToVerify);
+    const result = await executeGoogleTool(toolName, toolArgs, ctx);
     if (result) return result;
   }
   if (isIrisTool(toolName)) {
     const response = await executeIrisTool(toolName, toolArgs, senderNumber);
-    if (response) return { response, bulkLabelsToVerify };
+    if (response) return { response };
   }
   if (isSystemTool(toolName)) {
     const response = await executeSystemTool(toolName, toolArgs);
-    if (response) return { response, bulkLabelsToVerify };
+    if (response) return { response };
   }
   if (isAppChatTool(toolName)) {
     const response = await executeAppChatTool(toolName, toolArgs, ctx, jid, senderNumber);
-    if (response) return { response, bulkLabelsToVerify };
+    if (response) return { response };
   }
   if (isDynamicToolsetTool(toolName)) {
     const response = await executeDynamicToolsetTool(toolName, toolArgs);
-    if (response) return { response, bulkLabelsToVerify };
+    if (response) return { response };
   }
   return null;
 }
@@ -95,15 +93,11 @@ async function trySpecializedTool(
 async function executeFallbackTool(
   toolName: string,
   toolArgs: Record<string, unknown>,
-  bulkLabelsToVerify: Set<string> | null,
 ): Promise<DispatchResult> {
   try {
     const response = await executeToolDirect(toolName, toolArgs);
-    return { response: { functionResponse: { name: toolName, response } }, bulkLabelsToVerify };
-  } catch (error: unknown) {
-    return {
-      response: { functionResponse: { name: toolName, response: { success: false, error: error instanceof Error ? error.message : String(error) } } },
-      bulkLabelsToVerify,
-    };
+    return { response: { functionResponse: { name: toolName, response } } };
+  } catch {
+    return { response: unexpectedToolFailure(toolName, 'execution') };
   }
 }

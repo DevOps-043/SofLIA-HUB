@@ -1,0 +1,73 @@
+name: Contratos y formatos del lector Python
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  formats:
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: win32-x64
+            runner: windows-2025
+            system: Windows
+            machine: AMD64,x86_64
+          - target: darwin-arm64
+            runner: macos-15
+            system: Darwin
+            machine: arm64
+          - target: linux-x64
+            runner: ubuntu-24.04
+            system: Linux
+            machine: x86_64
+          - target: linux-arm64
+            runner: ubuntu-24.04-arm
+            system: Linux
+            machine: aarch64,arm64
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Obtener fuentes sin conservar credenciales
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Configurar Node para preparar el intérprete
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+      - name: Preparar el mismo Python fijado del producto
+        run: node scripts/quality/prepare-test-python.mjs --github-actions
+      - name: Comprobar intérprete y arquitectura reales
+        env:
+          EXPECTED_SYSTEM: ${{ matrix.system }}
+          EXPECTED_MACHINE: ${{ matrix.machine }}
+        run: |
+          "$SOFLIA_TEST_PYTHON" -I -S -B - <<'PY'
+          import os, platform, sys
+          assert sys.version_info[:3] == (3, 12, 11), "Patch Python incompatible."
+          assert platform.system() == os.environ["EXPECTED_SYSTEM"], "Sistema incompatible."
+          assert platform.machine() in os.environ["EXPECTED_MACHINE"].split(","), "Arquitectura incompatible."
+          PY
+      - name: Instalar sólo locks verificados y ejecutar formatos
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONIOENCODING: utf-8
+        run: |
+          "$SOFLIA_TEST_PYTHON" -I -m venv "$RUNNER_TEMP/soflia-reader-tests"
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            reader_python="$RUNNER_TEMP/soflia-reader-tests/Scripts/python.exe"
+          else
+            reader_python="$RUNNER_TEMP/soflia-reader-tests/bin/python"
+          fi
+          "$reader_python" -I -m pip --isolated install --disable-pip-version-check --only-binary=:all: --require-hashes -r python/bootstrap.lock
+          "$reader_python" -I -m pip --isolated install --disable-pip-version-check --only-binary=:all: --require-hashes -r python/tools_sidecar/requirements.txt
+          "$reader_python" -I -m pip --isolated check
+          "$reader_python" -I -B -X utf8 python/tools_sidecar/tests/run_tests.py --formats

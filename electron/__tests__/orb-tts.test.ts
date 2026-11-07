@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { synthesizeOrbSpeech } from '../orb-tts';
+import { synthesizeOrbSpeech, ORB_SPEECH_MAX_RESPONSE_BYTES } from '../orb-tts';
 
 const originalFetch = globalThis.fetch;
 const originalEnvironment = {
@@ -10,6 +10,27 @@ const originalEnvironment = {
 };
 
 describe('voz ElevenLabs de la Orbe', () => {
+  it.each([200, 403])('acota bytes reales aun con longitud declarada falsa: HTTP %s', async status => {
+    let cancelled = false; let reads = 0;
+    const size = status === 200 ? 1024 * 1024 : 16_384;
+    const body = new ReadableStream<Uint8Array>({ pull(controller) { reads++; controller.enqueue(new Uint8Array(size)); }, cancel() { cancelled = true; } });
+    globalThis.fetch = vi.fn(async () => new Response(body, { status, headers: { 'Content-Length': '1' } })) as typeof fetch;
+    await expect(synthesizeOrbSpeech('Hola')).rejects.toThrow(/límite permitido/);
+    expect(cancelled).toBe(true); expect(reads).toBeLessThanOrEqual(Math.floor((status === 200 ? ORB_SPEECH_MAX_RESPONSE_BYTES : 16384) / size) + 2);
+  });
+  it('cancelar durante cuerpo pendiente termina sin esperar más bytes', async () => {
+    let cancelled = false; let entered!: () => void;
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    const body = new ReadableStream<Uint8Array>({ pull() { entered(); }, cancel() { cancelled = true; } }, { highWaterMark: 0 });
+    globalThis.fetch = vi.fn(async () => new Response(body)) as typeof fetch;
+    const controller = new AbortController();
+    const pending = expect(synthesizeOrbSpeech('Hola', { assertCurrent: () => {}, signal: controller.signal })).rejects.toThrow(/cancelada/);
+    await started; controller.abort(); await pending; expect(cancelled).toBe(true); expect(globalThis.fetch).toHaveBeenCalledOnce();
+  });
+  it('una señal ya cancelada no inicia solicitud ni consume cuota', async () => {
+    globalThis.fetch = vi.fn() as typeof fetch; const controller = new AbortController(); controller.abort();
+    await expect(synthesizeOrbSpeech('Hola', { assertCurrent: () => {}, signal: controller.signal })).rejects.toThrow(); expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
   beforeEach(() => {
     process.env.ELEVENLABS_API_KEY = 'elevenlabs-test-key';
     process.env.ELEVENLABS_VOICE_ID = 'voice_test_123';

@@ -1,4 +1,5 @@
-import { SEMANTIC_MIN_SCORE } from './constants';
+import { EMBEDDING_MODEL } from '../ai-provider/embeddings';
+import { MEMORY_EMBEDDING_DIMENSIONS, SEMANTIC_MIN_SCORE } from './constants';
 import { cosineSimilarity } from './math';
 
 export function searchMemoryEmbeddings(
@@ -55,7 +56,14 @@ export function loadMemoryChunksFromDB(
       ORDER BY source_start_time DESC
       LIMIT 5000
     `).all(sessionKey, phoneNumber) as Array<{ id: number; embedding: string; source_start_time: number | null }>;
-    return rows.map((row) => ({ id: row.id, embedding: JSON.parse(row.embedding) as number[], startTime: row.source_start_time }));
+    return rows.flatMap(row => {
+      try {
+        const value = JSON.parse(row.embedding);
+        if (value?.model !== EMBEDDING_MODEL || !Array.isArray(value.vector)
+          || value.vector.length !== MEMORY_EMBEDDING_DIMENSIONS || !value.vector.every(Number.isFinite)) return [];
+        return [{ id: row.id, embedding: value.vector as number[], startTime: row.source_start_time }];
+      } catch { return []; }
+    });
   } catch (err: any) {
     console.error('[MemoryService] loadChunksFromDB error:', err.message);
     return [];

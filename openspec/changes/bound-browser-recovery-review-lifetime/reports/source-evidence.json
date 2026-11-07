@@ -1,0 +1,40 @@
+{
+  "count": 3490,
+  "before": "ca84c90f2f4ff2a867e76c8674683a77a18377b9a6a8e865ca5cafdc6bdbec74",
+  "after": "ca84c90f2f4ff2a867e76c8674683a77a18377b9a6a8e865ca5cafdc6bdbec74",
+  "changed": [],
+  "copiedFilesMatching": 3470,
+  "compiledSources": [
+    {
+      "source": "electron/integrated-browser/recovery-review-lifetime.ts",
+      "sourceSha256": "f7aefb216a8e6d255c08fbdfdba35ec628726ef04976393bcf1204837eda1694",
+      "compiledSha256": "626562d7c9db1fb6322788b4dc69944572c8dec27b24fca5af8278c183c0f89b"
+    },
+    {
+      "source": "electron/integrated-browser/policy-file-recovery.ts",
+      "sourceSha256": "58fab08265c63a230181293507a2cecae9d3f960c1ff25789328120c14bcae3e",
+      "compiledSha256": "35e257212c3214633e66f3f3b9ef4c3a3fae9269b61773dc78134d1788dba1be"
+    },
+    {
+      "source": "electron/integrated-browser/semantic-memory-recovery.ts",
+      "sourceSha256": "5e8e1c6b062186fea38e13c7cda77b986c2a8bb412ec67beeecb650e0db6cd81",
+      "compiledSha256": "91db8f1377571625fc87ae0e656f3fcb4fa646132c1ad94439c7a5506875eaab"
+    },
+    {
+      "source": "electron/integrated-browser/sqlite-store-recovery.ts",
+      "sourceSha256": "874b849d89483b9f995e490132c4a3a100c313acb30bdae88106c6878f200395",
+      "compiledSha256": "91649029b5426f14ecaf702bd90a954eec19e1979806e25576b9b9426f45b12c"
+    },
+    {
+      "source": "electron/integrated-browser/sync-state-recovery.ts",
+      "sourceSha256": "15737b26c9867acbb2e35ed764eec042d75ae08049632a5fbec156220a9b7794",
+      "compiledSha256": "b5cda7981f26b395cda1411300bd81508b22749b2faa76ab03e360882d813379"
+    },
+    {
+      "source": "electron/integrated-browser/perception-state.ts",
+      "sourceSha256": "c54b989e848b639b27c80368a03cfe05bf846970f0f6282f798df973d0c1f422",
+      "compiledSha256": "e71fa9452a0edd6e27699be1a7c01bbc02bbe346fd15054bc2a9885c5e4df386"
+    }
+  ],
+  "head": "e166d250629e503cf12f69449fb6d66e569134c8"
+}

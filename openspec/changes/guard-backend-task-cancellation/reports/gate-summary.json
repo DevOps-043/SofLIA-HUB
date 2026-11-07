@@ -1,0 +1,97 @@
+{
+  "durationSeconds": 523.7036913,
+  "exitCode": 0,
+  "priorAttempt": {
+    "accepted": false,
+    "reason": "Se interrumpió para corregir PID constante en snapshot UIA.",
+    "receipt": {
+      "root": 29252,
+      "stopped": [
+        29252,
+        4732,
+        30484,
+        9500,
+        20744,
+        13116,
+        6744,
+        26892
+      ],
+      "reason": "Corrección del uso preexistente de la variable constante PID en captura UIA; no aceptar la corrida sobre fuentes anteriores."
+    }
+  },
+  "stages": [
+    {
+      "script": "adapters:check",
+      "exitCode": 0
+    },
+    {
+      "script": "harness:validate",
+      "exitCode": 0
+    },
+    {
+      "script": "audit:supply-chain",
+      "exitCode": 0
+    },
+    {
+      "script": "ci:integrity",
+      "exitCode": 0
+    },
+    {
+      "script": "runtime:stable",
+      "exitCode": 0
+    },
+    {
+      "script": "docs:system:check",
+      "exitCode": 0
+    },
+    {
+      "script": "docs:check",
+      "exitCode": 0
+    },
+    {
+      "script": "skills:seed:check",
+      "exitCode": 0
+    },
+    {
+      "script": "openspec:validate",
+      "exitCode": 0
+    },
+    {
+      "script": "test:quality",
+      "exitCode": 0
+    },
+    {
+      "script": "python-tools:test",
+      "exitCode": 0
+    },
+    {
+      "script": "typecheck",
+      "exitCode": 0
+    },
+    {
+      "script": "lint:changed",
+      "exitCode": 0
+    },
+    {
+      "script": "test:coverage",
+      "exitCode": 0
+    }
+  ],
+  "tests": {
+    "passed": 6672,
+    "skipped": 5,
+    "total": 6677
+  },
+  "files": {
+    "passed": 552,
+    "skipped": 2,
+    "total": 554
+  },
+  "toolingTests": 62,
+  "pythonTests": 33,
+  "lintFiles": 612,
+  "markdownFiles": 860,
+  "node": "v26.7.0",
+  "electron": "44.9.3",
+  "remoteExecuted": false
+}

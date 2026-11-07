@@ -1,0 +1,28 @@
+## Context
+
+Ver propuesta/context-pack y baseline dirigido (84 casos). El transporte Python ya tiene ready/pending/epoch por hijo; la frontera documental conserva casts, archivos por ruta libre, configuración con fallo silenciado y metadatos sin redacción. Los consumidores main son computer-use/read-file y la cascada de contexto de escritorio.
+
+## Goals / Non-Goals
+
+**Goals:** autorización verificable de IPC, lectura nativa seleccionada con copia estable, privacidad persistente observable y ausencia de fallback crudo cuando se pidió protección del documento.
+
+**Non-Goals:** nuevos permisos de agentes, cifrado/ownership de preferencias de máquina, OCR/redacción de imágenes, cobertura total de PII, antivirus/validación completa de archivos comprimidos, límites duros del SO ni recuperación de staging tras crash.
+
+## Decisions
+
+- Reutilizar trustedAppCaller/nativeConfirmation y logger/correlación sin payload/paths. Sólo main para los cinco canales, con aridad y esquema cerrado; leer estado/configuración no arranca sidecar. Auth A/B/A/navegación invalidan operaciones; el registro devuelve dispose y main lo cablea al shutdown. No retirar registros/fachadas de los lectores internos.
+- Mantener cinco canales, cambiar expresamente parseDocument renderer a cero argumentos y selector main. No conservar una fachada que reciba y descarte rutas silenciosamente: no hay consumidor renderer de producción encontrado. Main abre un archivo regular local sin symlink final/UNC, tamaño 1–50 MiB y formato admitido; retiene descriptor/identidad y verifica hash/estabilidad al crear snapshot privado con nombre opaco y extensión. Python lee esa copia, nunca una ruta elegida por renderer. Un slot de operación por registro conserva exclusión mientras el diálogo pendiente cierre, aun cancelado.
+- El servicio conserva parseDocument(filePath,maxPages) y agrega contexto main opcional de assert/señal, no un comando IPC genérico. Verifica contexto/epoch/política antes/después de ready/respuesta; cancelar o agotar un comando retira el proceso de herramientas para no dejar parsers trabajando indefinidamente ni reciclar sus respuestas. No para voz. Cierre sin confirmar mantiene barrera de reemplazo; staging no se elimina mientras un hijo pueda leerlo, con cleanup diferido al close si hace falta.
+- Contratos compartidos en src/shared/python-tools.ts. Entradas texto hasta 400000, páginas enteras 1–200, configuración boolean única. DTO documento: Markdown hasta 400000, hasta 100 tablas, 2000 filas por tabla, 200 columnas, 20000 celdas totales y 400000 caracteres acumulados en celdas; metadata de vocabulario cerrado. Redacción/entidades acotadas; posiciones validadas contra texto original. Se proyectan sólo campos públicos; falla contrato inválido y no se repiten comandos. No afirmar que esta validación limita por sí misma toda RAM/CPU del parser.
+- Extraer almacén de privacidad pequeño con carga acotada/esquema estricto, revisión y publicación después de escritura/rename confirmados. Ausencia inicial conserva opt-in=false; corrupción/otros errores no degradan a false. No hay atribución de dueño ni importación por cuenta. Cambiar política invalida resultados en vuelo incluso A/B/A de toggles. Enabling no pide diálogo extra; deshabilitar requiere confirmación nativa porque cambia futuras exposiciones. Fallo de guardado no publica éxito; si no se puede confirmar commit se comunica incertidumbre y recarga.
+- Redactar sheet además de Markdown/celdas en Python. Protección de documentos Office inhibe imagen de apoyo y fallback UIA/captura cuando no se obtuvo documento protegido; conservar fallback normal con preferencia desactivada. El servicio de escritorio revalida política y redacta etiquetas de procedencia antes de devolver ese adjunto. DOCX no usa mammoth crudo si se exige protección. Fuera del lector documental no se promete redacción de screenshots, texto manual ni todas las fuentes del Hub.
+- UI indica preferencia de este equipo y detección local por patrones, con alcance/limitaciones; muestra fallos de carga/escritura y descarta respuestas obsoletas al desmontar. No prometer detección completa de nombres/direcciones ni afirmar persistencia después de error.
+- La revisión de consumidores exige endurecer también los dos IPC desktop-context existentes: caller/contexto antes y después de esperar, payload cerrado y limpieza de inventario al cambiar sesión. Es necesario para impedir entrega de adjuntos/inventario de un actor anterior; no amplía la capacidad ni crea canales.
+
+## Risks / Trade-offs
+
+Parar herramientas cancela lecturas concurrentes pero preserva voz y evita resultados mezclados. Copias temporales pueden quedar tras crash/cierre físico no confirmado; no se borran originales ni rutas aportadas por renderer. El selector es consentimiento para lectura local, sin envío remoto automático ni segundo diálogo innecesario. Las cuotas de salida pueden rechazar documentos que antes devolvían estructuras enormes; el error es explícito. La configuración global es una decisión heredada documentada, no aislamiento por cuenta. QA usa datos ficticios y procesos aislados, sin documentos privados ni cuentas.
+
+## Migration Plan
+
+Pruebas rojas de IPC/privacidad/fallback; contratos/almacén/contexto; selección/cancelación; capas/UI y consumidores; pruebas Python reales con runtime QA identificado y sin cachés; smoke Electron con perfil temporal, diálogos/servicio simulados y red bloqueada; docs/gate/build y autorrevisión. Revisión independiente pendiente antes de archivar. Revertir juntas todas las capas de esta unidad conserva las diecisiete previas, pero reabre las fronteras descritas. Sin migración remota ni modificación de perfiles reales.

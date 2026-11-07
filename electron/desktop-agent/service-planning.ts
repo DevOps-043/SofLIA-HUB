@@ -54,9 +54,10 @@ export function attachDesktopAgentPlanning(Service: DesktopAgentServiceConstruct
       return runDesktopVisionStep({
         task,
         screenshotBase64,
+        signal: this.abortController?.signal,
         useFallback,
         recoveryContext,
-        ai: this.getGenAI(),
+        ai: this.getInference(),
         config: this.config,
         actionHistory: this.actionHistory,
         strategicPlan: this.strategicPlan,
@@ -77,7 +78,7 @@ export function attachDesktopAgentPlanning(Service: DesktopAgentServiceConstruct
     async createPlan(task, screenshotBase64) {
       await this.refreshEnvironmentContext();
       const { taskPlan, strategicPlan } = await createDesktopTaskPlan({
-        ai: this.getGenAI(),
+        ai: this.getInference(),
         config: this.config,
         task,
         screenshotBase64,
@@ -93,7 +94,7 @@ export function attachDesktopAgentPlanning(Service: DesktopAgentServiceConstruct
     },
     summarizeHistory() {
       return summarizeDesktopHistory({
-        ai: this.getGenAI(),
+        ai: this.getInference(),
         modelName: this.config.model,
         actionHistory: this.actionHistory,
         currentStep: this.currentStep,
@@ -102,7 +103,7 @@ export function attachDesktopAgentPlanning(Service: DesktopAgentServiceConstruct
     },
     async checkPhaseCompletion(_task) {
       await checkStrategicPhaseCompletion({
-        ai: this.getGenAI(),
+        ai: this.getInference(),
         modelName: this.config.proactiveModel,
         screenshotBase64: await this.takeScreenshotForVerification(),
         strategicPlan: this.strategicPlan,

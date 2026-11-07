@@ -1,0 +1,45 @@
+{
+  "externalRoot": "C:/Users/fysg5/Desktop/SofLIA/Project Hub/Project-Hub/apps/web/src",
+  "sourceReadOnly": true,
+  "deploymentVerified": false,
+  "contracts": [
+    {
+      "file": "lib/api-v1/schemas.ts",
+      "sha256": "705e88f04e53dbfade3313e3b271f93be1088e4aa75c45c004ac9575df19eea8"
+    },
+    {
+      "file": "lib/api-v1/files.ts",
+      "sha256": "6b98306a82c6100aea0657b33e8b100513b283e062692b9780118ef610f77901"
+    },
+    {
+      "file": "app/api/v1/workspaces/[workspaceId]/projects/[projectId]/files/intents/route.ts",
+      "sha256": "8960976bb7891f15819f2e0e4b081d99c666a16853949bdfb5316721c68eb1d0"
+    },
+    {
+      "file": "app/api/v1/workspaces/[workspaceId]/projects/[projectId]/files/complete/route.ts",
+      "sha256": "38f66e15b2bfa23a4da0fb0fd67274322dc528fdafa6691400c32cd498f6e809"
+    }
+  ],
+  "storageSdk": {
+    "file": "node_modules/@supabase/storage-js/src/packages/StorageFileApi.ts",
+    "sha256": "dc64f0bbb70b83a0bb8905e88d2df8223bd540fcf56acc0596e44768dd03479a"
+  },
+  "channels": {
+    "removed": [
+      "project-hub:create-upload-intent",
+      "project-hub:complete-upload"
+    ],
+    "added": [
+      "project-hub:upload-files",
+      "project-hub:cancel-upload"
+    ],
+    "total": 22
+  },
+  "renderer": {
+    "uploadFiles": "workspaceId, projectId, operationId; selector nativo sin File/rutas",
+    "cancelUpload": "operationId"
+  },
+  "mainProtocolPreserved": true,
+  "newMainMethod": "ProjectHubApiService.uploadFiles; autorización explícita requerida",
+  "globalDebtRecalculated": false
+}

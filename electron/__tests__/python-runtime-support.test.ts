@@ -96,6 +96,7 @@ describe('aislamiento de ejecución y comprobación del runtime', () => {
       expect(command[2]).toContain(dependency);
     }
     expect(command[2]).toContain(`sys.version_info[:3] == (${support.PYTHON_VERSION.split('.').join(', ')})`);
+    expect(command[2].indexOf('assert_locked_reader_versions()')).toBeLessThan(command[2].indexOf('import vosk'));
     expect(execute.mock.calls[1][2]).not.toHaveProperty('shell');
     expect(execute.mock.calls[1][2]?.env).not.toHaveProperty('VITE_GEMINI_API_KEY');
   });
@@ -120,6 +121,12 @@ describe('aislamiento de ejecución y comprobación del runtime', () => {
 });
 
 describe('identidad y promoción recuperable del runtime', () => {
+  it.each(['requirements.lock', 'bootstrap.lock'])('invalida caché al cambiar sólo %s', name => {
+    const support = loadSupport(); let lock = 'primer-lock';
+    vi.spyOn(filesystem, 'readFileSync').mockImplementation(file => Buffer.from(String(file).endsWith(name) ? lock : 'entrypoint-igual'));
+    const before = support.requirementsFingerprint('fuentes'); lock = 'lock-actualizado';
+    expect(support.requirementsFingerprint('fuentes')).not.toBe(before);
+  });
   function currentLock() {
     const { archiveSpec, PYTHON_VERSION, RELEASE } = loadSupport();
     const spec = archiveSpec('win32', 'x64');

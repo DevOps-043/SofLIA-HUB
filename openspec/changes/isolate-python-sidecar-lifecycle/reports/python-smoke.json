@@ -1,0 +1,46 @@
+{
+  "status": "passed",
+  "python": "C:/Users/fysg5/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+  "sandbox": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-python-connection-Z0uqD2",
+  "results": [
+    {
+      "directory": "sidecar",
+      "protocol": 4,
+      "python": "3.12.14",
+      "provider": {
+        "sidecar": "sidecar",
+        "protocol": 4,
+        "readyMs": 423,
+        "pingMs": 1,
+        "python": "3.12.14",
+        "unknownCommandRejected": true,
+        "exitCode": 0,
+        "shutdown": true
+      },
+      "connectionPing": true,
+      "unknownCommandRejected": true
+    },
+    {
+      "directory": "tools_sidecar",
+      "protocol": 1,
+      "python": "3.12.14",
+      "provider": {
+        "sidecar": "tools_sidecar",
+        "protocol": 1,
+        "readyMs": 602,
+        "pingMs": 10,
+        "python": "3.12.14",
+        "unknownCommandRejected": true,
+        "exitCode": 0,
+        "shutdown": true
+      },
+      "connectionPing": true,
+      "unknownCommandRejected": true
+    }
+  ],
+  "microphoneOpened": false,
+  "modelsLoaded": false,
+  "workspaceRuntimeUsed": false,
+  "qaRuntimeExplicit": true,
+  "applicationStarted": false
+}

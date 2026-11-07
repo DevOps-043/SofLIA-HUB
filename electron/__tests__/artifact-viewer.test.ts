@@ -1,3 +1,5 @@
+// Cargar la biblioteca al recolectar: el plazo del caso mide E/S y contenido, no su importación fría.
+import 'exceljs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs/promises';
 import os from 'node:os';

@@ -1,0 +1,12 @@
+# Contexto del cambio
+
+- Objetivo: autorizar publicación/lectura Auth desde ventanas y documentos nativos registrados, antes de cualquier efecto o revelación de identidad.
+- Actor: renderer Hub que restaura/accede/cierra y Orbe que sólo consume estado; rechazo de ventanas ajenas, documentos remotos y subframes.
+- Alcance: fuente renderer reutilizable sin requisito de sesión para bootstrap, composición de la guarda autenticada existente, handler/registro Auth, contrato compartido acotado y tipos preload/wrapper, pruebas de cuatro capas.
+- No objetivos: rediseñar persistencia/cola de clientes SDK main, verificar JWT/RLS en cliente, cerrar todos los IPC, cambiar política legacy sin SOFIA, revocar I/O ya enviado, UI o despliegue.
+- Restricciones: conservar rama acumulativa y otros worktrees; sin secretos/.env, SQL, cuentas reales, stage/commit/push, instalación o publicación. No usar otra vía de UI para el archivo bloqueado previamente.
+- Contratos: sólo Hub registrado publica; Hub/Orbe registrados leen. Siempre marco principal y documento propio exacto. Respuestas conservan snapshot authenticated/userId sin tokens. Rechazo de origen devuelve snapshot negado sin revelar identidad actual; payload inválido de origen autorizado conserva estado.
+- Límites: siete claves conocidas; IDs hasta 128 unidades; cada token opaco hasta 65536 unidades UTF-16, sin controles, en pares completos/ausentes. Sin nuevos campos/canales/scopes. Revocación normaliza identidad/organización/tokens a null.
+- Riesgo: alto por auth y guarda compartida. SDK/servicios/ventanas de QA sustituidos, sin red/cuentas ni ventanas reales; pruebas deben conservar autorización de consumidores autenticados y bootstrap legítimo.
+- Criterios: emisor/ventana/frame/documento válidos antes de parsear; Orbe no publica ni cierra Hub; invalidación por navegación/cierre/reemplazo durante await impide siguientes efectos/publicación y libera listeners; registro antes de crear ventana usa getters vivos; errores/rechazos controlados y sin tokens; variantes válidas y modo sin SOFIA siguen compatibles.
+- Incertidumbres: una llamada SDK ya admitida puede aplicar/persistir credenciales mientras se espera; esta unidad impide efectos siguientes y resultados de otra navegación, sin declarar rollback físico o aislamiento de toda la sesión main. XSS en renderer principal, vínculo de identidades y autorización del servidor mantienen su propia frontera.

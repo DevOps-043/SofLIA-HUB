@@ -1,0 +1,82 @@
+[
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-native-openai-2026-10-27\\build-final.log",
+    "bytes": 39527,
+    "sha256": "7adb9a5455be872b5d8c399311284ac54d6040348141c8968f1fe706f0790846"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-native-openai-2026-10-27\\consumer-first.log",
+    "bytes": 488,
+    "sha256": "9f989a9fd2dbdfcf8e7b1d2b5ce43880764bc8354327651a5e9d850695fcb714"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-native-openai-2026-10-27\\directed-final.log",
+    "bytes": 15562,
+    "sha256": "7c5101020b80c0fd7331e8ee01bfad2b009d9f5b9238bb829f9c4af183ee6ef2"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-native-openai-2026-10-27\\directed-first.log",
+    "bytes": 488,
+    "sha256": "ddeb8eb706c5bbe01316dc33ab5b127c22c8c3af2dd9772cbff229f74e900076"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-native-openai-2026-10-27\\directed-second.log",
+    "bytes": 489,
+    "sha256": "286da52dc32a1cf0cf267947498442a120c83f5b0de868132b8b567c7d83196d"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-native-openai-2026-10-27\\directed-third.log",
+    "bytes": 488,
+    "sha256": "7ee32987ad51675e4891d97dec46b6ce259e0a549b57492b8d81c9d9abef157f"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-native-openai-2026-10-27\\gate-final.log",
+    "bytes": 175370,
+    "sha256": "fad0530e76f62c13c1f33a7607620493dcc83aa206eebcec4a23dca4fd20aa5b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-native-openai-2026-10-27\\jobs-first.log",
+    "bytes": 484,
+    "sha256": "4bf44d910ba7ad0763a8d2afdc8fefcbe0bf7cbde89ef1193c30e6d90568fca9"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-native-openai-2026-10-27\\native-first.log",
+    "bytes": 486,
+    "sha256": "10661eb053b7450e881e0015a760e2068a03443bb25a80663f8415e551a99da1"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-native-openai-2026-10-27\\provider-error-red.log",
+    "bytes": 8232,
+    "sha256": "7d169bee888628e88e38e891b7778a9cd94fd4bb5f6c52436937c84df92a233b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-native-openai-2026-10-27\\red.log",
+    "bytes": 477,
+    "sha256": "2d02674028ef0d04f2534134aa58a88f2cc27d653d9bede05321eb04a45dd073"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-native-openai-2026-10-27\\session-directed.log",
+    "bytes": 490,
+    "sha256": "d0c91524d7cbb655f83d3eb0927d5259350ad569ffd3ebd609650baec62ed7ed"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-native-openai-2026-10-27\\typecheck-final.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-native-openai-2026-10-27\\typecheck-first.log",
+    "bytes": 313,
+    "sha256": "3ab2bd03c48fffbfb162a966d5edbd74d13bca073e0e1766b5a6a4488408d507"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-native-openai-2026-10-27\\typecheck-second.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-native-openai-2026-10-27\\typecheck-third.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  }
+]

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { copyTextWithFallback } from '../../services/clipboard-service';
 
 const nativeBridge = window.computerUse;
+const nativeWriteDescriptor = nativeBridge && Object.getOwnPropertyDescriptor(nativeBridge, 'clipboardWrite');
 const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
 const secureDescriptor = Object.getOwnPropertyDescriptor(window, 'isSecureContext');
 const execDescriptor = Object.getOwnPropertyDescriptor(document, 'execCommand');
@@ -21,6 +22,7 @@ describe('Copia fiable del chat', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    if (nativeBridge && nativeWriteDescriptor) Object.defineProperty(nativeBridge, 'clipboardWrite', nativeWriteDescriptor);
     window.computerUse = nativeBridge;
     for (const [object, key, descriptor] of [
       [navigator, 'clipboard', clipboardDescriptor],
@@ -43,7 +45,9 @@ describe('Copia fiable del chat', () => {
   });
 
   it.each([{ success: false }, undefined, { success: 'true' }])('no confirma respuestas nativas fallidas o inválidas: %j', async (response) => {
-    vi.spyOn(nativeBridge!, 'clipboardWrite').mockResolvedValue(response);
+    // Un puente defectuoso puede incumplir su tipo: simular la frontera sin
+    // debilitar el contrato público para que acepte undefined.
+    Object.defineProperty(nativeBridge!, 'clipboardWrite', { configurable: true, writable: true, value: vi.fn(async () => response) });
     expect(await copyTextWithFallback('echo hola')).toBe(false);
     expect(writeText).not.toHaveBeenCalled();
     expect(execCommand).not.toHaveBeenCalled();

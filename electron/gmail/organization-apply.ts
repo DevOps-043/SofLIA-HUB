@@ -1,86 +1,91 @@
-import { batchModifyMessageIds } from './batch';
-import { loadOrganizationPlan, saveOrganizationPlan } from './plan-storage';
-import type {
-  GmailClient,
-  GmailLabelRecord,
-  GmailOrganizationApplyResult,
-  GmailOrganizationMessageChange,
-} from './types';
+import { gmailApplyOptionsSchema, gmailPlanIdSchema } from '../../src/shared/gmail-organization';
+import { SYSTEM_LABEL_IDS } from './constants';
+import type { PrivateGmailPlan } from './plan-schema';
+import { currentBatchLabels, currentGmailLabels, parsePlanLabel, GMAIL_PLAN_FAILURE, GMAIL_PLAN_RECOVERY, persistPlanFailure, type GmailPlanContext } from './plan-context';
+import { planEffect } from './plan-effects';
+import type { GmailOrganizationApplyResult, GmailLabelRecord } from './types';
+import { createLogger } from '../utils/logger';
+import { GMAIL_BATCH_LIMIT } from './batch';
 
-type ClientProvider = () => Promise<{ client?: GmailClient; error?: string }>;
+const log = createLogger('gmail-plan-aplicar');
 
-export async function applyGmailOrganizationPlan(
-  getClient: ClientProvider,
-  deps: {
-    getLabels: () => Promise<{ success: boolean; labels?: GmailLabelRecord[]; error?: string }>;
-    createLabel: (name: string) => Promise<{ success: boolean; label?: GmailLabelRecord; error?: string }>;
-  },
-  planId: string,
-  options?: { removeFromInbox?: boolean },
-): Promise<GmailOrganizationApplyResult> {
-  const { client: gmail, error } = await getClient();
-  if (!gmail) return applyFailure(planId, options?.removeFromInbox !== false, error);
-
+export async function applyGmailOrganizationPlan(context: GmailPlanContext, planId: string,
+  options?: { removeFromInbox?: boolean }): Promise<GmailOrganizationApplyResult> {
+  let plan: PrivateGmailPlan | undefined;
+  let finalized = false;
   try {
-    const plan = await loadOrganizationPlan(planId);
-    const removeFromInbox = options?.removeFromInbox ?? plan.removeFromInbox;
-    const existingLabels = await deps.getLabels();
-    if (!existingLabels.success || !existingLabels.labels) throw new Error(existingLabels.error || 'No se pudieron leer las etiquetas antes de aplicar el plan.');
-
-    const labelsByName = new Map(existingLabels.labels.map((label) => [label.name.toLowerCase(), label]));
-    const messageMap = new Map(plan.messages.map((message) => [message.id, message]));
-    const messageChanges: Record<string, GmailOrganizationMessageChange> = {};
-    const labelsCreated: GmailLabelRecord[] = [];
-    const labelsReused: GmailLabelRecord[] = [];
-    const groupLabelIds: Record<string, string> = {};
-    let messagesLabeled = 0;
-
-    for (const group of plan.groups) {
-      const label = await ensureGroupLabel(group.labelName, labelsByName, labelsCreated, labelsReused, deps.createLabel);
-      groupLabelIds[group.groupKey] = label.id;
-      await batchModifyMessageIds(gmail, group.messageIds, [label.id], removeFromInbox ? ['INBOX'] : []);
-      messagesLabeled += group.messageIds.length;
-      for (const messageId of group.messageIds) {
-        const snapshot = messageMap.get(messageId);
-        if (!snapshot) continue;
-        messageChanges[messageId] = {
-          addedLabelIds: snapshot.labelIds.includes(label.id) ? [] : [label.id],
-          removedLabelIds: removeFromInbox && snapshot.labelIds.includes('INBOX') ? ['INBOX'] : [],
-        };
-      }
+    gmailPlanIdSchema.parse(planId);
+    const parsed = gmailApplyOptionsSchema.parse(options === undefined ? {} : options);
+    plan = await context.store.load(planId, context.assert);
+    context.assert();
+    const remove = parsed.removeFromInbox ?? plan.removeFromInbox;
+    if (plan.status === 'applied' && !plan.pending) {
+      if (remove !== plan.applyResult!.removeFromInbox) return result(plan, false, 'El plan ya fue aplicado con otras opciones. Crea una vista previa nueva.');
+      return result(plan, true);
     }
-
-    plan.status = 'applied';
-    plan.removeFromInbox = removeFromInbox;
-    plan.applyResult = { appliedAt: new Date().toISOString(), labelsCreated, labelsReused, groupLabelIds, messageChanges, removeFromInbox };
-    await saveOrganizationPlan(plan);
-    return { success: true, planId, groupsApplied: plan.groups.length, messagesLabeled, removeFromInbox, labelsCreated, labelsReused };
-  } catch (err: any) {
-    console.error('[GmailService] ApplyOrganizationPlan error:', err.message);
-    return applyFailure(planId, options?.removeFromInbox !== false, err.message);
+    if (plan.status !== 'preview' || plan.pending) return result(plan, false, GMAIL_PLAN_RECOVERY, true);
+    if (!await context.approve(`Aplicar plan: ${plan.id}\nMensajes: ${plan.groups.reduce((sum, group) => sum + group.count, 0)}\nQuitar de Recibidos: ${remove ? 'sí' : 'no'}\nEtiquetas:\n${plan.groups.map(group => `${group.labelName}: ${group.count}`).join('\n')}`)) {
+      return { ...result(plan, false, 'Aplicación cancelada.'), cancelled: true };
+    }
+    plan.status = 'applying'; plan.removeFromInbox = remove;
+    plan.applyResult = { appliedAt: new Date().toISOString(), labelsCreated: [], labelsReused: [], messageChanges: {},
+      removeFromInbox: remove, messagesLabeled: 0, completedGroups: [] };
+    await context.store.save(plan, context.assert);
+    const labels = (await currentGmailLabels(context)).filter(label => !SYSTEM_LABEL_IDS.has(label.id));
+    const byName = new Map(labels.map(label => [label.name.toLowerCase(), label]));
+    for (const group of plan.groups) {
+      const label = await groupLabel(context, plan, group.labelName, byName);
+      for (let offset = 0; offset < group.messageIds.length; offset += GMAIL_BATCH_LIMIT) {
+        const batch = group.messageIds.slice(offset, offset + GMAIL_BATCH_LIMIT);
+        const changes: NonNullable<PrivateGmailPlan['applyResult']>['messageChanges'] = {};
+        const snapshots = await currentBatchLabels(context, batch);
+        for (const id of batch) {
+          const before = snapshots.get(id)!;
+          changes[id] = { addedLabelIds: before.includes(label.id) ? [] : [label.id],
+            removedLabelIds: remove && before.includes('INBOX') ? ['INBOX'] : [],
+            expectedLabelIds: [...new Set([...before.filter(value => !remove || value !== 'INBOX'), label.id])].sort() };
+        }
+        await planEffect(context, plan, { kind: 'modify', messageIds: batch, labelId: label.id, changes },
+          client => client.users.messages.batchModify({ userId: 'me', requestBody: { ids: batch, addLabelIds: [label.id], removeLabelIds: remove ? ['INBOX'] : [] } }, context.requestOptions()),
+          () => { Object.assign(plan!.applyResult!.messageChanges, changes); plan!.applyResult!.messagesLabeled += batch.length; });
+      }
+      plan.applyResult.completedGroups.push(group.groupKey);
+      await context.store.save(plan, context.assert);
+    }
+    plan.status = 'applied'; plan.applyResult.appliedAt = new Date().toISOString();
+    await context.store.save(plan, context.assert); finalized = true; context.assert();
+    return result(plan, true);
+  } catch {
+    if (plan?.applyResult && !finalized && plan.status !== 'undone') {
+      try { await persistPlanFailure(context, plan); } catch { log.warn('No se pudo cerrar el registro del plan; se conserva el checkpoint anterior.'); }
+    }
+    log.warn({ partial: Boolean(plan?.applyResult), uncertain: Boolean(plan?.pending) }, 'No se completó la aplicación del plan.');
+    return plan ? result(plan, false, plan.applyResult ? GMAIL_PLAN_RECOVERY : GMAIL_PLAN_FAILURE, Boolean(plan.applyResult))
+      : { success: false, planId: '', groupsApplied: 0, messagesLabeled: 0, removeFromInbox: true, labelsCreated: [], labelsReused: [], error: GMAIL_PLAN_FAILURE };
   }
 }
 
-async function ensureGroupLabel(
-  labelName: string,
-  labelsByName: Map<string, GmailLabelRecord>,
-  labelsCreated: GmailLabelRecord[],
-  labelsReused: GmailLabelRecord[],
-  createLabel: (name: string) => Promise<{ success: boolean; label?: GmailLabelRecord; error?: string }>,
-): Promise<GmailLabelRecord> {
-  let label = labelsByName.get(labelName.toLowerCase());
-  if (!label) {
-    const created = await createLabel(labelName);
-    if (!created.success || !created.label) throw new Error(created.error || `No se pudo crear la etiqueta ${labelName}.`);
-    label = created.label;
-    labelsByName.set(label.name.toLowerCase(), label);
-    labelsCreated.push(label);
-  } else if (!labelsReused.some((item) => item.id === label!.id)) {
-    labelsReused.push(label);
+async function groupLabel(context: GmailPlanContext, plan: PrivateGmailPlan, name: string, byName: Map<string, GmailLabelRecord>) {
+  const existing = byName.get(name.toLowerCase());
+  if (existing) {
+    if (!plan.applyResult!.labelsCreated.some(label => label.id === existing.id)
+      && !plan.applyResult!.labelsReused.some(label => label.id === existing.id)) plan.applyResult!.labelsReused.push(existing);
+    return existing;
   }
-  return label;
+  let created!: GmailLabelRecord;
+  await planEffect(context, plan, { kind: 'create-label', labelName: name },
+    client => client.users.labels.create({ userId: 'me', requestBody: { name, labelListVisibility: 'labelShow', messageListVisibility: 'show' } }, context.requestOptions()),
+    response => {
+      created = parsePlanLabel(response.data);
+      if (SYSTEM_LABEL_IDS.has(created.id) || created.name !== name) throw new Error('Etiqueta incompatible.');
+      plan.applyResult!.labelsCreated.push(created); byName.set(name.toLowerCase(), created);
+    });
+  return created;
 }
 
-function applyFailure(planId: string, removeFromInbox: boolean, error?: string): GmailOrganizationApplyResult {
-  return { success: false, planId, groupsApplied: 0, messagesLabeled: 0, removeFromInbox, labelsCreated: [], labelsReused: [], error };
+function result(plan: PrivateGmailPlan, success: boolean, error?: string, recoveryRequired = false): GmailOrganizationApplyResult {
+  return { success, planId: plan.id, groupsApplied: plan.applyResult?.completedGroups.length ?? 0,
+    messagesLabeled: plan.applyResult?.messagesLabeled ?? 0, removeFromInbox: plan.applyResult?.removeFromInbox ?? plan.removeFromInbox,
+    labelsCreated: plan.applyResult?.labelsCreated ?? [], labelsReused: plan.applyResult?.labelsReused ?? [],
+    ...(error ? { error } : {}), ...(recoveryRequired ? { partial: true, recoveryRequired: true } : {}), ...(plan.pending ? { uncertain: true } : {}) };
 }

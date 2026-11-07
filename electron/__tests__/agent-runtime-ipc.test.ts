@@ -14,7 +14,7 @@ describe('Frontera IPC del arnés', () => {
     expect(() => assertRuntimeSender({} as IpcMainInvokeEvent, null)).toThrow();
   });
   it('rechaza payload con identidad elegida, proveedor desconocido y exceso de datos', () => {
-    const input = { title: 'Reunión', source: 'Transcripción completa', provider: 'gemini' };
+    const input = { title: 'Reunión', source: 'Transcripción completa', provider: 'openai' };
     expect(startSchema.safeParse(input).success).toBe(true);
     expect(startSchema.safeParse({ ...input, userId: 'otro' }).success).toBe(false);
     expect(startSchema.safeParse({ ...input, provider: 'shell' }).success).toBe(false);
@@ -26,8 +26,8 @@ describe('Frontera IPC del arnés', () => {
     const expose = vi.fn();
     exposeAgentRuntimeApi({ exposeInMainWorld: expose }, safe);
     const api = expose.mock.calls[0][1];
-    await api.start({ title: 'Reunión', source: 'Transcripción completa', provider: 'gemini' });
-    expect(invoke).toHaveBeenCalledWith('agent-runtime:start', expect.objectContaining({ provider: 'gemini' }));
+    await api.start({ title: 'Reunión', source: 'Transcripción completa', provider: 'openai' });
+    expect(invoke).toHaveBeenCalledWith('agent-runtime:start', expect.objectContaining({ provider: 'openai' }));
     expect(api.request).toBeUndefined();
     expect(() => safe.safeInvoke('agent-runtime:exec', {})).toThrow();
   });

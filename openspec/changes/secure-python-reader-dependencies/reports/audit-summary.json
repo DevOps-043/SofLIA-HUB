@@ -1,0 +1,337 @@
+{
+  "readers": [
+    {
+      "phase": "before",
+      "packages": [
+        {
+          "name": "pdfplumber",
+          "version": "0.11.4",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/pdfplumber/0.11.4/json"
+        },
+        {
+          "name": "openpyxl",
+          "version": "3.1.5",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/openpyxl/3.1.5/json"
+        },
+        {
+          "name": "python-pptx",
+          "version": "1.0.2",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/python-pptx/1.0.2/json"
+        },
+        {
+          "name": "python-docx",
+          "version": "1.1.2",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/python-docx/1.1.2/json"
+        },
+        {
+          "name": "pdfminer.six",
+          "version": "20231228",
+          "advisories": [
+            {
+              "id": "GHSA-wf5f-4jwr-ppcp",
+              "aliases": [
+                "CVE-2025-64512",
+                "PYSEC-2026-1762"
+              ],
+              "fixed_in": [
+                "20251107"
+              ],
+              "link": "https://osv.dev/vulnerability/GHSA-wf5f-4jwr-ppcp"
+            },
+            {
+              "id": "GHSA-f83h-ghpp-7wcc",
+              "aliases": [
+                "CVE-2025-70559",
+                "PYSEC-2026-1761"
+              ],
+              "fixed_in": [
+                "20251230"
+              ],
+              "link": "https://osv.dev/vulnerability/GHSA-f83h-ghpp-7wcc"
+            },
+            {
+              "id": "PYSEC-2026-1762",
+              "aliases": [
+                "CVE-2025-64512",
+                "GHSA-wf5f-4jwr-ppcp"
+              ],
+              "fixed_in": [
+                "20251107"
+              ],
+              "link": "https://osv.dev/vulnerability/PYSEC-2026-1762"
+            },
+            {
+              "id": "PYSEC-2026-1761",
+              "aliases": [
+                "CVE-2025-70559",
+                "GHSA-f83h-ghpp-7wcc"
+              ],
+              "fixed_in": [
+                "20251230"
+              ],
+              "link": "https://osv.dev/vulnerability/PYSEC-2026-1761"
+            }
+          ],
+          "source": "https://pypi.org/pypi/pdfminer.six/20231228/json"
+        },
+        {
+          "name": "lxml",
+          "version": "6.1.3",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/lxml/6.1.3/json"
+        },
+        {
+          "name": "pillow",
+          "version": "13.0.0",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/pillow/13.0.0/json"
+        },
+        {
+          "name": "pypdfium2",
+          "version": "5.14.0",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/pypdfium2/5.14.0/json"
+        },
+        {
+          "name": "typing-extensions",
+          "version": "4.16.0",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/typing-extensions/4.16.0/json"
+        },
+        {
+          "name": "xlsxwriter",
+          "version": "3.3.0",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/xlsxwriter/3.3.0/json"
+        },
+        {
+          "name": "et-xmlfile",
+          "version": "2.0.0",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/et-xmlfile/2.0.0/json"
+        },
+        {
+          "name": "charset-normalizer",
+          "version": "3.5.2",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/charset-normalizer/3.5.2/json"
+        },
+        {
+          "name": "cryptography",
+          "version": "50.0.2",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/cryptography/50.0.2/json"
+        },
+        {
+          "name": "cffi",
+          "version": "2.1.1",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/cffi/2.1.1/json"
+        },
+        {
+          "name": "pycparser",
+          "version": "3.12",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/pycparser/3.12/json"
+        }
+      ],
+      "affectedPackages": 1,
+      "advisories": [
+        "GHSA-f83h-ghpp-7wcc",
+        "GHSA-wf5f-4jwr-ppcp",
+        "PYSEC-2026-1761",
+        "PYSEC-2026-1762"
+      ],
+      "cves": [
+        "CVE-2025-64512",
+        "CVE-2025-70559"
+      ]
+    },
+    {
+      "phase": "after",
+      "packages": [
+        {
+          "name": "pdfplumber",
+          "version": "0.11.10",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/pdfplumber/0.11.10/json"
+        },
+        {
+          "name": "openpyxl",
+          "version": "3.1.5",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/openpyxl/3.1.5/json"
+        },
+        {
+          "name": "python-pptx",
+          "version": "1.0.2",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/python-pptx/1.0.2/json"
+        },
+        {
+          "name": "python-docx",
+          "version": "1.2.0",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/python-docx/1.2.0/json"
+        },
+        {
+          "name": "pdfminer.six",
+          "version": "20260107",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/pdfminer.six/20260107/json"
+        },
+        {
+          "name": "lxml",
+          "version": "6.1.3",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/lxml/6.1.3/json"
+        },
+        {
+          "name": "pillow",
+          "version": "13.0.0",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/pillow/13.0.0/json"
+        },
+        {
+          "name": "pypdfium2",
+          "version": "5.14.0",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/pypdfium2/5.14.0/json"
+        },
+        {
+          "name": "typing-extensions",
+          "version": "4.16.0",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/typing-extensions/4.16.0/json"
+        },
+        {
+          "name": "xlsxwriter",
+          "version": "3.3.0",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/xlsxwriter/3.3.0/json"
+        },
+        {
+          "name": "et-xmlfile",
+          "version": "2.0.0",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/et-xmlfile/2.0.0/json"
+        },
+        {
+          "name": "charset-normalizer",
+          "version": "3.5.2",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/charset-normalizer/3.5.2/json"
+        },
+        {
+          "name": "cryptography",
+          "version": "50.0.2",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/cryptography/50.0.2/json"
+        },
+        {
+          "name": "cffi",
+          "version": "2.1.1",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/cffi/2.1.1/json"
+        },
+        {
+          "name": "pycparser",
+          "version": "3.12",
+          "advisories": [],
+          "source": "https://pypi.org/pypi/pycparser/3.12/json"
+        }
+      ],
+      "affectedPackages": 0,
+      "advisories": [],
+      "cves": []
+    }
+  ],
+  "bootstrap": [
+    {
+      "name": "setuptools",
+      "before": {
+        "version": "80.9.0",
+        "advisories": [
+          {
+            "id": "PYSEC-2026-3447",
+            "aliases": [
+              "CVE-2026-59890",
+              "GHSA-h35f-9h28-mq5c"
+            ],
+            "fixed_in": [
+              "83.0.0"
+            ],
+            "link": "https://osv.dev/vulnerability/PYSEC-2026-3447"
+          },
+          {
+            "id": "GHSA-h35f-9h28-mq5c",
+            "aliases": [
+              "BIT-setuptools-2026-59890",
+              "CVE-2026-59890",
+              "PYSEC-2026-3447"
+            ],
+            "fixed_in": [
+              "83.0.0"
+            ],
+            "link": "https://osv.dev/vulnerability/GHSA-h35f-9h28-mq5c"
+          },
+          {
+            "id": "GHSA-xmj3-9gf7-h52w",
+            "aliases": [],
+            "fixed_in": [
+              "84.1.0"
+            ],
+            "link": "https://osv.dev/vulnerability/GHSA-xmj3-9gf7-h52w"
+          }
+        ],
+        "source": "https://pypi.org/pypi/setuptools/80.9.0/json"
+      },
+      "after": {
+        "version": "84.2.1",
+        "advisories": [],
+        "source": "https://pypi.org/pypi/setuptools/84.2.1/json"
+      }
+    },
+    {
+      "name": "wheel",
+      "before": {
+        "version": "0.45.1",
+        "advisories": [
+          {
+            "id": "GHSA-8rrh-rw8j-w5fx",
+            "aliases": [
+              "CVE-2026-24049"
+            ],
+            "fixed_in": [
+              "0.46.2"
+            ],
+            "link": "https://osv.dev/vulnerability/GHSA-8rrh-rw8j-w5fx"
+          }
+        ],
+        "source": "https://pypi.org/pypi/wheel/0.45.1/json"
+      },
+      "after": {
+        "version": "0.48.0",
+        "advisories": [],
+        "source": "https://pypi.org/pypi/wheel/0.48.0/json"
+      }
+    },
+    {
+      "name": "packaging",
+      "before": {
+        "version": "26.3",
+        "advisories": [],
+        "source": "https://pypi.org/pypi/packaging/26.3/json"
+      },
+      "after": {
+        "version": "26.3",
+        "advisories": [],
+        "source": "https://pypi.org/pypi/packaging/26.3/json"
+      }
+    }
+  ]
+}

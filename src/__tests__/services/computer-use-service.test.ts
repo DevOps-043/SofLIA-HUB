@@ -29,7 +29,7 @@ describe('computer-use-service — Renderer IPC bridge', () => {
     expect(window.computerUse!.listDirectory).toHaveBeenCalledWith('C:/Users/test');
     expect(result.success).toBe(true);
     expect(result.entries).toBeDefined();
-    expect(result.entries.length).toBeGreaterThan(0);
+    expect(Array.isArray(result.entries) && result.entries.length > 0).toBe(true);
   });
 
   // CU-149: readFile invokes IPC

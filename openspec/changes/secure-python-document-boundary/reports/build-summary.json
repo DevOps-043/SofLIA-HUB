@@ -1,0 +1,178 @@
+{
+  "version": 1,
+  "at": "2026-10-24T02:22:19.432Z",
+  "exitCode": 0,
+  "sourceFiles": 3398,
+  "envFilesCopied": false,
+  "packaged": false,
+  "applicationStarted": false,
+  "sandbox": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-app-build-ESZNjw",
+  "sources": [
+    {
+      "buildMatches": true,
+      "sha256": "ac302ae0edc4fe88e922f1e98dfb8086d3cb6640be85f21b820ce963e6e9c057",
+      "unchangedDuringGate": true,
+      "file": "electron/python-tools-service.ts",
+      "includedInAppBuild": true
+    },
+    {
+      "buildMatches": true,
+      "sha256": "eaf71ebb1c1ced08dd5638cc432501e46047b3e70231ee4840b0bc5bb24e5c59",
+      "unchangedDuringGate": true,
+      "file": "electron/python-tools-handlers.ts",
+      "includedInAppBuild": true
+    },
+    {
+      "buildMatches": true,
+      "sha256": "9f2b3f03ecd2504ca46da018d41d631ad8b05ba67fd131e7bc30c3c7258f83c4",
+      "unchangedDuringGate": true,
+      "file": "electron/python/privacy-store.ts",
+      "includedInAppBuild": true
+    },
+    {
+      "buildMatches": true,
+      "sha256": "68a58f93118c70b6c370bbeb32887be46f61fa2fa34671ac746ad14cadff6d5c",
+      "unchangedDuringGate": true,
+      "file": "electron/python/tools-error.ts",
+      "includedInAppBuild": true
+    },
+    {
+      "buildMatches": true,
+      "sha256": "399b5c6a92826234ac9fbea656e7b1273c4b919dd95d9eb777a191544f2a51c0",
+      "unchangedDuringGate": true,
+      "file": "electron/python/tools-contract.ts",
+      "includedInAppBuild": true
+    },
+    {
+      "buildMatches": true,
+      "sha256": "725d863c224fbedd032c938c1c151b8a38eb9384131d04f9be6d07063eef217c",
+      "unchangedDuringGate": true,
+      "file": "electron/python/document-snapshot.ts",
+      "includedInAppBuild": true
+    },
+    {
+      "buildMatches": true,
+      "sha256": "0526a3d5e90403bb018c70173f77f5a4f3f5282c1b9e00aa0c72a9c263a32dae",
+      "unchangedDuringGate": true,
+      "file": "electron/preload/python-tools-api.ts",
+      "includedInAppBuild": true
+    },
+    {
+      "buildMatches": true,
+      "sha256": "1aaa3b6a276ef369f15a2c34923099037a81ae8794fcd57015d40fbd65e900df",
+      "unchangedDuringGate": true,
+      "file": "electron/preload/utility-apis.ts",
+      "includedInAppBuild": true
+    },
+    {
+      "buildMatches": true,
+      "sha256": "d02450036a881c1043227bc1f055f8031f0633cc0d8368f8be5f17598eb20b9b",
+      "unchangedDuringGate": true,
+      "file": "electron/desktop-context-handlers.ts",
+      "includedInAppBuild": true
+    },
+    {
+      "buildMatches": true,
+      "sha256": "48f0e5c26a045c09e52c46cee54369323ff6766230701b4a6ecde063ecb27947",
+      "unchangedDuringGate": true,
+      "file": "electron/desktop-context/service.ts",
+      "includedInAppBuild": true
+    },
+    {
+      "buildMatches": true,
+      "sha256": "e599edddb18ec86755fca08743f2ba33c4c30efb964c003fbcb1d9bd54bd502f",
+      "unchangedDuringGate": true,
+      "file": "electron/desktop-context/cascade.ts",
+      "includedInAppBuild": true
+    },
+    {
+      "buildMatches": true,
+      "sha256": "86df87c168d9bc1f87aa4f0869b6018ba2170c17ee2d0f42986cc34c10f7874c",
+      "unchangedDuringGate": true,
+      "file": "electron/computer-use/filesystem-handlers/read-write.ts",
+      "includedInAppBuild": true
+    },
+    {
+      "buildMatches": true,
+      "sha256": "b11f61f31bf94dd3d7620f0397f62a3f6fb0a2272540fece55590111ffe33865",
+      "unchangedDuringGate": true,
+      "file": "electron/main/startup.ts",
+      "includedInAppBuild": true
+    },
+    {
+      "buildMatches": true,
+      "sha256": "5480780c9d08dce132be785310557d682705773907a6da8db1a41bfe0760cf5d",
+      "unchangedDuringGate": true,
+      "file": "electron/main/runtime-state.ts",
+      "includedInAppBuild": true
+    },
+    {
+      "buildMatches": true,
+      "sha256": "2ea56f5b609378f8d663313fb5f8e0d6717fdf449a349a8488980736c292c299",
+      "unchangedDuringGate": true,
+      "file": "electron/main/app-lifecycle.ts",
+      "includedInAppBuild": true
+    },
+    {
+      "buildMatches": true,
+      "sha256": "41105d9ae01f1fda72c03860e2a31e263edeedb3cd168eed4a0e489f1305299a",
+      "unchangedDuringGate": true,
+      "file": "src/shared/python-tools.ts",
+      "includedInAppBuild": true
+    },
+    {
+      "buildMatches": true,
+      "sha256": "58d0b7fc2fff58a471e7000c0d4f14f76843cdeef7d6b301f13fb5633c487b02",
+      "unchangedDuringGate": true,
+      "file": "src/services/python-tools-service.ts",
+      "includedInAppBuild": true
+    },
+    {
+      "buildMatches": true,
+      "sha256": "7283c572a697bc3fa9c5df53ed6687b4b7b68e1ae39a2db3e0222d210ca5c962",
+      "unchangedDuringGate": true,
+      "file": "src/components/PrivacySettings.tsx",
+      "includedInAppBuild": true
+    },
+    {
+      "buildMatches": null,
+      "sha256": "e7312fe85cfa4383b0324bcb552ae4978dd0016551cfa3827b023f9b89471b76",
+      "unchangedDuringGate": true,
+      "file": "python/tools_sidecar/main.py",
+      "includedInAppBuild": false
+    },
+    {
+      "buildMatches": true,
+      "sha256": "1c12dd973e220f28807205ffd2697cad608851de28c2dfcff32a7b2b9a7d9156",
+      "unchangedDuringGate": true,
+      "file": "package.json",
+      "includedInAppBuild": true
+    }
+  ],
+  "artifacts": [
+    {
+      "file": "dist/index.html",
+      "bytes": 460
+    },
+    {
+      "file": "dist-electron/main.js",
+      "bytes": 196235
+    },
+    {
+      "file": "dist-electron/preload.js",
+      "bytes": 46640
+    },
+    {
+      "file": "dist/presentation/presentation-runtime.iife.js",
+      "bytes": 895486
+    },
+    {
+      "file": "dist/audiovisual/film-runtime.iife.js",
+      "bytes": 223019
+    },
+    {
+      "file": "dist/zoom-runtime/index.html",
+      "bytes": 489
+    }
+  ]
+}

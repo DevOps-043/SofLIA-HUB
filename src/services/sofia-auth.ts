@@ -8,23 +8,26 @@ import type { SofiaLoginUserRow } from './sofia-auth/login';
 import { fetchSofiaUserProfile } from './sofia-auth/profile';
 import { saveSofiaSession } from './sofia-auth/session-storage';
 import type { SofiaAuthResult, SofiaContext } from './sofia-auth/types';
+import { throwIfAuthCancelled } from './auth-cancellation';
 
 export type { SofiaAuthResult, SofiaAuthUser, SofiaContext } from './sofia-auth/types';
 
 class SofiaAuthService {
   private sofiaContext: SofiaContext | null = null;
 
-  async signInWithSofia(emailOrUsername: string, password: string): Promise<SofiaAuthResult> {
+  async signInWithSofia(emailOrUsername: string, password: string, signal?: AbortSignal): Promise<SofiaAuthResult> {
     if (!isSofiaConfigured() || !sofiaSupa) {
       return { success: false, user: null, session: null, error: 'SOFIA no esta configurado. Verifica las variables de entorno.' };
     }
 
     try {
+      throwIfAuthCancelled(signal);
       console.log('[SOFIA] Iniciando sesion via Supabase Auth');
 
       // 1. Traducir email/username al correo con el que se autentica. El perfil
       //    ya no se lee aqui: sin sesion no hay acceso a public.users.
       const email = await resolveLoginEmail(emailOrUsername);
+      throwIfAuthCancelled(signal);
       if (!email) throw new Error(INVALID_CREDENTIALS_MESSAGE);
 
       // 2. Validar la contraseña contra Supabase Auth (auth.users), la unica
@@ -33,15 +36,17 @@ class SofiaAuthService {
         email,
         password,
       });
+      throwIfAuthCancelled(signal);
       if (authError || !authData?.user) {
-        console.warn('[SOFIA] Supabase Auth rechazo el login:', authError?.message || 'sin usuario');
+        console.warn('[SOFIA] Supabase Auth rechazo el acceso');
         throw new Error(mapSupabaseAuthError(authError?.message));
       }
 
       // 3. Ya con sesion, el perfil y las membresias salen de public.users.
-      return await this.completeAuthenticatedSession(authData.user.id, authData.session);
+      return await this.completeAuthenticatedSession(authData.user.id, authData.session, signal);
     } catch (err) {
-      console.error('Error en signInWithSofia:', err);
+      if (signal?.aborted) return { success: false, user: null, session: null, error: 'Solicitud de acceso cancelada.' };
+      console.error('[SOFIA] no se pudo completar el acceso');
       const message = err instanceof Error ? err.message : 'Error desconocido al iniciar sesion';
       return { success: false, user: null, session: null, error: message };
     }
@@ -54,20 +59,22 @@ class SofiaAuthService {
    * asi que solo falta resolver perfil y membresia: exactamente los mismos
    * pasos que el inicio por contrasena, sin ninguna via alterna de autorizacion.
    */
-  async completeSofiaSsoSession(session: Session): Promise<SofiaAuthResult> {
+  async completeSofiaSsoSession(session: Session, signal?: AbortSignal): Promise<SofiaAuthResult> {
     if (!isSofiaConfigured() || !sofiaSupa) {
       return { success: false, user: null, session: null, error: 'SOFIA no esta configurado. Verifica las variables de entorno.' };
     }
 
     try {
+      throwIfAuthCancelled(signal);
       if (!session.user?.email) throw new Error('Acceso denegado: la sesion no tiene un correo asociado.');
 
       // El perfil se resuelve contra la sesion ya autenticada, no por correo:
       // `get_desktop_user_profile` solo devuelve la fila de auth.uid(), asi que
       // la identidad no puede diferir de la que se acaba de canjear.
-      return await this.completeAuthenticatedSession(session.user.id, session);
+      return await this.completeAuthenticatedSession(session.user.id, session, signal);
     } catch (err) {
-      console.error('Error en completeSofiaSsoSession:', err);
+      if (signal?.aborted) return { success: false, user: null, session: null, error: 'Solicitud de acceso cancelada.' };
+      console.error('[SOFIA] no se pudo completar el acceso federado');
       // Nunca dejar una sesion de Supabase Auth abierta tras un fallo.
       await sofiaSupa.auth.signOut().catch(() => undefined);
       const message = err instanceof Error ? err.message : 'Error desconocido al iniciar sesion';
@@ -83,8 +90,11 @@ class SofiaAuthService {
   private async completeAuthenticatedSession(
     userId: string,
     session: Session | null,
+    signal?: AbortSignal,
   ): Promise<SofiaAuthResult> {
+    throwIfAuthCancelled(signal);
     const sofiaProfile = await this.fetchSofiaUserProfile(userId);
+    throwIfAuthCancelled(signal);
     if (!sofiaProfile) {
       // Sin perfil no se puede decidir la membresia. Cerrar la sesion recien
       // abierta evita dejar al usuario "dentro" sin contexto ni permisos.
@@ -111,6 +121,7 @@ class SofiaAuthService {
       platform_role: sofiaProfile.platform_role || null,
     };
     await saveSofiaSession(userRow);
+    throwIfAuthCancelled(signal);
 
     return {
       success: true,
@@ -124,11 +135,17 @@ class SofiaAuthService {
     return fetchSofiaUserProfile(userId);
   }
 
-  async signOut() {
-    localStorage.removeItem('sofia-session');
+  clearLocalProfile(): void {
     this.sofiaContext = null;
+    try { localStorage.removeItem('sofia-session'); } catch {
+      console.warn('[SOFIA] no se pudo retirar el snapshot local del perfil');
+    }
+  }
+
+  async signOut() {
+    this.clearLocalProfile();
     // Cerrar tambien la sesion de Supabase Auth; no debe bloquear el logout local.
-    if (sofiaSupa) await sofiaSupa.auth.signOut().catch((err) => console.warn('[SOFIA] signOut de Supabase fallo:', err));
+    if (sofiaSupa) await sofiaSupa.auth.signOut().catch(() => console.warn('[SOFIA] no se pudo cerrar la sesion SDK'));
   }
 
   async getSession(): Promise<Session | null> {
@@ -139,7 +156,7 @@ class SofiaAuthService {
     if (sofiaSupa) {
       const { data, error } = await sofiaSupa.auth.getSession();
       if (!error && data.session) return data.session;
-      if (error) console.warn('[SOFIA] No se pudo restaurar la sesión verificable:', error.message);
+      if (error) console.warn('[SOFIA] no se pudo restaurar la sesion verificable');
     }
 
     // `sofia-session` es una caché de perfil para pintar superficies auxiliares,
@@ -171,7 +188,7 @@ class SofiaAuthService {
 
     this.getSession()
       .then((session) => session && callback('INITIAL_SESSION', session))
-      .catch((err) => console.error('Error en onAuthStateChange:', err));
+      .catch(() => console.error('[SOFIA] no se pudo iniciar la observacion de sesion'));
 
     return { data: { subscription: { unsubscribe: () => {} } } };
   }

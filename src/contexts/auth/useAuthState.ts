@@ -5,8 +5,10 @@ import type { AuthUser, SofiaContextIssue } from './types';
 
 export function useAuthState() {
   const [session, setSession] = useState<Session | null>(null);
+  const [sofiaSession, setSofiaSession] = useState<Session | null>(null);
   const [user, setUser] = useState<AuthUser>(null);
   const [loading, setLoading] = useState(true);
+  const [revocation, setRevocation] = useState(0);
   const [sofiaContext, setSofiaContext] = useState<SofiaContext | null>(null);
   const [liaDegraded, setLiaDegraded] = useState(false);
   const [liaStatusMessage, setLiaStatusMessage] = useState<string | null>(null);
@@ -18,6 +20,7 @@ export function useAuthState() {
 
   const clearSessionState = useCallback(() => {
     setSession(null);
+    setSofiaSession(null);
     setUser(null);
     setSofiaContext(null);
     setLiaDegraded(false);
@@ -25,9 +28,16 @@ export function useAuthState() {
     setSofiaContextIssue(null);
   }, []);
 
+  const revokeSession = useCallback(() => {
+    clearSessionState();
+    setRevocation(value => value + 1);
+  }, [clearSessionState]);
+
   return {
     session,
     setSession,
+    sofiaSession,
+    setSofiaSession,
     user,
     setUser,
     loading,
@@ -41,5 +51,7 @@ export function useAuthState() {
     sofiaContextIssue,
     setSofiaContextIssue,
     clearSessionState,
+    revokeSession,
+    revocation,
   };
 }

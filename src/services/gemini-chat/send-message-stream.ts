@@ -7,7 +7,9 @@ import { consumeSofliaMaxUse, SOFLIA_MAX_MONTHLY_LIMIT } from '../model-quota';
 import { resolveRoutedModel } from '../model-routing';
 import { sendOpenAIMessageStream } from '../openai-chat';
 import { runAgenticLoop } from './agentic-loop';
-import { getGenAiClient } from './client';
+import { getPublicAiErrorMessage } from './public-error';
+import { hasNativeGeminiConversation, withGeminiConversation } from './conversation';
+import { observeApiKeySession } from '../api-keys/session-scope';
 import { resolveEmptyGeminiText } from './empty-response';
 import { buildGeminiHistory } from './history';
 import { buildMultimodalContent, normalizeImagesToMediaRefs } from './message-content';
@@ -38,6 +40,24 @@ const BROWSER_CONTROLLER_NOTICE = ' Tienes control determinista sobre esa misma 
 export async function sendMessageStream(
   message: string,
   conversationHistory: ConversationMessage[] = [],
+  options?: SendMessageStreamOptions,
+): Promise<StreamResult> {
+  if (!hasNativeGeminiConversation() || isOpenAIModel(resolveModelId(options))) {
+    return sendMessageForTurn(message, conversationHistory, options);
+  }
+  const scope = observeApiKeySession();
+  const signal = options?.signal ? AbortSignal.any([scope.signal, options.signal]) : scope.signal;
+  try {
+    if (signal.aborted) return stoppedStreamResult([], []);
+    return await sendMessageForTurn(message, conversationHistory, { ...options, signal });
+  } finally {
+    scope.dispose();
+  }
+}
+
+async function sendMessageForTurn(
+  message: string,
+  conversationHistory: ConversationMessage[],
   options?: SendMessageStreamOptions,
 ): Promise<StreamResult> {
   const background = options?.backgroundRequest;
@@ -98,7 +118,9 @@ export async function sendMessageStream(
   // turno realmente depende de esa superficie. Si la lectura completa funciona,
   // sustituye a la observacion; si falla, se observa lo visible.
   const activeDocument = activeDocumentRequest || pageContentRequest ? await captureActiveDocument(options) : null;
+  if (options?.signal?.aborted) return stoppedStreamResult([], []);
   const browserObservation = shouldInspectBrowser && !activeDocument ? await captureVisibleIntegratedBrowser(options) : null;
+  if (options?.signal?.aborted) return stoppedStreamResult([], []);
   const sourceVisuals = await preparePresentationSourceVisuals({
     activeSkill: options?.activeSkill,
     inlineImages: options?.images,
@@ -106,6 +128,7 @@ export async function sendMessageStream(
     browserSource: browserObservation?.source ?? null,
     signal: options?.signal,
   });
+  if (options?.signal?.aborted) return stoppedStreamResult([], []);
   if (sourceVisuals.context) {
     systemInstruction = `${systemInstruction}\n\nEl sistema intento importar al workspace los recursos visuales observados en la fuente. Usa primero las rutas locales presentes en el manifiesto cuando sean pertinentes y genera imagenes nuevas solo para cubrir conceptos que la fuente no ilustra o recursos cuya importacion fallo. No vuelvas a descargar esas rutas ni enlaces recursos remotos.`;
     finalMessage = `${finalMessage}\n\n${sourceVisuals.context}`;
@@ -177,10 +200,12 @@ export async function sendMessageStream(
   ];
   const built = buildMultimodalContent(finalMessage, turnMedia, effectiveOptions?.mediaResolution);
   let messageContent = built.content;
-  if (turnMedia.length) options?.onMediaEnvelope?.(built.envelope);
+  const routed = resolveRoutedModel({ options });
+  const usesOpenAI = isOpenAIModel(routed.modelId);
+  if (turnMedia.length && !usesOpenAI) options?.onMediaEnvelope?.(built.envelope);
   // Un medio rechazado no puede quedar solo en el sobre: el modelo debe saber
   // que esa evidencia no llego para no describirla.
-  if (built.envelope.rejected.length) {
+  if (!usesOpenAI && built.envelope.rejected.length) {
     systemInstruction = `${systemInstruction}\n\nMedios que NO llegaron a este turno: ${built.envelope.rejected.map((item) => item.detail).join(' ')} No describas su contenido; di que no pudiste analizarlos y por que.`;
   }
   if (attachedSourcesOnly) {
@@ -203,7 +228,6 @@ export async function sendMessageStream(
   // `use_computer` delega internamente al actuador fijo Gemini 3.8 Flash en main;
   // sustituir aqui el proveedor hacia irrelevante el modelo y razonamiento que
   // el usuario acababa de elegir.
-  const routed = resolveRoutedModel({ options });
   const routedOptions: SendMessageStreamOptions = {
     ...effectiveOptions,
     model: routed.modelId,
@@ -231,7 +255,8 @@ export async function sendMessageStream(
     if (isAbortError(error, options?.signal)) return stoppedStreamResult([], []);
     throw error;
   }
-  if (isOpenAIModel(routed.modelId)) {
+  if (options?.signal?.aborted) return stoppedStreamResult([], []);
+  if (usesOpenAI) {
     const openAIResult = await sendOpenAIMessageStream({
       modelId: routed.modelId,
       finalMessage,
@@ -272,6 +297,7 @@ export async function sendMessageStream(
       allGeneratedImages: [],
       signal: options?.signal,
     });
+    if (grounded.cancelled || options?.signal?.aborted) return grounded;
     // Una referencia visible intenta primero lectura web/URL Context. Si la
     // fuente es privada o dinamica y el grounding falla, continuamos con las
     // herramientas del navegador; Computer Use queda como ultimo escalon.
@@ -313,7 +339,6 @@ export async function sendMessageStream(
     }
   }
 
-  const ai = await getGenAiClient();
   const signal = options?.signal;
 
   for (const modelId of candidateModelIds) {
@@ -329,36 +354,36 @@ export async function sendMessageStream(
         // ella la API rechaza el turno con 400.
         chatConfig.toolConfig = buildServerSideToolInvocationsConfig(modelTools);
       }
-      const chatSession = ai.chats.create({ model: modelId, config: chatConfig, history });
+      return await withGeminiConversation({ model: modelId, config: chatConfig, history }, signal, async (chatSession, turnSignal) => {
+        if (useToolLoop) {
+          return runAgenticLoop({
+            chatSession,
+            chatConfig,
+            messageContent,
+            options: { ...routedOptions, signal: turnSignal },
+            allToolCalls,
+            allGeneratedImages,
+            failFastOnModelError: true,
+          });
+        }
 
-      if (useToolLoop) {
-        return await runAgenticLoop({
-          chatSession,
-          chatConfig,
-          messageContent,
-          options: routedOptions,
+        const response = await withGeminiModelCall(
+          'Gemini direct message',
+          () => chatSession.sendMessage({ message: messageContent, config: withAbortSignal(chatConfig, turnSignal) }),
+          { signal: turnSignal },
+        );
+        return completedStreamResult(
+          resolveEmptyGeminiText(extractResponseText(response), response, allGeneratedImages),
+          response,
           allToolCalls,
           allGeneratedImages,
-          failFastOnModelError: true,
-        });
-      }
-
-      const response = await withGeminiModelCall(
-        'Gemini direct message',
-        () => chatSession.sendMessage({ message: messageContent, config: withAbortSignal(chatConfig, signal) }),
-        { signal },
-      );
-      return completedStreamResult(
-        resolveEmptyGeminiText(extractResponseText(response), response, allGeneratedImages),
-        response,
-        allToolCalls,
-        allGeneratedImages,
-      );
+        );
+      });
     } catch (error) {
       // Cancelación del usuario: no reintentar con otros modelos, detener limpio.
       if (isAbortError(error, signal)) return stoppedStreamResult(allToolCalls, allGeneratedImages);
       lastError = error;
-      console.warn('[GeminiChat] model attempt failed:', { modelId, error });
+      console.warn('[GeminiChat] Falló el intento del modelo:', { modelId, message: getPublicAiErrorMessage(error) });
     }
   }
 
@@ -536,8 +561,8 @@ async function captureActiveDocument(options?: SendMessageStreamOptions): Promis
     return {
       context: `INICIO_DOCUMENTO_ACTIVO_NO_CONFIABLE\n${metadata}\n${document.text}\nFIN_DOCUMENTO_ACTIVO_NO_CONFIABLE`,
     };
-  } catch (error) {
-    console.warn('[GeminiChat] no fue posible leer el documento activo:', error);
+  } catch {
+    console.warn('[GeminiChat] No fue posible leer el documento activo.');
     return null;
   }
 }
@@ -581,8 +606,8 @@ async function captureVisibleIntegratedBrowser(
       sourceImages: observation.dom.images,
       source: { title: observation.dom.title, url: observation.dom.url },
     };
-  } catch (error) {
-    console.warn('[GeminiChat] no fue posible capturar el navegador integrado visible:', error);
+  } catch {
+    console.warn('[GeminiChat] No fue posible capturar el navegador integrado visible.');
     return null;
   }
 }

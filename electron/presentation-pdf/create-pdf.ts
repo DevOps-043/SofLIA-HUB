@@ -8,13 +8,13 @@ import type { CreatePresentationPDFOptions } from './types';
 
 async function generateSlideImages(options: CreatePresentationPDFOptions) {
   const imageCache = new Map<number, string | null>();
-  if (!options.includeImages || !options.genAI) return imageCache;
+  if (!options.includeImages) return imageCache;
 
   const batchSize = 3;
   for (let i = 0; i < options.slides.length; i += batchSize) {
     const batch = options.slides.slice(i, i + batchSize);
     const results = await Promise.allSettled(
-      batch.map(slide => slide.imagePrompt ? generateSlideImage(options.genAI!, slide.imagePrompt) : Promise.resolve(null)),
+      batch.map(slide => slide.imagePrompt ? generateSlideImage(slide.imagePrompt) : Promise.resolve(null)),
     );
     results.forEach((result, index) => imageCache.set(i + index, result.status === 'fulfilled' ? result.value : null));
   }

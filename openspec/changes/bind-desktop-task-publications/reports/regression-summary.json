@@ -1,0 +1,14 @@
+{
+  "red": {
+    "failed": 3,
+    "passed": 0,
+    "sha256": "55188dee1021f0bd403c352aa4db8c8d366e1aa12c9c5657b6e774b1e9992422"
+  },
+  "directed": {
+    "passed": 154,
+    "failed": 0,
+    "newCases": 26,
+    "sha256": "791d95b6d23aebe31bc5612a7d8f6a9d07845453484fa8830368c5e8c8cf9849"
+  },
+  "scope": "Servicios Desktop, BrowserWeb/UIA, colas y memoria reales con modelos y efectos sustituidos. Sin GUI/cuentas/claves reales."
+}

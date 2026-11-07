@@ -29,6 +29,18 @@ SOFIA es la única autenticación visible. Después de validar el login y la mem
 
 El cliente canjea el hash inmediatamente y recibe una sesión Lia ordinaria. Una cuenta Lia existente conserva su UUID y, por tanto, la propiedad/RLS de sus conversaciones. Si falta, `generateLink` crea el usuario de forma idempotente sin compartir una contraseña.
 
+El cliente contrasta la sesión Lia con el correo de la sesión Auth SOFIA.
+El correo del perfil puede quedar desactualizado tras un cambio. Electron
+recibe los tokens de la sesión SOFIA ya aceptada mientras se recupera Lia,
+para que Proyectos pueda verificar su identidad aunque el chat esté degradado.
+Si Electron rechaza una publicación, el renderer hace hasta dos reintentos
+mientras siga vigente el mismo contexto. Cerrar sesión cancela los intentos.
+Si SOFIA confirma que la sesión guardada fue revocada, el escritorio limpia
+el estado del workspace y vuelve al inicio de sesión.
+Al limpiar una copia de sesión en main, Electron detiene su cliente local
+sin revocar la sesión compartida con el renderer. El cierre explícito de
+sesión en la interfaz conserva la revocación a través del cliente Auth.
+
 La aplicación ya no llama `signInWithPassword`, `signUp` ni `updateUser` de Lia durante el login SOFIA, no solicita una contraseña anterior y no expone nombres internos en la UI.
 
 ## Estado visible
@@ -43,6 +55,7 @@ Ante una indisponibilidad, SOFIA permanece activa y solo se bloquean las funcion
 
 La función vive en `database/lia/supabase/` y debe desplegarse antes del cliente.
 
+- Aplicar primero [desktop-own-email-verification.sql](../../../database/sofia-learning/migrations/desktop-own-email-verification.sql) en SOFIA Learning. Después desplegar `sofia-session-exchange` en Lia. La función consulta el RPC únicamente para cuentas que requieren evidencia legada. Para revertir, retirar primero la versión de Lia que depende del RPC.
 - Configurar `SOFIA_SUPABASE_URL` y `SOFIA_SUPABASE_ANON_KEY` como secretos de la función, sin versionar valores.
 - Mantener la clave administrativa Lia únicamente en el entorno backend.
 - Respetar `verify_jwt = false`: el gateway Lia no puede validar un JWT emitido por SOFIA; el handler lo valida explícitamente contra SOFIA antes de tocar Lia.
@@ -61,6 +74,11 @@ No se ejecutó despliegue remoto ni se modificaron secretos durante la implement
 | `403 access_denied` | identidad válida sin membresía activa o política la niega | revisar membresía SOFIA del usuario |
 | `503 exchange_unavailable` | configuración o dependencia temporalmente indisponible | revisar secretos, función, SOFIA/Lia y reintentar |
 | `200` pero falla `verifyOtp` | token vencido/consumido o Auth Lia indisponible | reintentar intercambio y revisar límites Auth |
+
+Cuando la función devuelve 503 durante un canje autenticado, los logs privados
+de la función identifican la etapa con `stage`. Los valores son
+`sofia_identity`, `legacy_email`, `membership`, `lia_access` y
+`federated_identity`. El cuerpo público conserva el código genérico.
 
 ### Organización ausente y WhatsApp en silencio (`42501`)
 

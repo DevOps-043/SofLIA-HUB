@@ -1,7 +1,8 @@
 import type { DesktopAgentService } from '../desktop-agent-service';
+import type { DesktopTaskView } from '../../src/shared/desktop-agent';
 
-export function buildActiveTaskViews(agentService: DesktopAgentService) {
-  const desktopTasks = agentService.getActiveTasks().map((task) => ({
+export function buildActiveTaskViews(agentService: DesktopAgentService): DesktopTaskView[] {
+  const desktopTasks = agentService.getActiveTasks().map<DesktopTaskView>((task) => ({
     id: task.id,
     task: task.task,
     status: task.status,
@@ -18,7 +19,7 @@ export function buildActiveTaskViews(agentService: DesktopAgentService) {
   const taskIds = new Set(desktopTasks.map((task) => task.id));
   const browserTasks = agentService.getStatus().activeTasks
     .filter((task) => !taskIds.has(task.id))
-    .map((task) => ({
+    .map<DesktopTaskView>((task) => ({
       id: task.id,
       task: task.task,
       status: task.status,

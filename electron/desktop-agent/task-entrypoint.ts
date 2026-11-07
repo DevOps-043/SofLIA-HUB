@@ -15,7 +15,6 @@ import {
 } from './routing';
 
 type DesktopTaskEntrypointContext = {
-  apiKey: string;
   browserWeb: BrowserWebService;
   windowsUIA: WindowsUIAService;
   platformCapabilities?: PlatformCapabilities;
@@ -29,7 +28,7 @@ type DesktopTaskEntrypointContext = {
     options: DesktopTaskExecutionOptions | undefined,
     runResult: WindowsUIAFallbackRunResult,
   ) => Promise<string>;
-  /** Cerebro Computer Use para browser (Gemini); null si no aplica -> browser legacy. */
+  /** Cerebro Computer Use para browser; null si no aplica -> browser legacy. */
   computerUseBrowserEnabled?: boolean;
   runComputerUseBrowser?: (task: string, options?: DesktopTaskExecutionOptions) => Promise<DesktopTaskOutcome | null>;
   integratedBrowserAvailable?: boolean;
@@ -40,9 +39,6 @@ export async function executeDesktopAgentTaskEntrypoint(
   options: DesktopTaskExecutionOptions | undefined,
   ctx: DesktopTaskEntrypointContext,
 ): Promise<DesktopTaskOutcome> {
-  if (!ctx.apiKey) {
-    throw new Error('API key de Gemini no configurada.');
-  }
   const startedAt = Date.now();
   if (shouldUseBrowserBackend(task, options, ctx.config.keywordRoutingEnabled)) {
     const targetsIntegratedBrowser = Boolean(
@@ -130,6 +126,7 @@ function enqueueDesktopTask(
       task,
       options,
       enqueuedAt,
+      execute: () => ctx.executeTaskInternal(task, options),
       resolve,
       reject,
       onDequeue: () => {

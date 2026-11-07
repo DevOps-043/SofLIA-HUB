@@ -1,0 +1,140 @@
+{
+  "count": 3523,
+  "before": "628182058729d3ed5947733e1c302b1b0f4c548f94d5e660784a35ea3a33de8c",
+  "after": "628182058729d3ed5947733e1c302b1b0f4c548f94d5e660784a35ea3a33de8c",
+  "changedDuringGate": [],
+  "copiedFilesMatching": 3503,
+  "deltaFromUnit34": [
+    {
+      "file": "src/__tests__/contexts/auth-context/setup.tsx",
+      "previousSha256": "c087668bc613071f8b1a2c122cb202095e42d348c4199956f99ce0011a6163b2",
+      "currentSha256": "87c479bdc1edbe99ee410fc92d49a868ee7922e1928a9455a51d405b00a78fb5"
+    },
+    {
+      "file": "src/__tests__/contexts/auth-context/sofia-mock.ts",
+      "previousSha256": "321c89774d8eb873085d1eaaf8db1a30db243f3a080ca2bf5113b57d41997c32",
+      "currentSha256": "7526b3534c4571cd2ffb2e0dee20f794c2bdfa46ae8d047315c7b60328c8fcfc"
+    },
+    {
+      "file": "src/__tests__/contexts/auth-lifecycle.fixture.ts",
+      "previousSha256": "eb6d42e75ddfc90dbb03fa5cfd3469b2be9d1081c85f11eb17ef45ac398a22fa",
+      "currentSha256": "2f5f66ecf525572909205eb831cc144617048f6d234505508355d1d2abd1b823"
+    },
+    {
+      "file": "src/__tests__/contexts/use-learning-sso.test.tsx",
+      "previousSha256": "228742d3cb0cd361cb82b8a1cff4037961c39781cbbc391ed3d3134538c530a0",
+      "currentSha256": "138f9a90cb985033bdb1fc24548d5f70963452044e3585733ce067cc4d88a0ac"
+    },
+    {
+      "file": "src/__tests__/services/chat-session-sdk.test.ts",
+      "previousSha256": "9039f87854d979db9a40210f3ed03608aea54f1bc54812443ee98c035533430b",
+      "currentSha256": "2d9a252b9ec1a5db34f5759ab9a736a323f4f5f2d1d9747260dc2b38e87762b4"
+    },
+    {
+      "file": "src/__tests__/services/learning-sso.test.ts",
+      "previousSha256": "1a2aa515345d8d65f01d62460cadec7b28b6240b4d4472a0b32c4eebc2c30acf",
+      "currentSha256": "5db5735e3b92750758f9aee9c663173928301d7d3bb1eb42ef0310a6ea718497"
+    },
+    {
+      "file": "src/contexts/auth/useAuthLifecycle.ts",
+      "previousSha256": "61b5e509d61ec2917eef598660b2316a1a22cbb19f65504922f8e8534ac3bd1e",
+      "currentSha256": "c3fc9d6a8b8ca5ca60839c82a27335298294e486c89f24094a9b8310b806a91b"
+    },
+    {
+      "file": "src/contexts/auth/useAuthProviderModel.ts",
+      "previousSha256": "5e00445b4318c478ae1e884149ee44635a09007bc0d2575718ec6da8c29da26f",
+      "currentSha256": "ab8ccda0360d4c96f74a59c535902bbca48201411cd0b7a58e8ffcbe5c1668fb"
+    },
+    {
+      "file": "src/contexts/auth/useAuthState.ts",
+      "previousSha256": "082fe70bc0480f8c461136e827ffb78ad25f7e1ea0fe7e8fbd7da5bbd7384a31",
+      "currentSha256": "0dfa70bf996da963f023d39f3b36dad7c46d49909644fed7bb6e42ec2b5c0503"
+    },
+    {
+      "file": "src/contexts/auth/useLearningSso.ts",
+      "previousSha256": "765bcdfb2aaed9f56dab550755a95c3a6d8bef357d21b034d5c2ee102921ea2a",
+      "currentSha256": "b110e4381e17b07e5039480d7bde67d62fe79de38c872ac67ff483965c175bcc"
+    },
+    {
+      "file": "src/contexts/auth/useSignOut.ts",
+      "previousSha256": "0f508023868f447e86406c7a4fb548a56ddab4248fd68fbc572f0f7ba17a6f56",
+      "currentSha256": "2b2e0deddbc34ce1fbe254c7b06ddf0c0d0478b280a071f0a543f3fe9fc715da"
+    },
+    {
+      "file": "src/contexts/auth/useSofiaContextRetry.ts",
+      "previousSha256": "6337922ceee5814741fcbedf801faadc3584fdb3afdd952eb1f2cd76be57d441",
+      "currentSha256": "c953ba9494d04ff471726045e3e1d8afd98d9d513f0cd71c1782a0fe356639cd"
+    },
+    {
+      "file": "src/contexts/auth/useSofiaResolver.ts",
+      "previousSha256": "8755c44b09b54f36fb1810cc7deb3cfbd4bf4354845253df4b930efdf3a02a20",
+      "currentSha256": "b73dff2913dcfd6b80e5d3fb87b88885dae4abbdbc51acb2aa1becc8bd21393c"
+    },
+    {
+      "file": "src/contexts/auth/useSofiaSignIn.ts",
+      "previousSha256": "72f9f68a479ddc842bea892604dfcd908e8e7b0852572e4d7bee69d978a479bc",
+      "currentSha256": "560932fb4fa7da436194e9556b59d9234210f428a4e1418443efab2bd4ca8b7b"
+    },
+    {
+      "file": "src/services/learning-sso.ts",
+      "previousSha256": "189abdb2cd0998235983f742c87268f3fed593bbacc1929bf3157d695ed02e5b",
+      "currentSha256": "d4067a549db263ec801ff5967ccbc7358b6c8d5990a36ec14fa88f8482a2c4b6"
+    },
+    {
+      "file": "src/services/lia-session-exchange.ts",
+      "previousSha256": "b1e9140286c5bd610e98ff4ebe57b9050a2047465d308a71f4975aecf607b770",
+      "currentSha256": "49865d69e7b07a532ec2920f6a1f055052bed19a1a8bab441e16ec0c12371282"
+    },
+    {
+      "file": "src/services/sofia-auth.ts",
+      "previousSha256": "43beddd8bf1e2a96987075c5c73d6f3ef667dbf0893fc43e9539165db2561c91",
+      "currentSha256": "d518b23c20c86b152b99dcc704bc20b1bc0e38a30c6859f3ca8b131026ef99e3"
+    },
+    {
+      "file": "src/__tests__/contexts/auth-intent-ownership.test.tsx",
+      "previousSha256": null,
+      "currentSha256": "045cc11fd6f3b7fe2240f6c2c6bdab6de7af48bc90e812aad1826a5b15928dee"
+    },
+    {
+      "file": "src/__tests__/contexts/auth-operations-sdk.test.ts",
+      "previousSha256": null,
+      "currentSha256": "93428031b8a8d7f88b3cf1453c75a653973472fde9bcac923a851db8f18d9f0e"
+    },
+    {
+      "file": "src/__tests__/contexts/auth-operations.test.ts",
+      "previousSha256": null,
+      "currentSha256": "1dbea73fc2598af909fd2fb1725f2c2e0c6c051b8f90f31c891d46246ee79820"
+    },
+    {
+      "file": "src/__tests__/services/auth-sdk.fixture.ts",
+      "previousSha256": null,
+      "currentSha256": "4aed62b942ae69a6c1251943927a18a161fcd4516b348ea664e572bf9341db87"
+    },
+    {
+      "file": "src/__tests__/services/sofia-auth-cancellation.test.ts",
+      "previousSha256": null,
+      "currentSha256": "c3cd735b3e2eb20c2ed5ad32cc32a57d4e22534b135445bbecb77db986635e5f"
+    },
+    {
+      "file": "src/contexts/auth/auth-operations.ts",
+      "previousSha256": null,
+      "currentSha256": "6e29695f79b84bebb6cd8231c5c8a4b8eca2d0e2c4a0f5d47c380d971b59a499"
+    },
+    {
+      "file": "src/contexts/auth/useAuthOperations.ts",
+      "previousSha256": null,
+      "currentSha256": "134dde20b9c3c6f01be1fe879400af68da96b9637ec4f27368100b4f70a935fe"
+    },
+    {
+      "file": "src/contexts/auth/useAuthPublication.ts",
+      "previousSha256": null,
+      "currentSha256": "464125967a64dba76f0a2b764d4672a92bbd80d49bc574120f20e72fe7e33bcf"
+    },
+    {
+      "file": "src/services/auth-cancellation.ts",
+      "previousSha256": null,
+      "currentSha256": "283844cdd67a2ee1c0e27d1c9c8cd44c8e066ef7dcbd4d25ec00330111e5d576"
+    }
+  ],
+  "head": "e166d250629e503cf12f69449fb6d66e569134c8"
+}

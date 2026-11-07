@@ -1,0 +1,17 @@
+{
+  "date": "2026-11-07",
+  "scope": "Referencias directas al SDK o endpoint en fuentes de producción. No incluye consumidores indirectos ni configuración.",
+  "files": [
+    "electron/gemini-conversation/provider.ts",
+    "electron/media-input/service.ts",
+    "src/services/gemini-chat/agentic-loop.ts",
+    "src/services/gemini-chat/client.ts",
+    "src/services/gemini-chat/conversation.ts",
+    "src/services/gemini-chat/model-config.ts",
+    "src/services/gemini-chat/public-error.ts",
+    "src/services/gemini-chat/resilience.ts",
+    "src/services/gemini-chat/send-message-stream.ts",
+    "src/services/gemini-chat/streams.ts",
+    "src/shared/gemini-grounding-config.ts"
+  ]
+}

@@ -11,7 +11,7 @@ const LEGACY_MAX_MODEL_IDS = ['gpt-6-sol', 'gpt-5.6-terra'];
 
 export function useModelSelector() {
   const [preferredPrimaryModel, setPreferredPrimaryModel] = useState(readStoredModel);
-  const [thinkingByModel, setThinkingByModel] = useState<Record<string, string>>(readStoredThinking);
+  const [thinkingByModel, setThinkingByModel] = useState<Record<string, string>>(() => readStoredThinking());
   const [isThinkingDropdownOpen, setIsThinkingDropdownOpen] = useState(false);
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
 
@@ -97,6 +97,7 @@ function findModel(modelId: string): ModelOption {
 }
 
 function normalizeModelId(modelId: string): string {
+  if (modelId.replace(/^models\//, '').startsWith('gemini-')) return DEFAULT_MODEL_ID;
   return LEGACY_MAX_MODEL_IDS.includes(modelId) ? SOFLIA_MAX_MODEL : modelId;
 }
 
@@ -114,11 +115,11 @@ function readStoredModel(): string {
   const stored = readStorage(key);
   const modelId = stored ? normalizeModelId(stored) : DEFAULT_MODEL_ID;
   if (!MODEL_OPTIONS.some((model) => model.id === modelId)) return DEFAULT_MODEL_ID;
-  if (stored && stored !== modelId) writeStorage(key, modelId);
+  if (stored && stored !== modelId) { readStoredThinking(stored); writeStorage(key, modelId); }
   return modelId;
 }
 
-function readStoredThinking(): Record<string, string> {
+function readStoredThinking(retiredSelection?: string): Record<string, string> {
   const raw = readStorage(scopedPreferenceKey(THINKING_STORAGE_KEY));
   if (!raw) return {};
   try {
@@ -127,6 +128,16 @@ function readStoredThinking(): Record<string, string> {
     const legacyMaxModelId = LEGACY_MAX_MODEL_IDS.find((modelId) => typeof parsed[modelId] === 'string');
     if (!Object.prototype.hasOwnProperty.call(parsed, SOFLIA_MAX_MODEL) && legacyMaxModelId) {
       parsed[SOFLIA_MAX_MODEL] = parsed[legacyMaxModelId];
+      writeStorage(scopedPreferenceKey(THINKING_STORAGE_KEY), JSON.stringify(parsed));
+    }
+    const selected = retiredSelection ?? readStorage(scopedPreferenceKey(MODEL_STORAGE_KEY));
+    const retired = Object.keys(parsed).filter(modelId => modelId.replace(/^models\//, '').startsWith('gemini-'));
+    if (retired.length) {
+      const preferred = selected && retired.includes(selected) ? selected : retired[0];
+      if (!Object.prototype.hasOwnProperty.call(parsed, DEFAULT_MODEL_ID) && typeof parsed[preferred] === 'string') {
+        parsed[DEFAULT_MODEL_ID] = parsed[preferred];
+      }
+      for (const modelId of retired) delete parsed[modelId];
       writeStorage(scopedPreferenceKey(THINKING_STORAGE_KEY), JSON.stringify(parsed));
     }
     return parsed;

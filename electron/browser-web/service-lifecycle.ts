@@ -1,3 +1,4 @@
+import type { BrowserWebService } from '../browser-web-service';
 import type { BrowserWebConstructor, BrowserWebLifecycleApi } from './service-types';
 
 export type { BrowserWebLifecycleApi } from './service-types';
@@ -6,7 +7,6 @@ export function attachBrowserWebLifecycle(Service: BrowserWebConstructor): void 
   Object.assign(Service.prototype, {
     setApiKey(key: string) {
       this.apiKey = key;
-      this.genAI = null;
     },
     getStatus() {
       return {
@@ -38,7 +38,10 @@ export function attachBrowserWebLifecycle(Service: BrowserWebConstructor): void 
       if (this.status !== 'idle' || this.queue.length === 0) return;
       const next = this.queue.shift();
       if (!next) return;
-      this.executeTaskInternal(next.task, next.options).then(next.resolve).catch(next.reject);
+      try {
+        const running = next.execute ? next.execute() : this.executeTaskInternal(next.task, next.options);
+        running.then(next.resolve).catch(next.reject);
+      } catch { next.reject(new Error('No se pudo admitir la tarea web en cola.')); }
     },
-  } satisfies BrowserWebLifecycleApi & ThisType<any>);
+  } satisfies BrowserWebLifecycleApi & ThisType<BrowserWebService>);
 }

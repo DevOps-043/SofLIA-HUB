@@ -4,6 +4,46 @@ import { confirmToolExecution, isReadOnlyCommand, setConfirmationHandler } from 
 import { setUserPreferenceScope } from '../../services/user-scope';
 import { canRememberCommand } from '../../shared/command-approval';
 import { clearCommandApprovals } from '../../services/computer-use/command-approvals';
+import type { ComputerUseApi } from '../../shared/computer-use';
+
+describe('Aprobación nativa de herramientas locales', () => {
+  afterEach(() => { setConfirmationHandler(null); });
+  it('preload actual evita segundo diálogo renderer para envío local', async () => {
+    const handler = vi.fn(async () => false); setConfirmationHandler(handler);
+    const api = { nativeActionReview: true } as ComputerUseApi;
+    expect(await confirmToolExecution('send_email', { to: 'qa@example.invalid' }, api)).toBe(true);
+    expect(handler).not.toHaveBeenCalled();
+  });
+  it.each(['use_computer', 'reset_browser_profile', 'repair_background_host'])('no omite revisión de otra ruta: %s', async name => {
+    const handler = vi.fn(async () => false); setConfirmationHandler(handler);
+    expect(await confirmToolExecution(name, { task: 'enviar correo' }, { nativeActionReview: true } as ComputerUseApi)).toBe(false);
+    expect(handler).toHaveBeenCalledOnce();
+  });
+  it('un consumidor anterior sigue usando confirmación renderer', async () => {
+    const handler = vi.fn(async () => false); setConfirmationHandler(handler);
+    expect(await confirmToolExecution('delete_item', { path: 'ruta' }, {} as ComputerUseApi)).toBe(false);
+    expect(handler).toHaveBeenCalledOnce();
+  });
+  it('señal cancelada impide despacho aun con revisión nativa disponible', async () => {
+    expect(await confirmToolExecution('send_email', {}, { nativeActionReview: true } as ComputerUseApi, AbortSignal.abort())).toBe(false);
+  });
+});
+
+describe('Aprobación nativa de Desktop Agent', () => {
+  afterEach(() => { setConfirmationHandler(null); vi.unstubAllGlobals(); });
+  it.each(['use_computer', 'reset_browser_profile'])('evita doble diálogo cuando main revisa %s', async tool => {
+    const handler = vi.fn(async () => false); setConfirmationHandler(handler);
+    vi.stubGlobal('window', { desktopAgent: { nativeActionReview: true } });
+    expect(await confirmToolExecution(tool, { task: 'enviar correo' }, {} as ComputerUseApi)).toBe(true);
+    expect(handler).not.toHaveBeenCalled();
+  });
+  it('capability Desktop no omite revisión de host remoto', async () => {
+    const handler = vi.fn(async () => false); setConfirmationHandler(handler);
+    vi.stubGlobal('window', { desktopAgent: { nativeActionReview: true } });
+    expect(await confirmToolExecution('repair_background_host', {}, {} as ComputerUseApi)).toBe(false);
+    expect(handler).toHaveBeenCalledOnce();
+  });
+});
 
 describe('Confirmacion: comandos de solo lectura', () => {
   beforeEach(() => {

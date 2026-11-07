@@ -20,6 +20,7 @@ import { MEDIA_BUDGET, isSupportedMediaMimeType } from '../../src/shared/multimo
 const PROVIDER_RETENTION_MS = 48 * 60 * 60 * 1000;
 const PROCESSING_POLL_INTERVAL_MS = 1_500;
 const PROCESSING_TIMEOUT_MS = 120_000;
+const MAX_ACTIVE_UPLOADS = 4;
 
 export type MediaUploadState = 'processing' | 'ready' | 'failed' | 'cancelled';
 
@@ -75,7 +76,8 @@ export class MediaInputService {
   private readonly cancelled = new Set<string>();
   /** Nombre remoto por subida, para poder liberarlo despues. */
   private readonly remoteNames = new Map<string, string>();
-  private clients = new Map<string, GenAiClient>();
+  private activeUploads = 0;
+  private sessionRevision = 0;
   private sdk: GenAiModule | null | undefined;
   private sequence = 0;
 
@@ -88,11 +90,20 @@ export class MediaInputService {
   /**
    * Sube un archivo y espera a que el proveedor lo declare procesado.
    *
-   * Nunca se queda esperando indefinidamente: un archivo que no termina de
-   * procesarse aborta con su estado alcanzado, porque el turno del usuario
-   * esta bloqueado detras de esta llamada.
+   * El sondeo tiene un plazo entre llamadas. Las llamadas físicas del SDK
+   * conservan su plaza hasta terminar, incluso tras revocar la sesión.
    */
   async upload(input: { path: string; mimeType: string; apiKey: string }, assertCurrent: () => void = () => {}): Promise<MediaUploadRecord> {
+    assertCurrent();
+    if (this.activeUploads >= MAX_ACTIVE_UPLOADS) throw new Error('Hay cuatro subidas en curso. Espera antes de intentar otra.');
+    const revision = this.sessionRevision;
+    const guard = () => { assertCurrent(); if (revision !== this.sessionRevision) throw new Error('La sesión de medios cambió.'); };
+    this.activeUploads += 1;
+    try { return await this.uploadWithinSlot(input, guard); }
+    finally { this.activeUploads -= 1; }
+  }
+
+  private async uploadWithinSlot(input: { path: string; mimeType: string; apiKey: string }, assertCurrent: () => void): Promise<MediaUploadRecord> {
     assertCurrent();
     const uploadId = `media-${++this.sequence}-${Date.now()}`;
     const displayName = basename(String(input?.path || '')) || 'archivo';
@@ -106,6 +117,7 @@ export class MediaInputService {
     try {
       sizeBytes = (await this.stat(input.path)).size;
     } catch {
+      assertCurrent();
       return this.record({ uploadId, state: 'failed', mimeType, displayName, error: 'El archivo ya no esta disponible.' });
     }
     assertCurrent();
@@ -124,6 +136,7 @@ export class MediaInputService {
     try {
       subido = await client.files.upload({ file: input.path, config: { mimeType, displayName } });
     } catch (error) {
+      assertCurrent();
       return this.record({ uploadId, state: 'failed', mimeType, displayName, sizeBytes, error: sanitizeProviderError(error) });
     }
     try { assertCurrent(); }
@@ -133,13 +146,13 @@ export class MediaInputService {
       throw error;
     }
     if (subido?.name) this.remoteNames.set(uploadId, subido.name);
-    if (this.cancelled.has(uploadId)) return this.finishCancelled(uploadId, client);
+    if (this.cancelled.has(uploadId)) return this.finishCancelled(uploadId, client, assertCurrent);
 
     let archivo = subido;
     const limite = this.now() + PROCESSING_TIMEOUT_MS;
     while (archivo?.state === 'PROCESSING') {
       assertCurrent();
-      if (this.cancelled.has(uploadId)) return this.finishCancelled(uploadId, client);
+      if (this.cancelled.has(uploadId)) return this.finishCancelled(uploadId, client, assertCurrent);
       if (this.now() >= limite) {
         return this.record({ uploadId, state: 'failed', mimeType, displayName, sizeBytes, error: 'El proveedor no termino de procesar el archivo a tiempo.' });
       }
@@ -148,12 +161,13 @@ export class MediaInputService {
       try {
         archivo = await client.files.get({ name: String(archivo.name || '') });
       } catch (error) {
+        assertCurrent();
         return this.record({ uploadId, state: 'failed', mimeType, displayName, sizeBytes, error: sanitizeProviderError(error) });
       }
     }
 
     assertCurrent();
-    if (this.cancelled.has(uploadId)) return this.finishCancelled(uploadId, client);
+    if (this.cancelled.has(uploadId)) return this.finishCancelled(uploadId, client, assertCurrent);
     if (archivo?.state === 'FAILED' || !archivo?.uri) {
       return this.record({
         uploadId, state: 'failed', mimeType, displayName, sizeBytes,
@@ -176,11 +190,11 @@ export class MediaInputService {
     return this.uploads.get(String(uploadId || '')) ?? null;
   }
 
-  /** Retira registros y clientes de la sesión que termina, sin reutilizarlos. */
+  /** Revoca operaciones y retira registros de la sesión que termina. */
   invalidateSession(): void {
+    this.sessionRevision += 1;
     for (const [id, record] of this.uploads) if (record.state === 'processing') this.cancelled.add(id);
     this.uploads.clear();
-    this.clients.clear();
   }
 
   /**
@@ -223,12 +237,13 @@ export class MediaInputService {
     return Number.isFinite(vencimiento) && vencimiento <= this.now();
   }
 
-  private async finishCancelled(uploadId: string, client: GenAiClient): Promise<MediaUploadRecord> {
+  private async finishCancelled(uploadId: string, client: GenAiClient, assertCurrent: () => void): Promise<MediaUploadRecord> {
     const remoteName = this.remoteNames.get(uploadId);
     if (remoteName) {
       try { await client.files.delete({ name: remoteName }); } catch { /* mejor esfuerzo */ }
       this.remoteNames.delete(uploadId);
     }
+    assertCurrent();
     const registro = this.uploads.get(uploadId);
     return this.record({ ...(registro as MediaUploadRecord), uploadId, state: 'cancelled', uri: undefined });
   }
@@ -245,13 +260,9 @@ export class MediaInputService {
   private ensureClient(apiKey: string): GenAiClient | null {
     const key = String(apiKey || '').trim();
     if (key.length < 20 || key.length > 512) return null;
-    const existente = this.clients.get(key);
-    if (existente) return existente;
     const mod = this.getSdk();
     if (!mod) return null;
-    const client = new mod.GoogleGenAI({ apiKey: key });
-    this.clients.set(key, client);
-    return client;
+    return new mod.GoogleGenAI({ apiKey: key });
   }
 
   private getSdk(): GenAiModule | null {

@@ -1,0 +1,1120 @@
+{
+  "fechaUTC": "2026-10-22T23:05:05Z",
+  "instancia": "IRIS / Project Hub",
+  "projectRef": "cffppwlfymakieshnzuv",
+  "tipo": "Solo catálogos y asesores, sin registros de negocio ni secretos",
+  "contract": {
+    "tables": [
+      {
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": false,
+        "table": "task_issue_attachments",
+        "forceRls": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": false,
+        "table": "pm_projects",
+        "forceRls": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": false,
+        "table": "pm_milestones",
+        "forceRls": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": false,
+        "table": "pm_project_progress_history",
+        "forceRls": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": false,
+        "table": "pm_project_members",
+        "forceRls": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": false,
+        "table": "pm_project_updates",
+        "forceRls": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "table": "pm_project_evidence",
+        "forceRls": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "table": "pm_project_evidence_items",
+        "forceRls": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "table": "task_issue_evidence",
+        "forceRls": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "table": "pm_project_activity",
+        "forceRls": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": false,
+        "table": "task_issues",
+        "forceRls": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": false,
+        "table": "task_issue_comments",
+        "forceRls": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "table": "integration_outbox",
+        "forceRls": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": false,
+        "table": "task_issue_history",
+        "forceRls": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": false,
+        "table": "task_issue_labels",
+        "forceRls": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": false,
+        "table": "task_issue_relations",
+        "forceRls": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": false,
+        "table": "task_issue_subscribers",
+        "forceRls": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "table": "pm_project_documents",
+        "forceRls": false
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "table": "task_issue_documents",
+        "forceRls": false
+      }
+    ],
+    "policies": null,
+    "foreignKeys": [
+      {
+        "table": "task_issues",
+        "parent": "task_issues",
+        "constraint": "task_issues_parent_issue_id_fkey",
+        "definition": "FOREIGN KEY (parent_issue_id) REFERENCES task_issues(issue_id)"
+      },
+      {
+        "table": "pm_milestones",
+        "parent": "pm_projects",
+        "constraint": "pm_milestones_project_id_fkey",
+        "definition": "FOREIGN KEY (project_id) REFERENCES pm_projects(project_id)"
+      },
+      {
+        "table": "task_issue_comments",
+        "parent": "task_issue_comments",
+        "constraint": "task_issue_comments_parent_comment_id_fkey",
+        "definition": "FOREIGN KEY (parent_comment_id) REFERENCES task_issue_comments(comment_id)"
+      },
+      {
+        "table": "task_issue_comments",
+        "parent": "task_issues",
+        "constraint": "task_issue_comments_issue_id_fkey",
+        "definition": "FOREIGN KEY (issue_id) REFERENCES task_issues(issue_id)"
+      },
+      {
+        "table": "pm_project_members",
+        "parent": "pm_projects",
+        "constraint": "pm_project_members_project_id_fkey",
+        "definition": "FOREIGN KEY (project_id) REFERENCES pm_projects(project_id)"
+      },
+      {
+        "table": "pm_project_progress_history",
+        "parent": "pm_projects",
+        "constraint": "pm_project_progress_history_project_id_fkey",
+        "definition": "FOREIGN KEY (project_id) REFERENCES pm_projects(project_id)"
+      },
+      {
+        "table": "pm_project_updates",
+        "parent": "pm_projects",
+        "constraint": "pm_project_updates_project_id_fkey",
+        "definition": "FOREIGN KEY (project_id) REFERENCES pm_projects(project_id)"
+      },
+      {
+        "table": "task_issue_attachments",
+        "parent": "task_issue_comments",
+        "constraint": "task_issue_attachments_comment_id_fkey",
+        "definition": "FOREIGN KEY (comment_id) REFERENCES task_issue_comments(comment_id)"
+      },
+      {
+        "table": "task_issue_attachments",
+        "parent": "task_issues",
+        "constraint": "task_issue_attachments_issue_id_fkey",
+        "definition": "FOREIGN KEY (issue_id) REFERENCES task_issues(issue_id)"
+      },
+      {
+        "table": "task_issue_history",
+        "parent": "task_issues",
+        "constraint": "task_issue_history_issue_id_fkey",
+        "definition": "FOREIGN KEY (issue_id) REFERENCES task_issues(issue_id)"
+      },
+      {
+        "table": "task_issue_labels",
+        "parent": "task_issues",
+        "constraint": "task_issue_labels_issue_id_fkey",
+        "definition": "FOREIGN KEY (issue_id) REFERENCES task_issues(issue_id)"
+      },
+      {
+        "table": "task_issue_relations",
+        "parent": "task_issues",
+        "constraint": "task_issue_relations_source_issue_id_fkey",
+        "definition": "FOREIGN KEY (source_issue_id) REFERENCES task_issues(issue_id)"
+      },
+      {
+        "table": "task_issue_relations",
+        "parent": "task_issues",
+        "constraint": "task_issue_relations_target_issue_id_fkey",
+        "definition": "FOREIGN KEY (target_issue_id) REFERENCES task_issues(issue_id)"
+      },
+      {
+        "table": "task_issue_subscribers",
+        "parent": "task_issues",
+        "constraint": "task_issue_subscribers_issue_id_fkey",
+        "definition": "FOREIGN KEY (issue_id) REFERENCES task_issues(issue_id)"
+      },
+      {
+        "table": "pm_project_documents",
+        "parent": "pm_projects",
+        "constraint": "pm_project_documents_project_id_fkey",
+        "definition": "FOREIGN KEY (project_id) REFERENCES pm_projects(project_id) ON DELETE CASCADE"
+      },
+      {
+        "table": "task_issue_documents",
+        "parent": "task_issues",
+        "constraint": "task_issue_documents_issue_id_fkey",
+        "definition": "FOREIGN KEY (issue_id) REFERENCES task_issues(issue_id) ON DELETE CASCADE"
+      },
+      {
+        "table": "task_issue_evidence",
+        "parent": "task_issues",
+        "constraint": "task_issue_evidence_issue_id_fkey",
+        "definition": "FOREIGN KEY (issue_id) REFERENCES task_issues(issue_id) ON DELETE CASCADE"
+      },
+      {
+        "table": "task_issue_evidence",
+        "parent": "pm_project_evidence",
+        "constraint": "task_issue_evidence_evidence_id_fkey",
+        "definition": "FOREIGN KEY (evidence_id) REFERENCES pm_project_evidence(evidence_id) ON DELETE CASCADE"
+      },
+      {
+        "table": "pm_project_evidence",
+        "parent": "pm_projects",
+        "constraint": "pm_project_evidence_project_id_fkey",
+        "definition": "FOREIGN KEY (project_id) REFERENCES pm_projects(project_id) ON DELETE CASCADE"
+      },
+      {
+        "table": "pm_project_evidence_items",
+        "parent": "pm_project_evidence",
+        "constraint": "pm_project_evidence_items_evidence_id_fkey",
+        "definition": "FOREIGN KEY (evidence_id) REFERENCES pm_project_evidence(evidence_id) ON DELETE CASCADE"
+      },
+      {
+        "table": "task_issue_evidence",
+        "parent": "pm_project_evidence_items",
+        "constraint": "task_issue_evidence_evidence_item_id_fkey",
+        "definition": "FOREIGN KEY (evidence_item_id) REFERENCES pm_project_evidence_items(item_id) ON DELETE SET NULL"
+      },
+      {
+        "table": "pm_project_activity",
+        "parent": "pm_projects",
+        "constraint": "pm_project_activity_project_id_fkey",
+        "definition": "FOREIGN KEY (project_id) REFERENCES pm_projects(project_id) ON DELETE CASCADE"
+      },
+      {
+        "table": "integration_outbox",
+        "parent": "pm_projects",
+        "constraint": "integration_outbox_project_id_fkey",
+        "definition": "FOREIGN KEY (project_id) REFERENCES pm_projects(project_id) ON DELETE CASCADE"
+      }
+    ],
+    "deleteFunctions": null
+  },
+  "identity": {
+    "columns": [
+      {
+        "type": "uuid",
+        "table": "account_users",
+        "column": "user_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "varchar",
+        "table": "account_users",
+        "column": "first_name",
+        "nullable": "NO"
+      },
+      {
+        "type": "varchar",
+        "table": "account_users",
+        "column": "last_name_paternal",
+        "nullable": "NO"
+      },
+      {
+        "type": "varchar",
+        "table": "account_users",
+        "column": "last_name_maternal",
+        "nullable": "YES"
+      },
+      {
+        "type": "varchar",
+        "table": "account_users",
+        "column": "display_name",
+        "nullable": "YES"
+      },
+      {
+        "type": "varchar",
+        "table": "account_users",
+        "column": "username",
+        "nullable": "NO"
+      },
+      {
+        "type": "varchar",
+        "table": "account_users",
+        "column": "email",
+        "nullable": "NO"
+      },
+      {
+        "type": "text",
+        "table": "account_users",
+        "column": "password_hash",
+        "nullable": "NO"
+      },
+      {
+        "type": "varchar",
+        "table": "account_users",
+        "column": "permission_level",
+        "nullable": "NO"
+      },
+      {
+        "type": "varchar",
+        "table": "account_users",
+        "column": "company_role",
+        "nullable": "YES"
+      },
+      {
+        "type": "varchar",
+        "table": "account_users",
+        "column": "department",
+        "nullable": "YES"
+      },
+      {
+        "type": "varchar",
+        "table": "account_users",
+        "column": "account_status",
+        "nullable": "NO"
+      },
+      {
+        "type": "bool",
+        "table": "account_users",
+        "column": "is_email_verified",
+        "nullable": "NO"
+      },
+      {
+        "type": "timestamptz",
+        "table": "account_users",
+        "column": "email_verified_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "account_users",
+        "column": "avatar_url",
+        "nullable": "YES"
+      },
+      {
+        "type": "varchar",
+        "table": "account_users",
+        "column": "phone_number",
+        "nullable": "YES"
+      },
+      {
+        "type": "varchar",
+        "table": "account_users",
+        "column": "timezone",
+        "nullable": "YES"
+      },
+      {
+        "type": "varchar",
+        "table": "account_users",
+        "column": "locale",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamptz",
+        "table": "account_users",
+        "column": "last_login_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamptz",
+        "table": "account_users",
+        "column": "last_activity_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "int4",
+        "table": "account_users",
+        "column": "failed_login_attempts",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamptz",
+        "table": "account_users",
+        "column": "locked_until",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamptz",
+        "table": "account_users",
+        "column": "created_at",
+        "nullable": "NO"
+      },
+      {
+        "type": "timestamptz",
+        "table": "account_users",
+        "column": "updated_at",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "account_users",
+        "column": "sofia_user_id",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "pm_projects",
+        "column": "project_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "varchar",
+        "table": "pm_projects",
+        "column": "project_key",
+        "nullable": "NO"
+      },
+      {
+        "type": "varchar",
+        "table": "pm_projects",
+        "column": "project_name",
+        "nullable": "NO"
+      },
+      {
+        "type": "text",
+        "table": "pm_projects",
+        "column": "project_description",
+        "nullable": "YES"
+      },
+      {
+        "type": "varchar",
+        "table": "pm_projects",
+        "column": "icon_name",
+        "nullable": "YES"
+      },
+      {
+        "type": "varchar",
+        "table": "pm_projects",
+        "column": "icon_color",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "pm_projects",
+        "column": "cover_image_url",
+        "nullable": "YES"
+      },
+      {
+        "type": "varchar",
+        "table": "pm_projects",
+        "column": "project_status",
+        "nullable": "NO"
+      },
+      {
+        "type": "varchar",
+        "table": "pm_projects",
+        "column": "health_status",
+        "nullable": "NO"
+      },
+      {
+        "type": "varchar",
+        "table": "pm_projects",
+        "column": "priority_level",
+        "nullable": "NO"
+      },
+      {
+        "type": "int4",
+        "table": "pm_projects",
+        "column": "completion_percentage",
+        "nullable": "NO"
+      },
+      {
+        "type": "date",
+        "table": "pm_projects",
+        "column": "start_date",
+        "nullable": "YES"
+      },
+      {
+        "type": "date",
+        "table": "pm_projects",
+        "column": "target_date",
+        "nullable": "YES"
+      },
+      {
+        "type": "date",
+        "table": "pm_projects",
+        "column": "actual_end_date",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "pm_projects",
+        "column": "team_id",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "pm_projects",
+        "column": "lead_user_id",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "pm_projects",
+        "column": "created_by_user_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "bool",
+        "table": "pm_projects",
+        "column": "is_public",
+        "nullable": "NO"
+      },
+      {
+        "type": "bool",
+        "table": "pm_projects",
+        "column": "is_template",
+        "nullable": "NO"
+      },
+      {
+        "type": "bool",
+        "table": "pm_projects",
+        "column": "allow_external_access",
+        "nullable": "NO"
+      },
+      {
+        "type": "jsonb",
+        "table": "pm_projects",
+        "column": "metadata",
+        "nullable": "YES"
+      },
+      {
+        "type": "_text",
+        "table": "pm_projects",
+        "column": "tags",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamptz",
+        "table": "pm_projects",
+        "column": "created_at",
+        "nullable": "NO"
+      },
+      {
+        "type": "timestamptz",
+        "table": "pm_projects",
+        "column": "updated_at",
+        "nullable": "NO"
+      },
+      {
+        "type": "timestamptz",
+        "table": "pm_projects",
+        "column": "archived_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "pm_projects",
+        "column": "workspace_id",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "task_issues",
+        "column": "issue_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "task_issues",
+        "column": "team_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "int4",
+        "table": "task_issues",
+        "column": "issue_number",
+        "nullable": "NO"
+      },
+      {
+        "type": "varchar",
+        "table": "task_issues",
+        "column": "title",
+        "nullable": "NO"
+      },
+      {
+        "type": "text",
+        "table": "task_issues",
+        "column": "description",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "task_issues",
+        "column": "description_html",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "task_issues",
+        "column": "status_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "task_issues",
+        "column": "priority_id",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "task_issues",
+        "column": "project_id",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "task_issues",
+        "column": "cycle_id",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "task_issues",
+        "column": "parent_issue_id",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "task_issues",
+        "column": "assignee_id",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "task_issues",
+        "column": "creator_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "date",
+        "table": "task_issues",
+        "column": "due_date",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamptz",
+        "table": "task_issues",
+        "column": "started_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamptz",
+        "table": "task_issues",
+        "column": "completed_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamptz",
+        "table": "task_issues",
+        "column": "cancelled_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "int4",
+        "table": "task_issues",
+        "column": "estimate_points",
+        "nullable": "YES"
+      },
+      {
+        "type": "numeric",
+        "table": "task_issues",
+        "column": "estimate_hours",
+        "nullable": "YES"
+      },
+      {
+        "type": "int4",
+        "table": "task_issues",
+        "column": "time_spent_minutes",
+        "nullable": "YES"
+      },
+      {
+        "type": "numeric",
+        "table": "task_issues",
+        "column": "sort_order",
+        "nullable": "YES"
+      },
+      {
+        "type": "varchar",
+        "table": "task_issues",
+        "column": "url_slug",
+        "nullable": "YES"
+      },
+      {
+        "type": "jsonb",
+        "table": "task_issues",
+        "column": "external_links",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamptz",
+        "table": "task_issues",
+        "column": "created_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamptz",
+        "table": "task_issues",
+        "column": "updated_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamptz",
+        "table": "task_issues",
+        "column": "archived_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "team_members",
+        "column": "member_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "team_members",
+        "column": "team_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "team_members",
+        "column": "user_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "varchar",
+        "table": "team_members",
+        "column": "role",
+        "nullable": "NO"
+      },
+      {
+        "type": "timestamptz",
+        "table": "team_members",
+        "column": "joined_at",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "team_members",
+        "column": "invited_by",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamptz",
+        "table": "team_members",
+        "column": "invitation_accepted_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "bool",
+        "table": "team_members",
+        "column": "is_active",
+        "nullable": "NO"
+      },
+      {
+        "type": "timestamptz",
+        "table": "team_members",
+        "column": "last_activity_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamptz",
+        "table": "team_members",
+        "column": "created_at",
+        "nullable": "NO"
+      },
+      {
+        "type": "timestamptz",
+        "table": "team_members",
+        "column": "updated_at",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "teams",
+        "column": "team_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "varchar",
+        "table": "teams",
+        "column": "name",
+        "nullable": "NO"
+      },
+      {
+        "type": "varchar",
+        "table": "teams",
+        "column": "slug",
+        "nullable": "NO"
+      },
+      {
+        "type": "text",
+        "table": "teams",
+        "column": "description",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "teams",
+        "column": "avatar_url",
+        "nullable": "YES"
+      },
+      {
+        "type": "varchar",
+        "table": "teams",
+        "column": "color",
+        "nullable": "YES"
+      },
+      {
+        "type": "varchar",
+        "table": "teams",
+        "column": "status",
+        "nullable": "NO"
+      },
+      {
+        "type": "varchar",
+        "table": "teams",
+        "column": "visibility",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "teams",
+        "column": "owner_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "int4",
+        "table": "teams",
+        "column": "max_members",
+        "nullable": "YES"
+      },
+      {
+        "type": "jsonb",
+        "table": "teams",
+        "column": "settings",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamptz",
+        "table": "teams",
+        "column": "created_at",
+        "nullable": "NO"
+      },
+      {
+        "type": "timestamptz",
+        "table": "teams",
+        "column": "updated_at",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "teams",
+        "column": "workspace_id",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "workspace_members",
+        "column": "member_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "workspace_members",
+        "column": "workspace_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "workspace_members",
+        "column": "user_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "varchar",
+        "table": "workspace_members",
+        "column": "sofia_role",
+        "nullable": "NO"
+      },
+      {
+        "type": "varchar",
+        "table": "workspace_members",
+        "column": "iris_role",
+        "nullable": "NO"
+      },
+      {
+        "type": "bool",
+        "table": "workspace_members",
+        "column": "is_active",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamptz",
+        "table": "workspace_members",
+        "column": "joined_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamptz",
+        "table": "workspace_members",
+        "column": "updated_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "workspaces",
+        "column": "workspace_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "workspaces",
+        "column": "sofia_org_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "varchar",
+        "table": "workspaces",
+        "column": "name",
+        "nullable": "NO"
+      },
+      {
+        "type": "varchar",
+        "table": "workspaces",
+        "column": "slug",
+        "nullable": "NO"
+      },
+      {
+        "type": "text",
+        "table": "workspaces",
+        "column": "description",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "workspaces",
+        "column": "logo_url",
+        "nullable": "YES"
+      },
+      {
+        "type": "varchar",
+        "table": "workspaces",
+        "column": "brand_color",
+        "nullable": "YES"
+      },
+      {
+        "type": "bool",
+        "table": "workspaces",
+        "column": "is_active",
+        "nullable": "YES"
+      },
+      {
+        "type": "jsonb",
+        "table": "workspaces",
+        "column": "settings",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamptz",
+        "table": "workspaces",
+        "column": "created_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamptz",
+        "table": "workspaces",
+        "column": "updated_at",
+        "nullable": "YES"
+      }
+    ],
+    "policies": [
+      {
+        "cmd": "SELECT",
+        "qual": "true",
+        "roles": [
+          "public"
+        ],
+        "tablename": "workspace_members",
+        "permissive": "PERMISSIVE",
+        "policyname": "workspace_members_read_policy",
+        "schemaname": "public",
+        "with_check": null
+      },
+      {
+        "cmd": "ALL",
+        "qual": "true",
+        "roles": [
+          "public"
+        ],
+        "tablename": "workspace_members",
+        "permissive": "PERMISSIVE",
+        "policyname": "workspace_members_write_policy",
+        "schemaname": "public",
+        "with_check": null
+      },
+      {
+        "cmd": "SELECT",
+        "qual": "((EXISTS ( SELECT 1\n   FROM workspace_members wm\n  WHERE ((wm.workspace_id = workspaces.workspace_id) AND (wm.is_active = true)))) OR (is_active = true))",
+        "roles": [
+          "public"
+        ],
+        "tablename": "workspaces",
+        "permissive": "PERMISSIVE",
+        "policyname": "workspace_read_policy",
+        "schemaname": "public",
+        "with_check": null
+      }
+    ],
+    "authMappingConstraints": [
+      {
+        "table": "teams",
+        "definition": "FOREIGN KEY (owner_id) REFERENCES account_users(user_id)"
+      },
+      {
+        "table": "teams",
+        "definition": "FOREIGN KEY (workspace_id) REFERENCES workspaces(workspace_id)"
+      },
+      {
+        "table": "workspace_members",
+        "definition": "FOREIGN KEY (user_id) REFERENCES account_users(user_id) ON DELETE CASCADE"
+      },
+      {
+        "table": "workspace_members",
+        "definition": "FOREIGN KEY (workspace_id) REFERENCES workspaces(workspace_id) ON DELETE CASCADE"
+      }
+    ]
+  },
+  "advisors": {
+    "security": [
+      {
+        "name": "rls_enabled_no_policy",
+        "level": "INFO",
+        "count": 12,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy"
+      },
+      {
+        "name": "function_search_path_mutable",
+        "level": "WARN",
+        "count": 3,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0011_function_search_path_mutable"
+      },
+      {
+        "name": "rls_disabled_in_public",
+        "level": "ERROR",
+        "count": 30,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0013_rls_disabled_in_public"
+      },
+      {
+        "name": "anon_security_definer_function_executable",
+        "level": "WARN",
+        "count": 1,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable"
+      },
+      {
+        "name": "authenticated_security_definer_function_executable",
+        "level": "WARN",
+        "count": 1,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable"
+      }
+    ],
+    "performance": [
+      {
+        "name": "unindexed_foreign_keys",
+        "level": "INFO",
+        "count": 66,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys"
+      },
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "count": 24,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+      },
+      {
+        "name": "multiple_permissive_policies",
+        "level": "WARN",
+        "count": 6,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0006_multiple_permissive_policies"
+      },
+      {
+        "name": "duplicate_index",
+        "level": "WARN",
+        "count": 1,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0009_duplicate_index"
+      },
+      {
+        "name": "auth_db_connections_absolute",
+        "level": "INFO",
+        "count": 1,
+        "remediation": "https://supabase.com/docs/guides/deployment/going-into-prod"
+      }
+    ]
+  },
+  "escriturasRemotas": 0,
+  "explotacionRESTProbada": false
+}

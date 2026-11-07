@@ -1,0 +1,35 @@
+{
+  "count": 3514,
+  "before": "a3227903331526d8a428e3f44a5f7f4a3a9b303212802c020e6d6454730998ac",
+  "after": "a3227903331526d8a428e3f44a5f7f4a3a9b303212802c020e6d6454730998ac",
+  "changedDuringGate": [],
+  "copiedFilesMatching": 3494,
+  "deltaFromUnit33": [
+    {
+      "file": "src/contexts/auth/useAuthLifecycle.ts",
+      "previousSha256": "ff0e8afc45581ebe78887e17696b6ef79decc4cedd30a636f8c673bb98c1869e",
+      "currentSha256": "61b5e509d61ec2917eef598660b2316a1a22cbb19f65504922f8e8534ac3bd1e"
+    },
+    {
+      "file": "src/contexts/auth/useLiaSession.ts",
+      "previousSha256": "2c7559bcc8bba57dc655c9ed10ad56f7846460e91ff9d712e35b0ddef0cd4855",
+      "currentSha256": "d2d3081acd0861eb9b60dd6ab5a8df7960ee69450b6f14b271faeba7e877734c"
+    },
+    {
+      "file": "src/services/lia-session-exchange.ts",
+      "previousSha256": "8e5258db304386d02c3fe21fe0652c477dea3c52404522c38c9c9ea413aac9b8",
+      "currentSha256": "b1e9140286c5bd610e98ff4ebe57b9050a2047465d308a71f4975aecf607b770"
+    },
+    {
+      "file": "src/__tests__/contexts/auth-lifecycle-cancellation.test.tsx",
+      "previousSha256": null,
+      "currentSha256": "76caf2d52c3b743c91616f82b2e74a4c0802bea988f813f65b63082aaec8b28e"
+    },
+    {
+      "file": "src/__tests__/contexts/auth-lifecycle.fixture.ts",
+      "previousSha256": null,
+      "currentSha256": "eb6d42e75ddfc90dbb03fa5cfd3469b2be9d1081c85f11eb17ef45ac398a22fa"
+    }
+  ],
+  "head": "e166d250629e503cf12f69449fb6d66e569134c8"
+}

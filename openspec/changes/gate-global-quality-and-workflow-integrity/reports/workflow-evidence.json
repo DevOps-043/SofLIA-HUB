@@ -1,0 +1,14 @@
+{
+  "workflows": 4,
+  "references": 27,
+  "remote": 25,
+  "previousMutableReferences": 18,
+  "mutableNow": 0,
+  "pins": {
+    "checkout": "11d5960a326750d5838078e36cf38b85af677262",
+    "setupNode": "49933ea5288caeca8642d1e84afbd3f7d6820020",
+    "uploadArtifact": "ea165f8d65b6e75b540449e92b4886f43607fa02",
+    "downloadArtifact": "d3f86a106a0bac45b974a628896c90dbdf5c8093"
+  },
+  "origin": "git ls-remote de repositorios oficiales actions/*; no se ejecutó código remoto."
+}

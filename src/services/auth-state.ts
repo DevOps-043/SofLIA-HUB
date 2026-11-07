@@ -4,32 +4,8 @@
 // reuniones, etc.) hasta recibir `authenticated: true`. Publicar es obligatorio
 // tras iniciar sesion, cerrarla y restaurarla.
 
-export interface AuthStatePayload {
-  authenticated: boolean;
-  userId: string | null;
-}
-
-/**
- * Lo que se publica al main: el estado observable más los tokens de la sesión.
- *
- * Los tokens son de ida: el main los necesita para operar ante la base con la
- * identidad del usuario —sin ellos su rol es anónimo y las políticas por usuario
- * le devuelven cero filas—, pero nunca vuelven por ningún canal. `getState` sigue
- * devolviendo solo `AuthStatePayload`.
- */
-export interface AuthStatePublication extends AuthStatePayload {
-  /** Selección de UI; main comprueba membresía antes de usarla. */
-  organizationId?: string | null;
-  accessToken?: string | null;
-  refreshToken?: string | null;
-  sofiaAccessToken?: string | null;
-  sofiaRefreshToken?: string | null;
-}
-
-interface AuthStateBridge {
-  setState: (state: AuthStatePublication) => Promise<{ ok: boolean; state: AuthStatePayload }>;
-  getState: () => Promise<AuthStatePayload>;
-}
+import type { AuthStateBridge, AuthStatePublication } from '../shared/auth-state';
+export type { AuthStatePayload, AuthStatePublication } from '../shared/auth-state';
 
 function getBridge(): AuthStateBridge | null {
   if (typeof window === 'undefined') return null;
@@ -52,14 +28,21 @@ export function isOrbWindowRenderer(): boolean {
  * Publica el estado de sesion en el proceso main. No lanza: fuera de Electron o
  * si el puente no existe, simplemente no hay gate que actualizar.
  */
-export async function publishAuthState(state: AuthStatePublication): Promise<void> {
+export async function publishAuthState(state: AuthStatePublication): Promise<boolean | 'revoked'> {
   const bridge = getBridge();
-  if (!bridge) return;
+  if (!bridge) return true;
   try {
-    await bridge.setState(state);
-  } catch (error) {
+    const response = await bridge.setState(state);
+    if (!response.ok) {
+      const reason = response.reason === 'invalid_payload' || response.reason === 'sofia_unverified' || response.reason === 'sofia_revoked'
+        ? response.reason : undefined;
+      if (reason) console.warn('[Auth] El proceso main rechazó la publicación de sesión.', reason);
+      else console.warn('[Auth] El proceso main rechazó la publicación de sesión.');
+    }
+    return !response.ok && response.reason === 'sofia_revoked' ? 'revoked' : response.ok;
+  } catch {
     // No se registra el estado publicado: llevaría los tokens al log del renderer.
     console.warn('[Auth] No se pudo publicar el estado de sesion al proceso main.');
-    void error;
+    return false;
   }
 }

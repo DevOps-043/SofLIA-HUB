@@ -1,0 +1,29 @@
+{
+  "previous": {
+    "allErrors": 1878,
+    "productionErrors": 1458,
+    "productionAny": 1285,
+    "warnings": 31
+  },
+  "current": {
+    "all": {
+      "files": 3284,
+      "errors": 1876,
+      "warnings": 31,
+      "fatal": 0
+    },
+    "productionTs": {
+      "files": 2574,
+      "errors": 1456,
+      "warnings": 31,
+      "fatal": 0,
+      "explicitAnyMessages": 1283
+    }
+  },
+  "errorsRemoved": 2,
+  "productionAnyRemoved": 2,
+  "perFileRuleSeverityIncreases": [],
+  "globalExitCode": 1,
+  "globalReason": "Deuda histórica; sin fatales ni cambios de reglas.",
+  "reportSha256": "5bdc50c5c69746a23e24de50aa1d87207c4064c7204630a8c965fb0c33636cd8"
+}

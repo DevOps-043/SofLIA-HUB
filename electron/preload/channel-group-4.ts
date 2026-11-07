@@ -151,6 +151,7 @@ export const CHANNEL_GROUP_4 = [
   'orb:tts-chunk',
   'orb:tts-end',
   'ai:generate-grounded',
+  'ai:cancel-grounded',
   'media-input:upload',
   'media-input:status',
   'media-input:cancel',

@@ -17,7 +17,7 @@ import type { DesktopTaskExecutionOptions } from './types';
 import type { DesktopAgentService } from '../desktop-agent-service';
 
 /**
- * Wiring del cerebro Gemini Computer Use como backend. Reutiliza los ejecutores
+ * Wiring del controlador OpenAI Computer Use como backend. Reutiliza los ejecutores
  * (nut.js del servicio / Playwright de browserWeb), el presupuesto de pasos y el
  * outcome del agente. Si el motor CU no esta disponible devuelve `null` para que
  * el llamador caiga al loop de vision legacy.
@@ -32,10 +32,7 @@ function nuevoCliente(service: any, environment: CuEnvironment): CuClient {
   const config: DesktopAgentConfig = service.config;
   // El ID del modelo se resuelve SIEMPRE por el registro: ningun literal de
   // modelo debe vivir en el wiring.
-  const { model } = resolveComputerUseModel(config);
   return createComputerUseClient({
-    apiKey: service.apiKey,
-    model,
     environment,
     enablePromptInjectionDetection: config.computerUsePromptInjectionDetection,
     onTeamEvent: event => console.info('[Equipo Computer Use]', JSON.stringify(event)),
@@ -43,13 +40,13 @@ function nuevoCliente(service: any, environment: CuEnvironment): CuClient {
 }
 
 export function computerUseDesktopHabilitado(config: DesktopAgentConfig, options?: DesktopTaskExecutionOptions): boolean {
-  if (config.computerUseEngine !== 'gemini' || !config.computerUseDesktopEnabled) return false;
+  if (config.computerUseEngine !== 'openai' || !config.computerUseDesktopEnabled) return false;
   // Respeta un backend explicito distinto de desktop pedido por el llamador.
   return !options?.backend || options.backend === 'desktop';
 }
 
 export function computerUseBrowserHabilitado(config: DesktopAgentConfig): boolean {
-  return config.computerUseEngine === 'gemini' && config.computerUseBrowserEnabled;
+  return config.computerUseEngine === 'openai' && config.computerUseBrowserEnabled;
 }
 
 /** Ejecuta una tarea desktop con Computer Use. Devuelve null si CU no esta disponible. */

@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createAuthOperations } from '../../contexts/auth/auth-operations';
 
 const mocks = vi.hoisted(() => ({
   completeSofiaSsoSession: vi.fn(),
@@ -47,9 +48,12 @@ let emitCallback: ((payload: unknown) => void) | null = null;
 
 function renderSsoHook() {
   const deps = {
+    operations: createAuthOperations(),
+    setLoading: vi.fn(),
     ensureLiaSession: vi.fn(async () => null),
     setSofiaContext: vi.fn(),
     setUser: vi.fn(),
+    setSofiaSession: vi.fn(),
     signOut: vi.fn(async () => {}),
   };
   const view = renderHook(() => useLearningSso(deps));
@@ -106,7 +110,7 @@ describe('useLearningSso', () => {
   });
 
   it('completa la sesion cuando el retorno correlaciona', async () => {
-    const session = { access_token: 'token', user: { email: 'persona@soflia.ai' } };
+    const session = { access_token: 'token', user: { id: 'auth-uuid-1', email: 'persona@soflia.ai' } };
     const authUser = { email: 'persona@soflia.ai', id: 'uuid-1' };
     mocks.exchangeTicket.mockResolvedValue(session);
     mocks.completeSofiaSsoSession.mockResolvedValue({
@@ -124,14 +128,14 @@ describe('useLearningSso', () => {
     });
 
     await waitFor(() => expect(view.result.current.ssoPending).toBe(false));
-    expect(mocks.exchangeTicket).toHaveBeenCalledWith('t'.repeat(64), REQUEST.codeVerifier);
+    expect(mocks.exchangeTicket).toHaveBeenCalledWith('t'.repeat(64), REQUEST.codeVerifier, expect.any(AbortSignal));
     expect(deps.setUser).toHaveBeenCalledWith(authUser);
-    expect(deps.ensureLiaSession).toHaveBeenCalledWith('persona@soflia.ai', 'token');
+    expect(deps.ensureLiaSession).toHaveBeenCalledWith('persona@soflia.ai', 'token', expect.any(AbortSignal));
     expect(view.result.current.ssoError).toBeNull();
   });
 
   it('no consume dos veces el mismo retorno', async () => {
-    mocks.exchangeTicket.mockResolvedValue({ user: { email: 'persona@soflia.ai' } });
+    mocks.exchangeTicket.mockResolvedValue({ user: { id: 'auth-uuid-1', email: 'persona@soflia.ai' } });
     mocks.completeSofiaSsoSession.mockResolvedValue({
       session: null,
       sofiaProfile: { memberships: [{ status: 'active' }] },
@@ -163,7 +167,7 @@ describe('useLearningSso', () => {
   });
 
   it('cierra la sesion cuando el perfil no tiene membresia activa', async () => {
-    mocks.exchangeTicket.mockResolvedValue({ user: { email: 'persona@soflia.ai' } });
+    mocks.exchangeTicket.mockResolvedValue({ user: { id: 'auth-uuid-1', email: 'persona@soflia.ai' } });
     mocks.completeSofiaSsoSession.mockResolvedValue({
       session: null,
       sofiaProfile: null,

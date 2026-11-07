@@ -6,7 +6,7 @@ import { safeStorage } from 'electron';
 import { BrowserSitePermissionStore } from '../integrated-browser/site-permissions';
 import { BrowserPrivacyStore } from '../integrated-browser/privacy-store';
 import { BrowserAgentPolicyStore } from '../integrated-browser/agent-policy-store';
-import { policyBackupPath } from '../integrated-browser/policy-file-recovery';
+import { policyBackupPath, serializePolicyFile } from '../integrated-browser/policy-file-recovery';
 import { validatePolicyRecoveryRequest } from '../../src/shared/browser-policy-recovery';
 const roots: string[] = [];
 beforeEach(() => { vi.mocked(safeStorage.isEncryptionAvailable).mockReturnValue(true); });
@@ -27,6 +27,86 @@ async function fixture(kind: 'permissions' | 'privacy' | 'agent' = 'permissions'
   await change(); return { root, file, store, change, origin, permission, privacy, agent };
 }
 describe('recuperación restrictiva de ajustes', () => {
+  it('un destino ajeno de cuarentena no se borra al fallar el link exclusivo', async () => {
+    const f = await fixture(); await fs.writeFile(f.file, '{ daño');
+    const before = await fs.readFile(f.file), backup = await fs.readFile(policyBackupPath(f.file));
+    const review = await f.store.prepareRecovery(() => {}), link = fs.link;
+    let foreign = '';
+    vi.spyOn(fs, 'link').mockImplementation(async (source, destination) => {
+      if (String(destination).includes('.damaged-')) {
+        foreign = String(destination); await fs.writeFile(foreign, 'cuarentena ajena', { flag: 'wx' });
+        throw Object.assign(new Error('Destino ocupado'), { code: 'EEXIST' });
+      }
+      return link(source, destination);
+    });
+    await expect(review.commit()).rejects.toMatchObject({ code: 'EEXIST' });
+    expect(foreign).not.toBe(''); expect(await fs.readFile(foreign, 'utf8')).toBe('cuarentena ajena');
+    expect(await fs.readFile(f.file)).toEqual(before); expect(await fs.readFile(policyBackupPath(f.file))).toEqual(backup);
+    expect((await fs.readdir(f.root)).some(name => name.endsWith('.tmp'))).toBe(false);
+  });
+
+  it('informa de una cuarentena propia sin limpiar y conserva el error de publicación', async () => {
+    const f = await fixture(); await fs.writeFile(f.file, '{ daño');
+    const before = await fs.readFile(f.file), review = await f.store.prepareRecovery(() => {});
+    const original = Object.assign(new Error('Publicación interrumpida'), { code: 'EIO' }), unlink = fs.unlink;
+    vi.spyOn(fs, 'rename').mockRejectedValue(original);
+    vi.spyOn(fs, 'unlink').mockImplementation(async target => {
+      if (String(target).includes('.damaged-') && String(target).endsWith('.bin')) throw Object.assign(new Error('Limpieza denegada'), { code: 'EACCES' });
+      return unlink(target);
+    });
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await expect(review.commit()).rejects.toBe(original);
+    expect(await fs.readFile(f.file)).toEqual(before);
+    const copies = (await fs.readdir(f.root)).filter(name => name.includes('.damaged-') && name.endsWith('.bin'));
+    expect(copies).toHaveLength(1);
+    expect(JSON.parse(safeStorage.decryptString(await fs.readFile(path.join(f.root, copies[0])))).scope).toBe(f.file);
+    expect(warning).toHaveBeenCalledOnce(); expect(JSON.stringify(warning.mock.calls)).not.toContain(f.root);
+  });
+
+  it('un reloj civil atrasado no prolonga la revisión más de cinco minutos de intervalo', async () => {
+    let elapsed = 0n;
+    vi.spyOn(process.hrtime, 'bigint').mockImplementation(() => elapsed);
+    const f = await fixture(); await fs.writeFile(f.file, '{ daño');
+    const before = await fs.readFile(f.file), backup = await fs.readFile(policyBackupPath(f.file));
+    const review = await f.store.prepareRecovery(() => {});
+    vi.spyOn(Date, 'now').mockReturnValue(Date.now() - 3_600_000);
+    elapsed = 300_001_000_000n;
+    await expect(review.commit()).rejects.toThrow();
+    expect(await fs.readFile(f.file)).toEqual(before);
+    expect(await fs.readFile(policyBackupPath(f.file))).toEqual(backup);
+  });
+
+  it('vence durante I/O sin iniciar la publicación del principal', async () => {
+    const f = await fixture(); await fs.writeFile(f.file, '{ daño');
+    const review = await f.store.prepareRecovery(() => {}), before = await fs.readFile(f.file);
+    let wall = Date.now(); const expired = wall + 300_001;
+    vi.spyOn(Date, 'now').mockImplementation(() => wall);
+    const open = fs.open;
+    vi.spyOn(fs, 'open').mockImplementation(async (...args) => {
+      const handle = await open(...args);
+      if (String(args[0]) === f.file) wall = expired;
+      return handle;
+    });
+    await expect(review.commit()).rejects.toThrow();
+    expect(await fs.readFile(f.file)).toEqual(before);
+    expect((await fs.readdir(f.root)).filter(name => name.includes('.tmp') || name.includes('.damaged-'))).toEqual([]);
+  });
+
+  it('esperar en la cola no renueva el plazo de una revisión ya consumida', async () => {
+    let elapsed = 0n; vi.spyOn(process.hrtime, 'bigint').mockImplementation(() => elapsed);
+    const f = await fixture(); await fs.writeFile(f.file, '{ daño');
+    const review = await f.store.prepareRecovery(() => {}), before = await fs.readFile(f.file);
+    let release!: () => void;
+    const holding = serializePolicyFile(f.file, () => new Promise<void>(resolve => { release = resolve; }));
+    await vi.waitFor(() => expect(release).toBeTypeOf('function'));
+    const pending = review.commit(); const rejected = expect(pending).rejects.toThrow();
+    try {
+      elapsed = 300_001_000_000n; release(); await holding; await rejected;
+      expect(await fs.readFile(f.file)).toEqual(before);
+      await expect(review.commit()).rejects.toThrow();
+    } finally { release(); await holding; await pending.catch(() => undefined); }
+  });
+
   it.each(['permissions', 'privacy', 'agent'] as const)('recupera %s sin concesiones, preserva respaldo y cifra el principal dañado', async kind => {
     const f = await fixture(kind); const backup = await fs.readFile(policyBackupPath(f.file));
     expect(backup.toString()).not.toContain(f.origin); expect(safeStorage.encryptString).toHaveBeenCalled();

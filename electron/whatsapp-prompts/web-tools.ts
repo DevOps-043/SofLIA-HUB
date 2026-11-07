@@ -1,43 +1,30 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
-
-const SEARCH_MODEL = SOFLIA_RUNTIME_MODEL;
-
-function getApiKey(): string | null {
-  return process.env.VITE_GEMINI_API_KEY || null;
-}
+import { getSessionOpenAIClient } from '../ai-provider/session-client';
+import { SOFLIA_DEFAULT_MODEL } from '../../src/shared/soflia-runtime-model';
 
 export async function webSearch(query: string): Promise<{ success: boolean; results?: string; error?: string }> {
-  const apiKey = getApiKey();
-  if (apiKey) {
-    try {
-      return await searchWithGeminiGrounding(query, apiKey);
-    } catch {
-      // fallback a scraping HTML si falla grounding
+  if (typeof query !== 'string' || !query.trim() || query.length > 8000) return { success: false, error: 'Consulta no válida.' };
+  try {
+    const client = await getSessionOpenAIClient();
+    const response = await client.responses.create({
+      model: SOFLIA_DEFAULT_MODEL, input: query, tools: [{ type: 'web_search' }], store: false,
+      reasoning: { effort: 'low' }, max_output_tokens: 4096,
+    }, { signal: AbortSignal.timeout(45_000) });
+    const sources = new Map<string, string>();
+    for (const item of response.output) {
+      if (item.type !== 'message') continue;
+      for (const part of item.content) {
+        if (part.type !== 'output_text') continue;
+        for (const citation of part.annotations) {
+          if (citation.type === 'url_citation' && /^https?:\/\//i.test(citation.url)) sources.set(citation.url, citation.title);
+        }
+      }
     }
+    const list = [...sources].slice(0, 8).map(([url, title]) => `- ${title || url}: ${url}`).join('\n');
+    if (!response.output_text.trim()) return { success: false, error: 'La búsqueda no devolvió resultados.' };
+    return { success: true, results: response.output_text.slice(0, 4500) + (list ? `\n\nFuentes:\n${list.slice(0, 1500)}` : '') };
+  } catch {
+    return { success: false, error: 'No se pudo completar la búsqueda web.' };
   }
-  return searchWithHtmlFallback(query);
-}
-
-async function searchWithGeminiGrounding(query: string, apiKey: string): Promise<{ success: boolean; results?: string; error?: string }> {
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: SEARCH_MODEL,
-    tools: [{ googleSearchRetrieval: {} }],
-  });
-
-  const result = await model.generateContent(query);
-  const response = result.response;
-  const text = response.text();
-
-  const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
-  const urls = chunks
-    .filter((c) => c.web?.uri)
-    .map((c) => `- ${c.web!.title || c.web!.uri}: ${c.web!.uri}`)
-    .join('\n');
-
-  const full = urls ? `${text}\n\nFuentes:\n${urls}` : text;
-  return { success: true, results: full.slice(0, 6000) };
 }
 
 export async function readWebpage(url: string): Promise<{ success: boolean; content?: string; error?: string }> {
@@ -56,23 +43,6 @@ export async function readWebpage(url: string): Promise<{ success: boolean; cont
   } catch (err: any) {
     return { success: false, error: `Error leyendo la pagina: ${err.message}` };
   }
-}
-
-async function searchWithHtmlFallback(query: string): Promise<{ success: boolean; results?: string; error?: string }> {
-  try {
-    const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
-    const resp = await fetch(searchUrl, { headers: browserHeaders() });
-    if (!resp.ok) return searchWithGoogleFallback(query);
-    return { success: true, results: htmlToText(await resp.text()).slice(0, 6000) };
-  } catch (err: any) {
-    return { success: false, error: `Error buscando en la web: ${err.message}` };
-  }
-}
-
-async function searchWithGoogleFallback(query: string) {
-  const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}&num=8&hl=es`;
-  const response = await fetch(googleUrl, { headers: browserHeaders() });
-  return { success: true, results: htmlToText(await response.text()).slice(0, 5000) };
 }
 
 function browserHeaders() {

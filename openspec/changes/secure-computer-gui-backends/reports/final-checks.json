@@ -1,0 +1,27 @@
+{
+  "date": "2026-10-26T23:39:19.395Z",
+  "status": "verificado_localmente",
+  "gateExitCode": 0,
+  "buildExitCode": 0,
+  "docsSystem": {
+    "exitCode": 0,
+    "documents": 28,
+    "ids": 150,
+    "channels": 522,
+    "testFiles": 730
+  },
+  "docsLinks": {
+    "exitCode": 0,
+    "markdownFiles": 841
+  },
+  "strictOpenSpecExitCode": 0,
+  "scopedDiffCheck": {
+    "worktreeExitCode": 0,
+    "indexExitCode": 0
+  },
+  "sourceInventoryStable": true,
+  "nativeGuiExecuted": false,
+  "independentReview": "pendiente",
+  "archived": false,
+  "goalStatus": "active"
+}

@@ -1,9 +1,16 @@
+import type { ProjectManagementInputs } from '../shared/project-management';
+import type { ProjectHubInputs, ProjectHubRole } from '../shared/project-hub';
+import type { ProjectDownloadInput, ProjectDownloadResult, ProjectUploadInput, ProjectUploadProgress, ProjectUploadResult } from '../shared/project-hub-files';
+
 export interface ProjectHubResult<T = unknown> {
   success: boolean;
   data?: T;
   meta?: { correlation_id?: string; next_cursor?: string | null; has_more?: boolean };
   error?: string;
   code?: string;
+  cancelled?: boolean;
+  uncertain?: boolean;
+  recoveryRequired?: boolean;
 }
 
 export interface ProjectHubProject {
@@ -18,31 +25,62 @@ export interface ProjectHubProject {
   completion_percentage: number;
   updated_at: string;
   membership?: { project_role: string };
+  role?: string;
+  team_id?: string | null;
+  target_date?: string | null;
+  start_date?: string | null;
 }
 
 interface ProjectHubBridge {
+  getTaskDetail: (input: ProjectManagementInputs['getTaskDetail']) => Promise<ProjectHubResult>;
+  addTaskComment: (input: ProjectManagementInputs['addTaskComment']) => Promise<ProjectHubResult>;
+  listTaskDocuments: (input: ProjectManagementInputs['listTaskDocuments']) => Promise<ProjectHubResult>;
+  createTaskDocument: (input: ProjectManagementInputs['createTaskDocument']) => Promise<ProjectHubResult>;
+  updateTaskDocument: (input: ProjectManagementInputs['updateTaskDocument']) => Promise<ProjectHubResult>;
+  removeTaskDocument: (input: ProjectManagementInputs['removeTaskDocument']) => Promise<ProjectHubResult>;
+  createTaskLabel: (input: ProjectManagementInputs['createTaskLabel']) => Promise<ProjectHubResult>;
+  getTaskOptions: (input: ProjectManagementInputs['getTaskOptions']) => Promise<ProjectHubResult>;
+  archiveTask: (input: ProjectManagementInputs['archiveTask']) => Promise<ProjectHubResult>;
+  listMilestones: (input: ProjectManagementInputs['listMilestones']) => Promise<ProjectHubResult>;
+  createMilestone: (input: ProjectManagementInputs['createMilestone']) => Promise<ProjectHubResult>;
+  updateMilestone: (input: ProjectManagementInputs['updateMilestone']) => Promise<ProjectHubResult>;
+  cancelMilestone: (input: ProjectManagementInputs['cancelMilestone']) => Promise<ProjectHubResult>;
+  getProjectTeam: (input: ProjectManagementInputs['getProjectTeam']) => Promise<ProjectHubResult>;
+  assignProjectTeam: (input: ProjectManagementInputs['assignProjectTeam']) => Promise<ProjectHubResult>;
+  createProjectTeam: (input: ProjectManagementInputs['createProjectTeam']) => Promise<ProjectHubResult>;
+  updateProjectTeam: (input: ProjectManagementInputs['updateProjectTeam']) => Promise<ProjectHubResult>;
+  addTeamMember: (input: ProjectManagementInputs['addTeamMember']) => Promise<ProjectHubResult>;
+  updateTeamMember: (input: ProjectManagementInputs['updateTeamMember']) => Promise<ProjectHubResult>;
+  removeTeamMember: (input: ProjectManagementInputs['removeTeamMember']) => Promise<ProjectHubResult>;
+  listDocuments: (input: ProjectManagementInputs['listDocuments']) => Promise<ProjectHubResult>;
+  createDocument: (input: ProjectManagementInputs['createDocument']) => Promise<ProjectHubResult>;
+  updateDocument: (input: ProjectManagementInputs['updateDocument']) => Promise<ProjectHubResult>;
+  removeDocument: (input: ProjectManagementInputs['removeDocument']) => Promise<ProjectHubResult>;
+  updateEvidence: (input: ProjectManagementInputs['updateEvidence']) => Promise<ProjectHubResult>;
+  archiveEvidence: (input: ProjectManagementInputs['archiveEvidence']) => Promise<ProjectHubResult>;
   getStatus: () => Promise<ProjectHubResult<{ configured: boolean; endpoint?: string; enabled: boolean; browserCollectionsEnabled: boolean; authenticated: boolean; workspaces: Array<{ id: string; name: string; role: string }>; authError?: { code?: string; error?: string } | null }>>;
   retryAuthentication: () => Promise<ProjectHubResult<{ workspaces: Array<{ id: string; name: string; role: string }> }>>;
-  listProjects: (input: unknown) => Promise<ProjectHubResult<ProjectHubProject[]>>;
-  createProject: (input: unknown) => Promise<ProjectHubResult<ProjectHubProject>>;
-  getProject: (input: unknown) => Promise<ProjectHubResult<ProjectHubProject>>;
-  updateProject: (input: unknown) => Promise<ProjectHubResult<ProjectHubProject>>;
-  listTasks: (input: unknown) => Promise<ProjectHubResult<unknown[]>>;
-  createTask: (input: unknown) => Promise<ProjectHubResult>;
-  updateTask: (input: unknown) => Promise<ProjectHubResult>;
-  listMembers: (input: unknown) => Promise<ProjectHubResult<unknown[]>>;
-  addMember: (input: unknown) => Promise<ProjectHubResult>;
-  updateMember: (input: unknown) => Promise<ProjectHubResult>;
-  removeMember: (input: unknown) => Promise<ProjectHubResult>;
-  listEvidence: (input: unknown) => Promise<ProjectHubResult<unknown[]>>;
-  getEvidence: (input: unknown) => Promise<ProjectHubResult<Record<string, unknown>>>;
-  addEvidence: (input: unknown) => Promise<ProjectHubResult>;
-  getAnalytics: (input: unknown) => Promise<ProjectHubResult<Record<string, unknown>>>;
-  createBrowserCollection: (input: unknown) => Promise<ProjectHubResult>;
-  importMeeting: (input: unknown) => Promise<ProjectHubResult>;
-  createUploadIntent: (input: unknown) => Promise<ProjectHubResult<Array<{ evidence_id: string; signed_url: string; token: string }>>>;
-  completeUpload: (input: unknown) => Promise<ProjectHubResult>;
-  getDownload: (input: unknown) => Promise<ProjectHubResult<{ signed_url: string }>>;
+  listProjects: (input: ProjectHubInputs['listProjects']) => Promise<ProjectHubResult<ProjectHubProject[]>>;
+  createProject: (input: ProjectHubInputs['createProject']) => Promise<ProjectHubResult<ProjectHubProject>>;
+  getProject: (input: ProjectHubInputs['getProject']) => Promise<ProjectHubResult<ProjectHubProject>>;
+  updateProject: (input: ProjectHubInputs['updateProject']) => Promise<ProjectHubResult<ProjectHubProject>>;
+  listTasks: (input: ProjectHubInputs['listTasks']) => Promise<ProjectHubResult<unknown[]>>;
+  createTask: (input: ProjectHubInputs['createTask']) => Promise<ProjectHubResult>;
+  updateTask: (input: ProjectHubInputs['updateTask']) => Promise<ProjectHubResult>;
+  listMembers: (input: ProjectHubInputs['listMembers']) => Promise<ProjectHubResult<unknown[]>>;
+  addMember: (input: ProjectHubInputs['addMember']) => Promise<ProjectHubResult>;
+  updateMember: (input: ProjectHubInputs['updateMember']) => Promise<ProjectHubResult>;
+  removeMember: (input: ProjectHubInputs['removeMember']) => Promise<ProjectHubResult>;
+  listEvidence: (input: ProjectHubInputs['listEvidence']) => Promise<ProjectHubResult<unknown[]>>;
+  getEvidence: (input: ProjectHubInputs['getEvidence']) => Promise<ProjectHubResult<Record<string, unknown>>>;
+  addEvidence: (input: ProjectHubInputs['addEvidence']) => Promise<ProjectHubResult>;
+  getAnalytics: (input: ProjectHubInputs['getAnalytics']) => Promise<ProjectHubResult<Record<string, unknown>>>;
+  createBrowserCollection: (input: ProjectHubInputs['createBrowserCollection']) => Promise<ProjectHubResult>;
+  importMeeting: (input: ProjectHubInputs['importMeeting']) => Promise<ProjectHubResult>;
+  uploadFiles: (input: ProjectUploadInput) => Promise<ProjectUploadResult>;
+  cancelUpload: (input: Pick<ProjectUploadInput, 'operationId'>) => Promise<ProjectHubResult>;
+  downloadFile: (input: ProjectDownloadInput) => Promise<ProjectDownloadResult>;
+  cancelDownload: (input: Pick<ProjectDownloadInput, 'operationId'>) => Promise<ProjectHubResult>;
 }
 
 function bridge(): ProjectHubBridge | null {
@@ -55,46 +93,55 @@ async function unavailable<T>(): Promise<ProjectHubResult<T>> {
 }
 
 export const projectHubApi = {
+  getTaskDetail: (input: ProjectManagementInputs['getTaskDetail']) => bridge()?.getTaskDetail?.(input) ?? unavailable(),
+  addTaskComment: (input: ProjectManagementInputs['addTaskComment']) => bridge()?.addTaskComment?.(input) ?? unavailable(),
+  listTaskDocuments: (input: ProjectManagementInputs['listTaskDocuments']) => bridge()?.listTaskDocuments?.(input) ?? unavailable(),
+  createTaskDocument: (input: ProjectManagementInputs['createTaskDocument']) => bridge()?.createTaskDocument?.(input) ?? unavailable(),
+  updateTaskDocument: (input: ProjectManagementInputs['updateTaskDocument']) => bridge()?.updateTaskDocument?.(input) ?? unavailable(),
+  removeTaskDocument: (input: ProjectManagementInputs['removeTaskDocument']) => bridge()?.removeTaskDocument?.(input) ?? unavailable(),
+  createTaskLabel: (input: ProjectManagementInputs['createTaskLabel']) => bridge()?.createTaskLabel?.(input) ?? unavailable(),
+  getTaskOptions: (input: ProjectManagementInputs['getTaskOptions']) => bridge()?.getTaskOptions?.(input) ?? unavailable(),
+  archiveTask: (input: ProjectManagementInputs['archiveTask']) => bridge()?.archiveTask?.(input) ?? unavailable(),
+  listMilestones: (input: ProjectManagementInputs['listMilestones']) => bridge()?.listMilestones?.(input) ?? unavailable(),
+  createMilestone: (input: ProjectManagementInputs['createMilestone']) => bridge()?.createMilestone?.(input) ?? unavailable(),
+  updateMilestone: (input: ProjectManagementInputs['updateMilestone']) => bridge()?.updateMilestone?.(input) ?? unavailable(),
+  cancelMilestone: (input: ProjectManagementInputs['cancelMilestone']) => bridge()?.cancelMilestone?.(input) ?? unavailable(),
+  getProjectTeam: (input: ProjectManagementInputs['getProjectTeam']) => bridge()?.getProjectTeam?.(input) ?? unavailable(),
+  assignProjectTeam: (input: ProjectManagementInputs['assignProjectTeam']) => bridge()?.assignProjectTeam?.(input) ?? unavailable(),
+  createProjectTeam: (input: ProjectManagementInputs['createProjectTeam']) => bridge()?.createProjectTeam?.(input) ?? unavailable(),
+  updateProjectTeam: (input: ProjectManagementInputs['updateProjectTeam']) => bridge()?.updateProjectTeam?.(input) ?? unavailable(),
+  addTeamMember: (input: ProjectManagementInputs['addTeamMember']) => bridge()?.addTeamMember?.(input) ?? unavailable(),
+  updateTeamMember: (input: ProjectManagementInputs['updateTeamMember']) => bridge()?.updateTeamMember?.(input) ?? unavailable(),
+  removeTeamMember: (input: ProjectManagementInputs['removeTeamMember']) => bridge()?.removeTeamMember?.(input) ?? unavailable(),
+  listDocuments: (input: ProjectManagementInputs['listDocuments']) => bridge()?.listDocuments?.(input) ?? unavailable(),
+  createDocument: (input: ProjectManagementInputs['createDocument']) => bridge()?.createDocument?.(input) ?? unavailable(),
+  updateDocument: (input: ProjectManagementInputs['updateDocument']) => bridge()?.updateDocument?.(input) ?? unavailable(),
+  removeDocument: (input: ProjectManagementInputs['removeDocument']) => bridge()?.removeDocument?.(input) ?? unavailable(),
+  updateEvidence: (input: ProjectManagementInputs['updateEvidence']) => bridge()?.updateEvidence?.(input) ?? unavailable(),
+  archiveEvidence: (input: ProjectManagementInputs['archiveEvidence']) => bridge()?.archiveEvidence?.(input) ?? unavailable(),
   status: () => bridge()?.getStatus() ?? unavailable(),
   retryAuthentication: () => bridge()?.retryAuthentication() ?? unavailable(),
   listProjects: (workspaceId: string, search?: string, cursor?: string) => bridge()?.listProjects({ workspaceId, search, cursor }) ?? unavailable<ProjectHubProject[]>(),
-  createProject: (workspaceId: string, project: Record<string, unknown>) => bridge()?.createProject({ workspaceId, project }) ?? unavailable<ProjectHubProject>(),
+  createProject: (workspaceId: string, project: ProjectHubInputs['createProject']['project']) => bridge()?.createProject({ workspaceId, project }) ?? unavailable<ProjectHubProject>(),
   getProject: (workspaceId: string, projectId: string) => bridge()?.getProject({ workspaceId, projectId }) ?? unavailable<ProjectHubProject>(),
-  updateProject: (workspaceId: string, projectId: string, updates: Record<string, unknown>) => bridge()?.updateProject({ workspaceId, projectId, updates }) ?? unavailable<ProjectHubProject>(),
-  listTasks: (workspaceId: string, projectId: string) => bridge()?.listTasks({ workspaceId, projectId }) ?? unavailable<unknown[]>(),
-  createTask: (workspaceId: string, projectId: string, task: Record<string, unknown>) => bridge()?.createTask({ workspaceId, projectId, task }) ?? unavailable(),
-  listMembers: (workspaceId: string, projectId: string) => bridge()?.listMembers({ workspaceId, projectId }) ?? unavailable<unknown[]>(),
-  addMember: (workspaceId: string, projectId: string, userId: string, role: string) => bridge()?.addMember({ workspaceId, projectId, userId, role }) ?? unavailable(),
-  updateMember: (workspaceId: string, projectId: string, memberId: string, role: string) => bridge()?.updateMember({ workspaceId, projectId, memberId, role }) ?? unavailable(),
+  updateProject: (workspaceId: string, projectId: string, updates: ProjectHubInputs['updateProject']['updates']) => bridge()?.updateProject({ workspaceId, projectId, updates }) ?? unavailable<ProjectHubProject>(),
+  listTasks: (workspaceId: string, projectId: string, filters?: Omit<ProjectHubInputs['listTasks'], 'workspaceId' | 'projectId'>) => bridge()?.listTasks({ ...filters, workspaceId, projectId }) ?? unavailable<unknown[]>(),
+  createTask: (workspaceId: string, projectId: string, task: ProjectHubInputs['createTask']['task']) => bridge()?.createTask({ workspaceId, projectId, task }) ?? unavailable(),
+  updateTask: (workspaceId: string, projectId: string, taskId: string, updates: ProjectHubInputs['updateTask']['updates']) => bridge()?.updateTask({ workspaceId, projectId, taskId, updates }) ?? unavailable(),
+  listMembers: (workspaceId: string, projectId: string, filters?: Omit<ProjectHubInputs['listMembers'], 'workspaceId' | 'projectId'>) => bridge()?.listMembers({ ...filters, workspaceId, projectId }) ?? unavailable<unknown[]>(),
+  addMember: (workspaceId: string, projectId: string, userId: string, role: ProjectHubRole) => bridge()?.addMember({ workspaceId, projectId, userId, role }) ?? unavailable(),
+  updateMember: (workspaceId: string, projectId: string, memberId: string, role: ProjectHubRole) => bridge()?.updateMember({ workspaceId, projectId, memberId, role }) ?? unavailable(),
   removeMember: (workspaceId: string, projectId: string, memberId: string) => bridge()?.removeMember({ workspaceId, projectId, memberId }) ?? unavailable(),
-  listEvidence: (workspaceId: string, projectId: string) => bridge()?.listEvidence({ workspaceId, projectId }) ?? unavailable<unknown[]>(),
+  listEvidence: (workspaceId: string, projectId: string, filters?: Omit<ProjectHubInputs['listEvidence'], 'workspaceId' | 'projectId'>) => bridge()?.listEvidence({ ...filters, workspaceId, projectId }) ?? unavailable<unknown[]>(),
   getEvidence: (workspaceId: string, projectId: string, evidenceId: string) => bridge()?.getEvidence({ workspaceId, projectId, evidenceId }) ?? unavailable<Record<string, unknown>>(),
-  addEvidence: (workspaceId: string, projectId: string, evidence: Record<string, unknown>) => bridge()?.addEvidence({ workspaceId, projectId, evidence }) ?? unavailable(),
-  getDownload: (workspaceId: string, projectId: string, evidenceId: string) => bridge()?.getDownload({ workspaceId, projectId, evidenceId }) ?? unavailable<{ signed_url: string }>(),
+  addEvidence: (workspaceId: string, projectId: string, evidence: ProjectHubInputs['addEvidence']['evidence']) => bridge()?.addEvidence({ workspaceId, projectId, evidence }) ?? unavailable(),
+  downloadFile: (workspaceId: string, projectId: string, evidenceId: string, operationId: string): Promise<ProjectDownloadResult> =>
+    bridge()?.downloadFile({ workspaceId, projectId, evidenceId, operationId }) ?? unavailable<{ saved: boolean; bytes: number }>(),
+  cancelDownload: (operationId: string) => bridge()?.cancelDownload({ operationId }) ?? unavailable(),
   analytics: (workspaceId: string, projectId: string) => bridge()?.getAnalytics({ workspaceId, projectId }) ?? unavailable<Record<string, unknown>>(),
-  createBrowserCollection: (workspaceId: string, projectId: string, collection: Record<string, unknown>) => bridge()?.createBrowserCollection({ workspaceId, projectId, collection }) ?? unavailable(),
-  importMeeting: (workspaceId: string, projectId: string, idempotencyKey: string, meeting: Record<string, unknown>) => bridge()?.importMeeting({ workspaceId, projectId, idempotencyKey, meeting }) ?? unavailable(),
-  uploadFiles: async (workspaceId: string, projectId: string, files: File[]): Promise<ProjectHubResult> => {
-    const api = bridge();
-    if (!api) return unavailable();
-    const selected = files.slice(0, 10);
-    const declarations = await Promise.all(selected.map(async (file) => ({
-      name: file.name, mime_type: file.type, size: file.size,
-      sha256: toHex(await crypto.subtle.digest('SHA-256', await file.arrayBuffer())),
-    })));
-    const intents = await api.createUploadIntent({ workspaceId, projectId, files: declarations });
-    if (!intents.success || !intents.data) return intents;
-    for (let index = 0; index < intents.data.length; index += 1) {
-      const intent = intents.data[index];
-      const upload = await fetch(intent.signed_url, { method: 'PUT', headers: { authorization: `Bearer ${intent.token}`, 'content-type': selected[index].type }, body: selected[index] });
-      if (!upload.ok) return { success: false, code: 'UPLOAD_FAILED', error: `No se pudo subir ${selected[index].name}.` };
-      const completed = await api.completeUpload({ workspaceId, projectId, evidenceId: intent.evidence_id });
-      if (!completed.success) return completed;
-    }
-    return { success: true, data: { uploaded: intents.data.length } };
-  },
+  createBrowserCollection: (workspaceId: string, projectId: string, collection: ProjectHubInputs['createBrowserCollection']['collection']) => bridge()?.createBrowserCollection({ workspaceId, projectId, collection }) ?? unavailable(),
+  importMeeting: (workspaceId: string, projectId: string, idempotencyKey: string, meeting: ProjectHubInputs['importMeeting']['meeting']) => bridge()?.importMeeting({ workspaceId, projectId, idempotencyKey, meeting }) ?? unavailable(),
+  uploadFiles: (workspaceId: string, projectId: string, operationId: string): Promise<ProjectUploadResult> =>
+    bridge()?.uploadFiles({ workspaceId, projectId, operationId }) ?? unavailable<ProjectUploadProgress>(),
+  cancelUpload: (operationId: string) => bridge()?.cancelUpload({ operationId }) ?? unavailable(),
 };
-
-function toHex(buffer: ArrayBuffer): string {
-  return [...new Uint8Array(buffer)].map((value) => value.toString(16).padStart(2, '0')).join('');
-}

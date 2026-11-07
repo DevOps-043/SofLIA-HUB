@@ -13,6 +13,25 @@ describe('UnifiedProjectsSection', () => {
     delete (window as Window & { projectHubApi?: unknown }).projectHubApi;
   });
 
+  it('reanuda la carga tras varios intentos mientras Electron verifica la sesión SOFIA', async () => {
+    vi.useFakeTimers();
+    const pending = { success: false, code: 'SOFIA_SESSION_PENDING', error: 'Esperando la verificación de la sesión SOFIA.' };
+    const getStatus = vi.fn().mockResolvedValueOnce(pending).mockResolvedValueOnce(pending).mockResolvedValue({
+      success: true, data: { enabled: true, authenticated: true, workspaces: [workspaceA] },
+    });
+    const listProjects = vi.fn().mockResolvedValue({ success: true, data: [] });
+    (window as Window & { projectHubApi?: unknown }).projectHubApi = { getStatus, listProjects };
+
+    render(<UnifiedProjectsSection props={createDefaultProps()} />);
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(screen.getByText(/Esperando la verificación/)).toBeInTheDocument();
+    await act(async () => { await vi.advanceTimersByTimeAsync(3_000); });
+    expect(listProjects).not.toHaveBeenCalled();
+    await act(async () => { await vi.advanceTimersByTimeAsync(3_000); });
+    expect(listProjects).toHaveBeenCalledOnce();
+    expect(screen.getByText('Aún no hay proyectos.')).toBeInTheDocument();
+  });
+
   it('se reconecta automáticamente cuando Project Hub vuelve a responder', async () => {
     vi.useFakeTimers();
     const listProjects = vi.fn()

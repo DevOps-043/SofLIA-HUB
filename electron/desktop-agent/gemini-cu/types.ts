@@ -1,13 +1,4 @@
-/**
- * Contratos del backend Gemini Computer Use (CU).
- *
- * El modelo (`gemini-3.8-flash`) devuelve, por la vía entrenada `computer_use`,
- * una `function_call` con una accion de UI y coordenadas NORMALIZADAS 0-999
- * sobre la captura enviada. Aqui se normaliza a una accion interna (`CuAction`)
- * con coordenadas ya en PIXELES de la captura; cada driver (desktop/browser) la
- * ejecuta con su mecanismo (nut.js / Playwright).
- */
-
+/** Contratos de acciones visuales y coordenadas normalizadas del controlador. */
 export type CuPoint = { x: number; y: number };
 
 /** Entorno de operacion del modelo. */
@@ -19,7 +10,7 @@ export type CuSafety = {
   explanation?: string;
 } | null;
 
-/** function_call cruda del SDK (@google/genai). */
+/** Llamada validada por el adaptador Responses. */
 export type CuFunctionCall = {
   id?: string;
   name?: string;

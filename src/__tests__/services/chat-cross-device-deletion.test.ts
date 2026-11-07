@@ -8,13 +8,15 @@
  * traduce a su propia lapida al cargar.
  */
 
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
+import { chatAuth } from './chat-auth.fixture';
 import './chat-service.setup';
 import { mockDeletedIdsLimit, mockSoftDeleteSelect, mockUpdate } from './chat-service.setup';
 
 const USER = 'lia-user-1';
 const OTRA_IDENTIDAD = 'sofia-user-1';
 const CONV = 'conv-borrada-en-otro-equipo';
+beforeEach(() => chatAuth.reset(USER));
 
 function sembrarEstadoLocal(): void {
   localStorage.setItem(`lia_conversations_${USER}`, JSON.stringify([{

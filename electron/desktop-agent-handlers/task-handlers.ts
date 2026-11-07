@@ -1,69 +1,21 @@
-import { ipcMain } from 'electron';
 import type { DesktopAgentService } from '../desktop-agent-service';
-import type { DesktopTaskExecutionOptions } from '../desktop-agent/types';
-import { denyIfUnauthenticated } from '../main/require-auth';
+import { executeParallelDesktopTasks } from '../desktop-agent/parallel-task-runner';
 import { buildActiveTaskViews } from './active-task-view';
-import { getErrorMessage } from './errors';
-
-type ParallelDesktopTaskRequest = {
-  task: string;
-  maxSteps?: number;
-  backend?: 'auto' | 'browser' | 'desktop' | 'uia';
-  startUrl?: string;
-  browserProfile?: string;
-  browserIsolated?: boolean;
-  resetBrowserProfile?: boolean;
-};
-
-export function registerDesktopAgentTaskHandlers(agentService: DesktopAgentService) {
-  ipcMain.handle('desktop-agent:execute-task', async (_, task: string, options?: DesktopTaskExecutionOptions) => {
-    // Negacion por defecto: el agente de escritorio no ejecuta tareas sin sesion.
-    const denegado = denyIfUnauthenticated('desktop-agent:execute-task');
-    if (denegado) return { success: false, error: denegado.error, message: denegado.message };
-    try {
-      const outcome = await agentService.executeTaskDetailed(task, options);
-      return {
-        success: outcome.estado === 'completada',
-        message: outcome.mensaje,
-        outcome,
-        status: agentService.getStatus(),
-      };
-    } catch (error) {
-      return { success: false, error: getErrorMessage(error), status: agentService.getStatus() };
-    }
-  });
-
-  ipcMain.handle('desktop-agent:execute-parallel', async (_, tasks: ParallelDesktopTaskRequest[]) => {
-    const denegado = denyIfUnauthenticated('desktop-agent:execute-parallel');
-    if (denegado) return { success: false, error: denegado.error, message: denegado.message };
-    try {
-      const results = await agentService.executeParallelTasks(tasks);
-      return { success: true, results };
-    } catch (error) {
-      return { success: false, error: getErrorMessage(error) };
-    }
-  });
-
-  ipcMain.handle('desktop-agent:get-active-tasks', async () => {
-    try {
-      const tasks = buildActiveTaskViews(agentService);
-      return { success: true, tasks, count: tasks.length };
-    } catch (error) {
-      return { success: false, error: getErrorMessage(error) };
-    }
-  });
-
-  ipcMain.handle('desktop-agent:abort-task', async (_, taskId: string) => {
-    try {
-      agentService.abort(taskId);
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: getErrorMessage(error) };
-    }
-  });
-
-  ipcMain.handle('desktop-agent:abort', async () => {
-    agentService.abortAll();
-    return { success: true };
-  });
+import type { DesktopRegister } from './authorized-registration';
+export function registerDesktopAgentTaskHandlers(service: DesktopAgentService, register: DesktopRegister, stopObservation: () => void) {
+  register('execute-task', async (context, task, options) => {
+    const outcome = await service.executeTaskDetailed(task, { ...options, signal: context.signal });
+    context.assert(); return { success: outcome.estado === 'completada', message: outcome.mensaje, outcome, status: service.getStatus() };
+  }, { effect: true });
+  register('execute-parallel', async (context, tasks) => {
+    const results = await executeParallelDesktopTasks(tasks.map(task => ({ ...task, signal: context.signal })), async (task, options) => {
+      context.assert();
+      try { return await service.executeTask(task, options); }
+      catch { throw new Error('No se completó la tarea paralela de Desktop Agent.'); }
+    });
+    context.assert(); return { success: true, results };
+  }, { effect: true });
+  register('get-active-tasks', () => { const tasks = buildActiveTaskViews(service); return { success: true, tasks, count: tasks.length }; });
+  register('abort-task', (_ctx, taskId) => { service.abort(taskId); return { success: true }; }, { control: true });
+  register('abort', () => { stopObservation(); service.abortAll(); return { success: true }; }, { control: true });
 }

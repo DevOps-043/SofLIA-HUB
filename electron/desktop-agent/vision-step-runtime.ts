@@ -1,5 +1,5 @@
-import type { GoogleGenerativeAI } from '@google/generative-ai';
-import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
+import type { DesktopInference } from './inference';
+import { SOFLIA_DEFAULT_MODEL } from '../../src/shared/soflia-runtime-model';
 import { buildHistoryContext } from './history-context';
 import { parseDesktopActionResponse } from './parsers';
 import { buildVisionPrompt } from './vision-prompt';
@@ -14,16 +14,13 @@ import type {
   UIElement,
 } from '../desktop-agent-types';
 
-type VisionContentPart =
-  | { inlineData: { mimeType: 'image/png'; data: string } }
-  | { text: string };
-
 export async function runDesktopVisionStep(params: {
   task: string;
+  signal?: AbortSignal;
   screenshotBase64: string;
   useFallback: boolean;
   recoveryContext: boolean;
-  ai: GoogleGenerativeAI;
+  ai: DesktopInference;
   config: DesktopAgentConfig;
   actionHistory: ActionHistoryEntry[];
   strategicPlan: StrategicPlan | null;
@@ -46,9 +43,8 @@ export async function runDesktopVisionStep(params: {
     || params.recovery.consecutiveFailures > 0
     || params.recovery.sameScreenCount >= 2;
   if (struggling && !params.useFallback) {
-    console.log(`[DesktopAgent] Reintentando con ${SOFLIA_RUNTIME_MODEL} y contexto de recuperación — fallos:${params.recovery.consecutiveFailures} pantallaIgual:${params.recovery.sameScreenCount}`);
+    console.log(`[DesktopAgent] Reintentando con ${SOFLIA_DEFAULT_MODEL} y contexto de recuperación — fallos:${params.recovery.consecutiveFailures} pantallaIgual:${params.recovery.sameScreenCount}`);
   }
-  const model = params.ai.getGenerativeModel({ model: SOFLIA_RUNTIME_MODEL });
   const prompt = buildVisionPrompt({
     task: params.task,
     recoveryContext: params.recoveryContext,
@@ -68,15 +64,11 @@ export async function runDesktopVisionStep(params: {
     config: params.config,
   });
 
-  const parts: VisionContentPart[] = [
-    { inlineData: { mimeType: 'image/png', data: params.screenshotBase64 } },
-  ];
+  const images = [`data:image/png;base64,${params.screenshotBase64}`];
   if (params.lastZoomImage) {
-    parts.push({ inlineData: { mimeType: 'image/png', data: params.lastZoomImage } });
+    images.push(`data:image/png;base64,${params.lastZoomImage}`);
     params.consumeLastZoomImage();
   }
-  parts.push({ text: prompt });
-
-  const result = await model.generateContent(parts);
-  return parseDesktopActionResponse(result.response.text());
+  const text = await params.ai(prompt, { images, json: true, signal: params.signal });
+  return parseDesktopActionResponse(text);
 }

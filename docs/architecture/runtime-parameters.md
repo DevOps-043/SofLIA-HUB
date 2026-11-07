@@ -1,6 +1,6 @@
 # Parametros runtime
 
-Estado: vigente. Actualizado: 2026-09-11.
+Estado: vigente. Actualizado: 2026-10-30.
 
 Inventario de defaults y topes con impacto operativo. Los overrides guardados en
 `userData` pueden cambiar el valor efectivo de un host.
@@ -56,6 +56,27 @@ tras reinicio, caliente y `--background`. Ver el cambio
 evidencia medida en el host de referencia.
 
 ## Aplicacion e IPC
+
+### Communication Hub
+
+Los límites del contrato IPC son fijos, definidos en
+[COMMUNICATION_IPC_LIMITS](../../src/shared/communication-hub-ipc.ts); no son
+preferencias guardadas en userData.
+
+| Parámetro | Tope |
+| --- | ---: |
+| Solicitud / respuesta JSON | 128 / 256 KiB |
+| Texto de mensaje | 16384 caracteres |
+| Listas e inventario publicado | 100 entradas |
+| Operaciones pendientes físicas | 8 |
+| Señal deadline de operación | 180 segundos |
+| Aprobación nativa | 120 segundos |
+| Polling Telegram configurable | 2000–60000 ms |
+| Límite diario configurable de política | 1–10000 |
+
+La señal se entrega al SDK y se revalida antes/después de las esperas. Una
+dependencia que nunca concluye puede mantener una plaza; el timeout no fabrica
+terminación física. [Autoridad y límites](../security/security-and-privacy.md#communication-hub).
 
 El chat ejecuta hasta diez tandas de herramientas, o veinte con workspace,
 seguidas de una respuesta final sin herramientas. El cierre no aumenta el
@@ -187,7 +208,8 @@ solo entonces excluye un medio declarándolo.
 | adjuntos de medio por turno | máximo 4; duración combinada máxima 600 s | `src/shared/multimodal-input.ts` |
 | umbral de subida remota | > 15 MB se sube por Files API; por debajo viaja incrustado; las imágenes siempre incrustadas | `src/shared/multimodal-input.ts`, `src/services/media-attachments.ts` |
 | tope de subida al proveedor | 2 GB | `src/shared/multimodal-input.ts` |
-| espera de procesamiento del archivo | sondeo cada 1.500 ms, límite 120.000 ms | `electron/media-input/service.ts` |
+| subidas físicas simultáneas | máximo 4 por instancia main; sesión revocada conserva plazas hasta terminar I/O | `electron/media-input/service.ts` |
+| espera de procesamiento del archivo | sondeo cada 1.500 ms, plazo 120.000 ms comprobado entre llamadas; no interrumpe I/O pendiente del SDK | mismo archivo |
 | retención del archivo remoto | 48 h (o `expirationTime` del proveedor); referencia caducada no se reutiliza | mismo archivo |
 | escucha ambiental | máximo 60 s; WAV mono 16 kHz; sin persistencia en disco | `src/shared/multimodal-input.ts`, `src/services/ambient-audio-service.ts` |
 | interruptores de reversión | `VITE_MULTIMODAL_BROWSER_VISION`, `VITE_MULTIMODAL_MEDIA_ATTACHMENTS`, `VITE_MULTIMODAL_AMBIENT_AUDIO`; activas salvo valor `false` | `src/shared/multimodal-input.ts` |
@@ -234,9 +256,11 @@ solo entonces excluye un medio declarándolo.
 |---|---|---|
 | pasos | `maxSteps=120`, `defaultStepBudget=60`, mínimo integrado `90`, `maxTotalSteps=500` | `electron/desktop-agent/agent-config.ts`, `electron/desktop-agent/task-budget.ts` |
 | recuperación de cierre prematuro CU | máximo 2 por loop; cada recuperación consume un paso del presupuesto original y exige `canContinue: true` del verificador | `electron/desktop-agent/gemini-cu/loop.ts`, `electron/desktop-agent/gemini-cu/client.ts` |
+| conversación Gemini en main | 4 turnos y 4 llamadas físicas, 40 s por llamada, 20 min de inactividad y 64 intentos por turno | `src/shared/native-gemini-conversation.ts` |
+| datos de conversación Gemini | apertura 2 MiB, mensaje e historial 96 MiB cada uno, respuesta 16 MiB, JSON de hasta 60.000 nodos | `electron/gemini-conversation/contract.ts`, `electron/gemini-conversation/service.ts` |
 | reintentos por llamada mal formada (chat) | 2: reemitir, luego responder sin herramientas | `src/services/gemini-chat/agentic-loop.ts` |
 | modelo conversacional/CU | `gemini-3.8-flash`, sin degradación de modelo | `src/shared/soflia-runtime-model.ts`, `electron/desktop-agent/gemini-cu/model-registry.ts` |
-| selector conversacional | SofLIA: OpenAI `gpt-6-luna` (predeterminado); Max: OpenAI `gpt-6.1-sol` (3 usos/mes, fallback a SofLIA); Pro: Google `gemini-3.8-flash`; elección y razonamiento persistidos por modelo | `src/hooks/model-selector-options.ts`, `src/hooks/useModelSelector.ts`, `src/services/model-routing.ts` |
+| selector conversacional | SofLIA: OpenAI `gpt-6-luna` (predeterminado); Max: OpenAI `gpt-6.1-sol` (3 usos/mes, fallback a SofLIA); elección y razonamiento persistidos por modelo, preferencias Gemini anteriores migradas a SofLIA | `src/hooks/model-selector-options.ts`, `src/hooks/useModelSelector.ts`, `src/services/model-routing.ts` |
 | razonamiento Gemini / OpenAI | `low/medium/high` / `low/medium/high/xhigh/max`; `minimal` y `none` heredados migran a `low` | `src/services/gemini-chat/model-config.ts`, `src/services/openai-chat/reasoning.ts` |
 | captura | 1024x768, active monitor, max edge 1568, min scale .5 | mismo archivo |
 | timing | action 300 ms, change 8 s/500 ms, observation 2 s, queue 60 s | mismo archivo |
@@ -257,7 +281,43 @@ solo entonces excluye un medio declarándolo.
 | source AI / low confidence | 16000 chars / .65 | `electron/meetings/meeting-ai/constants.ts` |
 | Python model start / restart | 90 s / 3 | `electron/python-runtime-service.ts` |
 | Python tools document/quick/restart | 60 s / 10 s / 3 | `electron/python-tools-service.ts` |
+| Python ready / shutdown | voz 10 s, tools 15 s / ack hasta 2 s y kill si sigue vivo | `electron/python/sidecar-connection.ts`, ambas fachadas Python |
+| Python NDJSON / salida | línea UTF-8 hasta 64 MiB / payload y cola stdin hasta 8 MiB cada uno | `electron/python/ndjson.ts`, `sidecar-connection.ts` |
+| Python peticiones | hasta 64 pendientes por hijo, plazo entero positivo hasta 300 s; sin retry automático | `electron/python/sidecar-connection.ts` |
 | speech orbe | 4000 caracteres | `src/components/orb/useOrbConversation.ts` |
+
+Cada conexión Python exige ready v4 (voz) o v1 (tools), compartido por consumidores
+concurrentes. El cierre retira la generación antes de esperar; nuevos arranques
+explícitos esperan la operación de cierre. Si kill no se confirma, se informa
+SIDECAR_STOP_UNCONFIRMED y no se reemplaza hasta close real del hijo. Eventos/respuestas/exit viejos no se
+transfieren al nuevo hijo. Voz conserva hasta tres reinicios con demora 1/2/3 s,
+cancelados al parar/deshabilitar; tools conserva arranque perezoso y tres fallos
+consecutivos antes de ready, que renueva su presupuesto. El buffer de una línea
+grande se libera tras procesarla. No se trunca una carga que supera cuotas.
+
+notify=true acredita aceptación de escritura una sola vez, incluso si write
+señala backpressure; cola agotada devuelve false antes de escribir. Timeout no
+garantiza rollback/cancelación de un comando ya entregado, ni acota la cola interna
+del programa Python. Son políticas defensivas locales, no benchmark/SLO ni prueba
+de carga. No se certifican descendientes externos después de kill.
+
+## Recursos del navegador
+
+El selector UI compartido agrupa prefijos durante 500 ms usando el timestamp
+del evento, sin timer propio. El buffer se acota a la longitud de la etiqueta
+más larga. La lista usa hasta 288 px y margen de viewport de 12 px; su altura
+efectiva se limita al espacio disponible. Animación de entrada de hasta 150 ms,
+omitida con movimiento reducido; la geometría cambia sin transiciones. Fuente:
+`src/components/ui/SelectDropdown.tsx`.
+
+La [política de recursos](../../electron/integrated-browser/resource-policy.ts)
+usa los defaults de `electron/integrated-browser/types.ts`: objetivo de ocho
+vistas vivas, una de fondo warm, gracia de 90 segundos con ventana utilizable
+y 30 con ventana oculta, y retry de 30 segundos para trabajo protegido o fallo
+periódico. Las candidatas LRU excluyen disposición protegida y carga/espera,
+audio, captura o DevTools activos; el objetivo puede excederse temporalmente
+cuando no hay candidatas seguras. La política conserva un solo timer útil,
+invalidable al limpiar el perfil. No constituye un límite de memoria medido.
 
 ## Atajos del navegador
 
@@ -380,3 +440,229 @@ de una sola fuente. Fuentes: `src/shared/studio-program.ts`,
 `src/services/studio-program-renderer.ts` y `electron/studio-output/`.
 
 Una producción simultánea, doce minutos, 6–60 segundos, 30/60 fps, 1280/1920 de ancho, MP4 hasta 80 MB y workspace hasta 128 MB. Manifiestos de 512 KB; máximo tres entidades visibles por escena. [Contrato y operación](presentation-audiovisual-production.md).
+
+## Confirmación del calendario IPC
+
+Una confirmación nativa por registro; vigencia 120 segundos. Vencimiento o cambio
+de contexto solicitan cerrar el diálogo mediante señal. Mientras no cierre sigue
+bloqueando otros; nunca ejecuta al aceptar tarde.
+Título hasta 500 caracteres, descripción 10000, ubicación 1000, identificadores
+1024. Intervalos ISO con zona y fin posterior al inicio; actualización de fechas
+requiere ambos extremos. Fuentes: `electron/calendar/ipc-contract.ts` y
+`electron/calendar/ipc-authorization.ts`.
+
+Custodia OAuth: archivos de hasta 1 MiB; máximo dos proveedores por usuario,
+tokens de hasta 65536 caracteres y propietario de hasta 320. El archivo heredado
+admite hasta 100 registros antes de sellarlo; no se reactivan registros inactivos.
+Polling: intervalo entre 1000 y 3600000 ms, sin consultas solapadas; detenerlo o
+cambiar sesión invalida respuestas pendientes. Fuentes:
+`electron/calendar/credential-store.ts`, `credential-files.ts` y `polling.ts`.
+
+## Planes de organización Gmail
+
+Preview: hasta 1000 mensajes, 50 páginas de hasta 50 mensajes y grupo mínimo
+de 1–20; por defecto 250 mensajes, 20 páginas y mínimo 2. Consulta hasta 4096
+caracteres. Aplicación: lotes de hasta 100 y lectura previa de etiquetas con
+máximo ocho solicitudes paralelas. Solicitud SDK de hasta 15 segundos y
+presupuesto de 90 segundos desde la primera llamada del plan, independiente
+de los 120 segundos de confirmación; sin retry automático. El envío Gmail
+también usa 15 segundos, señal de cancelación y retry desactivado.
+
+Store: 100 planes por pareja usuario/cuenta, 2 MiB de JSON, 4 MiB cifrados;
+exclusión por cuenta en el proceso, sin bloqueo entre procesos ni eliminación
+automática. Estos límites son políticas locales, no un benchmark ni límites
+garantizados por Google. Fuentes: `src/shared/gmail-organization.ts`,
+`electron/gmail/plan-context.ts`, `plan-storage.ts`, `batch.ts` y `delivery.ts`.
+
+## Operaciones directas de Gmail
+
+Lectura: 1–100 mensajes por página, consulta/token de hasta 4096 caracteres y
+hasta 100 IDs de etiquetas. Etiquetas: nombres hasta 225 caracteres, referencias
+hasta 100 por lista; IDs hasta 256. Duplicados de páginas/IDs se rechazan.
+Preparación masiva: hasta 50000 membresías de mensajes y limpieza de hasta 100
+etiquetas; lotes de 100. Exceder cuota rechaza antes de mutar, sin truncar.
+Estos topes son políticas locales, no promesas del proveedor ni benchmarks.
+
+El contexto común usa presupuesto de hasta 90 segundos para preparar y otro
+de hasta 90 segundos tras aprobación; la espera humana conserva su vigencia de
+120 segundos. Cada solicitud SDK dispone de hasta 15 segundos, señal de
+cancelación y retry desactivado. El contexto se revalida tras esperas; no hay
+reanudación tras cerrar el proceso ni nuevos timers de polling. Fuentes:
+`src/shared/gmail-mailbox.ts`, `electron/gmail/execution-context.ts`, `batch.ts`
+y `label-cleanup.ts`.
+
+Feedback de WhatsApp: una respuesta por llamada ejecutada, sin consultas
+globales añadidas tras modificar un mensaje y sin sondeo de etiquetas. Se
+conservan tokens/flags de paginación, no órdenes de leer hasta agotar resultados.
+Esta simplificación no introduce cuotas, timers ni presupuesto de red nuevo.
+Fuente: `electron/wa-agent/agent-loop-tools.ts` y los ejecutores Gmail.
+
+## Sesiones y HTTP de Project Hub
+
+Custodia: 4 MiB de JSON y 8 MiB cifrados por usuario; propietario de 1–256
+caracteres, tokens ASCII imprimibles sin espacios de 1–65536 y hasta 1000
+workspaces. Cada workspace: UUID, nombre/slug hasta 512, rol hasta 128 y logoUrl
+opcional hasta 4096. Payload versión 1; sólo refresh token y workspaces, sin
+access token ni vencimiento persistido. Cifrado del SO asíncrono, sin
+basic_text/unknown ni fallback plano. No hay barrido o migración del legado
+global sin dueño ni límite de cuentas global nuevo.
+
+HTTP: JSON saliente hasta 2 MiB, respuesta hasta 4 MiB por lectura real y
+Content-Length; 15 segundos por intento y backoff cancelable de 250/500 ms
+para los dos reintentos de red GET. Un 401 de lectura admite una renovación
+single-flight y una repetición sin retry de red. Mutaciones/auth/logout no se
+repiten automáticamente; una clave de operación tiene hasta 200 caracteres y
+rechaza CR/LF/NUL. Margen de renovación: 30 segundos; un acceso vencido nunca
+se usa si la renovación falla. `expires_in` aceptado: 1–31536000 segundos.
+El plazo no incluye espera en la cola de disco; no es un SLO ni benchmark.
+Fuentes: `electron/project-hub/session-contract.ts`, `authentication.ts`,
+`session-store.ts` y `transport.ts`.
+
+IPC Project Hub: 23 canales, 21 payloads y dos operaciones sin argumentos;
+diez mutaciones de dominio, lote nativo y copia local con confirmación de hasta 120 segundos, cancelar por
+defecto y un diálogo pendiente por registro. Preview: hasta 12000 caracteres
+de JSON resumido más encabezado/aviso; arrays muestran conteo y primeros tres
+elementos, archivos hasta diez declaraciones completas; textos de más de 600
+caracteres muestran 120 y longitud total. Nunca se presenta como vista íntegra.
+Se comprueba workspace de la sesión y nombre/IDs del proyecto antes del diálogo;
+la autorización efectiva sigue en el servidor. Workspace nuevo requiere canje
+para actualizar la lista local.
+
+Snapshot: presupuesto conservador de 2 MiB UTF-8 de JSON, profundidad hasta 12
+desde raíz cero y 20000 nodos; aridad exacta y schemas de dominio cerrados.
+Descripción de proyecto: 20000 caracteres, tarea: 50000; títulos 255/500,
+25 tags de 50, colecciones de 1–50 pestañas y hasta 51200 caracteres por extracto.
+Evidencia hasta 100 items; reunión hasta 200 items y 100 acciones. No se reciben
+declaraciones de archivos desde renderer: las produce el selector/inspector main.
+No hay timer de polling nuevo ni presupuesto
+global que incluya custodia; cancelar retira sólo la espera del caller mientras
+la renovación compartida del dueño puede seguir. Fuentes:
+`src/shared/project-hub.ts`, `electron/project-hub-handlers.ts`,
+`electron/project-hub/ipc-review.ts` y `session-context.ts`.
+
+Subida: 1–10 archivos de 1 byte a 20 MiB cada uno; hash en bloques de 64 KiB,
+relectura de un archivo completo a la vez tras aprobar. Un lote activo por
+registro; presupuesto de 180 s desde aprobación y PUT hasta 30 s, metadatos
+HTTP hasta 15 s por intento sin retry de escritura. El presupuesto incluye
+relecturas; preparación previa y selección humana tienen su propio lifecycle.
+Nombres hasta 255 caracteres; MIME derivado de extensión: JPEG/PNG/GIF/WebP,
+PDF, TXT/MD/CSV UTF-8 sin NUL y DOCX/XLSX/PPTX con firma ZIP. No es antivirus.
+Signed URL hasta 100000 caracteres, token ASCII hasta 65536; una intención por
+archivo con UUID/path/origen/token exactos; sin journal/reanudación/borrado
+automático de huérfanos. Cancelar picker no promete cerrarlo: el slot se retiene
+hasta su respuesta. Fuentes: `src/shared/project-hub-files.ts` y
+`electron/project-hub/upload-files.ts`, `upload-target.ts`, `upload.ts`,
+`upload-handlers.ts`. Las cuotas son políticas locales, no benchmark ni SLO.
+
+Descarga: evidencia upload ready no archivada, de 1 byte a 20 MiB, MIME/extensión
+y SHA-256 obligatorios; mismo catálogo y validación de formato de subida en
+`electron/project-hub/file-format.ts`. Nombre sugerido hasta 255 caracteres,
+fallback por evidence UUID si es inseguro. Signed URL hasta 100000 caracteres,
+token ASCII hasta 65536, expires_in de 1–300 s y origen/ruta exactos. Bytes por
+streaming hasta 30 s, sin redirect/retry/cookies/bearer; presupuesto de 90 s
+desde elección de destino hasta publicación, sin incluir espera humana previa.
+Un slot compartido upload/download por registro, retenido mientras el picker
+cancelado siga pendiente. Copia nueva mediante staging exclusivo, fsync y hard
+link; sin sobrescritura, ejecución, fallback de copia parcial ni reanudación.
+saved/bytes conservan commit confirmado si se cancela después. Un fallo de
+link sin confirmación informa uncertain/recoveryRequired incluso con cancelación;
+saved=false en ese caso no acredita ausencia de copia. Un fallo de cleanup o
+crash puede dejar staging propio. No es SLO. Fuentes: `src/shared/project-hub-files.ts`,
+`electron/project-hub/download.ts`, `download-target.ts`, `download-destination.ts`,
+`download-handlers.ts` y `file-operations.ts`.
+
+Observación de herramientas WhatsApp: hasta 30 nombres y resúmenes por evento
+persistente, identificadores de herramienta de hasta 128 caracteres, estados de
+vocabulario cerrado y contadores enteros no negativos representables con seguridad.
+Metadata operativa sólo UUID y duración en ms. Las huellas HMAC-SHA256 usan una
+clave aleatoria de 32 bytes por objeto de turno, en WeakMap, sin persistencia ni
+temporizador de limpieza nuevo. Fuente: `electron/whatsapp/tool-observation.ts`
+y `electron/wa-agent/tool-fingerprint.ts`. No introduce cuotas de conversación
+ni limita el resultado funcional que se devuelve al modelo.
+
+Voz local: revisión nativa de 120 s, un control de activación/instalación por
+coordinador. Probe fijo de 3 s, temporal, sin grant persistente. Micrófono null,
+índice entero 0–65535 o nombre de 1–512 caracteres; 1–10 palabras de 1–64;
+velocidad 0.5–2; voz hasta 128 y ruta main absoluta local hasta 4096 sin UNC ni
+controles. Modelos small/large y los cuatro IDs Piper existentes. Texto de
+síntesis hasta 5000 caracteres; IDs opcionales de flujo hasta 200. Los DTO
+públicos no incluyen rutas internas. Fuentes: `electron/voice/contract.ts`,
+`session.ts`, `src/shared/local-voice.ts` y `src/shared/orb.ts`.
+
+Síntesis Orbe: 4 solicitudes activas y hasta 128 en espera cancelable de 30 s;
+cada síntesis conserva plazo de proveedor de 30 s, audio hasta 16 MiB y error
+hasta 16384 bytes reales, aun sin Content-Length fiable. No hay retry. Conserva
+prefetch paralelo y encola exceso admitido antes de solicitar al proveedor.
+Fuentes: `electron/voice/synthesis-queue.ts` y `electron/orb-tts.ts`. Son límites
+de defensa, no un SLO ni una prueba de carga de producción.
+
+Documentos Python: entrada local de 4 bytes a 50 MiB, un selector/lectura renderer
+por registro, páginas 1–200; Markdown/texto hasta 400000 caracteres. Hasta 100
+tablas, 2000 filas por tabla, 200 columnas, 20000 celdas y 400000 caracteres
+acumulados. Redacción devuelve hasta 20000 entidades con posiciones Unicode.
+Plazos de documento 60 s y PII 10 s; sin retry. Configuración de privacidad
+hasta 1024 bytes, una clave booleana. Fuentes: `src/shared/python-tools.ts`,
+`electron/python/tools-contract.ts`, `privacy-store.ts` y `python-tools-service.ts`.
+Los límites no garantizan RAM/CPU del parser ni seguridad completa de ZIP.
+Ver [contrato y alcance](../security/python-document-boundary.md).
+
+La admisión Office en Python limita directorio ZIP a 2 MiB/4096 entradas,
+16 MiB por entrada y 64 MiB inflados, con ratio hasta 1000. XML hasta 128 niveles
+y 500000 elementos acumulados; 200 hojas/diapositivas y 100 tablas por paquete.
+Rechaza DTD/ZIP64/multidisco y coordenadas/spans excesivos. El constructor aplica
+las cuotas del DTO durante conversión y tras redacción, contando UTF-16. Fuentes:
+`python/tools_sidecar/office_preflight.py` y `document_budget.py`. Son presupuestos
+de admisión/trabajo; permanecen estructuras de terceros y riesgos del SO.
+
+## Nodos remotos: IPC y transporte saliente
+
+Entradas IPC hasta 128 KiB UTF-8, dos argumentos y objetos planos de hasta 16
+propiedades; rechazar getters, símbolos y estructuras anidadas antes del schema.
+ID de nodo hasta 48 caracteres, sesión hasta 256, nombre hasta 160, token hasta
+4096, ruta/URL hasta 4096, comando/tarea hasta 20000 y max_steps entero 1–1000.
+Puertos enteros 1–65535; interfaces IP/hostname válidas. URLs HTTP(S) sin
+credenciales/query/fragmento; la red privada es parte intencional del
+emparejamiento revisado, sin promesa de aislamiento SSRF global.
+
+Aprobación nativa hasta 120 s y un diálogo pendiente, reutilizando la guarda
+común. HTTP saliente hasta 60 s; la ruta síncrona de tarea de escritorio admite
+hasta 15 minutos. Respuesta hasta 20 MiB, incluyendo lectura
+incremental aunque Content-Length falte o mienta; sin redirecciones ni retries.
+La configuración invalida revisiones/señales; salud/metadata no cambia autoridad.
+Estos límites no acreditan seguridad completa del nodo.
+Fuentes: `src/shared/remote-node-input.ts`, `electron/remote-node/http-response.ts`,
+`node-client.ts`, `operation-context.ts`, `service.ts` y `host-server.ts`.
+
+La [custodia de nodos](../security/remote-node-custody.md) admite archivos de
+hasta 4 MiB, 256 nodos por propietario y hasta 4096 registros preservados del
+legado. Host nuevo apagado, archivo cifrado versionado y sin fallback plano.
+HTTP entrante: cuerpo hasta 128 KiB y lectura 15 s, headers/request 10/15 s,
+keepalive 1 s, ocho conexiones, 32 headers y 32 peticiones por socket.
+Fuentes: `electron/remote-node/state-contract.ts`, `host-utils.ts`, `host-server.ts`.
+
+## Investigación con fuentes
+
+Solicitud hasta 320000 bytes UTF-8, JSON de hasta 12 niveles/20000 nodos,
+1000 elementos por array y 200 claves por objeto. Clave hasta 512 caracteres
+ASCII visibles (mínimo 20 en main), modelo hasta 128. Herramientas cerradas
+google_search/url_context y code_execution según política local existente.
+Plazo 150 s por intento, respuesta hasta 8 MiB, sin redirects, cuatro transportes
+físicos por proceso y uno por emisor nativo; sin cola ni liberación prematura
+al abandonar la espera. Intentos alternativos de proveedor pueden prolongar
+el turno; no hay un plazo global acreditado. Fuente y límites:
+[generación con fuentes](../security/grounded-generation.md).
+
+## Autorización OAuth del calendario
+
+Listener IPv4 127.0.0.1:8234, GET /callback; URI registrada localhost, Host
+localhost o 127.0.0.1 con puerto exacto. Intento hasta 300 s desde listening,
+bind hasta 5 s, headers/request hasta 5 s, keepalive 1 s; inspección de conexiones
+cada segundo. Hasta 4 conexiones, 32 headers y 10 peticiones por socket; headers
+HTTP hasta 8192 bytes. URL entrante/saliente hasta 16384 caracteres y callback
+hasta 32 parámetros; el límite del parser HTTP también puede rechazar antes.
+State/verificador/desafío de 43 caracteres base64url; código ASCII visible de
+1–8192 caracteres, sin URL ni controles; client_id de 1–4096. El resultado espera
+al cierre del listener y la fachada destruye la ventana. Son límites locales,
+no garantías duras del SO ni plazo global del proveedor. Fuentes:
+`electron/calendar/oauth-proof.ts`, `oauth-receiver.ts` y `oauth-window.ts`.
+[Contrato OAuth](../security/calendar-oauth.md).

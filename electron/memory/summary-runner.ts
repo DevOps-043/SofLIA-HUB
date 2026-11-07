@@ -1,6 +1,6 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { generateSessionText } from '../ai-provider/text';
+import { captureSessionOperation } from '../ai-provider/session-operation';
 import {
-  SUMMARIZE_MODEL,
   SUMMARIZE_THRESHOLD,
 } from './constants';
 import { truncateToTokens } from './math';
@@ -11,8 +11,10 @@ import { extractAndSaveSkills } from './skills-extractor';
 const FACT_CATEGORIES = ['preferencia', 'contexto', 'persona', 'compromiso'] as const;
 
 export async function summarizeMemorySession(service: any, sessionKey: string): Promise<void> {
-  if (!service.db || !service.apiKey) return;
+  if (!service.db) return;
+  let operation: ReturnType<typeof captureSessionOperation> | undefined;
   try {
+    operation = captureSessionOperation();
     const lastSummary = service.db.prepare('SELECT period_end FROM summaries WHERE session_key = ? ORDER BY period_end DESC LIMIT 1').get(sessionKey) as { period_end: number } | undefined;
     const sinceTs = lastSummary?.period_end || 0;
     const messages = service.db.prepare(`
@@ -23,7 +25,8 @@ export async function summarizeMemorySession(service: any, sessionKey: string): 
     if (messages.length < SUMMARIZE_THRESHOLD) return;
 
     console.log(`[MemoryService] Summarizing ${messages.length} messages for ${sessionKey}`);
-    const summary = await service.callGeminiSummarize(formatConversationForSummary(messages));
+    const summary = await service.callOpenAISummarize(formatConversationForSummary(messages), operation.signal);
+    operation.assert();
     if (!summary) return;
     const periodStart = messages[0].timestamp;
     const periodEnd = messages[messages.length - 1].timestamp;
@@ -34,7 +37,9 @@ export async function summarizeMemorySession(service: any, sessionKey: string): 
     console.log(`[MemoryService] Summary saved for ${sessionKey} (${messages.length} messages)`);
     service.appendMemoryCard(sessionKey, summary);
     await service.embedAndStoreChunks(sessionKey, summary, 'summary', periodStart, periodEnd);
+    operation.assert();
     await service.embedConversationChunks(sessionKey, messages);
+    operation.assert();
     // El ownerKey REAL viaja en los mensajes (columna owner_key), correcto para
     // cualquier superficie (chat/WhatsApp/desktop); si falta, se deriva del
     // telefono. De ahi sale tambien el scope con el que se leeran los hechos.
@@ -49,15 +54,13 @@ export async function summarizeMemorySession(service: any, sessionKey: string): 
       console.warn('[MemoryService] Auto-skill extraction failed (no bloqueante):', err.message),
     );
     service.emit('summary-created', { sessionKey, messageCount: messages.length });
-  } catch (err: any) {
-    console.error(`[MemoryService] summarizeSession error for ${sessionKey}:`, err.message);
-  }
+  } catch {
+    console.warn('[MemoryService] No se completó el mantenimiento de memoria.');
+  } finally { operation?.dispose(); }
 }
 
-export async function callGeminiMemorySummarizer(apiKey: string, conversationText: string): Promise<string | null> {
+export async function callOpenAIMemorySummarizer(conversationText: string, signal?: AbortSignal): Promise<string | null> {
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: SUMMARIZE_MODEL, generationConfig: buildSummaryGenerationConfig() });
     const prompt = `Actúa como un agente que extrae los hechos clave de la sesión actual para guardarlos en la memoria a largo plazo.
 Crea un resumen en formato 'Memory Card' (estrictamente menor a 350 tokens).
 Captura temas, decisiones, archivos, fechas, preferencias, compromisos y resultados.
@@ -67,19 +70,11 @@ CONVERSACIÓN:
 ${truncateToTokens(conversationText, 6000)}
 
 MEMORY CARD:`;
-    const result = await model.generateContent(prompt);
-    const finishReason = result.response?.candidates?.[0]?.finishReason;
-    const summary = result.response.text().trim();
-    // Una Memory Card cortada a medias no se guarda: quedaria fija en el
-    // contexto de todos los turnos siguientes y dejaria sin material a los
-    // extractores de hechos y skills.
-    if (!isUsableSummary(summary, finishReason)) {
-      console.warn(`[MemoryService] Resumen descartado por incompleto (finishReason=${finishReason}, chars=${summary.length})`);
-      return null;
-    }
+    const summary = (await generateSessionText(prompt, { maxOutputTokens: buildSummaryGenerationConfig().maxOutputTokens, signal })).trim();
+    if (!isUsableSummary(summary)) return null;
     return summary;
-  } catch (err: any) {
-    console.error('[MemoryService] Gemini summarize error:', err.message);
+  } catch {
+    console.warn('[MemoryService] No se pudo completar el resumen.');
     return null;
   }
 }
@@ -112,12 +107,6 @@ function formatConversationForSummary(messages: Array<{ role: string; content: s
 }
 
 async function extractAndSaveFacts(service: any, phoneNumber: string, summaryText: string): Promise<void> {
-  if (!service.apiKey) return;
-  const genAI = new GoogleGenerativeAI(service.apiKey);
-  const model = genAI.getGenerativeModel({
-    model: SUMMARIZE_MODEL,
-    generationConfig: buildExtractionGenerationConfig(),
-  });
   const prompt = `Analiza este resumen de conversacion y extrae hechos CONCRETOS Y DURABLES sobre el usuario.
 Solo extrae hechos que sirvan para futuras conversaciones (preferencias, contexto de trabajo, decisiones, personas clave).
 NO extraigas acciones temporales ya completadas.
@@ -133,8 +122,7 @@ ${truncateToTokens(summaryText, 1500)}
 JSON:`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const raw = result.response.text().trim();
+    const raw = (await generateSessionText(prompt, { maxOutputTokens: buildExtractionGenerationConfig().maxOutputTokens })).trim();
     const facts = JSON.parse(raw) as Array<{ category: string; key: string; value: string }>;
     if (!Array.isArray(facts)) return;
     for (const fact of facts) {

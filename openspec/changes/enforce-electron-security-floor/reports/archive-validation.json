@@ -1,0 +1,7 @@
+{
+  "version": "44.9.3",
+  "file": "electron-v44.9.3-win32-x64.zip",
+  "bytes": 158508870,
+  "sha256": "41a1ffa0541cb0f2c9b9fe920dd2cef1793ad0ea2ada1a9582958880f4d1b23c",
+  "source": "https://github.com/electron/electron/releases/download/v44.9.3/SHASUMS256.txt"
+}

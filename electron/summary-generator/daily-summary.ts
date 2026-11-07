@@ -1,12 +1,10 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { SUMMARY_MODEL } from './constants';
+import { generateSessionText } from '../ai-provider/text';
 import { buildDailySummaryPrompt } from './prompts';
 import { buildFallbackSummary, parseSummaryResponse } from './response';
 import { buildSummaryStats } from './stats';
 import type { ActivityLogEntry, GeneratedSummary, SessionInfo } from './types';
 
 export async function generateDailySummary(
-  apiKey: string,
   activities: ActivityLogEntry[],
   sessionInfo: SessionInfo,
   irisProjects?: string[],
@@ -26,12 +24,10 @@ export async function generateDailySummary(
 
   const stats = buildSummaryStats(activities);
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: SUMMARY_MODEL });
-    const result = await model.generateContent(buildDailySummaryPrompt(sessionInfo, stats, irisProjects));
-    return parseSummaryResponse(result.response.text().trim(), stats);
-  } catch (err: any) {
-    console.error('[SummaryGenerator] Gemini error:', err.message);
+    const result = await generateSessionText(buildDailySummaryPrompt(sessionInfo, stats, irisProjects), { json: true });
+    return parseSummaryResponse(result.trim(), stats);
+  } catch {
+    console.warn('[SummaryGenerator] Se utilizó el resumen local.');
     return buildFallbackSummary(stats);
   }
 }

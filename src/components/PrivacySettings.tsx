@@ -1,96 +1,64 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { pythonToolsService, type PythonToolsStatus } from '../services/python-tools-service';
 
-// Panel de privacidad: redacción local de datos personales antes de enviarlos a la nube.
-// La redacción ocurre DENTRO del sidecar Python: el dato sensible nunca llega al modelo.
-// Se monta como tab "Privacidad" dentro de UnifiedSettingsModal.
+/** Preferencia de este equipo; no afirma redacción integral de todas las fuentes del Hub. */
 export function PrivacySettings() {
   const [status, setStatus] = useState<PythonToolsStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
-
+  const generation = useRef(0); const active = useRef(false); const changing = useRef(false);
+  const available = pythonToolsService.isAvailable();
   const refresh = useCallback(async () => {
-    if (!pythonToolsService.isAvailable()) return;
-    const snapshot = await pythonToolsService.getStatus();
-    if (snapshot.success && snapshot.status) setStatus(snapshot.status);
-  }, []);
-
-  useEffect(() => { void refresh(); }, [refresh]);
-
-  if (!pythonToolsService.isAvailable()) {
-    return (
-      <div className="p-6 text-sm text-secondary">
-        La configuración de privacidad no está disponible en este entorno (requiere la app de escritorio).
-      </div>
-    );
-  }
-
+    if (!available) return;
+    const version = ++generation.current;
+    try {
+      const snapshot = await pythonToolsService.getStatus();
+      if (!active.current || version !== generation.current) return;
+      if (snapshot.success && snapshot.status) setStatus(snapshot.status);
+      else { setStatus(null); setFeedback(snapshot.error ?? 'No se pudo cargar la preferencia de privacidad.'); }
+    } catch {
+      if (active.current && version === generation.current) { setStatus(null); setFeedback('No se pudo cargar la preferencia de privacidad.'); }
+    }
+  }, [available]);
+  useEffect(() => {
+    active.current = true; let disposed = false;
+    queueMicrotask(() => { if (!disposed) void refresh(); });
+    return () => { disposed = true; active.current = false; };
+  }, [refresh]);
   async function toggleRedaction(enabled: boolean): Promise<void> {
-    setBusy(true);
-    setFeedback(null);
+    if (changing.current || !status) return; changing.current = true; setBusy(true); setFeedback(null);
+    const version = generation.current;
     try {
       const result = await pythonToolsService.setPrivacyConfig({ redactDocuments: enabled });
-      setFeedback(result.success
-        ? (enabled
-          ? 'Protección activada: los datos personales se sustituirán por marcadores antes de salir de tu equipo.'
-          : 'Protección desactivada: los documentos se enviarán al modelo tal cual.')
-        : (result.error ?? 'Ocurrió un error inesperado.'));
-    } catch (error) {
-      setFeedback(error instanceof Error ? error.message : String(error));
-    } finally {
-      setBusy(false);
-      void refresh();
-    }
+      if (!active.current || version !== generation.current) return;
+      setFeedback(result.success ? (enabled ? 'Preferencia guardada: se aplicará redacción por patrones en las lecturas documentales protegidas.' : 'Preferencia guardada: las lecturas de documentos podrán devolver contenido sin redactar.')
+        : result.error ?? 'No se pudo confirmar el guardado de privacidad.');
+    } catch {
+      if (active.current && version === generation.current) setFeedback('No se pudo confirmar el guardado de privacidad.');
+    } finally { changing.current = false; if (active.current) { setBusy(false); void refresh(); } }
   }
-
-  const runtimeAvailable = Boolean(status?.available);
-
+  if (!available) return <div className="p-6 text-sm text-secondary">La configuración de privacidad requiere la aplicación de escritorio.</div>;
   return (
     <div className="p-6 space-y-6 max-w-2xl">
       <div>
-        <h3 className="text-gray-900 dark:text-white text-lg font-semibold">Privacidad de tus datos</h3>
-        <p className="text-xs text-secondary mt-1">
-          Cuando SofLIA lee un documento (PDF, Excel, PowerPoint o Word), el texto se envía al modelo de IA
-          para poder responderte. Aquí decides si los datos personales viajan o se ocultan antes de salir de tu equipo.
-        </p>
+        <h3 className="text-gray-900 dark:text-white text-lg font-semibold">Privacidad de documentos de este equipo</h3>
+        <p className="text-xs text-secondary mt-1">La preferencia se aplica al lector local de PDF, Excel, PowerPoint y Word. No pertenece a una cuenta individual.</p>
       </div>
-
       <div className="rounded-lg border border-border p-4 space-y-4">
-        <label className="flex items-center justify-between gap-4 cursor-pointer">
-          <div>
-            <p className="text-sm font-medium text-gray-900 dark:text-white">
-              Proteger datos personales antes de enviarlos a la nube
-            </p>
-            <p className="text-xs text-secondary">
-              Sustituye RFC, CURP, CLABE, tarjetas, teléfonos y correos por marcadores
-              (<span className="font-mono">[RFC]</span>, <span className="font-mono">[TARJETA]</span>…).
-              La detección es 100% local.
-            </p>
-          </div>
-          <input
-            type="checkbox"
-            className="w-4 h-4 accent-current text-accent"
-            checked={Boolean(status?.privacy.redactDocuments)}
-            disabled={busy || !runtimeAvailable}
-            onChange={(e) => void toggleRedaction(e.target.checked)}
-          />
-        </label>
-
-        {!runtimeAvailable && (
-          <p className="text-xs text-amber-500">
-            Requiere el runtime de Python (reinstala la app o ejecuta <span className="font-mono">npm run python:setup</span>).
-          </p>
-        )}
-
-        {status?.privacy.redactDocuments && (
-          <p className="text-xs text-secondary border-t border-border pt-3">
-            Ten en cuenta que el modelo dejará de ver esos datos: si le pides
-            &quot;dime el RFC del cliente&quot;, responderá que está oculto.
-          </p>
-        )}
+        {status ? (
+          <label className="flex items-center justify-between gap-4 cursor-pointer">
+            <div>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">Redactar datos personales en documentos</p>
+              <p className="text-xs text-secondary">Detección local por patrones de RFC, CURP, CLABE, tarjetas, teléfonos y correos. Puede omitir datos personales; no garantiza anonimización completa.</p>
+            </div>
+            <input type="checkbox" className="w-4 h-4 accent-current text-accent" checked={status.privacy.redactDocuments} disabled={busy} onChange={event => void toggleRedaction(event.target.checked)} />
+          </label>
+        ) : <p className="text-xs text-secondary">La preferencia aún no está disponible; no se ha cambiado la protección.</p>}
+        {status && !status.available && <p className="text-xs text-warning">Falta el runtime Python. Puedes guardar la protección; las lecturas protegidas se rechazarán hasta que el lector esté disponible.</p>}
+        <p className="text-xs text-secondary">La protección no cubre imágenes, capturas de otras aplicaciones, texto manual ni todas las fuentes del Hub. En documentos Office protegidos se omite la imagen de apoyo y se rechaza el respaldo sin redactar cuando falla el lector.</p>
+        {!status && <button type="button" className="text-xs text-accent" disabled={busy} onClick={() => void refresh()}>Reintentar cargar privacidad</button>}
       </div>
-
-      {feedback && <p className="text-xs text-secondary">{feedback}</p>}
+      {feedback && <p role="status" className="text-xs text-secondary">{feedback}</p>}
     </div>
   );
 }

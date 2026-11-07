@@ -1,0 +1,163 @@
+{
+  "changes": [
+    {
+      "name": "node_modules/electron",
+      "before": "44.5.1",
+      "after": "44.9.3"
+    }
+  ],
+  "removed": [],
+  "semver": {
+    "version": "7.8.5",
+    "license": "ISC",
+    "alreadyInstalled": true,
+    "developmentOnly": true
+  },
+  "audits": [
+    {
+      "scope": "all",
+      "results": [
+        {
+          "phase": "before",
+          "counts": {
+            "info": 0,
+            "low": 0,
+            "moderate": 8,
+            "high": 12,
+            "critical": 0,
+            "total": 20
+          },
+          "affected": [
+            "@azure/msal-node",
+            "@jimp/core",
+            "@jimp/custom",
+            "@jimp/plugin-blur",
+            "@jimp/plugin-resize",
+            "@jimp/types",
+            "@jimp/utils",
+            "@nut-tree-fork/nut-js",
+            "@nut-tree-fork/provider-interfaces",
+            "@nut-tree-fork/shared",
+            "adm-zip",
+            "electron",
+            "exceljs",
+            "file-type",
+            "image-size",
+            "jimp",
+            "onnxruntime-node",
+            "pptxgenjs",
+            "uuid",
+            "zod"
+          ]
+        },
+        {
+          "phase": "after",
+          "counts": {
+            "info": 0,
+            "low": 0,
+            "moderate": 8,
+            "high": 11,
+            "critical": 0,
+            "total": 19
+          },
+          "affected": [
+            "@azure/msal-node",
+            "@jimp/core",
+            "@jimp/custom",
+            "@jimp/plugin-blur",
+            "@jimp/plugin-resize",
+            "@jimp/types",
+            "@jimp/utils",
+            "@nut-tree-fork/nut-js",
+            "@nut-tree-fork/provider-interfaces",
+            "@nut-tree-fork/shared",
+            "adm-zip",
+            "exceljs",
+            "file-type",
+            "image-size",
+            "jimp",
+            "onnxruntime-node",
+            "pptxgenjs",
+            "uuid",
+            "zod"
+          ]
+        }
+      ],
+      "added": [],
+      "removed": [
+        "electron"
+      ]
+    },
+    {
+      "scope": "-prod",
+      "results": [
+        {
+          "phase": "before",
+          "counts": {
+            "info": 0,
+            "low": 0,
+            "moderate": 8,
+            "high": 11,
+            "critical": 0,
+            "total": 19
+          },
+          "affected": [
+            "@azure/msal-node",
+            "@jimp/core",
+            "@jimp/custom",
+            "@jimp/plugin-blur",
+            "@jimp/plugin-resize",
+            "@jimp/types",
+            "@jimp/utils",
+            "@nut-tree-fork/nut-js",
+            "@nut-tree-fork/provider-interfaces",
+            "@nut-tree-fork/shared",
+            "adm-zip",
+            "exceljs",
+            "file-type",
+            "image-size",
+            "jimp",
+            "onnxruntime-node",
+            "pptxgenjs",
+            "uuid",
+            "zod"
+          ]
+        },
+        {
+          "phase": "after",
+          "counts": {
+            "info": 0,
+            "low": 0,
+            "moderate": 8,
+            "high": 11,
+            "critical": 0,
+            "total": 19
+          },
+          "affected": [
+            "@azure/msal-node",
+            "@jimp/core",
+            "@jimp/custom",
+            "@jimp/plugin-blur",
+            "@jimp/plugin-resize",
+            "@jimp/types",
+            "@jimp/utils",
+            "@nut-tree-fork/nut-js",
+            "@nut-tree-fork/provider-interfaces",
+            "@nut-tree-fork/shared",
+            "adm-zip",
+            "exceljs",
+            "file-type",
+            "image-size",
+            "jimp",
+            "onnxruntime-node",
+            "pptxgenjs",
+            "uuid",
+            "zod"
+          ]
+        }
+      ],
+      "added": [],
+      "removed": []
+    }
+  ]
+}

@@ -2,6 +2,10 @@ import { app } from 'electron';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { registerAiGroundingHandler } from '../ai-grounding-handler';
+import { registerOpenAIRuntime } from '../openai-runtime';
+import { registerImageGenerationHandler } from '../image-generation';
+import { registerFlowInferenceHandler } from '../flow-inference';
+import { registerGeminiConversation } from '../gemini-conversation';
 import { extractProtocolArg, parseAppProtocolCommand } from '../app-protocol';
 import { logBootstrapError, runOptionalStep } from './bootstrap-steps';
 import { configureMainProcessEnvironment } from './environment';
@@ -53,14 +57,17 @@ export async function runBootstrap(): Promise<void> {
   const controls = createWindowControls({ env, modules, runtimeDirname, services, state });
   const initWhatsAppAgent = createWhatsAppAgentInitializer({ modules, services, state });
 
-  services.workspaceAutomationService.setApiKey(state.currentGeminiApiKey);
   services.meetingPassiveDetectionService.setWhatsAppService(services.waService);
 
   registerServiceEvents({ modules, services, state, controls });
   registerSummaryIpcHandlers({ modules, services, state });
-  registerAiGroundingHandler();
+  registerAiGroundingHandler(() => state.win, () => state.orbWin);
+  registerOpenAIRuntime(() => [state.win, state.orbWin]);
+  registerImageGenerationHandler(() => [state.win, state.orbWin]);
+  registerFlowInferenceHandler(() => [state.win, state.orbWin]);
+  registerGeminiConversation(() => [state.win, state.orbWin]);
   registerMainServiceIpcHandlers({ services, state, initWhatsAppAgent });
-  registerAppLifecycle({ services, state, controls });
+  registerAppLifecycle({ services, state, controls, stopRemoteNodes: () => modules.remoteNodeService.dispose() });
 
   await app.whenReady();
   markBoot('app:ready');
@@ -76,7 +83,7 @@ export async function runBootstrap(): Promise<void> {
   controls.registerOrbShortcut();
   // Debe registrarse antes de crear la ventana: el renderer publica su estado de
   // sesion apenas monta y el gate del main depende de ese canal.
-  registerAuthStateHandlers();
+  registerAuthStateHandlers(() => state.win, () => state.orbWin);
   registerPlatformHandlers({ modules, services, state, controls });
 
   // Ventana temprana: crear la ventana antes de la cadena de servicios no

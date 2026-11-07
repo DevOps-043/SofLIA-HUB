@@ -1,0 +1,62 @@
+[
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-automation-contracts-2026-10-25\\build-final.log",
+    "bytes": 39052,
+    "sha256": "9ef61c01e73b9f41bf4ae664c625f8b2ff0e8bde7a17121bf9daf0374d7d22a6"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-automation-contracts-2026-10-25\\directed-final.log",
+    "bytes": 678,
+    "sha256": "bccc20a9d466ddd66f8b136c13756c3d57f401e69510270b69abe5240e1c247b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-automation-contracts-2026-10-25\\directed.log",
+    "bytes": 672,
+    "sha256": "5fe7eb97dd775feab000dcb151af179d347ed93fce54e7e2e8b46a661f1c4b65"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-automation-contracts-2026-10-25\\gate-final.log",
+    "bytes": 123963,
+    "sha256": "cf5d0d3366bff20facf57a4eebe4d3bd97a22b1461327491ddbbf75356c6b058"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-automation-contracts-2026-10-25\\lint-preliminary.log",
+    "bytes": 145,
+    "sha256": "b3d9b877a501afd587aceb5dc6890ca33fbe0eb0b643ea40bbb9860605155807"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-automation-contracts-2026-10-25\\response-green.log",
+    "bytes": 495,
+    "sha256": "f6d25286166d181f292fe9f56ec8e6d8b7a2a45782e8daa42ccc70cbbf05a41c"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-automation-contracts-2026-10-25\\response-red.log",
+    "bytes": 493,
+    "sha256": "2206237fd441c33246d69c611b1aad84f66f9c9c9a788397061012706241eec0"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-automation-contracts-2026-10-25\\typecheck-final-preliminary.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-automation-contracts-2026-10-25\\typecheck-first.log",
+    "bytes": 863,
+    "sha256": "7e0e2ed6cacb6176296a4acb5e10b845655c4ce5a00eb50ff5978b070bcf6cd7"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-automation-contracts-2026-10-25\\typecheck-second.log",
+    "bytes": 623,
+    "sha256": "7fbe242a0a76dedc82b24535d14bbe0789b59142f5b64223f658fbddf81c901f"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-automation-contracts-2026-10-25\\typecheck-third.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-automation-contracts-2026-10-25\\wrapper-red.log",
+    "bytes": 492,
+    "sha256": "74db90d995ae8c8e3f578558aa7eb70344a2fcfc2298c01661bd8d8b49e350e5"
+  }
+]

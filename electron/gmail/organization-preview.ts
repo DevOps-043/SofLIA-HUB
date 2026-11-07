@@ -1,10 +1,12 @@
 import { buildOrganizationGroups } from './organization-groups';
-import { saveOrganizationPlan } from './plan-storage';
+import { randomUUID } from 'node:crypto';
+import { gmailPreviewOptionsSchema } from '../../src/shared/gmail-organization';
+import { GMAIL_PLAN_FAILURE, publicPlanError, type GmailPlanContext } from './plan-context';
+import type { PrivateGmailPlan } from './plan-schema';
 import type {
   GetMessagesOptions,
   GmailLabelRecord,
   GmailOrganizationMessageSnapshot,
-  GmailOrganizationPlanRecord,
   GmailOrganizationPreviewOptions,
   GmailOrganizationPreviewResult,
   GetMessagesResult,
@@ -16,26 +18,29 @@ export async function previewGmailOrganizationPlan(
     getLabels: () => Promise<{ success: boolean; labels?: GmailLabelRecord[]; error?: string }>;
     getMessages: (options?: GetMessagesOptions) => Promise<GetMessagesResult>;
   },
+  context: GmailPlanContext,
 ): Promise<GmailOrganizationPreviewResult> {
-  const queryUsed = options?.query?.trim() || 'in:inbox';
-  const maxMessages = Math.max(25, Math.min(options?.maxMessages || 250, 1000));
-  const minGroupSize = Math.max(1, Math.min(options?.minGroupSize || 2, 20));
-  const pageLimit = Math.max(1, Math.min(options?.pageLimit || 20, 50));
-  const removeFromInbox = options?.removeFromInbox !== false;
-
   try {
+    const parsed = gmailPreviewOptionsSchema.parse(options === undefined ? {} : options);
+    const queryUsed = parsed.query?.trim() || 'in:inbox';
+    const maxMessages = parsed.maxMessages ?? 250;
+    const minGroupSize = parsed.minGroupSize ?? 2;
+    const pageLimit = parsed.pageLimit ?? 20;
+    const removeFromInbox = parsed.removeFromInbox !== false;
+    context.assert();
     const labelsResult = await deps.getLabels();
+    context.assert();
     if (!labelsResult.success || !labelsResult.labels) {
-      return { success: false, error: labelsResult.error || 'No se pudieron leer las etiquetas de Gmail.' };
+      return { success: false, error: GMAIL_PLAN_FAILURE };
     }
 
-    const messages = await collectPreviewMessages(deps.getMessages, queryUsed, maxMessages, pageLimit);
+    const messages = await collectPreviewMessages(deps.getMessages, queryUsed, maxMessages, pageLimit, context.assert);
     if (!messages.success) return messages;
     const existingLabelsByName = new Map(labelsResult.labels.map((label) => [label.name.toLowerCase(), label.id]));
     const groups = buildOrganizationGroups(messages.messages, minGroupSize, existingLabelsByName);
     const groupedMessageIds = new Set(groups.flatMap((group) => group.messageIds));
-    const planId = `gmail-plan-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const planRecord: GmailOrganizationPlanRecord = {
+    const planId = `gmail-plan-${randomUUID()}`;
+    const planRecord: PrivateGmailPlan = {
       id: planId,
       createdAt: new Date().toISOString(),
       queryUsed,
@@ -44,10 +49,10 @@ export async function previewGmailOrganizationPlan(
       scannedMessages: messages.messages.length,
       truncated: messages.truncated,
       status: 'preview',
-      groups,
-      messages: messages.messages,
+      groups: groups.map(({ groupKey, labelName, count, messageIds }) => ({ groupKey, labelName, count, messageIds })),
     };
-    await saveOrganizationPlan(planRecord);
+    await context.store.save(planRecord, context.assert);
+    context.assert();
     return {
       success: true,
       planId,
@@ -67,9 +72,8 @@ export async function previewGmailOrganizationPlan(
         existingLabelId,
       })),
     };
-  } catch (err: any) {
-    console.error('[GmailService] PreviewOrganizationPlan error:', err.message);
-    return { success: false, error: err.message };
+  } catch (error) {
+    return { success: false, error: publicPlanError(error) };
   }
 }
 
@@ -78,14 +82,18 @@ async function collectPreviewMessages(
   queryUsed: string,
   maxMessages: number,
   pageLimit: number,
+  assertCurrent: () => void,
 ) {
   let pageToken: string | undefined;
   const messages: GmailOrganizationMessageSnapshot[] = [];
   for (let pageCount = 0; messages.length < maxMessages && pageCount < pageLimit; pageCount++) {
     const pageResult = await getMessages({ query: queryUsed, maxResults: Math.min(50, maxMessages - messages.length), pageToken });
-    if (!pageResult.success) return { success: false as const, error: pageResult.error || 'No se pudieron leer mensajes de Gmail.' };
+    assertCurrent();
+    if (!pageResult.success) return { success: false as const, error: GMAIL_PLAN_FAILURE };
     for (const message of pageResult.messages || []) {
-      messages.push({ id: message.id, from: message.from, subject: message.subject, labelIds: message.labelIds || [] });
+      if (messages.some(item => item.id === message.id)) throw new Error('Paginación repetida.');
+      if (messages.length >= maxMessages) break;
+      messages.push({ id: message.id, from: message.from.slice(0, 2048), subject: message.subject.slice(0, 500), labelIds: message.labelIds || [] });
     }
     pageToken = pageResult.nextPageToken;
     if (!pageToken) break;

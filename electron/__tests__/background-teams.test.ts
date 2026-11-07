@@ -1,3 +1,5 @@
+// Cargar la biblioteca al recolectar: el plazo del caso mide E/S y contenido, no su importación fría.
+import 'exceljs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -21,7 +23,7 @@ function fixture(provider?: BackgroundProvider) {
     provider: async () => provider ?? writerProvider() });
   return { root, repository, service, authorize };
 }
-const request = (): BackgroundStart => ({ requestId: randomUUID(), messageId: randomUUID(), conversationId: 'chat-origen', task: 'Usa multiagentes para proponer dos activaciones diferentes.', source: 'Rethink & Delight', model: 'gemini-3.8-flash', effort: 'medium', allowResearch: false, expectedOwnerId: scope.userId, expectedOrganizationId: null });
+const request = (): BackgroundStart => ({ requestId: randomUUID(), messageId: randomUUID(), conversationId: 'chat-origen', task: 'Usa multiagentes para proponer dos activaciones diferentes.', source: 'Rethink & Delight', model: 'gpt-6-luna', effort: 'medium', allowResearch: false, expectedOwnerId: scope.userId, expectedOrganizationId: null });
 function writerProvider(): BackgroundProvider {
   return {
     execute: vi.fn(async (input: ExecutorInput) => {
@@ -38,6 +40,26 @@ function writerProvider(): BackgroundProvider {
   };
 }
 describe('Equipos ejecutores en main', () => {
+  it('recupera un trabajo histórico con modelo retirado usando OpenAI', async () => {
+    const { service, repository } = fixture();
+    await service.context(null);
+    await service.start(request());
+    await service.idle();
+    const jobs = service.state().jobs;
+    jobs[0].model = 'gemini-3.8-flash';
+    repository.save(scope, jobs);
+    expect(repository.load(scope)[0].model).toBe('gpt-6-luna');
+    service.close();
+  });
+  it('migra la selección anterior antes de despachar un trabajo nuevo', async () => {
+    const { service } = fixture();
+    await service.context(null);
+    const job = await service.start({ ...request(), model: 'models/gemini-3.8-flash' });
+    expect(job.model).toBe('gpt-6-luna');
+    await service.idle();
+    expect(service.state().jobs[0].model).toBe('gpt-6-luna');
+    service.close();
+  });
   it('resuelve marca con el scope del trabajo, guarda aviso y ejecuta la guarda antes de escribir', async () => {
     const { service, repository } = fixture(); await service.context(null); await service.start(request()); await service.idle();
     const job = service.state().jobs[0];

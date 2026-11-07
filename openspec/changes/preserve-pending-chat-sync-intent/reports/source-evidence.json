@@ -1,0 +1,55 @@
+{
+  "count": 3508,
+  "before": "d138aff4ca291d27b6ac88bfa7227521a93d168bbb0b8945d093d4d745dfc1f2",
+  "after": "d138aff4ca291d27b6ac88bfa7227521a93d168bbb0b8945d093d4d745dfc1f2",
+  "changedDuringGate": [],
+  "copiedFilesMatching": 3488,
+  "deltaFromUnit31": [
+    {
+      "file": "src/__tests__/services/chat-sync-permanent-errors.test.ts",
+      "previousSha256": "c367f4cff83678ce2c57441127c247bca0f72eaef2cbc9a9a606b116182110e5",
+      "currentSha256": "8b606335e8875f83bf07d4327ca69f626afc692607cb4aa80a0eaf595abc4e24"
+    },
+    {
+      "file": "src/services/chat/pending-state.ts",
+      "previousSha256": "344dde1b0a71e147d0e66b410205f1b41904a65609340422e36ac7bbcfcb9eae",
+      "currentSha256": "ebd1a25aa374c9507cff37471ac3b15b996c190cf45856082163ea2284612a55"
+    },
+    {
+      "file": "src/services/chat/pending-state/clear.ts",
+      "previousSha256": "825e29cdce26f34b7ed908405a0df7bcfe174ef55419083399ed21498d7653c5",
+      "currentSha256": "f3571262fcbb6e335027a50583f8945f4005cd824493a1a80dd2bfed8b796d76"
+    },
+    {
+      "file": "src/services/chat/pending-state/state-store.ts",
+      "previousSha256": "a56a79b2da27ec8f578c097f2e108f4b759a3ca73752b1ab7797bffdb720196d",
+      "currentSha256": "878e1eb76980228e77cc304a1ec1809a19de395e6c764d2a5a25a3dc3d5b2d56"
+    },
+    {
+      "file": "src/services/chat/sync.ts",
+      "previousSha256": "f96d830ca3130deb975c5ac643bed8fa83af990a653826a09bf87d6477a7d7c3",
+      "currentSha256": "de12bc8775f775dbdb94e2db6b883015ab03da8c4764c3db7edaa3fb30b0990d"
+    },
+    {
+      "file": "src/__tests__/services/chat-sync-intent.test.ts",
+      "previousSha256": null,
+      "currentSha256": "0f289e7305a88c5854aea87dfb07621f0ef95d4dc71511b2554c2b48ac5900a5"
+    },
+    {
+      "file": "src/services/chat/cache/review.ts",
+      "previousSha256": null,
+      "currentSha256": "924dfc748538fd35f64933b469584ef74e580eddd40ea7d61642529b56826d6a"
+    },
+    {
+      "file": "src/services/chat/content-comparison.ts",
+      "previousSha256": null,
+      "currentSha256": "ff14d33ba25389d640fa95c7c2040a7b62679aa31ff8dc1be31c8fde9c9bcecc"
+    },
+    {
+      "file": "src/services/chat/sync-pass.ts",
+      "previousSha256": null,
+      "currentSha256": "e233fe71f23116c3f3ed4c6ec8b08bfcbdfdfcf83660dccef06067fb014d2c66"
+    }
+  ],
+  "head": "e166d250629e503cf12f69449fb6d66e569134c8"
+}

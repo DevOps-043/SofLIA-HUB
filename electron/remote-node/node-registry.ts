@@ -1,23 +1,14 @@
+import type { RegisterRemoteNodeInput } from '../../src/shared/remote-node';
+export type { RegisterRemoteNodeInput } from '../../src/shared/remote-node';
 import { REMOTE_NODE_CAPABILITIES } from './constants';
 import { normalizeBaseUrl, safeNow, sanitizeNodeId } from './state-utils';
 import type { RemoteNodeRecord, RemoteNodeState } from './types';
-
-export interface RegisterRemoteNodeInput {
-  id?: string;
-  name: string;
-  base_url: string;
-  token: string;
-  enabled?: boolean;
-  owner_user_id?: string | null;
-  organization_id?: string | null;
-  visibility?: 'personal' | 'organization';
-}
 
 export function listRemoteNodes(state: RemoteNodeState): RemoteNodeRecord[] {
   return state.nodes
     .slice()
     .sort((left, right) => left.name.localeCompare(right.name))
-    .map((node) => ({ ...node }));
+    .map((node) => ({ ...node, ...(node.capabilities ? { capabilities: [...node.capabilities] } : {}) }));
 }
 
 export function registerRemoteNode(state: RemoteNodeState, input: RegisterRemoteNodeInput): RemoteNodeRecord {

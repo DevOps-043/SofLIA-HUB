@@ -23,7 +23,7 @@ describe('useModelSelector', () => {
     expect(result.current.thinkingMode).toBe('max');
 
     act(() => result.current.handleModelChange('gemini-3.8-flash'));
-    expect(result.current.currentModel.provider).toBe('google');
+    expect(result.current.currentModel.provider).toBe('openai');
     expect(result.current.thinkingMode).toBe('medium');
 
     act(() => result.current.handleModelChange('gpt-6.1-sol'));
@@ -131,4 +131,27 @@ describe('useModelSelector', () => {
     expect(result.current.currentModel.name).toBe('SofLIA Max');
     expect(localStorage.getItem(otherUserKey)).toBe('gpt-5.6-terra');
   });
+});
+
+ it.each(['gemini-3.8-flash', 'models/gemini-3.5-flash-lite'])('migra la selección retirada %s en el ámbito activo', model => {
+    localStorage.clear();
+    resetUserPreferenceScopeForTests();
+    localStorage.setItem(scopedPreferenceKey('soflia:selected-model'), model);
+    localStorage.setItem(scopedPreferenceKey('soflia:thinking-by-model'), JSON.stringify({ [model]: 'high' }));
+    const { result } = renderHook(() => useModelSelector());
+    expect(result.current.preferredPrimaryModel).toBe('gpt-6-luna');
+    expect(result.current.thinkingMode).toBe('high');
+    expect(localStorage.getItem(scopedPreferenceKey('soflia:selected-model'))).toBe('gpt-6-luna');
+    expect(JSON.parse(localStorage.getItem(scopedPreferenceKey('soflia:thinking-by-model'))!)).toEqual({ 'gpt-6-luna': 'high' });
+ });
+
+it('migra el razonamiento de la selección retirada y respeta una preferencia OpenAI existente', () => {
+  localStorage.clear(); resetUserPreferenceScopeForTests();
+  localStorage.setItem(scopedPreferenceKey('soflia:selected-model'), 'gemini-3.8-flash');
+  localStorage.setItem(scopedPreferenceKey('soflia:thinking-by-model'), JSON.stringify({
+    'gemini-3.5-flash-lite': 'low', 'gemini-3.8-flash': 'high', 'gpt-6-luna': 'xhigh',
+  }));
+  const { result } = renderHook(() => useModelSelector());
+  expect(result.current.thinkingMode).toBe('xhigh');
+  expect(JSON.parse(localStorage.getItem(scopedPreferenceKey('soflia:thinking-by-model'))!)).toEqual({ 'gpt-6-luna': 'xhigh' });
 });

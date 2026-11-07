@@ -1,5 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { SOFLIA_LITE_MODEL } from '../src/shared/soflia-runtime-model';
+import { generateSessionText } from './ai-provider/text';
 import {
   buildSummaryPrompt,
   extractFirstSummarizableUrl,
@@ -8,23 +7,7 @@ import {
   MAX_SUMMARY_CONTEXT_CHARS,
 } from './url-summarizer/helpers';
 
-export interface URLSummarizerConfig {
-  apiKey: string;
-  modelName?: string;
-}
-
 export class URLSummarizerWorkflow {
-  private genAI: GoogleGenerativeAI;
-  private modelName: string;
-
-  constructor(config: URLSummarizerConfig) {
-    if (!config.apiKey) {
-      throw new Error('API Key es requerida para iniciar URLSummarizerWorkflow');
-    }
-    this.genAI = new GoogleGenerativeAI(config.apiKey);
-    this.modelName = config.modelName || SOFLIA_LITE_MODEL;
-  }
-
   public async processMessage(text: string): Promise<string | null> {
     try {
       if (!text || typeof text !== 'string') {
@@ -52,13 +35,11 @@ export class URLSummarizerWorkflow {
         return null;
       }
 
-      const model = this.genAI.getGenerativeModel({ model: this.modelName });
-      const result = await model.generateContent(buildSummaryPrompt(contextText));
-      const summaryText = result.response.text().trim();
+      const summaryText = (await generateSessionText(buildSummaryPrompt(contextText))).trim();
 
       return summaryText ? `\u{1F4DD} Resumen automatico:\n${summaryText}` : null;
-    } catch (error) {
-      console.error(`[URLSummarizerWorkflow] Error procesando enlace: ${error instanceof Error ? error.message : error}`);
+    } catch {
+      console.warn('[URLSummarizerWorkflow] No se pudo resumir el enlace.');
       return null;
     }
   }

@@ -1,0 +1,67 @@
+[
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-image-dependencies-2026-10-25\\build-final.log",
+    "bytes": 38601,
+    "sha256": "920e7a366296209cd9641073e8067e2188001744ca22ff26b0aaa089f790d3b1"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-image-dependencies-2026-10-25\\contracts-after.log",
+    "bytes": 417,
+    "sha256": "e9dcf01d53a8680b6120412cb814fcf498f618fbf569f9111da9fc34411fb851"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-image-dependencies-2026-10-25\\contracts-before.log",
+    "bytes": 1390,
+    "sha256": "6aefaac293a9b90d216aee8a7e9425c28a16d7ee70e79145fe429fe81237bbe2"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-image-dependencies-2026-10-25\\docs-final.log",
+    "bytes": 139,
+    "sha256": "7c408e6133738983518babe5631c68a5ec85dc72a4fde8ee76269153d5d5c0b6"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-image-dependencies-2026-10-25\\docs-system-final.log",
+    "bytes": 195,
+    "sha256": "d21f410d41f69ceb48756755d9c4e9025e387f514c4f1ed2e3771136d62f7bff"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-image-dependencies-2026-10-25\\gate-final.log",
+    "bytes": 121700,
+    "sha256": "c5fc136ba38aa6ba92ccaec850d8980fb2fcc1487ea1909aa0d5824099633944"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-image-dependencies-2026-10-25\\harness-final.log",
+    "bytes": 144,
+    "sha256": "916e65bfd3de6fbfa30c2fa5e9d816f138601dd577b5d8ebf17711b92b2aeebd"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-image-dependencies-2026-10-25\\lint-first.log",
+    "bytes": 145,
+    "sha256": "883f9d4a3ddb156316ef36bea297d9158be2a0f722cd88967cf5bf3cb08b3682"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-image-dependencies-2026-10-25\\lock-install.log",
+    "bytes": 90,
+    "sha256": "d0ef4acad8689708144f1c826ed763bd908b882ad74c7df14416b168fe4d647e"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-image-dependencies-2026-10-25\\native-final.log",
+    "bytes": 237,
+    "sha256": "c8a62d6d01e9f7d4786b57b7cce220250ce299b633a816900bc199be8ec4c296"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-image-dependencies-2026-10-25\\native-first.log",
+    "bytes": 900,
+    "sha256": "3af6cca25e61f9cdf3251c2314f60061de8fbfe8650aceb71e31dc2394c1f8c6"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-image-dependencies-2026-10-25\\openspec-final.log",
+    "bytes": 58,
+    "sha256": "f4a2bc289c9b246428f83f3408d7755fc577c9a1efebf53f98dc0bc6a800f4ad"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-image-dependencies-2026-10-25\\physical-install.log",
+    "bytes": 123,
+    "sha256": "0888d5855bf2999cbf1e4fd54ba8738bbaab8df316b7c89a32a62a26ea5e9d65"
+  }
+]

@@ -1,4 +1,4 @@
-import type { GoogleGenerativeAI } from '@google/generative-ai';
+import type { DesktopInference } from './inference';
 import type {
   ActionHistoryEntry,
   DesktopActionPayload,
@@ -22,7 +22,7 @@ export async function executeProactiveRecovery(input: {
   screenshotBase64: string;
   reason: 'stuck' | 'fail' | 'failures';
   failMessage?: string;
-  ai: GoogleGenerativeAI;
+  ai: DesktopInference;
   config: DesktopAgentConfig;
   currentPlan: TaskPlan | null;
   actionHistory: ActionHistoryEntry[];
@@ -45,7 +45,6 @@ export async function executeProactiveRecovery(input: {
   });
 
   try {
-    const model = input.ai.getGenerativeModel({ model: input.config.proactiveModel });
     const prompt = buildRecoveryPrompt({
       task: input.task,
       currentPlan: input.currentPlan,
@@ -56,11 +55,11 @@ export async function executeProactiveRecovery(input: {
       reason: input.reason,
       failMessage: input.failMessage,
     });
-    const result = await model.generateContent([
-      { inlineData: { mimeType: 'image/png', data: input.screenshotBase64 } },
-      { text: prompt },
-    ]);
-    const parsed = parseVisionResponse(result.response.text()) as RecoveryStrategyPayload;
+    const result = await input.ai(prompt, {
+      images: [`data:image/png;base64,${input.screenshotBase64}`], json: true, signal: input.abortSignal ?? undefined,
+    });
+    if (input.abortSignal?.aborted) return false;
+    const parsed = parseVisionResponse(result) as RecoveryStrategyPayload;
     input.emit('recovery-strategy', { strategy: parsed.strategy, reasoning: parsed.reasoning });
 
     for (const action of (Array.isArray(parsed.actions) ? parsed.actions : []).slice(0, 5)) {

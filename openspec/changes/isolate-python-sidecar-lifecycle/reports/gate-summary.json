@@ -1,0 +1,91 @@
+{
+  "command": "npm run verify:pr",
+  "log": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-python-sidecar-2026-10-22\\verify-pr-acceptance.log",
+  "exitCode": 0,
+  "at": "2026-10-23T05:16:29.892Z",
+  "scripts": [
+    {
+      "script": "adapters:check",
+      "exitCode": 0
+    },
+    {
+      "script": "harness:validate",
+      "exitCode": 0
+    },
+    {
+      "script": "audit:supply-chain",
+      "exitCode": 0
+    },
+    {
+      "script": "docs:system:check",
+      "exitCode": 0
+    },
+    {
+      "script": "docs:check",
+      "exitCode": 0
+    },
+    {
+      "script": "skills:seed:check",
+      "exitCode": 0
+    },
+    {
+      "script": "openspec:validate",
+      "exitCode": 0
+    },
+    {
+      "script": "test:quality",
+      "exitCode": 0
+    },
+    {
+      "script": "typecheck",
+      "exitCode": 0
+    },
+    {
+      "script": "lint:changed",
+      "exitCode": 0
+    },
+    {
+      "script": "test",
+      "exitCode": 0
+    }
+  ],
+  "tests": {
+    "passed": 5318,
+    "skipped": 5,
+    "total": 5323,
+    "durationSeconds": 219.46
+  },
+  "files": {
+    "passed": 482,
+    "skipped": 2,
+    "total": 484
+  },
+  "lintChangedFiles": 208,
+  "baseline": {
+    "passed": 5274,
+    "skipped": 5
+  },
+  "netNewPassedCases": 44,
+  "directed": {
+    "passed": 122,
+    "files": 7,
+    "baseline": 78
+  },
+  "build": {
+    "exitCode": 0,
+    "sourceFiles": 3365,
+    "artifacts": 6,
+    "productionHashesRechecked": 5
+  },
+  "python": {
+    "qaInterpreter": "3.12.14",
+    "programs": 2,
+    "processes": 4,
+    "microphoneOpened": false,
+    "modelsLoaded": false,
+    "workspaceRuntimeUsed": false
+  },
+  "releaseGateRun": false,
+  "independentReview": "pendiente",
+  "globalDebtRecalculated": false
+}
