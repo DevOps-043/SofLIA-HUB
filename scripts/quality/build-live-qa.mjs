@@ -88,8 +88,10 @@ async function main() {
     'Falta la configuración de autenticación en el preload empaquetado.');
   const appBundles = entries.filter(file => /^dist\/assets\/[^/]+\.js$/.test(file));
   const renderer = appBundles.map(file => asar.extractFile(archive, file).toString()).join('\n');
-  const mainBundle = asar.extractFile(archive, metadata.main).toString();
-  assert.ok(renderer.includes(learningQaOrigin) && mainBundle.includes(learningQaOrigin),
+  // Vite puede separar el módulo de inicio de sesión del punto de entrada.
+  const mainBundles = entries.filter(file => file === metadata.main || /^dist-electron\/learning-sso-[\w-]+\.js$/.test(file));
+  const mainHasOrigin = mainBundles.some(file => asar.extractFile(archive, file).toString().includes(learningQaOrigin));
+  assert.ok(renderer.includes(learningQaOrigin) && mainHasOrigin,
     'Falta el origen de Learning QA en la aplicación empaquetada.');
   assert.ok(renderer.includes(config.VITE_SOFIA_SUPABASE_URL) && renderer.includes(config.VITE_SOFIA_SUPABASE_ANON_KEY),
     'Falta la configuración pública de Sofía en el renderer empaquetado.');
