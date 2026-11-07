@@ -17,6 +17,9 @@ respectivamente. La rama de origen y su índice permanecieron intactos.
 - La validación dirigida aprobó 413 casos de identidad, proyectos, aula de
   trabajo y recuperación. Una ejecución posterior aprobó 167 casos de IPC y
   OAuth, incluidos los casos de marcador simple y payload ampliado.
+- Pasaron 122 pruebas adicionales de IRIS, navegador, proyectos y aula.
+- Compiló el renderer y Electron. El smoke IPC nativo pasó diez
+  comprobaciones con perfil temporal, red bloqueada y servicio simulado.
 
 La validación local no acredita las políticas efectivas de la instancia IRIS
 ni el comportamiento de una cuenta real. La retirada completa de Gemini
