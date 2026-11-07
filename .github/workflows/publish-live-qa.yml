@@ -1,0 +1,60 @@
+name: Publicar paquete verificado de aula síncrona QA
+
+on:
+  push:
+    branches: [codex/complete-synchronous-system]
+    paths: [.github/workflows/publish-live-qa.yml]
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: publicar-aula-sincrona-qa-20261107
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: aula-sincrona-windows-qa
+          path: paquete
+          github-token: ${{ github.token }}
+          run-id: 42389034063
+      - name: Verificar paquete y publicar
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        shell: bash
+        run: |
+          fail() { printf '::error title=Publicación QA::%s\n' "$1"; exit 1; }
+          mapfile -t manifests < <(find "$GITHUB_WORKSPACE/paquete" -type f -name testing-package.json)
+          [[ ${#manifests[@]} == 1 ]] || fail 'Se esperaba exactamente un manifiesto del instalador.'
+          cd "$(dirname "${manifests[0]}")"
+          exe=Soflia-Hub-Windows-0.9.9-sync.20261107-Setup.exe
+          [[ -s "$exe" && -s SHA256SUMS.txt ]] || fail 'Falta el ejecutable o el archivo SHA-256.'
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const m = JSON.parse(fs.readFileSync("testing-package.json", "utf8"));
+            if (m.version !== "0.9.9-sync.20261107" ||
+                m.sourceCommit !== "efb38855e871c9dd773f915ad0c60c315143795b" ||
+                m.file !== process.argv[1] || m.publicConfigVerified !== true ||
+                m.bytes !== fs.statSync(m.file).size || !/^[a-f0-9]{64}$/.test(m.sha256) ||
+                fs.readFileSync("SHA256SUMS.txt", "utf8") !== m.sha256 + "  " + m.file + "\n")
+              process.exit(1);
+          ' "$exe" || fail 'El manifiesto difiere del candidato Windows aprobado.'
+          sha256sum --check --strict SHA256SUMS.txt || fail 'El SHA-256 del ejecutable no coincide.'
+          [[ -n "$GH_TOKEN" ]] || fail 'Falta la credencial administrada RELEASES_TOKEN.'
+          repo=DevOps-043/PulseHub-SofLIA-releases
+          tag=v0.9.9-sync.20261107
+          can_write="$(gh api "repos/$repo" --jq '.permissions.push // false')" ||
+            fail 'La credencial administrada no tiene acceso al repositorio de releases.'
+          [[ "$can_write" == true ]] || fail 'La credencial administrada no tiene permiso de escritura en releases.'
+          gh release create "$tag" "$exe" testing-package.json SHA256SUMS.txt \
+            --repo "$repo" --draft --prerelease --latest=false --title "Aula síncrona QA 0.9.9-sync.20261107" \
+            --notes "Candidato Windows x64 sin firma para equipos de QA. Learning: https://codex-complete-synchronous-system--soflia-learning.netlify.app. Engine: https://codex-complete-synchronous-system--soflia-coursegen.netlify.app. El manifiesto y el SHA-256 están adjuntos." ||
+            fail 'GitHub rechazó la creación del borrador o la carga de archivos.'
+          gh release edit "$tag" --repo "$repo" --draft=false --latest=false ||
+            fail 'GitHub dejó el candidato en borrador al intentar publicarlo.'
