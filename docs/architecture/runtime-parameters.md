@@ -5,6 +5,8 @@ Estado: vigente. Actualizado: 2026-10-30.
 Inventario de defaults y topes con impacto operativo. Los overrides guardados en
 `userData` pueden cambiar el valor efectivo de un host.
 
+El chat flotante contextual lee al enviar: 12000 caracteres de texto renderer, recorrido de hasta 8000 nodos de texto, sin campos editables, panel ni regiones privadas. Navegador: 8000 ms por preparación, 16000 caracteres de DOM y hasta 60 nombres/refs de controles (200 caracteres por nombre), una captura de imagen de hasta 8 MiB si está disponible. No añade polling. El dock mide 460 px como máximo de ancho y se adapta al contenedor; vacío muestra sólo cabecera y compositor, con respuestas ocupa hasta 520 px o 70vh. El selector abierto sin historial ocupa hasta 360 px. En el navegador acota su altura para conservar un área web operable de al menos 120 px. Fuentes: `src/services/floating-chat-context.ts`, `src/components/browser/BrowserFloatingWorkspace.tsx` y [diseño](../../openspec/changes/floating-soflia-chat/design.md).
+
 <!-- evidence: electron/desktop-agent/agent-config.ts -->
 <!-- evidence: electron/memory/constants.ts -->
 <!-- evidence: electron/memory/model-config.ts -->
@@ -100,6 +102,9 @@ del coordinador ni constituyen un límite monetario. Ver
 | notas de release | 8000 caracteres | `src/components/update-notes/SafeReleaseNotes.tsx` |
 | updater polling | 4 h | `electron/updater/constants.ts` |
 | espera del guardado de sesión antes de salir/instalar | 5000 ms por espera; timeout ofrece reintentar/cancelar/salir sin guardar, nunca concede salida por sí solo | `electron/main/shutdown-guard.ts` |
+| espera de publicación de auth antes del estado de proyectos | 10.000 ms; devuelve sesión pendiente al agotarse, sin ampliar permisos | `src/services/auth-state.ts` |
+| recuperación automática de proyectos | 3 reintentos, tras 300 / 1000 / 3000 ms desde el fallo anterior; manual reinicia el presupuesto | `src/components/sidebar/UnifiedProjectsSection.tsx` |
+| recuperación inicial de conversaciones | 2 intentos tras 500 / 2000 ms, sin solapamiento; después conserva reintento manual | `src/app/ChatUnavailableState.tsx` |
 
 ## Navegador integrado
 

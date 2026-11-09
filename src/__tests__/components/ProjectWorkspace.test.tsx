@@ -4,6 +4,8 @@ import { ProjectSidebarContent } from "../../components/project-workspace/Projec
 import { projectProgress } from "../../components/project-workspace/dashboard-data";
 import type { ProjectNavigation } from "../../components/project-workspace/types";
 import { safeWebUrl } from "../../services/project-web-url";
+import { ChatHeader } from '../../adapters/desktop_ui/chat-ui/header/ChatHeader';
+import type { ChatUIController } from '../../adapters/desktop_ui/chat-ui/useChatUIController';
 
 afterEach(cleanup);
 function navigation(): ProjectNavigation {
@@ -30,6 +32,13 @@ function navigation(): ProjectNavigation {
   };
 }
 describe("Navegación contextual de proyectos", () => {
+  it('ofrece una flecha junto al selector de modelo para volver a los chats del proyecto', () => {
+    const back = vi.fn();
+    const controller = { props: { onBackToProject: back }, runtime: { model: { currentModel: { name: 'Soflia Pro' }, currentThinkingOption: { name: 'Medio' } } }, state: { header: { show: true } } } as unknown as ChatUIController;
+    render(<ChatHeader controller={controller} />);
+    expect(screen.getByRole('button', { name: /Seleccionar modelo/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Volver a los chats del proyecto' })); expect(back).toHaveBeenCalledOnce();
+  });
   it("abre secciones, chats y navegador mediante acciones de la misma interfaz", () => {
     const model = navigation();
     render(<ProjectSidebarContent model={model} expanded />);

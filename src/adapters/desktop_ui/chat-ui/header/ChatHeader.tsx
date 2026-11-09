@@ -17,7 +17,8 @@ export function ChatHeader({ controller }: { controller: ChatUIController }) {
       style={{ fontFamily: 'var(--font-system-ui)' }}
     >
       <div className="w-full max-w-full rounded-full border border-gray-200/60 dark:border-white/10 bg-white/80 dark:bg-[#0a0e14]/85 backdrop-blur-xl saturate-[140%] shadow-[0_0.5rem_2rem_rgba(0,0,0,0.08)] dark:shadow-[0_0.5rem_2rem_rgba(0,0,0,0.35)] px-3.5 py-1.5 flex items-center justify-between relative">
-        <div className="relative inline-block z-10">
+        <div className="relative flex items-center z-10">
+          {controller.props.onBackToProject && <button type="button" aria-label="Volver a los chats del proyecto" title="Chats del proyecto" className="mr-1 grid h-8 w-8 place-items-center rounded-full text-secondary hover:bg-accent/10" onClick={controller.props.onBackToProject}><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m10 5-7 7 7 7M3 12h18" /></svg></button>}
           <button
             type="button"
             onClick={(event) => {

@@ -1,0 +1,15 @@
+## Implementación
+- [x] 1. Componentes del aula, escenario, actividades/materiales y salas.
+- [x] 2. Chat público compacto y Soflia contextual sin herramientas.
+- [x] 3. Controles flotantes, fullscreen y adaptador audiovisual con captions.
+- [x] 4. Pruebas automatizadas, documentación y revisión independiente.
+- [ ] 5. QA visual a 1280×720/móvil y ensayo audiovisual con dos cuentas reales. Navegador local deshabilitado en Work; sin credenciales nuevas ni ingreso Zoom en esta tarea.
+- [x] 6. Bajar actividades y superponer la barra sin impedir llegar al contenido.
+- [x] 7. Probar chat entre identidades, permisos, reintentos, reconexión y borradores.
+- [x] 8. Configurar dispositivos reales del Video SDK y ampliar pruebas audiovisuales.
+- [x] 9. Retirar ingreso del encabezado, mostrar iconos sobre video al interactuar y permitir mover/contraer la barra con teclado y puntero.
+- [x] 10. Reacciones efímeras sobre video, independientes de mensajes y aisladas por sala.
+- [x] 11. Intervalo de chat configurable por instructor, aplicado en servidor y con cuenta regresiva en el participante.
+- [ ] 12. Publicar API/migración de participación de Learning y ensayar dos cuentas reales antes del rollout general.
+- [x] 13. Corregir ingreso contra API anterior: negociación por cabecera, confirmación de capacidades y pruebas de acceso denegado.
+- [x] 14. Separadores arrastrables y accesibles para ajustar paneles del alumno e instructor, sin desmontar el estado de la sesión.

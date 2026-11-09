@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import SelectDropdown from '../../ui/SelectDropdown';
 import { StudioDialog } from './StudioDialog';
 import { useStudioMediaRuntime } from './StudioMediaContext';
+import { StudioCallDeviceSettings } from './StudioCallDeviceSettings';
 
 export function StudioAudioSettings({ onClose }: { onClose: () => void }) {
   const media = useStudioMediaRuntime()!;
@@ -19,6 +20,7 @@ export function StudioAudioSettings({ onClose }: { onClose: () => void }) {
     return () => { window.clearInterval(timer); source.disconnect(); void context.close(); };
   }, [media.mic]);
   useEffect(() => () => { void tone.current?.close(); }, []);
+  if(media.zoomStage)return <StudioDialog title="Configuración de audio" onClose={onClose}><StudioCallDeviceSettings/></StudioDialog>;
   const options = (kind: MediaDeviceKind) => [{ value: 'default', label: 'Predeterminado del sistema' }, ...media.devices.filter((device) => device.kind === kind && device.deviceId !== 'default').map((device, index) => ({ value: device.deviceId, label: device.label || `Dispositivo ${index + 1} · autoriza acceso para ver su nombre` }))];
   async function testOutput() {
     try {

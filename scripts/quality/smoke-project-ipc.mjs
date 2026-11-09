@@ -17,22 +17,29 @@ await fs.mkdir(path.join(sandbox, 'profile', 'session'), { recursive: true });
 await fs.mkdir(path.join(sandbox, 'dist'));
 await fs.symlink(path.join(projectRoot, 'node_modules'), path.join(sandbox, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir');
 const version = JSON.parse(await fs.readFile(path.join(projectRoot, 'package.json'), 'utf8')).devDependencies.electron;
-const sources = [
-  'electron/project-hub-handlers', 'electron/project-hub/index', 'electron/project-hub/types', 'electron/project-hub/service',
-  'electron/project-hub/management-request', 'src/shared/project-management',
-  'electron/project-hub/authentication', 'electron/project-hub/transport', 'electron/project-hub/session-contract',
-  'electron/project-hub/session-context', 'electron/project-hub/session-store', 'electron/project-hub/ipc-review',
-  'electron/project-hub/upload', 'electron/project-hub/upload-files', 'electron/project-hub/upload-target', 'electron/project-hub/upload-handlers',
-  'electron/project-hub/file-format', 'electron/project-hub/file-operations', 'electron/project-hub/storage-target',
-  'electron/project-hub/download', 'electron/project-hub/download-target', 'electron/project-hub/download-destination', 'electron/project-hub/download-handlers',
-  'electron/main/auth-state', 'electron/ipc/caller-authorization', 'electron/storage/os-cipher', 'electron/storage/private-files',
-  'electron/utils/logger', 'electron/utils/logger-options', 'electron/utils/correlation', 'src/shared/project-hub', 'src/shared/project-hub-files',
-];
-for (const name of sources) {
-  const source = await fs.readFile(path.join(projectRoot, name + '.ts'), 'utf8');
-  const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } });
-  const destination = path.join(sandbox, name + '.js');
-  await fs.mkdir(path.dirname(destination), { recursive: true }); await fs.writeFile(destination, compiled.outputText);
+const sources = new Set();
+const compilerOptions = { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true };
+const moduleHost = { ...ts.sys, getCurrentDirectory: () => projectRoot };
+
+async function compileSource(file) {
+  if (sources.has(file)) return;
+  sources.add(file);
+  const source = await fs.readFile(file, 'utf8');
+  const compiled = ts.transpileModule(source, { compilerOptions });
+  const destination = path.join(sandbox, path.relative(projectRoot, file)).replace(/\.ts$/, '.js');
+  await fs.mkdir(path.dirname(destination), { recursive: true });
+  await fs.writeFile(destination, compiled.outputText);
+  const imports = ts.preProcessFile(compiled.outputText, true, true).importedFiles;
+  for (const { fileName } of imports) {
+    if (!fileName.startsWith('.')) continue;
+    const { resolvedModule } = ts.resolveModuleName(fileName, file, compilerOptions, moduleHost);
+    assert.ok(resolvedModule && !resolvedModule.isExternalLibraryImport, `Dependencia del smoke no resuelta: ${fileName}`);
+    await compileSource(resolvedModule.resolvedFileName);
+  }
+}
+
+for (const entry of ['electron/project-hub-handlers.ts', 'electron/main/auth-state.ts']) {
+  await compileSource(path.join(projectRoot, entry));
 }
 await fs.copyFile(path.join(projectRoot, 'test/manual/project-hub-ipc/main.cjs'), path.join(sandbox, 'main.cjs'));
 const html = '<!doctype html><html lang="es"><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src \'self\'; script-src \'self\'"><title>Prueba IPC local</title><body>Contenido ficticio</body></html>';

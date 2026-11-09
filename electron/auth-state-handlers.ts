@@ -72,8 +72,9 @@ export function registerAuthStateHandlers(getWindow: () => BrowserWindow | null,
         if (hubResult === 'aplicada') bindOpenAIHubSession(state.userId);
       }
 
-      if (authenticated && verifiedSofiaAccessToken) {
-        const exchange = await getProjectHubApiService().exchangeSofiaToken(verifiedSofiaAccessToken);
+      const projectHub = getProjectHubApiService();
+      if (authenticated && verifiedSofiaAccessToken && projectHub.requiresSofiaExchange) {
+        const exchange = await projectHub.exchangeSofiaToken(verifiedSofiaAccessToken);
         if (!current()) return { ok: false, state: snapshot() };
         if (!exchange.success) {
           const code = exchange.code;

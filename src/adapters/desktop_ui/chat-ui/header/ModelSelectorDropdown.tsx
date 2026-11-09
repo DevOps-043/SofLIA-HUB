@@ -6,15 +6,17 @@ export function ModelSelectorDropdown({
   model,
   compact = false,
   align = 'left',
+  inline = false,
 }: {
   model: ReturnType<typeof useModelSelector>;
   compact?: boolean;
   align?: 'left' | 'right';
+  inline?: boolean;
 }) {
   return (
     <div
       role="menu"
-      className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} top-[calc(100%+0.5rem)] z-50 ${
+      className={`${inline ? 'relative' : `absolute ${align === 'right' ? 'right-0' : 'left-0'} top-[calc(100%+0.5rem)]`} z-50 ${
         compact ? 'w-[19.5rem]' : 'w-[22rem]'
       } max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-gray-200/90 dark:border-white/12 bg-white/95 dark:bg-[#11161d]/95 shadow-[0_1.75rem_4.5rem_rgba(2,12,23,0.38)] backdrop-blur-2xl transition-all animate-in fade-in slide-in-from-top-2 duration-150`}
       style={{ fontFamily: 'var(--font-system-ui)' }}

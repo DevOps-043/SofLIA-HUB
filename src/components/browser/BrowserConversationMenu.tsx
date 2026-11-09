@@ -9,6 +9,8 @@ export interface BrowserConversationItem {
 }
 
 interface BrowserConversationMenuProps {
+  inline?: boolean;
+  showNewChat?: boolean;
   conversations: BrowserConversationItem[];
   currentConversationId: string | null;
   open: boolean;
@@ -87,7 +89,7 @@ export function BrowserConversationMenu(props: BrowserConversationMenuProps) {
         aria-haspopup="dialog"
         aria-expanded={props.open}
         onClick={() => props.onOpenChange(!props.open)}
-        className={`grid h-7 w-7 place-items-center rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+        className={`${props.inline ? 'flex h-7 items-center gap-2 px-2 text-xs' : 'grid h-7 w-7 place-items-center'} rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
           props.open
             ? 'bg-accent/15 text-accent shadow-xs'
             : 'text-secondary hover:bg-accent/10 hover:text-accent'
@@ -98,13 +100,14 @@ export function BrowserConversationMenu(props: BrowserConversationMenuProps) {
           <path d="M8 9h8" />
           <path d="M8 13h5" />
         </svg>
+        {props.inline && <span>Conversaciones</span>}
       </button>
 
       {props.open && (
         <div
           role="dialog"
           aria-label="Conversaciones de SofLIA"
-          className="absolute right-0 top-full z-50 mt-2 flex max-h-[28rem] w-80 max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-gray-200/90 dark:border-white/12 bg-white/95 dark:bg-[#11161d]/95 p-2.5 shadow-[0_1.75rem_4.5rem_rgba(2,12,23,0.36)] backdrop-blur-2xl animate-in fade-in slide-in-from-top-2 duration-150"
+          className={`${props.inline ? 'relative w-full max-h-48' : 'absolute right-0 top-full max-h-[28rem] w-80'} z-50 mt-2 flex max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-gray-200/90 dark:border-white/12 bg-white/95 dark:bg-[#11161d]/95 p-2.5 shadow-[0_1.75rem_4.5rem_rgba(2,12,23,0.36)] backdrop-blur-2xl animate-in fade-in slide-in-from-top-2 duration-150`}
           style={{ fontFamily: 'var(--font-system-ui)' }}
         >
           {/* Luz ambiental sutil */}
@@ -115,7 +118,7 @@ export function BrowserConversationMenu(props: BrowserConversationMenuProps) {
               <p className="truncate text-[13px] font-bold text-gray-900 dark:text-white">Conversaciones</p>
               <p className="text-[10px] text-gray-500 dark:text-white/50">Continúa donde lo dejaste</p>
             </div>
-            <button
+            {props.showNewChat !== false && <button
               type="button"
               disabled={Boolean(pendingAction)}
               onClick={() => void runAction('new', props.onNewChat)}
@@ -123,7 +126,7 @@ export function BrowserConversationMenu(props: BrowserConversationMenuProps) {
             >
               <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
               <span>Nuevo chat</span>
-            </button>
+            </button>}
           </div>
 
           <label className="relative block px-0.5 pb-2 pt-0.5 relative z-10">

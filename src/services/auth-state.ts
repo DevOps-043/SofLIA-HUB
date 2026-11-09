@@ -28,10 +28,22 @@ export function isOrbWindowRenderer(): boolean {
  * Publica el estado de sesion en el proceso main. No lanza: fuera de Electron o
  * si el puente no existe, simplemente no hay gate que actualizar.
  */
-export async function publishAuthState(state: AuthStatePublication): Promise<boolean | 'revoked'> {
+type PublicationSource = AuthStatePublication | (() => Promise<AuthStatePublication | null>);
+let pendingPublication: Promise<void> = Promise.resolve();
+const PUBLICATION_WAIT_MS = 10_000;
+
+export function publishAuthState(source: PublicationSource): Promise<boolean | 'revoked'> {
+  const publication = sendAuthState(source);
+  pendingPublication = Promise.all([pendingPublication, publication]).then(() => undefined);
+  return publication;
+}
+
+async function sendAuthState(source: PublicationSource): Promise<boolean | 'revoked'> {
   const bridge = getBridge();
   if (!bridge) return true;
   try {
+    const state = typeof source === 'function' ? await source() : source;
+    if (!state) return true;
     const response = await bridge.setState(state);
     if (!response.ok) {
       const reason = response.reason === 'invalid_payload' || response.reason === 'sofia_unverified' || response.reason === 'sofia_revoked'
@@ -45,4 +57,23 @@ export async function publishAuthState(state: AuthStatePublication): Promise<boo
     console.warn('[Auth] No se pudo publicar el estado de sesion al proceso main.');
     return false;
   }
+}
+
+/** Espera sólo publicaciones existentes; la autorización sigue en main. */
+export async function waitForAuthStatePublication(): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const settled = async () => {
+    let observed: Promise<void>;
+    do {
+      observed = pendingPublication;
+      await observed;
+    } while (observed !== pendingPublication);
+    return true;
+  };
+  try {
+    return await Promise.race([
+      settled(),
+      new Promise<false>(resolve => { timer = setTimeout(() => resolve(false), PUBLICATION_WAIT_MS); }),
+    ]);
+  } finally { clearTimeout(timer); }
 }

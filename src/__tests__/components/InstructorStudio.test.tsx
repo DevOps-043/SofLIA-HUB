@@ -16,6 +16,13 @@ const examples: StudioExamples = { participants: 10, resources: [], messages: [
 const openStudio = () => render(<InstructorStudio examples={examples} onBack={vi.fn()} onClose={vi.fn()} />);
 
 describe('diseño del estudio del instructor', () => {
+  it('ajusta ambos laterales y escenas sin perder mensaje ni lienzo',()=>{
+    openStudio();const canvas=screen.getByLabelText('Monitor de salida del curso');
+    fireEvent.change(screen.getByRole('textbox',{name:'Tu mensaje como instructor'}),{target:{value:'Preparando explicación'}});
+    const left=screen.getByRole('separator',{name:'Cambiar ancho del chat del instructor'}),right=screen.getByRole('separator',{name:'Cambiar ancho de actividades del instructor'}),scenes=screen.getByRole('separator',{name:'Cambiar altura de escenas y vista previa'});
+    fireEvent.keyDown(left,{key:'ArrowRight'});expect(left).toHaveAttribute('aria-valuenow','326');fireEvent.keyDown(right,{key:'ArrowLeft'});expect(right).toHaveAttribute('aria-valuenow','326');fireEvent.keyDown(scenes,{key:'ArrowUp'});expect(scenes).toHaveAttribute('aria-valuenow','160');
+    expect(screen.getByLabelText('Monitor de salida del curso')).toBe(canvas);expect(screen.getByRole('textbox',{name:'Tu mensaje como instructor'})).toHaveValue('Preparando explicación');
+  });
   it('restringe participantes por comando y conserva el envío del instructor con insignia', () => {
     openStudio();
     const message = screen.getByRole('textbox', { name: 'Tu mensaje como instructor' });

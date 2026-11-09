@@ -25,7 +25,12 @@ app.whenReady().then(async () => {
  await win.loadFile(path.join(__dirname,'index.html'));
  const started=Date.now(); const timer=setInterval(async()=>{
   const ready=await win.webContents.executeJavaScript('document.body.dataset.ready || ""');
-  if(ready){clearInterval(timer); console.log('SDK_READY_ORIGIN='+ready); win.destroy(); app.exit(ready==='soflia-zoom://meeting'?0:1);}
+  if(ready){
+    clearInterval(timer);
+    const frame=win.webContents.mainFrame.frames.find(item=>item.url.startsWith('soflia-zoom://meeting/'));
+    const assets=frame&&await frame.executeJavaScript('(async()=>{const manifest=await fetch("./lib/manifest.json");const wasm=await fetch("./lib/video.simd.wasm");return manifest.ok&&wasm.ok&&wasm.headers.get("content-type")==="application/wasm"&&(await wasm.arrayBuffer()).byteLength>0})()');
+    console.log('SDK_READY_ORIGIN='+ready+';VIDEO_ASSETS='+!!assets); win.destroy(); app.exit(ready==='soflia-zoom://meeting'&&assets?0:1);
+  }
   else if(Date.now()-started>20000){clearInterval(timer); console.error('Meeting SDK no notificó carga aislada');win.destroy();app.exit(1);}
  },200);
 }).catch(()=>{console.error('No se pudo cargar Meeting SDK en Electron');app.exit(1);});

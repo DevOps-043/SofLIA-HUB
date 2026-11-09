@@ -50,7 +50,7 @@ export function AppSidebar(props: AppSidebarProps) {
       conversations={chat.conversations}
       currentConversationId={chat.currentConversationId}
       loadingConversations={chat.loadingConversations}
-      conversationsUnavailableMessage={auth.liaDegraded ? auth.liaStatusMessage : null}
+      conversationsUnavailableMessage={auth.liaDegraded && props.activeView !== 'chat' ? auth.liaStatusMessage : null}
       onRetryConversations={auth.retryConversations}
       onNewChat={props.onNewChat}
       onSelectConversation={props.onSelectConversation}

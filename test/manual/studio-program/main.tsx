@@ -2,6 +2,7 @@ import { createRoot } from 'react-dom/client';
 import { StudioOutputReceiver } from '../../../src/components/learning-live/instructor/StudioOutputReceiver';
 import { StudioProgramRenderer, createMediaProgramSource } from '../../../src/services/studio-program-renderer';
 import { connectProgramOutput } from '../../../src/services/studio-output';
+import {verifyExtendedProgram} from './extended';
 
 // Fixture exclusiva de QA; no abre cámara/micrófono, Learning ni cuentas reales.
 if (new URLSearchParams(location.search).get('view') === 'studio-output') {
@@ -40,7 +41,8 @@ if (new URLSearchParams(location.search).get('view') === 'studio-output') {
     const bridge = await createMediaProgramSource({ id: 'imagen', name: 'Imagen intermedia', kind: 'image', title: '', description: '', assetUrl: image.toDataURL('image/png') });
     const change = program.take(source('#ff0000'), { effect: 'visual', durationMs: 4000, sceneId: 'imagen' }, bridge);
     await delay(1800); const visual = await sample(); await change; await delay(800); const fourth = await sample();
-    console.log('QA_PROGRAMA ' + JSON.stringify({ first, second, third, visual, fourth, sameTrack: track === currentTrack }));
+    const extended=await verifyExtendedProgram();
+    console.log('QA_PROGRAMA ' + JSON.stringify({ first, second, third, visual, fourth, sameTrack: track === currentTrack,...extended }));
     smoke.close(); program.close();
   })().catch((error) => console.error('QA_ERROR ' + error.stack));
 }

@@ -25,7 +25,7 @@ beforeEach(() => {
   const event = { sender, senderFrame: sender.mainFrame } as unknown as IpcMainInvokeEvent;
   const win = { webContents: sender, isDestroyed: () => false } as unknown as BrowserWindow;
   registerProjectHubHandlers(service as unknown as ProjectHubApiService, () => win);
-  vi.mocked(dialog.showMessageBox).mockResolvedValue({ response: 1, checkboxChecked: false });
+  vi.mocked(dialog.showMessageBox).mockClear().mockResolvedValue({ response: 1, checkboxChecked: false });
   invoke = vi.fn((channel: string, ...args: unknown[]) => harness._getHandler(channel)(event, ...args));
   const ipc = createSafeIpc({ invoke, send: vi.fn(), on: vi.fn(), off: vi.fn(), removeAllListeners: vi.fn() });
   exposeProjectHubApi({ exposeInMainWorld: (key, value) => {
@@ -37,7 +37,7 @@ afterEach(() => { resetAuthStateForTests(); vi.restoreAllMocks(); vi.unstubAllGl
 
 describe('Preload/allowlist/handler Project Hub reales con servicio doble', () => {
   it.each(projectHubIpcCases)('transporta $method por su canal de dominio', async item => {
-    expect(Object.keys(exposed)).toHaveLength(projectHubIpcCases.length + 4);
+    expect(Object.keys(exposed)).toHaveLength(projectHubIpcCases.length + 18);
     expect(ALLOWED_IPC_CHANNELS).toContain('project-hub:' + item.channel);
     expect(await exposed[item.method](...(item.input === undefined ? [] : [item.input]))).toMatchObject({ success: true });
     expect(invoke.mock.calls[0][0]).toBe('project-hub:' + item.channel);
@@ -51,6 +51,20 @@ describe('Preload/allowlist/handler Project Hub reales con servicio doble', () =
 });
 
 describe('Wrapper renderer integrado con las cuatro capas', () => {
+  it('transporta inicio, fase y recursos mediante el canal existente y conserva la confirmación nativa', async () => {
+    const task = { title: 'Preparar lanzamiento', status_stage: 'in_progress' as const, started_at: '2026-11-01T00:00:00Z', external_links: [{ type: 'photo' as const, name: 'Referencia visual', url: 'https://example.test/foto.png' }] };
+    expect(await projectHubApi.createTask(IPC_ID, IPC_ID, task)).toMatchObject({ success: true });
+    expect(invoke.mock.calls[0]).toEqual(['project-hub:create-task', { workspaceId: IPC_ID, projectId: IPC_ID, task }]);
+    expect(service.createTask).toHaveBeenCalledWith({ workspaceId: IPC_ID, projectId: IPC_ID, task }, expect.objectContaining({ userId: 'usuario-ficticio' }));
+    expect(dialog.showMessageBox).toHaveBeenCalledOnce();
+  });
+  it('rechaza recursos malformados o excesivos antes de confirmar y llamar al servicio', async () => {
+    const link = { type: 'document' as const, name: 'Guía', url: 'https://example.test/guia' };
+    for (const external_links of [[{ ...link, url: 'sin-url' }], Array.from({ length: 51 }, () => link)]) {
+      expect(await projectHubApi.createTask(IPC_ID, IPC_ID, { title: 'Tarea', external_links })).toMatchObject({ success: false });
+    }
+    expect(dialog.showMessageBox).not.toHaveBeenCalled(); expect(service.createTask).not.toHaveBeenCalled();
+  });
   it('conserva status y creación de proyecto sin publicar contexto main al renderer', async () => {
     expect(await projectHubApi.status()).toMatchObject({ success: true });
     expect(await projectHubApi.createProject(IPC_ID, { name: 'Proyecto ficticio' })).toMatchObject({ success: true });

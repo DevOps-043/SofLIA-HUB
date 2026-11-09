@@ -1,0 +1,386 @@
+{
+  "changeName": "add-portable-project-workspaces",
+  "changeDir": "C:\\Users\\fysg5\\Desktop\\SofLIA\\Pulse Hub\\SofLIA-HUB\\.worktrees\\project-panel\\openspec\\changes\\add-portable-project-workspaces",
+  "schemaName": "spec-driven",
+  "contextFiles": {
+    "proposal": [
+      "C:\\Users\\fysg5\\Desktop\\SofLIA\\Pulse Hub\\SofLIA-HUB\\.worktrees\\project-panel\\openspec\\changes\\add-portable-project-workspaces\\proposal.md"
+    ],
+    "specs": [
+      "C:\\Users\\fysg5\\Desktop\\SofLIA\\Pulse Hub\\SofLIA-HUB\\.worktrees\\project-panel\\openspec\\changes\\add-portable-project-workspaces\\specs\\portable-project-storage\\spec.md",
+      "C:\\Users\\fysg5\\Desktop\\SofLIA\\Pulse Hub\\SofLIA-HUB\\.worktrees\\project-panel\\openspec\\changes\\add-portable-project-workspaces\\specs\\project-collaboration\\spec.md",
+      "C:\\Users\\fysg5\\Desktop\\SofLIA\\Pulse Hub\\SofLIA-HUB\\.worktrees\\project-panel\\openspec\\changes\\add-portable-project-workspaces\\specs\\project-portability\\spec.md",
+      "C:\\Users\\fysg5\\Desktop\\SofLIA\\Pulse Hub\\SofLIA-HUB\\.worktrees\\project-panel\\openspec\\changes\\add-portable-project-workspaces\\specs\\project-storage-sync\\spec.md"
+    ],
+    "design": [
+      "C:\\Users\\fysg5\\Desktop\\SofLIA\\Pulse Hub\\SofLIA-HUB\\.worktrees\\project-panel\\openspec\\changes\\add-portable-project-workspaces\\design.md"
+    ],
+    "tasks": [
+      "C:\\Users\\fysg5\\Desktop\\SofLIA\\Pulse Hub\\SofLIA-HUB\\.worktrees\\project-panel\\openspec\\changes\\add-portable-project-workspaces\\tasks.md"
+    ]
+  },
+  "progress": {
+    "total": 70,
+    "complete": 7,
+    "remaining": 63
+  },
+  "tasks": [
+    {
+      "id": "1",
+      "description": "1.1 Reconciliar la retirada a7d705c y los cambios de seguridad actuales; acordar rama/base aislada y registrar qué se conserva, sin sobrescribir trabajo ajeno.",
+      "done": false
+    },
+    {
+      "id": "2",
+      "description": "1.2 Comparar OpenAPI, schemas, rutas y cliente con la API realmente desplegada mediante lecturas autenticadas autorizadas y metadatos; registrar diferencias sin imprimir secretos.",
+      "done": false
+    },
+    {
+      "id": "3",
+      "description": "1.3 Verificar identidades SOFIA/IRIS/Lia y permisos efectivos para proyecto/tareas/miembros/archivos con dos actores y dos organizaciones.",
+      "done": false
+    },
+    {
+      "id": "4",
+      "description": "1.4 Inventariar consumidores y outbox heredados; definir cómo evitar la carpeta Lia automática en el nuevo flujo sin romper carpetas existentes.",
+      "done": false
+    },
+    {
+      "id": "5",
+      "description": "1.5 Ejecutar spikes de picker/scopes/versiones/compartición por cuenta Google y Microsoft personal/empresarial; fijar matriz de capacidades y límites medidos.",
+      "done": false
+    },
+    {
+      "id": "6",
+      "description": "1.6 Inventariar navegación actual y contratos de hitos, ciclos, equipos, historial, webs y chats vinculados; identificar soporte real y extensiones sin asumir tablas/endpoints.",
+      "done": true
+    },
+    {
+      "id": "7",
+      "description": "2.1 Aprobar contrato de identidad portable, vínculos privados/compartidos, estados de aprovisionamiento, idempotencia y revisiones con sus errores y cuotas.",
+      "done": false
+    },
+    {
+      "id": "8",
+      "description": "2.2 Diseñar migración IRIS aditiva y almacenamiento local privado; documentar PK/FK/unicidad/índices, aislamiento, preflight, backup, backfill voluntario y rollback.",
+      "done": false
+    },
+    {
+      "id": "9",
+      "description": "2.3 Implementar en servidor transacción proyecto/propietario/operación y consulta de recibos; probar fallos intermedios y reintentos sin duplicación.",
+      "done": false
+    },
+    {
+      "id": "10",
+      "description": "2.4 Implementar contratos/roles para ubicaciones, inventario, invitaciones, exportación/restauración y grants externos propios; no conceder acceso por manifiesto.",
+      "done": false
+    },
+    {
+      "id": "11",
+      "description": "2.5 Aplicar migraciones sólo tras revisión/HITL correspondiente y comprobar aislamiento real por actor; no habilitar el feature sobre un estado de permisos no comprobado.",
+      "done": false
+    },
+    {
+      "id": "12",
+      "description": "3.1 Implementar selector nativo con IDs opacos de destino, validación de raíz/subcarpeta, contenido existente, volúmenes y cambios de sesión.",
+      "done": false
+    },
+    {
+      "id": "13",
+      "description": "3.2 Implementar manifiesto versionado y registro privado de vínculos por usuario/dispositivo, sin rutas absolutas en metadata compartida.",
+      "done": false
+    },
+    {
+      "id": "14",
+      "description": "3.3 Implementar coordinador y diario durable de crear/registrar/finalizar; consultar efectos inciertos y reanudar tras reinicio.",
+      "done": false
+    },
+    {
+      "id": "15",
+      "description": "3.4 Implementar abrir/vincular, volver a localizar, renombrar y trasladar con copia verificada, sin eliminar el origen implícitamente.",
+      "done": false
+    },
+    {
+      "id": "16",
+      "description": "3.5 Completar las cuatro capas IPC y UI Nuevo proyecto con revisión de destino, cuenta, archivos/compartición y estado pendiente/activo.",
+      "done": false
+    },
+    {
+      "id": "17",
+      "description": "3.6 Probar carpetas sincronizadas de escritorio, placeholders, falta de espacio/permisos, cancelación y filesystem sin primitivas opcionales; conservar las carpetas Lia anteriores.",
+      "done": false
+    },
+    {
+      "id": "18",
+      "description": "4.1 Definir y versionar manifiesto/paquete, inventario, snapshots, exclusiones, remapeo de IDs y política de exportación; publicar un esquema y ejemplos como contrato.",
+      "done": false
+    },
+    {
+      "id": "19",
+      "description": "4.2 Implementar preparación y vista previa de exportación, instantánea coherente, lectura por streaming, hashes y publicación segura sin sobrescribir.",
+      "done": false
+    },
+    {
+      "id": "20",
+      "description": "4.3 Implementar inspección/importación con staging, cuotas descomprimidas, rutas relativas, nombres Windows/Unicode, enlaces y validación de relaciones.",
+      "done": false
+    },
+    {
+      "id": "21",
+      "description": "4.4 Implementar abrir/vincular, copia independiente y restauración con reautorización, revisión esperada y respaldo; no importar ACL ni invitaciones como permisos.",
+      "done": false
+    },
+    {
+      "id": "22",
+      "description": "4.5 Cubrir round-trip proyecto/tareas/archivos, paquete alterado/futuro, secretos excluidos, ZIP bomb, enlaces externos, interrupción, falta de espacio y reintento idempotente.",
+      "done": false
+    },
+    {
+      "id": "23",
+      "description": "5.1 Implementar invitaciones por identidad/correo con aceptación, vencimiento, revocación, auditoría y política de invitados externos acotados al proyecto.",
+      "done": false
+    },
+    {
+      "id": "24",
+      "description": "5.2 Aplicar matriz owner/admin/member/viewer/guest y capacidades de exportar/restaurar/administrar almacenamiento sin autoelevación.",
+      "done": false
+    },
+    {
+      "id": "25",
+      "description": "5.3 Configurar raíz compartida o publicación explícita de copias seleccionadas en Storage privado; no usar rutas locales como enlaces remotos.",
+      "done": false
+    },
+    {
+      "id": "26",
+      "description": "5.4 Comprobar intersección de permisos del proyecto/proveedor; mostrar estados separados y conservar recibos de grants creados por Soflia.",
+      "done": false
+    },
+    {
+      "id": "27",
+      "description": "5.5 Implementar revocación, detención de colas y recuperación de permisos parcialmente aplicados, sin borrar copias locales ajenas ni retirar grants preexistentes.",
+      "done": false
+    },
+    {
+      "id": "28",
+      "description": "5.6 Probar entre dos personas/equipos, usuario con sólo uno de los permisos, último propietario, invitación robada/vencida, guest externo y revocación offline.",
+      "done": false
+    },
+    {
+      "id": "29",
+      "description": "5.7 Verificar que el manifiesto cotidiano no publica snapshots de tareas/miembros y que el producto distingue acceso por Soflia del acceso directo permitido por ACL externas.",
+      "done": false
+    },
+    {
+      "id": "30",
+      "description": "6.1 Implementar autorización incremental y selección nativa/externa vigente, cuenta correcta y custodia de credenciales; no reutilizar scopes amplios sin justificación.",
+      "done": false
+    },
+    {
+      "id": "31",
+      "description": "6.2 Implementar raíz, inventario, lectura/escritura y subida reanudable según capacidades comprobadas; soportar o declarar explícitamente documentos nativos/unidades compartidas.",
+      "done": false
+    },
+    {
+      "id": "32",
+      "description": "6.3 Implementar permisos/verificación de acceso y feed de cambios con cursor, reconciliación y recuperación de permisos insuficientes.",
+      "done": false
+    },
+    {
+      "id": "33",
+      "description": "6.4 Completar UI/IPC y pruebas de conformidad Drive con archivos modificados externamente, cambio de cuenta, errores de cuota y conflictos conservando versiones.",
+      "done": false
+    },
+    {
+      "id": "34",
+      "description": "7.1 Implementar autorización de almacenamiento separada del calendario y selector de drive/carpeta con soporte comprobado por tipo de cuenta.",
+      "done": false
+    },
+    {
+      "id": "35",
+      "description": "7.2 Implementar lectura/escritura, sesiones de subida, eTags/precondiciones y tratamiento de respuestas inciertas, sin confundir AppFolder con carpeta arbitraria.",
+      "done": false
+    },
+    {
+      "id": "36",
+      "description": "7.3 Implementar grants acotados, cambios delta y reconstrucción tras cursor inválido, sin propagar eliminaciones desconocidas a ciegas.",
+      "done": false
+    },
+    {
+      "id": "37",
+      "description": "7.4 Completar UI/IPC y conformidad en cuentas personales y de trabajo/escuela incluidas en la matriz, con permisos denegados, caducidad y archivos sólo en línea.",
+      "done": false
+    },
+    {
+      "id": "38",
+      "description": "8.1 Implementar cola durable separada por usuario/cuenta/proyecto, revisiones de negocio y revalidación de permisos antes de enviar.",
+      "done": false
+    },
+    {
+      "id": "39",
+      "description": "8.2 Implementar versiones/conflictos de archivo, comparación y conservación de ambas copias; no last-write-wins silencioso.",
+      "done": false
+    },
+    {
+      "id": "40",
+      "description": "8.3 Evitar dos motores sobre un árbol y ofrecer transición de modo con verificación y aprobación; tratar cambios externos como no confiables.",
+      "done": false
+    },
+    {
+      "id": "41",
+      "description": "8.4 Implementar cancelación, exclusión de operaciones solapadas, backoff, cursores y progreso con recibos/uncertainty sin polling por vista.",
+      "done": false
+    },
+    {
+      "id": "42",
+      "description": "8.5 Ejecutar escenarios de dos equipos offline, edición concurrente, revocación, pérdida de respuesta, crash en cada frontera y traslado entre local/Drive/OneDrive.",
+      "done": false
+    },
+    {
+      "id": "43",
+      "description": "9.1 Actualizar arquitectura, parámetros, contratos, datos, UI y guías de crear/importar/exportar/compartir/recuperar sin duplicar fuentes canónicas.",
+      "done": false
+    },
+    {
+      "id": "44",
+      "description": "9.2 Ejecutar pruebas dirigidas y gate de PR en cada repo afectado; medir límites de carga/memoria con muestras antes de publicarlos como soporte.",
+      "done": false
+    },
+    {
+      "id": "45",
+      "description": "9.3 Realizar smoke nativo con selectores/OAuth y E2E con dos actores/organizaciones/dispositivos, sin asumir que mocks prueban autorización de proveedor.",
+      "done": false
+    },
+    {
+      "id": "46",
+      "description": "9.4 Completar revisión adversarial, respaldo/rollback, indicadores y banderas por capacidad; no ampliar permisos o baseline para pasar validaciones.",
+      "done": false
+    },
+    {
+      "id": "47",
+      "description": "9.5 Habilitar por cohortes tras cumplir todas las capacidades confirmadas y registrar evidencia. Los pilotos locales no equivalen a entregar la conexión directa completa.",
+      "done": false
+    },
+    {
+      "id": "48",
+      "description": "10.1 Implementar entrada Proyectos, lista y navegación vertical contextual; abrir siempre Resumen en la superficie principal sin tabs, ventanas nuevas ni prompts enviados al chat.",
+      "done": false
+    },
+    {
+      "id": "49",
+      "description": "10.2 Implementar destinos tipados proyecto/sección/recurso, breadcrumb y regreso con filtros/scroll conservados; preservar borrador del chat global y descartar respuestas de otro actor/proyecto.",
+      "done": false
+    },
+    {
+      "id": "50",
+      "description": "10.3 Construir encabezado y resumen con objetivo/estado/responsable/fechas/ubicación, indicadores, tareas prioritarias, próximos hitos, ciclo, equipos, recursos y actividad; carga agregada autorizada.",
+      "done": false
+    },
+    {
+      "id": "51",
+      "description": "10.4 Implementar Archivos, Páginas web y Chats vinculados con asociaciones explícitas, origen/visibilidad, detalle en la misma superficie y desvinculación sin borrar originales.",
+      "done": false
+    },
+    {
+      "id": "52",
+      "description": "10.5 Implementar apertura contextual de chats reutilizando su dominio; impedir publicación de chats privados sin revisión de audiencia y contrato de permisos. No revelar títulos/previews/contadores ajenos.",
+      "done": false
+    },
+    {
+      "id": "53",
+      "description": "10.6 Extender contratos y persistencia requeridos para hitos, ciclos opcionales, múltiples equipos e historial, con migraciones aditivas y permisos revisados; no derivar acceso masivo de asignar un equipo.",
+      "done": false
+    },
+    {
+      "id": "54",
+      "description": "10.7 Implementar Hitos/Ciclos/Equipos con responsables, fechas, relaciones y estados opcionales; permitir tareas sin ciclo/hito y proyecto sin equipos asignados.",
+      "done": false
+    },
+    {
+      "id": "55",
+      "description": "10.8 Definir métricas compartidas resumen/detalle con ámbito, periodo, zona, fórmulas y frescura; no calcular burndown/tiempo de ciclo sin historial ni mezclar escalas incompatibles.",
+      "done": false
+    },
+    {
+      "id": "56",
+      "description": "10.9 Implementar carga/vacío/no configurado/no soportado/sin acceso/error/reintento/offline, paginación y caché aislada; aplicar tokens, teclado, foco y diseño adaptable en ambos temas.",
+      "done": false
+    },
+    {
+      "id": "57",
+      "description": "10.10 Verificar previews y URLs no confiables, sin scripts/cookies de sesión ni SSRF; un sitio no previsualizable no abre pestañas o ventanas automáticamente.",
+      "done": false
+    },
+    {
+      "id": "58",
+      "description": "10.11 Probar E2E abrir proyecto, navegar todos los apartados, abrir chat/recurso y volver sin ventanas/pestañas nuevas; cubrir equipos/ciclos ausentes, cero tareas, error de métricas y cambio rápido de actor/proyecto.",
+      "done": false
+    },
+    {
+      "id": "59",
+      "description": "10.12 Revisar privacidad de asociaciones, paridad de métricas y aceptación visual/nativa antes de la liberación de fase 9; el mockup no constituye evidencia de implementación.",
+      "done": false
+    },
+    {
+      "id": "60",
+      "description": "10.13 Componer el lateral de proyecto sobre Sidebar/Header/TopActions/UserMenu y PanelResizeGrip existentes, conservando envolvente flotante, radios, blur, sombra, tamaño/colapso y adaptación de posición; mantener el panel central aprobado.",
+      "done": false
+    },
+    {
+      "id": "61",
+      "description": "10.14 Añadir Nuevo chat, búsqueda y chats recientes/fijados filtrados por proyecto, con menú/pie accesibles en baja altura; globo Navegador con etiqueta accesible y estado activo/degradado.",
+      "done": false
+    },
+    {
+      "id": "62",
+      "description": "10.15 Persistir de forma idempotente conversación y pertenencia al proyecto para todas sus entradas, incluidos atajos, tareas y navegador; cubrir fallo de asociación, offline, cierre y respuesta tardía después de cambiar de proyecto sin fallback global.",
+      "done": false
+    },
+    {
+      "id": "63",
+      "description": "10.16 Integrar el navegador existente con contexto de proyecto y reserva real de viewport/bounds para el lateral flotante; filtrar selector de chats y conservar regreso, sin nuevas ventanas o pestañas por abrir el apartado.",
+      "done": false
+    },
+    {
+      "id": "64",
+      "description": "10.17 Probar persistencia y aislamiento de chats entre proyectos/actores, privacidad, búsqueda/conteos, historial no publicado, resize/colapso con web nativa, teclado/zoom y baja altura, preservando preferencias y chats generales existentes.",
+      "done": false
+    },
+    {
+      "id": "65",
+      "description": "11.1 Implementar el lateral sobre Sidebar/Header/UserMenu/PanelResizeGrip existentes, con fuente e iconografía del Hub, botones más redondeados, búsqueda contextual, navegador y chats recientes.",
+      "done": true
+    },
+    {
+      "id": "66",
+      "description": "11.2 Sustituir las pestañas del panel de gestión y la entrada de carpetas por navegación del proyecto en la superficie principal, con apartados y resumen.",
+      "done": true
+    },
+    {
+      "id": "67",
+      "description": "11.3 Conectar tareas, archivos, webs, miembros, actividad y métricas a los contratos disponibles; mantener formularios inline y cancelación de transferencias.",
+      "done": true
+    },
+    {
+      "id": "68",
+      "description": "11.4 Capturar contexto y proteger cargas tardías; conservar pertenencia a carpetas existentes y comprobar el vínculo/permisos antes de habilitar chats de gestión, sin fallback global.",
+      "done": true
+    },
+    {
+      "id": "69",
+      "description": "11.5 Probar navegación, filtros, errores, cero tareas y contexto de chat con pruebas dirigidas; crear fixture nativa sin credenciales para revisión visual en ambos temas y tamaño compacto.",
+      "done": true
+    },
+    {
+      "id": "70",
+      "description": "11.6 Completar compuerta de PR, revisión adversarial y traspaso selectivo al checkout del usuario, conservando cambios ajenos y documentando las capacidades pendientes.",
+      "done": true
+    }
+  ],
+  "state": "ready",
+  "instruction": "Read context files, work through pending tasks, mark complete as you go.\nPause if you hit blockers or need clarification.",
+  "context": "Soflia Hub es una aplicación Electron con React, TypeScript estricto, sidecars\nPython, tres instancias Supabase y SQLite local. La interfaz, prompts, logs y\ndocumentación se mantienen en español. Todo IPC cruza servicio main, handler,\nallowlist/preload y wrapper tipado. Acciones críticas requieren HITL. Los\nagentes de desarrollo no se exponen como herramientas runtime. Las normas\ncanónicas viven en AGENTS.md, docs/standards/ y ai-specs/policies/.\n",
+  "root": {
+    "path": "C:\\Users\\fysg5\\Desktop\\SofLIA\\Pulse Hub\\SofLIA-HUB\\.worktrees\\project-panel",
+    "source": "nearest"
+  }
+}
