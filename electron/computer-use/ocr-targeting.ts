@@ -1,42 +1,39 @@
 import { createRequire } from 'node:module';
+import type { Worker } from 'tesseract.js';
+import { Worker as NativeWorker } from 'node:worker_threads';
+import { assertGuiExecution, GuiFailure, type ComputerExecutionGuard } from './gui/execution-context';
+import { selectOcrTarget } from './gui/ocr-elements';
+const tesseract = createRequire(import.meta.url)('tesseract.js') as Pick<typeof import('tesseract.js'), 'createWorker'>;
 
-const _require = createRequire(import.meta.url);
-const { createWorker } = _require('tesseract.js');
-
-export async function findTextCoordinates(
-  textToFind: string,
-  imageBuffer: Buffer,
-): Promise<{ x: number; y: number; confidence: number }> {
-  let worker;
+async function closeWorker(worker: Worker): Promise<void> {
   try {
-    worker = await createWorker('spa');
-  } catch {
-    worker = await createWorker('eng');
-  }
+    // Tesseract 7 resuelve terminate antes del exit nativo; esperar ambos.
+    const native = (worker as Worker & { worker?: unknown }).worker;
+    const thread = native instanceof NativeWorker ? native : undefined;
+    const exited = thread && thread.threadId !== -1 ? new Promise<void>(resolve => thread.once('exit', () => resolve())) : Promise.resolve();
+    try { await worker.terminate(); }
+    catch { if (thread) await thread.terminate(); else throw new GuiFailure('GUI_FAILED'); }
+    await exited;
+  } catch { throw new GuiFailure('GUI_FAILED'); }
+}
 
-  const ret = await worker.recognize(imageBuffer);
-  await worker.terminate();
-  const lowerText = textToFind.toLowerCase();
-
-  for (const word of ret.data.words) {
-    if (word.text.toLowerCase().includes(lowerText) && word.confidence > 50) {
-      return {
-        x: Math.round(word.bbox.x0 + (word.bbox.x1 - word.bbox.x0) / 2),
-        y: Math.round(word.bbox.y0 + (word.bbox.y1 - word.bbox.y0) / 2),
-        confidence: word.confidence,
-      };
-    }
-  }
-
-  for (const line of ret.data.lines) {
-    if (line.text.toLowerCase().includes(lowerText) && line.confidence > 40) {
-      return {
-        x: Math.round(line.bbox.x0 + (line.bbox.x1 - line.bbox.x0) / 2),
-        y: Math.round(line.bbox.y0 + (line.bbox.y1 - line.bbox.y0) / 2),
-        confidence: line.confidence,
-      };
-    }
-  }
-
-  throw new Error(`Elemento con texto "${textToFind}" no encontrado en pantalla (OCR no lo detecto).`);
+export async function findTextCoordinates(textToFind: string, imageBuffer: Buffer, guard?: ComputerExecutionGuard): Promise<{ x: number; y: number; confidence: number }> {
+  if (!textToFind.trim() || textToFind.length > 20000 || imageBuffer.length > 32 * 1024 * 1024) throw new GuiFailure('GUI_INVALID_INPUT');
+  let worker: Worker | undefined;
+  try {
+    assertGuiExecution(guard);
+    try { worker = await tesseract.createWorker('spa'); }
+    catch { assertGuiExecution(guard); worker = await tesseract.createWorker('eng'); }
+    assertGuiExecution(guard);
+    let abort!: () => void;
+    const cancelled = new Promise<never>((_resolve, reject) => { abort = () => reject(new GuiFailure('GUI_CANCELLED')); });
+    guard?.signal?.addEventListener('abort', abort, { once: true });
+    try {
+      assertGuiExecution(guard);
+      const result = await Promise.race([worker.recognize(imageBuffer, {}, { blocks: true }), cancelled]);
+      assertGuiExecution(guard);
+      return selectOcrTarget(result, textToFind);
+    } finally { guard?.signal?.removeEventListener('abort', abort); }
+  } catch (error) { throw error instanceof GuiFailure ? error : new GuiFailure('GUI_FAILED'); }
+  finally { if (worker) await closeWorker(worker); }
 }

@@ -20,9 +20,10 @@ interface LifecycleServices {
   pathMemoryService: { stop: () => void };
   clipboardAssistant: { stop: () => void | Promise<void> };
   meetingPassiveDetectionService: { stopPolling: () => void };
+  calendarService: { dispose: () => void };
 }
 
-export function registerAppLifecycle(input: { services: LifecycleServices; state: MainRuntimeState; controls: LifecycleControls }): void {
+export function registerAppLifecycle(input: { services: LifecycleServices; state: MainRuntimeState; controls: LifecycleControls; stopRemoteNodes: () => void | Promise<void> }): void {
   const { services, state, controls } = input;
   const shutdown = new ShutdownGuard({
     prepare: () => services.integratedBrowserService.flushSessionForShutdown(),
@@ -150,6 +151,11 @@ export function registerAppLifecycle(input: { services: LifecycleServices; state
     stopAtShutdown('memoria de rutas', () => services.pathMemoryService.stop());
     stopAtShutdown('portapapeles', () => services.clipboardAssistant.stop());
     stopAtShutdown('detección de reuniones', () => services.meetingPassiveDetectionService.stopPolling());
+    stopAtShutdown('calendario', () => services.calendarService.dispose());
+    stopAtShutdown('nodos remotos', input.stopRemoteNodes);
+    stopAtShutdown('autorización de voz', () => state.localVoiceSession?.dispose());
+    stopAtShutdown('autorización de documentos', () => state.pythonToolsIpc?.dispose());
+    stopAtShutdown('contexto de escritorio', () => state.desktopContextIpc?.dispose());
     stopAtShutdown('actualizaciones', () => services.updaterService.stop());
     stopAtShutdown('runtime Python', () => import('../python-runtime-service').then((m) => m.pythonRuntimeService.stop()));
     stopAtShutdown('herramientas Python', () => import('../python-tools-service').then((m) => m.pythonToolsService.stop()));

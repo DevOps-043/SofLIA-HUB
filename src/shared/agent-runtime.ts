@@ -1,4 +1,4 @@
-export type AgentProviderId = 'gemini' | 'codex';
+export type AgentProviderId = 'openai' | 'codex';
 export type AgentRole = 'acuerdos' | 'evidencia' | 'coordinador';
 export type AgentRunStatus = 'running' | 'review' | 'cancelled' | 'failed' | 'interrupted' | 'publishing' | 'published' | 'uncertain';
 export interface AgentScope { userId: string; organizationId: string | null }
@@ -31,7 +31,6 @@ export interface AgentRuntimeState {
   runs: AgentRun[];
   persistence: 'encrypted' | 'volatile';
   codex: { configured: boolean; version: string | null; home: string | null };
-  geminiAvailable: boolean;
 }
 export interface AgentStartInput { title: string; source: string; provider: AgentProviderId }
 export type AgentReply<T> = { success: true; data: T } | { success: false; error: string };

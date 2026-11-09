@@ -15,16 +15,15 @@ export async function executeGoogleTool(
   toolName: string,
   toolArgs: Record<string, any>,
   ctx: ToolExecutorContext,
-  bulkLabelsToVerify: Set<string> | null,
-): Promise<{ response: FunctionResponse; bulkLabelsToVerify: Set<string> | null } | null> {
+): Promise<{ response: FunctionResponse } | null> {
   if (!GOOGLE_TOOLS.has(toolName)) return null;
 
   return (
-    await executeCalendarTool(toolName, toolArgs, ctx, bulkLabelsToVerify)
-    || await executeGmailMailTool(toolName, toolArgs, ctx, bulkLabelsToVerify)
-    || await executeGmailPlanTool(toolName, toolArgs, ctx, bulkLabelsToVerify)
-    || await executeGmailLabelTool(toolName, toolArgs, ctx, bulkLabelsToVerify)
-    || await executeDriveTool(toolName, toolArgs, ctx, bulkLabelsToVerify)
-    || await executeGChatTool(toolName, toolArgs, ctx, bulkLabelsToVerify)
+    await executeCalendarTool(toolName, toolArgs, ctx)
+    || await executeGmailMailTool(toolName, toolArgs, ctx)
+    || await executeGmailPlanTool(toolName, toolArgs, ctx)
+    || await executeGmailLabelTool(toolName, toolArgs, ctx)
+    || await executeDriveTool(toolName, toolArgs, ctx)
+    || await executeGChatTool(toolName, toolArgs, ctx)
   );
 }

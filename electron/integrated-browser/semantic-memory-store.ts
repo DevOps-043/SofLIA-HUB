@@ -1,3 +1,4 @@
+import { EMBEDDING_MODEL } from '../ai-provider/embeddings';
 import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -72,7 +73,12 @@ export class BrowserSemanticMemoryStore {
       if (row.payload.byteLength > 12 * 1024 * 1024) throw new UnsupportedSemanticRecovery();
       const decoded = JSON.parse(safeStorage.decryptString(Buffer.from(row.payload)));
       if (decoded.scope !== location) throw new UnsupportedSemanticRecovery();
-      if (Object.keys(decoded).sort().join(',') !== 'scope,snapshot') throw new Error();
+      const fields = Object.keys(decoded).sort().join(',');
+      if (fields === 'scope,snapshot') {
+        const previous = validate(decoded.snapshot);
+        return { ...EMPTY_SEMANTIC_SNAPSHOT(), enabled: previous.enabled };
+      }
+      if (fields !== 'model,scope,snapshot' || decoded.model !== EMBEDDING_MODEL) throw new UnsupportedSemanticRecovery();
       return validate(decoded.snapshot);
     } catch (error) { if (error instanceof UnsupportedSemanticRecovery) throw error; throw new DamagedSemanticSnapshot(); }
   }
@@ -88,7 +94,7 @@ export class BrowserSemanticMemoryStore {
       ensureSemanticRecovery(location, guard);
       // Los originales en cuarentena sólo se conservan hasta la siguiente edición explícita.
       forgetDamagedSemanticCopies(location, guard);
-      const payload = safeStorage.encryptString(JSON.stringify({ scope: location, snapshot }));
+      const payload = safeStorage.encryptString(JSON.stringify({ model: EMBEDDING_MODEL, scope: location, snapshot }));
       if (payload.byteLength > 12 * 1024 * 1024) throw new Error();
       db.exec('BEGIN IMMEDIATE');
       try { guard(); db.prepare('INSERT OR REPLACE INTO snapshot VALUES(1,?)').run(payload); guard(); db.exec('COMMIT'); }

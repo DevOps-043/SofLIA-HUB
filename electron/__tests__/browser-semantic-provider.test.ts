@@ -1,27 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { googleSemanticEmbedder } from '../integrated-browser/semantic-memory';
-const mocks = vi.hoisted(() => ({ embedContent: vi.fn(), constructed: vi.fn() }));
-vi.mock('@google/genai', () => ({ GoogleGenAI: class {
-  models = { embedContent: mocks.embedContent };
-  constructor(options: unknown) { mocks.constructed(options); }
-} }));
-const values = Array.from({ length: 768 }, (_, index) => index === 0 ? 2 : 0);
-beforeEach(() => { vi.clearAllMocks(); mocks.embedContent.mockResolvedValue({ embeddings: [{ values }] }); });
-describe('proveedor semántico cerrado', () => {
-  it('configura dimensiones, modalidad y cancelación sin retornar la clave', async () => {
-    const signal = new AbortController().signal; const embed = googleSemanticEmbedder(() => 'clave-ficticia');
-    const result = await embed(['consulta'], true, signal);
-    expect(mocks.constructed).toHaveBeenCalledWith({ apiKey: 'clave-ficticia' });
-    expect(mocks.embedContent).toHaveBeenCalledWith({ model: 'gemini-embedding-001', contents: ['consulta'], config: { outputDimensionality: 768, taskType: 'RETRIEVAL_QUERY', abortSignal: signal, httpOptions: { timeout: 30000 } } });
-    expect(result[0][0]).toBe(1); expect(JSON.stringify(result)).not.toContain('clave');
-    await embed(['documento'], false, signal);
-    expect(mocks.embedContent.mock.calls[1][0].config.taskType).toBe('RETRIEVAL_DOCUMENT');
-  });
-  it('rechaza clave ausente y respuesta parcial antes de publicar índice', async () => {
+import { embedSessionTexts } from '../ai-provider/embeddings';
+const mocks = vi.hoisted(() => ({ create: vi.fn(), client: vi.fn() }));
+vi.mock('../ai-provider/session-client', () => ({ getSessionOpenAIClient: mocks.client }));
+const vector = Array.from({ length: 768 }, (_, index) => index === 0 ? 1 : 0);
+beforeEach(() => { vi.resetAllMocks(); mocks.client.mockResolvedValue({ embeddings: { create: mocks.create } }); });
+describe('Embeddings nativos OpenAI', () => {
+  it('conserva dimensiones y reordena resultados por índice', async () => {
     const signal = new AbortController().signal;
-    await expect(googleSemanticEmbedder(() => null)(['consulta'], true, signal)).rejects.toThrow('Configura');
-    expect(mocks.constructed).not.toHaveBeenCalled();
-    mocks.embedContent.mockResolvedValueOnce({ embeddings: [] });
-    await expect(googleSemanticEmbedder(() => 'ficticia')(['documento'], false, signal)).rejects.toThrow('incompleta');
+    mocks.create.mockResolvedValue({ data: [{ index: 1, embedding: vector.map(x => -x) }, { index: 0, embedding: vector }] });
+    const result = await embedSessionTexts(['consulta', 'fuente'], 768, signal);
+    expect(result.map(row => row[0])).toEqual([1, -1]);
+    expect(mocks.create).toHaveBeenCalledWith({ model: 'text-embedding-3-small', input: ['consulta', 'fuente'], dimensions: 768, encoding_format: 'float' }, { signal });
+  });
+  it('rechaza un lote incompleto y descarta respuestas revocadas', async () => {
+    const controller = new AbortController();
+    mocks.create.mockResolvedValueOnce({ data: [] });
+    await expect(embedSessionTexts(['fuente'], 768, controller.signal)).rejects.toThrow('Vectores');
+    mocks.create.mockImplementationOnce(async () => { controller.abort(); return { data: [{ index: 0, embedding: vector }] }; });
+    await expect(embedSessionTexts(['fuente'], 768, controller.signal)).rejects.toMatchObject({ name: 'AbortError' });
   });
 });

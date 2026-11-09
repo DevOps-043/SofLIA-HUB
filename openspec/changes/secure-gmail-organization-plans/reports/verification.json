@@ -1,0 +1,57 @@
+{
+  "fecha": "2026-10-22",
+  "rama": "codex/reduce-technical-debt",
+  "baseGit": "e166d250629e503cf12f69449fb6d66e569134c8",
+  "estado": "Implementada y verificada localmente; revisión independiente pendiente",
+  "compuerta": {
+    "comando": "npm run verify:pr",
+    "salida": 0,
+    "archivosAprobados": 449,
+    "archivosOmitidos": 2,
+    "pruebasAprobadas": 4682,
+    "pruebasOmitidas": 5,
+    "pruebasFallidas": 0,
+    "duracionSuiteSegundos": 213.65,
+    "casosAgregados": 73,
+    "pruebasToolingAprobadas": 4,
+    "archivosLintIncremental": 92,
+    "elementosOpenSpecValidados": 76
+  },
+  "baselineDirigida": { "archivos": 4, "pruebas": 75, "salida": 0 },
+  "suiteDirigida": { "archivos": 9, "pruebas": 147, "salida": 0, "nota": "Antes del caso adicional de selección ambigua; cubierto por la compuerta final" },
+  "storeFinal": { "archivos": 1, "pruebas": 19, "salida": 0 },
+  "smokeNativo": {
+    "comando": "npm run calendar:smoke:native",
+    "salida": 0,
+    "electron": "44.5.1",
+    "procesos": 3,
+    "dpapiReal": true,
+    "planesGmailVerificados": true,
+    "credencialesReales": false,
+    "informe": "native-summary.json"
+  },
+  "build": {
+    "comando": "npm run app:smoke:build",
+    "salida": 0,
+    "fuentes": 3288,
+    "artefactos": 6,
+    "archivosEnvCopiados": false,
+    "empaquetado": false,
+    "aplicacionIniciada": false,
+    "informe": "build-summary.json",
+    "hashes": "build-artifacts.json"
+  },
+  "sdk": { "googleapisReal": true, "oauth2Real": true, "fetchSimulado": true, "conexionRemota": false, "casos": 3 },
+  "inventario": { "archivosPrueba": 618, "canalesIPC": 494, "canalesAgregados": 0, "dependenciasAgregadas": 0 },
+  "revision": "Autorrevisión adversarial; no sustituye revisión independiente antes de archivar",
+  "limites": [
+    "Sin transacción disco/Gmail, CAS o garantía exactamente una vez",
+    "Intención pendiente requiere reconciliación manual; sin reparación automática",
+    "Exclusión sólo dentro del proceso y ventana de carrera ante cambios remotos",
+    "Legacy preservado puede contener PII sin cifrar; no se importa por inferencia",
+    "Sin cuentas/correo reales, prueba humana del modal ni Hub/instalador iniciado",
+    "Sin validación nativa Linux/macOS",
+    "Otros canales Gmail, custodia SMTP e integridad IRIS pendientes",
+    "Sin nuevo porcentaje global de deuda técnica"
+  ]
+}

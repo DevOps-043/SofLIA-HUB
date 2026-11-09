@@ -1,0 +1,72 @@
+{
+  "count": 3533,
+  "before": "c665785dda788d496b4440ed33491fbf716ec87c8c0441ddbb08cbc40bffc5b5",
+  "after": "c665785dda788d496b4440ed33491fbf716ec87c8c0441ddbb08cbc40bffc5b5",
+  "changedDuringGate": [],
+  "copiedFilesMatching": 3513,
+  "deltaFromUnit36": [
+    {
+      "file": ".github/workflows/ci.yml",
+      "previousSha256": "c98eef3b5965f0384e90a3e049ffb3898b85f217f159e4f39e47e5cba1eaf449",
+      "currentSha256": "2508fc2fe6a7c2d5fc43c52fd9064e3d016127416a0d18c3ebbee35d85dc62fe"
+    },
+    {
+      "file": ".github/workflows/release.yml",
+      "previousSha256": "1f36046a2cf4001bcdabb9b10cc38e4b0495892dbbf13c5fe59d61bc04d9c1b5",
+      "currentSha256": "b0e3c2a7f006d3776e4522fc1b6094bfde897191a1b3a211ee0a597f9b7b61eb"
+    },
+    {
+      "file": "package.json",
+      "previousSha256": "497634e40237c151f24a557f48e4c84c2430d63af98102d4962c16fddd5c0b3a",
+      "currentSha256": "bff2b0c7bf6e9d2afa1888c5dd843b4cc3c952ba4608a0780ee94191af5b5749"
+    },
+    {
+      "file": "scripts/quality/run-gate.mjs",
+      "previousSha256": "8a47dde387c80a024c814df8a58dfe727aa404aac9e516c245870432ae16f816",
+      "currentSha256": "0d6625415b006d28285ca25cdad2d48185f8c8ffaa908c5984255d3e31cf4dd5"
+    },
+    {
+      "file": "vitest.config.ts",
+      "previousSha256": "dd5b8815f885c79538717370f78a76e61b1b1a8d097f4ab3e982f76f8d236902",
+      "currentSha256": "0f18154b02f18eec7b89a222d98ae3266e225cacddf903ae820f5545aef80711"
+    },
+    {
+      "file": "config/coverage-policy.json",
+      "previousSha256": null,
+      "currentSha256": "a5a4dc376af7c28cedd5600c9d27960c3a2825abbfc6c5f3af5d03e608e53d77"
+    },
+    {
+      "file": "scripts/quality/check-coverage.mjs",
+      "previousSha256": null,
+      "currentSha256": "2c2885dccbe07455a12d4c982ed83d142646f6df81cc6eb33c5d1631ad0b6b71"
+    },
+    {
+      "file": "scripts/quality/check-coverage.test.mjs",
+      "previousSha256": null,
+      "currentSha256": "b2b44888e4fd1cd1add3c029a1fe88ff34f89632ca75c222ce9f43dcf8b1199f"
+    },
+    {
+      "file": "scripts/quality/workflow-integrity.mjs",
+      "previousSha256": null,
+      "currentSha256": "b78d9cfedb9541aee6cd04c00b1bff7ec5d43960c9ee405afc5f768d6ca437bc"
+    },
+    {
+      "file": "scripts/quality/workflow-integrity.test.mjs",
+      "previousSha256": null,
+      "currentSha256": "9e6d43aecf9c38a56f134ff5269a499ca4585574247aa524f94131d2b3b71e75"
+    }
+  ],
+  "preexistingWhitespaceFilesUnchanged": [
+    "electron/__tests__/desktop-context-handlers.test.ts",
+    "electron/__tests__/orb-show-handler.test.ts",
+    "electron/desktop-context-handlers.ts",
+    "electron/meeting-live-handlers.ts",
+    "electron/preload/utility-apis.ts",
+    "electron/python-runtime-service.ts",
+    "electron/python-tools-service.ts",
+    "src/services/orb-service.ts",
+    "src/services/python-tools-service.ts",
+    "src/services/voice-passive-service.ts"
+  ],
+  "head": "e166d250629e503cf12f69449fb6d66e569134c8"
+}

@@ -4,6 +4,9 @@ const desktopAgentMocks = vi.hoisted(() => ({
   mockExistsSync: vi.fn(() => false),
   mockReadFileSync: vi.fn(() => '{}'),
   mockWriteFileSync: vi.fn(),
+  mockStatSync: vi.fn(() => ({ size: 1000 })),
+  mockRenameSync: vi.fn(),
+  mockUnlinkSync: vi.fn(),
 }));
 
 export const mockExistsSync = desktopAgentMocks.mockExistsSync;
@@ -15,10 +18,16 @@ vi.mock('node:fs', () => ({
     existsSync: desktopAgentMocks.mockExistsSync,
     readFileSync: desktopAgentMocks.mockReadFileSync,
     writeFileSync: desktopAgentMocks.mockWriteFileSync,
+    statSync: desktopAgentMocks.mockStatSync,
+    renameSync: desktopAgentMocks.mockRenameSync,
+    unlinkSync: desktopAgentMocks.mockUnlinkSync,
   },
   existsSync: desktopAgentMocks.mockExistsSync,
   readFileSync: desktopAgentMocks.mockReadFileSync,
   writeFileSync: desktopAgentMocks.mockWriteFileSync,
+  statSync: desktopAgentMocks.mockStatSync,
+  renameSync: desktopAgentMocks.mockRenameSync,
+  unlinkSync: desktopAgentMocks.mockUnlinkSync,
 }));
 
 vi.mock('node:child_process', () => {
@@ -39,15 +48,7 @@ vi.mock('node:module', () => ({
   createRequire: vi.fn(() => (mod: string) => mod === 'sharp' ? null : {}),
 }));
 
-vi.mock('@google/generative-ai', () => ({
-  GoogleGenerativeAI: vi.fn().mockImplementation(() => ({
-    getGenerativeModel: vi.fn(() => ({
-      generateContent: vi.fn(async () => ({
-        response: { text: () => JSON.stringify({ action: 'done', message: 'Task completed' }) },
-      })),
-    })),
-  })),
-}));
+vi.mock('../../desktop-agent/inference', () => ({ inferDesktop: vi.fn(async () => JSON.stringify({ action: 'done', message: 'Tarea completada' })) }));
 
 vi.mock('../../browser-web-service', () => ({
   BrowserWebService: vi.fn(function BrowserWebService() {

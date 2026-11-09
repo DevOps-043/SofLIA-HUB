@@ -1,3 +1,4 @@
+import { captureSessionOperation } from '../ai-provider/session-operation';
 import { Notification } from 'electron';
 import { logBootstrapError } from './bootstrap-steps';
 import type { MainRuntimeState } from './runtime-state';
@@ -21,10 +22,8 @@ export function registerServiceEvents(input: { modules: any; services: any; stat
   });
 
   registerPassiveSkillsSessionEvents(services);
-  registerCalendarEvents(services, state);
+  registerCalendarEvents(services);
   registerMonitoringEvents(modules, services, state);
-  services.waService.on('qr', (qr: string) => state.win?.webContents.send('whatsapp:qr', qr));
-  services.waService.on('status', (status: any) => state.win?.webContents.send('whatsapp:status', status));
 }
 
 /**
@@ -122,7 +121,7 @@ async function executePassiveSkillPrompt(state: MainRuntimeState, task: any): Pr
   return typeof result === 'string' ? result : '';
 }
 
-function registerCalendarEvents(services: any, state: MainRuntimeState): void {
+function registerCalendarEvents(services: any): void {
   services.calendarService.setConfig({
     google: {
       clientId: process.env.VITE_GOOGLE_OAUTH_CLIENT_ID || '',
@@ -130,8 +129,6 @@ function registerCalendarEvents(services: any, state: MainRuntimeState): void {
     },
     microsoft: { clientId: process.env.VITE_MICROSOFT_CLIENT_ID || '' },
   });
-  services.calendarService.on('work-start', (data: any) => state.win?.webContents.send('calendar:work-start', data));
-  services.calendarService.on('work-end', (data: any) => state.win?.webContents.send('calendar:work-end', data));
   services.calendarService.on('connected', (data: any) => {
     if (data?.provider === 'google') {
       void services.meetingPassiveDetectionService.runScanNow().catch((error: unknown) => {
@@ -144,16 +141,19 @@ function registerCalendarEvents(services: any, state: MainRuntimeState): void {
 function registerMonitoringEvents(modules: any, services: any, state: MainRuntimeState): void {
   services.monitoringService.on('session-ended', async (data: any) => {
     const snapshots = data.allSnapshots?.length ? data.allSnapshots : data.pendingSnapshots;
-    if (!state.currentGeminiApiKey || !snapshots?.length) return;
+    if (!snapshots?.length) return;
+    let operation: ReturnType<typeof captureSessionOperation> | undefined;
     try {
-      const summary = await modules.generateDailySummary(state.currentGeminiApiKey, snapshots.map(normalizeSnapshot), {
+      operation = captureSessionOperation();
+      const summary = await modules.generateDailySummary(snapshots.map(normalizeSnapshot), {
         startedAt: new Date().toISOString(),
         triggerType: 'manual',
       });
+      operation.assert();
       state.win?.webContents.send('monitoring:summary-generated', { userId: data.userId, sessionId: data.sessionId, summary });
     } catch (error) {
       logBootstrapError('monitoring session summary', error);
-    }
+    } finally { operation?.dispose(); }
   });
 }
 

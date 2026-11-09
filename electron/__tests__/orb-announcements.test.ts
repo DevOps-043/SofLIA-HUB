@@ -12,6 +12,15 @@ function crearVentana(): VentanaFalsa {
 }
 
 describe('cola de anuncios proactivos de la orbe', () => {
+  it('un anuncio de A esperando ventana no reaparece después de A/B/A', async () => {
+    setAuthState({ authenticated: true, userId: 'A' });
+    let finish!: () => void;
+    const opening = new Promise<void>(resolve => { finish = resolve; }); const ventana = crearVentana();
+    const anuncios = createOrbAnnouncements({ getWindow: () => ventana as unknown as import('electron').BrowserWindow, showWindow: () => opening });
+    const pending = anuncios.announce('Contenido de A', { title: 'Privado' });
+    setAuthState({ authenticated: true, userId: 'B' }); setAuthState({ authenticated: true, userId: 'A' });
+    finish(); await pending; expect(ventana.webContents.send).not.toHaveBeenCalled(); expect(anuncios.consumePending()).toBeNull(); expect(anuncios.size()).toBe(0);
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     resetAuthStateForTests();

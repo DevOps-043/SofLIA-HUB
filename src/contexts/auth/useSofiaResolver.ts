@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { sofiaAuth } from '../../services/sofia-auth';
 import { buildSofiaContext } from './helpers';
 import type { SofiaContextResolution } from './types';
+import { throwIfAuthCancelled, waitForAuthRetry } from '../../services/auth-cancellation';
 
 // `fetchSofiaUserProfile` devuelve null cuando SOFIA no esta disponible o la
 // consulta falla (traga el error). Un perfil valido SIN membresias activas si
@@ -11,14 +12,12 @@ import type { SofiaContextResolution } from './types';
 const MAX_INTENTOS = 3;
 const RETRASO_BASE_MS = 400;
 
-function esperar(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 export function useSofiaResolver() {
-  return useCallback(async (sofiaUserId: string): Promise<SofiaContextResolution> => {
+  return useCallback(async (sofiaUserId: string, signal?: AbortSignal): Promise<SofiaContextResolution> => {
     for (let intento = 0; intento < MAX_INTENTOS; intento += 1) {
+      throwIfAuthCancelled(signal);
       const profile = await sofiaAuth.fetchSofiaUserProfile(sofiaUserId);
+      throwIfAuthCancelled(signal);
 
       if (profile) {
         const nextSofiaContext = buildSofiaContext(profile);
@@ -30,7 +29,7 @@ export function useSofiaResolver() {
       }
 
       if (intento < MAX_INTENTOS - 1) {
-        await esperar(RETRASO_BASE_MS * 2 ** intento);
+        await waitForAuthRetry(RETRASO_BASE_MS * 2 ** intento, signal);
       }
     }
 

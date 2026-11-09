@@ -1,0 +1,82 @@
+[
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-lint-gate-2026-10-24\\baseline-reproduction.json",
+    "bytes": 441,
+    "sha256": "4b50e6a51a17152e79368e0d59279e37b5382b3b9def3148daa8f5a1b9c86562"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-lint-gate-2026-10-24\\javascript-baseline.json",
+    "bytes": 4804,
+    "sha256": "1fbca68b1f20948fe5b430c3ae859dd7054eea7fcd72ccda8c53ea2d896773ad"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-lint-gate-2026-10-24\\cli-red.log",
+    "bytes": 13060,
+    "sha256": "9e990b7f5b3792321f1390d25682b90a8dcb4221d71a764217ac8cf63f05b450"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-lint-gate-2026-10-24\\nested-config-red.log",
+    "bytes": 1032,
+    "sha256": "82fd4d447f510c6743c46d4c853e7e7ff2386e6ddf54a825b0ed8f8f1d9b7a26"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-lint-gate-2026-10-24\\cli-final.log",
+    "bytes": 4304,
+    "sha256": "77035d2812c597138bb5ed288302e4aa78a2310102a2b767c870efe4080162ef"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-lint-gate-2026-10-24\\cli-serial.log",
+    "bytes": 2143,
+    "sha256": "3de530e7cd6be92688c181951662ab49f52db9f3c5bad4994c8f1163f9b7a170"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-lint-gate-2026-10-24\\lint-final.log",
+    "bytes": 145,
+    "sha256": "e99fd38e7906c66422291f7f684ae3c955e05af89632d5d3b5d3c6c849d53036"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-lint-gate-2026-10-24\\project-native.log",
+    "bytes": 1637,
+    "sha256": "c07c39fd4ca33a8aeabdb7c3c5f7db835f2f631022e5445de061a7c2c271cc6c"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-lint-gate-2026-10-24\\project-native-final.log",
+    "bytes": 2727,
+    "sha256": "47efc405419929fff28ee6270b7f6ba09a4b0b5d577b9933bc2699784a300714"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-lint-gate-2026-10-24\\select-native.log",
+    "bytes": 1800,
+    "sha256": "2a16f2e71e94954750341f43d8d390828f5ff4e64d33ae7e61882db84b9e6814"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-lint-gate-2026-10-24\\gate-final.log",
+    "bytes": 121377,
+    "sha256": "cdc8d764facbd53bf2be29090fa8734b58ffc8c0849d53a1de01445757f5af8b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-lint-gate-2026-10-24\\build-final.log",
+    "bytes": 39227,
+    "sha256": "85e7c597f8c4ca16a7b267da88bffaa7102fe896d2a79b3d50f871f09e43bd12"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-lint-gate-2026-10-24\\docs-final.log",
+    "bytes": 139,
+    "sha256": "1b9ac405b655ed4ba2a2d9146247dc6407d30ce229b1faed20e9d173469063e1"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-lint-gate-2026-10-24\\docs-system-final.log",
+    "bytes": 195,
+    "sha256": "f764121c35777bfd590720c69999e772b7fdd78187be77b1d54159e8d5fc6e47"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-lint-gate-2026-10-24\\harness-final.log",
+    "bytes": 144,
+    "sha256": "916e65bfd3de6fbfa30c2fa5e9d816f138601dd577b5d8ebf17711b92b2aeebd"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-lint-gate-2026-10-24\\openspec-final.log",
+    "bytes": 59,
+    "sha256": "9dd6563d7597613c5f8c7cd70dec5a57c38b1651293eaee3d25255a1aa03a430"
+  }
+]

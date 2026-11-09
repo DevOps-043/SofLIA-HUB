@@ -1,5 +1,4 @@
 import { EventEmitter } from 'node:events';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { attachBrowserWebEngine } from './browser-web/service-engine';
 import { attachBrowserWebLifecycle } from './browser-web/service-lifecycle';
 import { attachBrowserWebProfiles } from './browser-web/service-profiles';
@@ -25,7 +24,6 @@ export class BrowserWebService extends EventEmitter {
   declare processQueue: BrowserWebLifecycleApi['processQueue'];
 
   apiKey = '';
-  genAI: GoogleGenerativeAI | null = null;
   playwright: PlaywrightModule | null = null;
   browser: any = null;
   context: any = null;

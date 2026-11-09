@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { AgentRuntime } from '../agent-runtime/runtime';
 import type { CreateMeetingRunResult } from '../meetings/meeting-types';
-vi.mock('../agent-runtime/gemini-provider', () => ({
-  GeminiAgentProvider: class {
+vi.mock('../agent-runtime/openai-provider', () => ({
+  OpenAIAgentProvider: class {
     async execute() { return { text: 'Minuta revisable con evidencia L1.', inputTokens: 1, outputTokens: 1 }; }
   },
 }));
@@ -15,7 +15,7 @@ function fixture() {
     root: '/no-escribir-en-modo-volatil',
     cipher: { isEncryptionAvailable: () => false, encryptString: () => { throw new Error(); }, decryptString: () => { throw new Error(); } },
     getUserId: () => userId, getMeetingOwnerId: () => ownerId, authorize,
-    geminiKey: () => 'clave-simulada', meetings: { createManualRun },
+    meetings: { createManualRun },
   });
   return { runtime, authorize, createManualRun, setUser: (id: string | null) => { userId = id; }, setOwner: (id: string | null) => { ownerId = id; } };
 }
@@ -23,7 +23,7 @@ describe('Composición e identidades del arnés', () => {
   it('persiste el borrador con el usuario Lia y vigila ambas identidades', async () => {
     const { runtime, createManualRun, setOwner } = fixture();
     await runtime.setContext(null);
-    const started = await runtime.harness.start({ title: 'Reunión', source: 'Acuerdo fuente verificable.', provider: 'gemini' });
+    const started = await runtime.harness.start({ title: 'Reunión', source: 'Acuerdo fuente verificable.', provider: 'openai' });
     await vi.waitFor(() => expect(runtime.state().runs[0].status).toBe('review'));
     const run = runtime.state().runs[0];
     await runtime.harness.publish(started.id, run.digest!);
@@ -57,7 +57,7 @@ describe('Composición e identidades del arnés', () => {
   it('impide crear borrador sin identidad Lia', async () => {
     const { runtime, setOwner, createManualRun } = fixture();
     await runtime.setContext(null);
-    await runtime.harness.start({ title: 'Reunión', source: 'Acuerdo fuente verificable.', provider: 'gemini' });
+    await runtime.harness.start({ title: 'Reunión', source: 'Acuerdo fuente verificable.', provider: 'openai' });
     await vi.waitFor(() => expect(runtime.state().runs[0].status).toBe('review'));
     const run = runtime.state().runs[0];
     setOwner(null);

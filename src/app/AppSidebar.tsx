@@ -1,10 +1,12 @@
 import { Sidebar } from '../components/Sidebar';
+import type { ProjectNavigation } from '../components/project-workspace/types';
 import type { MouseEvent } from 'react';
 import type { ThemeMode } from '../hooks/useTheme';
 import type { IrisIssue, IrisProject } from '../lib/iris-client';
 import type { ActiveView, AuthState, ChatState, FolderState, IrisState } from './app-types';
 
 interface AppSidebarProps {
+  projectNavigation?: ProjectNavigation;
   activeView: ActiveView;
   browserOpen?: boolean;
   auth: AuthState;
@@ -39,6 +41,7 @@ export function AppSidebar(props: AppSidebarProps) {
 
   return (
     <Sidebar
+      projectNavigation={props.projectNavigation}
       isOpen={props.isSidebarOpen}
       position={props.position}
       onToggle={props.onToggleSidebar}

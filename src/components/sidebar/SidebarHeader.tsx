@@ -1,4 +1,4 @@
-export function SidebarHeader({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }) {
+export function SidebarHeader({ isOpen, onToggle, compactOnly = false }: { isOpen: boolean; onToggle: () => void; compactOnly?: boolean }) {
   return (
     <div
       className="px-2.5 pt-3 pb-1.5 flex items-center justify-center min-h-[48px]"
@@ -31,7 +31,8 @@ export function SidebarHeader({ isOpen, onToggle }: { isOpen: boolean; onToggle:
           onClick={onToggle}
           className="flex h-11 w-11 items-center justify-center rounded-xl hover:bg-gray-100/80 dark:hover:bg-white/[0.08] transition-all duration-150 focus:outline-none group"
           title="Expandir menú"
-          aria-label="Expandir menú"
+          aria-label={compactOnly ? 'Menú compacto por el ancho disponible' : 'Expandir menú'}
+          disabled={compactOnly}
         >
           <img src="./assets/Icono.png" alt="Soflia Hub" className="h-7 w-7 object-contain transition-transform group-hover:scale-105" />
         </button>

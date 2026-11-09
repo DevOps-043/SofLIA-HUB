@@ -101,7 +101,7 @@ Todas las rutas enlazadas en esta tabla pertenecen al repositorio SofLIA de orig
 | [Sincronizador](../../scripts/ai/sync-agent-adapters.mjs) | Reutilizable si se conserva el esquema de skills; editar `targets` para las herramientas elegidas. |
 | [Validador del arnés](../../scripts/quality/validate-harness.mjs) | Adaptar rutas obligatorias, secciones, metadatos, registro y vetos; no ejecutar sin revisar sus supuestos. |
 | [Validador de enlaces](../../scripts/quality/check-doc-links.mjs) | Adaptar las raíces que recorre y los routers admitidos. No comprueba anclas Markdown ni disponibilidad web. |
-| [Lint incremental](../../scripts/quality/lint-changed.mjs) | Usar solo si corresponde TypeScript/ESLint; para otro stack crear el equivalente. Revisar sus límites de comparación. |
+| [Lint incremental](../../scripts/quality/lint-changed.mjs) | Usar solo si corresponde TypeScript/JavaScript con ESLint; para otro stack crear el equivalente. Revisar selección Git y límites del presupuesto histórico en el [estándar de pruebas](../standards/testing.md#regla-de-baseline). |
 | [Validador documental](../../scripts/quality/validate-system-docs.mjs) | Reescribir catálogo, IDs e inventarios. Quitar o reemplazar comprobaciones de IPC/paleta propias de SofLIA. |
 | [Compuerta](../../scripts/quality/run-gate.mjs) y [CI](../../.github/workflows/ci.yml) | Mantener la secuencia con parada ante fallo, sustituyendo los pasos por verificaciones del receptor. |
 | [Configuración OpenSpec](../../openspec/config.yaml) | Sustituir el contexto de producto y reglas del dominio. |

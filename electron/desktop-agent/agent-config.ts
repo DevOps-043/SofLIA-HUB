@@ -1,98 +1,12 @@
+import type { DesktopAgentConfig } from '../../src/shared/desktop-agent';
+export type { CaptureStrategy, DesktopAgentConfig } from '../../src/shared/desktop-agent';
 import fs from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { desktopConfigFields, desktopConfigSchema } from '../../src/shared/desktop-input';
 import path from 'node:path';
 import { app as electronApp } from 'electron';
-import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
+import { SOFLIA_DEFAULT_MODEL } from '../../src/shared/soflia-runtime-model';
 import { COMPUTER_USE_MODEL_DEFAULTS } from './gemini-cu/model-registry';
-
-/** Estrategia de captura de pantalla para los pasos de vision. */
-export type CaptureStrategy = 'all-monitors' | 'active-monitor' | 'focused-window';
-
-export interface DesktopAgentConfig {
-  maxSteps: number;
-  screenshotWidth: number;
-  screenshotHeight: number;
-  defaultActionDelay: number;
-  waitForChangeTimeout: number;
-  waitForChangeInterval: number;
-  continuousObservationInterval: number;
-  planningEnabled: boolean;
-  memoryWindowSize: number;
-  model: string;
-  fallbackModel: string;
-  maxConsecutiveFailures: number;
-  stuckDetectionThreshold: number;
-  autoRecoverFromDialogs: boolean;
-  replanOnStuck: boolean;
-  maxRetryPerAction: number;
-  proactiveModel: string;
-  maxConcurrentAgents: number;
-  gridEnabled: boolean;
-  gridStep: number;
-  zoomEnabled: boolean;
-  zoomResolution: number;
-  verificationEnabled: boolean;
-  maxTotalSteps: number;
-  summarizeEveryNSteps: number;
-  maxRawHistorySteps: number;
-  hierarchicalPlanningEnabled: boolean;
-  progressReportEveryNSteps: number;
-  somEnabled: boolean;
-  somFallbackToGrid: boolean;
-  focusedCaptureEnabled: boolean;
-  focusedCapturePadding: number;
-  // --- Orquestacion determinista-primero ---
-  deterministicFirstEnabled: boolean;
-  environmentContextEnabled: boolean;
-  environmentRefreshEveryNSteps: number;
-  installedAppsIndexTtlMs: number;
-  // --- Pipeline de coordenadas ---
-  captureStrategy: CaptureStrategy;
-  minRenderScale: number;
-  maxScreenshotEdge: number;
-  layoutBindingEnabled: boolean;
-  legacyScaleFallbackEnabled: boolean;
-  // --- Ciclo de vida ---
-  defaultStepBudget: number;
-  queueTimeoutMs: number;
-  keywordRoutingEnabled: boolean;
-  // --- Entrada nativa (nut.js) y localizacion por texto ---
-  inputBackend: 'nut' | 'legacy';
-  humanMotionEnabled: boolean;
-  humanTypingEnabled: boolean;
-  uiaWorkerEnabled: boolean;
-  uiaSparseThreshold: number;
-  uiaWakeDelayMs: number;
-  ocrCaptureEdge: number;
-  // --- Fuente de elementos del Set-of-Marks (UIA + OCR + visual) ---
-  elementSourceEnabled: boolean;
-  ocrElementsEnabled: boolean;
-  visualParserEnabled: boolean;
-  maxDetectedElements: number;
-  elementDedupIouThreshold: number;
-  /** Si UIA devuelve >= este numero de elementos, no se corre OCR. */
-  sufficientElementCount: number;
-  /** Si UIA devuelve >= este numero, tampoco se corre el parser visual (ONNX caro). */
-  visualSkipWhenUiaRich: number;
-  /** Score minimo del detector visual (0-1); mas alto = menos marcas de ruido. */
-  visualScoreThreshold: number;
-  /** IoU de la NMS del detector visual (0-1). */
-  visualNmsIou: number;
-  // --- Gemini Computer Use (cerebro nativo entrenado, tool computer_use) ---
-  /** 'gemini' usa la Computer Use API; 'legacy' el loop de vision propio (fallback). */
-  computerUseEngine: 'gemini' | 'legacy';
-  /** Perfil recomendado. Resolver siempre via `gemini-cu/model-registry`. */
-  computerUseModel: string;
-  /** Perfil compatibilidad: respaldo ante indisponibilidad del proveedor. */
-  computerUseFallbackModel: string;
-  /** Perfil economia: flujos sencillos, repetitivos y de bajo riesgo. */
-  computerUseEconomyModel: string;
-  /** Habilita el cerebro CU para el backend desktop (nut.js). */
-  computerUseDesktopEnabled: boolean;
-  /** Habilita el cerebro CU para el backend browser (Playwright). */
-  computerUseBrowserEnabled: boolean;
-  /** Detección de inyección de prompts en la captura (feature de seguridad de CU). */
-  computerUsePromptInjectionDetection: boolean;
-}
 
 export const DEFAULT_CONFIG: DesktopAgentConfig = {
   maxSteps: 120,
@@ -104,14 +18,14 @@ export const DEFAULT_CONFIG: DesktopAgentConfig = {
   continuousObservationInterval: 2000,
   planningEnabled: true,
   memoryWindowSize: 10,
-  model: SOFLIA_RUNTIME_MODEL,
-  fallbackModel: SOFLIA_RUNTIME_MODEL,
+  model: SOFLIA_DEFAULT_MODEL,
+  fallbackModel: SOFLIA_DEFAULT_MODEL,
   maxConsecutiveFailures: 3,
   stuckDetectionThreshold: 4,
   autoRecoverFromDialogs: true,
   replanOnStuck: true,
   maxRetryPerAction: 2,
-  proactiveModel: SOFLIA_RUNTIME_MODEL,
+  proactiveModel: SOFLIA_DEFAULT_MODEL,
   // El backend desktop visual es single-instance: hay UN mouse, UN teclado y
   // el estado del paso (historial, layout activo) vive en el servicio. Dos
   // tareas visuales concurrentes se corrompen mutuamente; las adicionales
@@ -167,7 +81,7 @@ export const DEFAULT_CONFIG: DesktopAgentConfig = {
   visualNmsIou: 0.45,
   // Cerebro nativo entrenado para Computer Use. 'legacy' (loop de vision propio)
   // queda como rollback poniendo el valor en userData/desktop-agent-config.json.
-  computerUseEngine: 'gemini',
+  computerUseEngine: 'openai',
   computerUseModel: COMPUTER_USE_MODEL_DEFAULTS.recommended,
   computerUseFallbackModel: COMPUTER_USE_MODEL_DEFAULTS.compatibility,
   computerUseEconomyModel: COMPUTER_USE_MODEL_DEFAULTS.economy,
@@ -180,18 +94,18 @@ export const DEFAULT_CONFIG: DesktopAgentConfig = {
 };
 
 function getConfigPath(): string {
-  try {
-    return path.join(electronApp.getPath('userData'), 'desktop-agent-config.json');
-  } catch {
-    return path.join(process.cwd(), 'desktop-agent-config.json');
-  }
+  const root = electronApp.getPath('userData');
+  if (!path.isAbsolute(root)) throw new Error('Ruta de configuración no disponible.');
+  return path.join(root, 'desktop-agent-config.json');
 }
 
 export function loadConfig(): DesktopAgentConfig {
   try {
     const configPath = getConfigPath();
     if (fs.existsSync(configPath)) {
-      const saved = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as Partial<DesktopAgentConfig>;
+      if (fs.statSync(configPath).size > 128 * 1024) throw new Error('Configuración excesiva.');
+      const parsed: unknown = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      const saved = validSavedFields(parsed);
       return normalizeDesktopAgentConfig(applyLegacyCaptureCompatibility({ ...DEFAULT_CONFIG, ...saved }, saved));
     }
   } catch {
@@ -204,12 +118,12 @@ export function loadConfig(): DesktopAgentConfig {
 export function normalizeDesktopAgentConfig(config: DesktopAgentConfig): DesktopAgentConfig {
   return {
     ...config,
-    model: SOFLIA_RUNTIME_MODEL,
-    fallbackModel: SOFLIA_RUNTIME_MODEL,
-    proactiveModel: SOFLIA_RUNTIME_MODEL,
-    computerUseModel: SOFLIA_RUNTIME_MODEL,
-    computerUseFallbackModel: SOFLIA_RUNTIME_MODEL,
-    computerUseEconomyModel: SOFLIA_RUNTIME_MODEL,
+    model: SOFLIA_DEFAULT_MODEL,
+    fallbackModel: SOFLIA_DEFAULT_MODEL,
+    proactiveModel: SOFLIA_DEFAULT_MODEL,
+    computerUseModel: SOFLIA_DEFAULT_MODEL,
+    computerUseFallbackModel: SOFLIA_DEFAULT_MODEL,
+    computerUseEconomyModel: SOFLIA_DEFAULT_MODEL,
   };
 }
 
@@ -228,10 +142,24 @@ function applyLegacyCaptureCompatibility(
   return config;
 }
 
+/** Campos inválidos del legado no amplían límites; los demás conservan su valor. */
+function validSavedFields(input: unknown): Partial<DesktopAgentConfig> {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return {};
+  const fields: Record<string, unknown> = {};
+  for (const [key, schema] of Object.entries(desktopConfigFields)) {
+    const descriptor = Object.getOwnPropertyDescriptor(input, key);
+    if (descriptor && 'value' in descriptor) { const result = schema.safeParse(descriptor.value); if (result.success) fields[key] = result.data; }
+  }
+  return fields as Partial<DesktopAgentConfig>;
+}
 export function saveConfig(config: DesktopAgentConfig): void {
+  const target = getConfigPath(), temporary = target + '.' + randomUUID() + '.tmp';
+  const next = normalizeDesktopAgentConfig(desktopConfigSchema.parse(config));
   try {
-    fs.writeFileSync(getConfigPath(), JSON.stringify(normalizeDesktopAgentConfig(config), null, 2), 'utf-8');
-  } catch (err: any) {
-    console.error('[DesktopAgent] Error saving config:', err.message);
+    fs.writeFileSync(temporary, JSON.stringify(next, null, 2), { encoding: 'utf8', flag: 'wx', mode: 0o600 });
+    fs.renameSync(temporary, target);
+  } catch {
+    try { fs.unlinkSync(temporary); } catch { /* No publicar éxito cuando el reemplazo falló. */ }
+    throw new Error('No se pudo guardar la configuración de Desktop Agent.');
   }
 }

@@ -1,0 +1,65 @@
+{
+  "count": 3512,
+  "before": "f5298a1f5ed9e4df27babf8979457b9c67586aeb27f495d9f41b6ee9944d88ed",
+  "after": "f5298a1f5ed9e4df27babf8979457b9c67586aeb27f495d9f41b6ee9944d88ed",
+  "changedDuringGate": [],
+  "copiedFilesMatching": 3492,
+  "deltaFromUnit32": [
+    {
+      "file": "src/__tests__/services/chat-cross-device-deletion.test.ts",
+      "previousSha256": "1020ed11e2cf3aaac9769765d3421aca5deebc23efb99b3c9c003a918c945c83",
+      "currentSha256": "67a3677194748b51a3cdef154823b130dc792c908bd9c5fff319e1ec1690efaf"
+    },
+    {
+      "file": "src/__tests__/services/chat-delete-durability.test.ts",
+      "previousSha256": "f8f208cca4a5e5aff46a533f36f2c6316551f8dd63a621e77e65c4a0f0ae3809",
+      "currentSha256": "9d70dba6627882977ea372bb132f72b948ff928e27e192ff300632dcfba93c83"
+    },
+    {
+      "file": "src/__tests__/services/chat-service.setup.ts",
+      "previousSha256": "996d9f7554146209ea1d3cdec4ea10239d9df2411f592976ac4f654733395b6b",
+      "currentSha256": "9261797a2a517b24ea1f0d6c3a1649e028d142a7867909518a0a975b9fe97da5"
+    },
+    {
+      "file": "src/__tests__/services/chat-sync-intent.test.ts",
+      "previousSha256": "0f289e7305a88c5854aea87dfb07621f0ef95d4dc71511b2554c2b48ac5900a5",
+      "currentSha256": "4142a4dd81540a8490b534eb64647bad9a01c2d1cc707fc6c2a0c9ac79a31ccb"
+    },
+    {
+      "file": "src/__tests__/services/chat-sync-permanent-errors.test.ts",
+      "previousSha256": "8b606335e8875f83bf07d4327ca69f626afc692607cb4aa80a0eaf595abc4e24",
+      "currentSha256": "42969b40dfb00ab82a5707fd4b2507cb531bb0e6570cf4adc630879c79494ff5"
+    },
+    {
+      "file": "src/services/chat/sync-pass.ts",
+      "previousSha256": "e233fe71f23116c3f3ed4c6ec8b08bfcbdfdfcf83660dccef06067fb014d2c66",
+      "currentSha256": "b61926e09d027a430eeea51f34864f2a22a1a0811f0f68d262a9f4630cede9a5"
+    },
+    {
+      "file": "src/services/chat/sync.ts",
+      "previousSha256": "de12bc8775f775dbdb94e2db6b883015ab03da8c4764c3db7edaa3fb30b0990d",
+      "currentSha256": "cc8213dac7ad11f221b83c773d203c6098032d183c2f8f48828f19ecaf25db07"
+    },
+    {
+      "file": "src/__tests__/services/chat-auth.fixture.ts",
+      "previousSha256": null,
+      "currentSha256": "40fe8fea7af3fb2b9504ac432029f0aebac3200bf08642b8279f993df844ceb3"
+    },
+    {
+      "file": "src/__tests__/services/chat-session-sdk.test.ts",
+      "previousSha256": null,
+      "currentSha256": "9039f87854d979db9a40210f3ed03608aea54f1bc54812443ee98c035533430b"
+    },
+    {
+      "file": "src/__tests__/services/chat-sync-session.test.ts",
+      "previousSha256": null,
+      "currentSha256": "a250643d1f204145a16e57ce621b49f81f9892dae40a7e818fa05c2885519c69"
+    },
+    {
+      "file": "src/services/chat/session-review.ts",
+      "previousSha256": null,
+      "currentSha256": "814811bf6f04ce4e5d625721b2bd24ec01d07717ff2df1924c9aadca609af56f"
+    }
+  ],
+  "head": "e166d250629e503cf12f69449fb6d66e569134c8"
+}

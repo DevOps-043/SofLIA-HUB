@@ -1,0 +1,63 @@
+{
+  "fecha": "2026-10-22",
+  "rama": "codex/reduce-technical-debt",
+  "baseGit": "e166d250629e503cf12f69449fb6d66e569134c8",
+  "estado": "Implementada y verificada localmente; revisión independiente pendiente",
+  "compuerta": {
+    "comando": "npm run verify:pr",
+    "salida": 0,
+    "archivosAprobados": 453,
+    "archivosOmitidos": 2,
+    "pruebasAprobadas": 4774,
+    "pruebasOmitidas": 5,
+    "pruebasFallidas": 0,
+    "duracionSuiteSegundos": 228.59,
+    "casosAgregados": 92,
+    "pruebasToolingAprobadas": 4,
+    "archivosLintIncremental": 106,
+    "elementosOpenSpecValidados": 77
+  },
+  "baselineDirigida": { "archivos": 4, "pruebas": 63, "salida": 0 },
+  "suiteDirigida": { "archivos": 11, "pruebas": 224, "salida": 0, "nota": "Antes de los dos casos finales de compatibilidad; ambos cubiertos por la compuerta final" },
+  "compatibilidadFinal": { "archivos": 2, "pruebas": 86, "salida": 0 },
+  "smokeNativo": {
+    "comando": "npm run calendar:smoke:native",
+    "salida": 0,
+    "electron": "44.5.1",
+    "procesos": 3,
+    "dpapiReal": true,
+    "planesGmailVerificados": true,
+    "credencialesReales": false,
+    "informe": "native-summary.json"
+  },
+  "build": {
+    "comando": "npm run app:smoke:build",
+    "salida": 0,
+    "fuentes": 3297,
+    "artefactos": 6,
+    "archivosEnvCopiados": false,
+    "empaquetado": false,
+    "aplicacionIniciada": false,
+    "informe": "build-summary.json",
+    "hashes": "build-artifacts.json"
+  },
+  "sdk": { "googleapisReal": true, "oauth2Real": true, "fetchSimulado": true, "conexionRemota": false, "casosNuevos": 3 },
+  "inventario": { "archivosPrueba": 623, "canalesIPC": 494, "canalesAgregados": 0, "dependenciasAgregadas": 0 },
+  "alcance": { "canalesDirectos": 9, "lecturas": 3, "mutaciones": 6, "firmasPosicionalesConservadas": true },
+  "revision": "Autorrevisión adversarial; revisión independiente pendiente antes de archivar",
+  "siguienteHallazgo": {
+    "archivo": "electron/wa-agent/bulk-label-verification.ts",
+    "riesgo": "Feedback runtime puede ordenar ampliar un vaciado después de modificar mensajes individuales; registra IDs y errores crudos",
+    "accion": "Verificación informativa con alcance y contexto, sin ordenar efectos nuevos; pruebas del loop/ejecutor en unidad propia"
+  },
+  "limites": [
+    "Progreso directo sólo en memoria durante la llamada; sin diario durable ni replay tras crash",
+    "Sin CAS ni transacción remota; revisar Gmail antes de repetir resultados parciales o inciertos",
+    "Snapshot fijo; mensajes nuevos pueden impedir borrado y no se incorporan al alcance",
+    "Cuota local de 50000 membresías y 100 etiquetas en limpieza; sin benchmark ni SLO",
+    "Sin buzón/credenciales/correo reales ni interacción humana con el modal",
+    "Custodia nativa comprobada en Windows; sin Hub/instalador iniciado ni nativo Linux/macOS",
+    "Permisos/configuración de confirmación runtime preservados, no certificados por esta unidad IPC",
+    "Sin nuevo porcentaje global de deuda técnica"
+  ]
+}

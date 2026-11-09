@@ -80,7 +80,7 @@ describe('Entrypoint con sesion real', () => {
       'entra a mi cuenta del portal de facturacion donde ya estoy logueado',
       undefined,
       {
-        apiKey: 'test-key',
+
         browserWeb: browserWeb as any,
         windowsUIA: windowsUIA as any,
         config: { keywordRoutingEnabled: true, maxConcurrentAgents: 1, queueTimeoutMs: 1000 } as any,
@@ -108,7 +108,7 @@ describe('Entrypoint con navegador integrado', () => {
     const executeTaskInternal = vi.fn();
 
     const outcome = await executeDesktopAgentTaskEntrypoint('abre example.com', { backend: 'browser' }, {
-      apiKey: 'test-key',
+
       browserWeb: browserWeb as never,
       windowsUIA: { executeTask: vi.fn(), getLastRunResult: vi.fn(() => null) } as never,
       config: { keywordRoutingEnabled: true, maxConcurrentAgents: 1, queueTimeoutMs: 1000 } as never,
@@ -132,7 +132,7 @@ describe('Entrypoint con navegador integrado', () => {
     const runComputerUseBrowser = vi.fn(async () => { throw new Error('captura vacía'); });
 
     const outcome = await executeDesktopAgentTaskEntrypoint('pulsa el botón visible', { backend: 'browser' }, {
-      apiKey: 'test-key',
+
       browserWeb: browserWeb as never,
       windowsUIA: { executeTask: vi.fn(), getLastRunResult: vi.fn(() => null) } as never,
       config: { keywordRoutingEnabled: true, maxConcurrentAgents: 1, queueTimeoutMs: 1000 } as never,

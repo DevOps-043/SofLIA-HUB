@@ -1,6 +1,6 @@
 # Accesibilidad
 
-Estado: vigente. Actualizado: 2026-07-21.
+Estado: vigente. Actualizado: 2026-10-25.
 
 <!-- evidence: src/components/ui -->
 <!-- evidence: src/index.css -->
@@ -9,6 +9,8 @@ Estado: vigente. Actualizado: 2026-07-21.
 <!-- evidence: src/components/browser/IntegratedBrowserPanel.tsx -->
 <!-- evidence: src/components/browser/BrowserDialog.tsx -->
 <!-- evidence: src/components/browser/BrowserManagementPanel.tsx -->
+<!-- evidence: src/components/confirm-action-modal/ConfirmActionModal.tsx -->
+<!-- evidence: src/adapters/desktop_ui/chat-ui/ChatModals.tsx -->
 
 ## Estado comprobable
 
@@ -18,6 +20,15 @@ Estado: vigente. Actualizado: 2026-07-21.
 - Tema claro/oscuro tiene tokens de texto y `on-accent`; el contraste navy sobre
   aqua fue elegido explicitamente para AA.
 - Body declara minimo 320 px y scroll interno por pantalla.
+- El [selector compartido](../../src/components/ui/SelectDropdown.tsx) conserva
+  identidad al reordenar opciones, excluye activas ausentes/deshabilitadas y
+  comunica el nombre externo al listbox. Flechas/Home/End y prefijos exploran
+  sin escribir; sólo confirmación cambia el valor. Escape cierra primero el
+  popup, Tab/blur salen sin confirmar y vaciar/deshabilitar no deja apertura
+  latente. El portal conserva la capa modal. La geometría no se anima y el
+  control respeta movimiento reducido; la opción activa se desplaza dentro
+  de la lista después de cambios de altura, sin desplazar el diálogo padre.
+  El smoke local distingue foco emulado/AX de una auditoría de lector de pantalla.
 - El grip del chat flotante expone `role="separator"`, valores ARIA, foco,
   flechas de teclado y un agarre visual con área de interacción amplia.
   El chat mantiene radios y borde perceptible, reemplaza su header general por
@@ -53,6 +64,36 @@ Estado: vigente. Actualizado: 2026-07-21.
 Esto no constituye certificacion WCAG. No existe objetivo WCAG formal, prueba axe
 en CI ni auditoria de lector de pantalla versionada.
 
+## Confirmación de acciones del chat
+
+`ConfirmActionModal` usa `dialog.showModal()`, título asociado por instancia y
+modalidad nativa. Abre con foco en Cancelar; si desborda, enfoca el título para
+preservar el comienzo de la lectura. Escape comunica cancelación al dueño sin
+cerrar su estado por separado. El cierre devuelve foco al invocador conectado,
+también al desmontar. Los botones no envían formularios; el teclado conserva
+Tab nativo y detiene burbujeo hacia atajos del contenedor.
+
+El controlador asigna un `requestId` efímero por revisión y el componente renueva
+sus nodos al cambiarlo, incluso con texto idéntico. Así un gesto iniciado sobre
+la revisión anterior no aprueba la siguiente. Cambiar contenido o alternativas
+reinicia foco y scroll. `ChatModals` sólo delega al resolver capturado; el dueño
+decide qué solicitud retirar. Esta identidad renderer no autoriza, persiste ni
+viaja por IPC. La opción permanente conserva las guardas del servicio.
+
+La tarjeta admite desplazamiento, limita su altura al viewport y respeta
+movimiento reducido. Los fondos existentes de las tres acciones principales se
+oscurecieron para alcanzar 4.5:1 con texto blanco en reposo y hover. La medición
+local de CSS computado cubrió ambos temas; no certifica todo el producto.
+Referencias: patrón [APG de diálogo modal](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/)
+y [contraste mínimo WCAG](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html).
+
+El [reporte del cambio](../../openspec/changes/harden-action-confirmation-dialog/reports/verification.md)
+separa pruebas renderer de teclado/AX/zoom en Electron Windows con foco emulado.
+Las capturas gráficas defectuosas se descartaron como evidencia visual. Esa
+revisión, la ejecución del fixture nativo final simplificado y la revisión
+independiente siguen pendientes tras el rechazo de apertura del archivo local
+por la política del navegador. No se usó una ruta alternativa para eludirlo.
+
 ## Requisitos para cambios nuevos
 
 | Area | Criterio verificable |
@@ -76,7 +117,9 @@ en CI ni auditoria de lector de pantalla versionada.
 - Scroll global oculto obliga a cada vista a definir un contenedor accesible.
 - Texto secundario y bordes sutiles deben verificarse en monitores de bajo
   contraste; no existe test visual automatizado.
-- Intro de 4.2 s y animaciones no consultan globalmente `prefers-reduced-motion`.
+- [AppLoadingScreen](../../src/app/AppLoadingScreen.tsx) consulta movimiento
+  reducido; el selector y estilos del navegador tienen tratamiento local.
+  No se ha demostrado aplicación completa a todas las animaciones del producto.
 
 ## Checklist manual minimo
 
@@ -89,3 +132,9 @@ en CI ni auditoria de lector de pantalla versionada.
 
 Automatizar axe y formalizar WCAG son mejoras pendientes; no se marcan como
 implementadas en la matriz.
+
+La interacción del selector toma como referencia los patrones APG de
+[combobox](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/) y
+[listbox](https://www.w3.org/WAI/ARIA/apg/patterns/listbox/). Se conserva la
+semántica previa de Tab sin confirmar; no se declara implementación de cada
+comportamiento opcional de esos patrones ni conformidad WCAG global.

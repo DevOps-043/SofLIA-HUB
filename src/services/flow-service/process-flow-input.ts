@@ -1,21 +1,17 @@
 import { FLOW_MODEL } from './constants';
-import { getGenAI } from './ai-client';
+import { observeFlowSession, type FlowSession } from './session';
+import { getPublicAiErrorMessage } from '../gemini-chat/public-error';
+import { generateNativeFlow, NativeFlowRevokedError } from './native';
 import { buildDeterministicAnalysis, shouldAttachScreenshot } from './deterministic-analysis';
 import { buildFallbackAnalysis } from './fallback-analysis';
 import { normalizeAnalysis } from './analysis-normalizer';
 import { parseJsonPayload } from './normalizers';
-import { buildFlowRequestParts } from './request-parts';
 import type { FlowAnalysisResult, RawFlowAnalysis } from './types';
 
-async function requestFlowAnalysis(transcript: string, base64Image?: string): Promise<FlowAnalysisResult> {
-  const ai = await getGenAI();
-  const model = ai.getGenerativeModel({
-    model: FLOW_MODEL,
-    generationConfig: { responseMimeType: 'application/json' },
-  });
-  const result = await model.generateContent(buildFlowRequestParts(transcript, base64Image));
-  const parsed = parseJsonPayload<RawFlowAnalysis>(result.response.text().trim());
-  return normalizeAnalysis(parsed, transcript);
+async function requestFlowAnalysis(transcript: string, base64Image: string | undefined, scope: FlowSession): Promise<FlowAnalysisResult> {
+  const native = await generateNativeFlow({ kind: 'analysis', text: transcript, ...(base64Image ? { image: base64Image } : {}) });
+  scope.assert();
+  return normalizeAnalysis(parseJsonPayload<RawFlowAnalysis>(native.trim()), transcript);
 }
 
 export async function processFlowInput(text: string, base64Image?: string): Promise<FlowAnalysisResult> {
@@ -26,11 +22,15 @@ export async function processFlowInput(text: string, base64Image?: string): Prom
   }
 
   const includeScreenshot = Boolean(base64Image && shouldAttachScreenshot(transcript));
+  const scope = observeFlowSession();
   try {
-    return await requestFlowAnalysis(transcript, includeScreenshot ? base64Image : undefined);
+  try {
+    return await requestFlowAnalysis(transcript, includeScreenshot ? base64Image : undefined, scope);
   } catch (error) {
-    console.error('Flow processing error:', {
-      message: error instanceof Error ? error.message : String(error),
+    if (error instanceof NativeFlowRevokedError) throw error;
+    scope.assert();
+    console.error('[Flow] No se pudo procesar la solicitud:', {
+      message: getPublicAiErrorMessage(error),
       model: FLOW_MODEL,
       includeScreenshot,
     });
@@ -38,14 +38,18 @@ export async function processFlowInput(text: string, base64Image?: string): Prom
 
   if (includeScreenshot) {
     try {
-      return await requestFlowAnalysis(transcript);
+      return await requestFlowAnalysis(transcript, undefined, scope);
     } catch (retryError) {
-      console.error('Flow processing retry without screenshot failed:', {
-        message: retryError instanceof Error ? retryError.message : String(retryError),
+      if (retryError instanceof NativeFlowRevokedError) throw retryError;
+      scope.assert();
+      console.error('[Flow] Falló el reintento sin captura:', {
+        message: getPublicAiErrorMessage(retryError),
         model: FLOW_MODEL,
       });
     }
   }
 
-  return buildFallbackAnalysis(transcript, includeScreenshot ? base64Image : undefined);
+  scope.assert();
+  return await buildFallbackAnalysis(transcript, includeScreenshot ? base64Image : undefined, scope);
+  } finally { scope.dispose(); }
 }

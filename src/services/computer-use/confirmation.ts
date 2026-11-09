@@ -1,6 +1,7 @@
 import { canRememberCommand, isReadOnlyCommand, type ConfirmationDecision, type ConfirmationOptions } from '../../shared/command-approval';
 import { getUserPreferenceScope } from '../user-scope';
 import { commandApprovalKey, hasCommandApproval, rememberCommandApproval } from './command-approvals';
+import { COMPUTER_NATIVE_REVIEWED_TOOLS } from '../../shared/computer-use-policy';
 
 export { isReadOnlyCommand } from '../../shared/command-approval';
 type ConfirmationHandler = (toolName: string, description: string, options?: ConfirmationOptions & { signal?: AbortSignal }) => Promise<ConfirmationDecision>;
@@ -43,8 +44,10 @@ export async function requestUserConfirmation(toolName: string, description: str
   return result.confirmed;
 }
 
-export async function confirmToolExecution(toolName: string, args: Record<string, any>, api: Window['computerUse'], signal?: AbortSignal): Promise<boolean> {
+export async function confirmToolExecution(toolName: string, args: Record<string, unknown>, api: Window['computerUse'], signal?: AbortSignal): Promise<boolean> {
   if (signal?.aborted) return false;
+  if (window.desktopAgent?.nativeActionReview === true && ['use_computer', 'reset_browser_profile'].includes(toolName)) return true;
+  if (api?.nativeActionReview === true && COMPUTER_NATIVE_REVIEWED_TOOLS.has(toolName)) return true;
   if (
     (toolName === 'execute_command' || toolName === 'run_background_command')
     && isReadOnlyCommand(String(args.command || ''))
@@ -92,7 +95,7 @@ function hasExternalEffectComputerTask(task: unknown): boolean {
   return EXTERNAL_EFFECT_COMPUTER_TASK.test(normalized);
 }
 
-function describeDangerousTool(toolName: string, args: Record<string, any>): string {
+function describeDangerousTool(toolName: string, args: Record<string, unknown>): string {
   const descriptions: Record<string, string> = {
     delete_item: `Eliminar: ${args.path}`,
     run_background_command: `Ejecutar en segundo plano: ${args.command}${args.working_directory ? `\nEn: ${args.working_directory}` : ''}`,
@@ -111,7 +114,7 @@ function describeDangerousTool(toolName: string, args: Record<string, any>): str
   };
 
   if (toolName === 'send_email') {
-    return `Enviar email a: ${args.to}\nAsunto: ${args.subject}${args.attachment_paths?.length ? `\nAdjuntos: ${args.attachment_paths.length} archivo(s)` : ''}`;
+    return `Enviar email a: ${args.to}\nAsunto: ${args.subject}${Array.isArray(args.attachment_paths) && args.attachment_paths.length ? `\nAdjuntos: ${args.attachment_paths.length} archivo(s)` : ''}`;
   }
 
   return descriptions[toolName] || `Ejecutar comando: ${args.command}`;

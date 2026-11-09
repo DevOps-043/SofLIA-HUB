@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { createRequire } from 'node:module';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { captureSessionOperation } from './ai-provider/session-operation';
 import { categorizeFile } from './neural-organizer/categorize-file';
 import { extractImageTextIfNeeded } from './neural-organizer/ocr';
 import { buildOrganizedFileMessage } from './neural-organizer/notification';
@@ -17,12 +17,10 @@ export class NeuralOrganizerService {
   private watcher: fs.FSWatcher | null = null;
   private isRunning = false;
   private processingFiles = new Set<string>();
-  private ai: GoogleGenerativeAI;
   private notifyCallback?: (message: string) => Promise<void>;
   private downloadsPath: string;
   private processedCount = 0;
   constructor(options: NeuralOrganizerOptions) {
-    this.ai = new GoogleGenerativeAI(options.apiKey);
     this.notifyCallback = options.notifyCallback;
     this.downloadsPath = path.join(os.homedir(), 'Downloads');
   }
@@ -47,9 +45,6 @@ export class NeuralOrganizerService {
     this.isRunning = false;
     this.processingFiles.clear();
     console.log('[NeuralOrganizer] Stopped watching');
-  }
-  public updateApiKey(apiKey: string): void {
-    this.ai = new GoogleGenerativeAI(apiKey);
   }
   public getStatus() {
     return {
@@ -78,9 +73,14 @@ export class NeuralOrganizerService {
     const filePath = path.join(this.downloadsPath, filename);
     if (this.processingFiles.has(filePath) || !(await waitForFileReady(filePath))) return;
     this.processingFiles.add(filePath);
+    let operation: ReturnType<typeof captureSessionOperation> | undefined;
     try {
+      operation = captureSessionOperation();
       const extractedText = await extractImageTextIfNeeded(Tesseract, filename, filePath);
-      const categoryInfo = await categorizeFile(this.ai, filename, extractedText);
+      operation.assert();
+      const categoryInfo = await categorizeFile(filename, extractedText, operation.signal);
+      operation.assert();
+      if (!this.isRunning) return;
       const newFileName = await moveToCategory(filename, filePath, categoryInfo.category);
       this.processedCount++;
       if (this.notifyCallback) {
@@ -89,6 +89,7 @@ export class NeuralOrganizerService {
     } catch (err: any) {
       console.error(`[NeuralOrganizer] Failed to process ${filename}:`, err.message);
     } finally {
+      operation?.dispose();
       this.processingFiles.delete(filePath);
     }
   }

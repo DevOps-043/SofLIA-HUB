@@ -1,0 +1,95 @@
+{
+  "directory": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-electron-security-2026-10-24",
+  "files": [
+    {
+      "file": "guard-red.log",
+      "bytes": 3486,
+      "sha256": "512adf1ffb8a1c85f2826fdfc8b7ec5bce55016b03c2805a7710a75bdb9cd525"
+    },
+    {
+      "file": "guard-final.log",
+      "bytes": 586,
+      "sha256": "a414cc52163f5881a14a6453aed47f6332ba0e3895bd90cf629fc6715dad1b06"
+    },
+    {
+      "file": "runtime-old-rejected.log",
+      "bytes": 203,
+      "sha256": "4f1021c00d7d273cf24681b66d18b5b866a61c9388ef95a257797bf6dbbdb001"
+    },
+    {
+      "file": "runtime-final.log",
+      "bytes": 204,
+      "sha256": "479c58eb20777db107aff4f063fe80033986f2cd2073a88b851ed6bd529de20b"
+    },
+    {
+      "file": "resolve-lock.log",
+      "bytes": 435,
+      "sha256": "09058d799465ef4150b99872e32cba975b387c3494dd08e7cc517c9a3fbc77dd"
+    },
+    {
+      "file": "install-package.log",
+      "bytes": 26,
+      "sha256": "85e196dbf29d0471f4319d77e0e59fdb4bf59ec94c31bda839c453c92a2c927e"
+    },
+    {
+      "file": "install-binary.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "browser-native.log",
+      "bytes": 5707,
+      "sha256": "f7df81b9d03f6b826c00395a3e9a78436a9fabbb98973539f765d5b29033477c"
+    },
+    {
+      "file": "zoom-corrected.log",
+      "bytes": 897,
+      "sha256": "9ea0db7aba3a240552cd650067ac3621f10daee84f498cc641436c34a2011c13"
+    },
+    {
+      "file": "zoom-final.log",
+      "bytes": 1320,
+      "sha256": "960560502171197c92cae3d9ef225da86a5da1632e5ad13b04e341e46cc0f77a"
+    },
+    {
+      "file": "browser-native-final.log",
+      "bytes": 10967,
+      "sha256": "8854ea389ee91a255f29aa408979d808449db9e352c24646c7257fd4e6654c40"
+    },
+    {
+      "file": "custody-native.log",
+      "bytes": 516,
+      "sha256": "18c3f6ffd99dcc66ae480453c6cbf3884fe045ae3c2d329f7e9c8ed17c9876f2"
+    },
+    {
+      "file": "voice-native.log",
+      "bytes": 702,
+      "sha256": "ca130f5ff3276e8c9b9aecc036a531daf9dd688f81bf822d3096fb412ef01d6d"
+    },
+    {
+      "file": "documents-native.log",
+      "bytes": 4571,
+      "sha256": "2bc7b36ba0410722da860be1a5016a0bca5fdb7931a6884b1fd9f9bdafb2727d"
+    },
+    {
+      "file": "vitest-directed.log",
+      "bytes": 626,
+      "sha256": "22d3f76767f4afe8ca64d8e729dd6ace1e32ef06f29777bdd1589761030b6719"
+    },
+    {
+      "file": "lint-directed.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "verify-pr-final.log",
+      "bytes": 118936,
+      "sha256": "362f5d17b6dd50b8e7bbe61d915d67ed028e5fb25993c813545727a433009bc9"
+    },
+    {
+      "file": "build-final.log",
+      "bytes": 38989,
+      "sha256": "c99932d65d8bee4595e62d914f683a6e1f8aa63280196e668119b0e44c4a3aef"
+    }
+  ]
+}

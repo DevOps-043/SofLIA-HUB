@@ -1,7 +1,10 @@
-import { vi } from 'vitest';
+import { afterEach, beforeEach, vi } from 'vitest';
+
+let originalIpc: Window['ipcRenderer'];
+beforeEach(() => { originalIpc = window.ipcRenderer; Reflect.set(window, 'ipcRenderer', undefined); });
+afterEach(() => { Reflect.set(window, 'ipcRenderer', originalIpc); });
 
 const geminiChatMocks = vi.hoisted(() => {
-  const mockGetGenerativeModel = vi.fn();
   const mockChatsCreate = vi.fn();
   return {
     // Ruta conversacional migrada a `@google/genai`.
@@ -9,30 +12,12 @@ const geminiChatMocks = vi.hoisted(() => {
     mockGoogleGenAI: vi.fn().mockImplementation(function () {
       return { chats: { create: mockChatsCreate } };
     }),
-    // Utilidades de un solo disparo que siguen sobre el SDK anterior.
-    mockGetGenerativeModel,
-    mockGoogleGenerativeAI: vi.fn().mockImplementation(function () {
-      return { getGenerativeModel: mockGetGenerativeModel };
-    }),
     mockGetApiKeyWithCache: vi.fn(async () => null),
   };
 });
 
 vi.mock('@google/genai', () => ({
   GoogleGenAI: geminiChatMocks.mockGoogleGenAI,
-}));
-
-// El SDK legado sigue en uso para los turnos de un solo disparo (optimizador de
-// prompts); se mockea para que ninguna prueba construya el cliente real.
-vi.mock('@google/generative-ai', () => ({
-  GoogleGenerativeAI: geminiChatMocks.mockGoogleGenerativeAI,
-  HarmBlockThreshold: { BLOCK_NONE: 'BLOCK_NONE' },
-  HarmCategory: {
-    HARM_CATEGORY_HARASSMENT: 'HARM_CATEGORY_HARASSMENT',
-    HARM_CATEGORY_HATE_SPEECH: 'HARM_CATEGORY_HATE_SPEECH',
-    HARM_CATEGORY_SEXUALLY_EXPLICIT: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-    HARM_CATEGORY_DANGEROUS_CONTENT: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-  },
 }));
 
 vi.mock('../../services/api-keys', () => ({

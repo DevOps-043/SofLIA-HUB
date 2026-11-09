@@ -1,0 +1,101 @@
+{
+  "count": 3586,
+  "before": "681195072b53a28b3a8598ef92b1c56cded9ffd275211dbdbff50eb92cbd3ad4",
+  "after": "681195072b53a28b3a8598ef92b1c56cded9ffd275211dbdbff50eb92cbd3ad4",
+  "changedDuringGate": [],
+  "copiedFilesMatching": 3566,
+  "deltaFromUnit42": [
+    {
+      "file": "electron/__tests__/computer-use-ipc-authority.test.ts",
+      "previousSha256": "295b38330b36492daf90fc5f8ddadee4c9013b93092bfed0108286a6d9afa046",
+      "currentSha256": "f2332f0af74c4b939cf604d9801e7b5c6ef2ea0c05dd3f17107a9e9d7115354e"
+    },
+    {
+      "file": "electron/computer-use/gui-action.ts",
+      "previousSha256": "de8c1b935274244f630cf0dd3fedd57427ec2b7decb40a940c761721e8e9e907",
+      "currentSha256": "b22723b288351b83eda624c9bb8dab6088887c3530b8d1b3dc11babc0186a675"
+    },
+    {
+      "file": "electron/computer-use/gui-tool.ts",
+      "previousSha256": "96bfc1a7fd955a1c0c0577ef0a898d66e511a23d94bbc5b16c442a49fc5fe4e7",
+      "currentSha256": "92e3979756a11342817f62ac7b5999b28bac441381244f7957451d1ab8cd3989"
+    },
+    {
+      "file": "electron/computer-use/ipc-registration.ts",
+      "previousSha256": "eefba42919a703f71a5cc8404f028c30f6176514b3b394588c78b70ee2bbab80",
+      "currentSha256": "2b6a2958f2e279b4426bfa7643b8fe6fe30fed351609383d009e8d94bb316eec"
+    },
+    {
+      "file": "electron/computer-use/ocr-targeting.ts",
+      "previousSha256": "533ff17936da83764418674ba353ebc268a42e9226fc70d9e0b3996392fbb04a",
+      "currentSha256": "16e6729f8645a5705e3cb6a74340b7c52d5a9011ab1f0c9a33f5e842d877acba"
+    },
+    {
+      "file": "electron/computer-use/tool-dispatch.ts",
+      "previousSha256": "855bcac289c09ff5b887f94a76de3c95af9f14056bade6d3e7713bfee5bf459f",
+      "currentSha256": "1678426f3785892b197bfb3ed3d6a9da9eaae9deeafb4787a2e9ea7b6bd3cb22"
+    },
+    {
+      "file": "electron/__tests__/computer-gui-backends.test.ts",
+      "previousSha256": null,
+      "currentSha256": "768c8fca5f700cd775229ad1f83ff06311236ae69b9d386afb4e09ee0b3d73a3"
+    },
+    {
+      "file": "electron/__tests__/computer-gui-ocr.test.ts",
+      "previousSha256": null,
+      "currentSha256": "beb93ebbdc63d6fe28fb727dffc897d4f9ed8ffbc790d3cfad8082891cd48e03"
+    },
+    {
+      "file": "electron/__tests__/computer-gui-process.test.ts",
+      "previousSha256": null,
+      "currentSha256": "0aa3dcf5c0ed9da6dcc7215acfb6aa4c267d89b4835fa5a6b5b1e81ea662a3f0"
+    },
+    {
+      "file": "electron/__tests__/computer-gui-service.test.ts",
+      "previousSha256": null,
+      "currentSha256": "20388fd47ce1876c34c7956103ff256f05e7d8cd43365499451eb070d7001031"
+    },
+    {
+      "file": "electron/__tests__/helpers/gui-process.fixture.ts",
+      "previousSha256": null,
+      "currentSha256": "69cc45f20a6acadadb5da8ffff0f0d6d4797d412d41289464b2966212c86553b"
+    },
+    {
+      "file": "electron/computer-use/gui/backends.ts",
+      "previousSha256": null,
+      "currentSha256": "54dbdcd95396f3989e42952ec45b385588c2393218f290b869b55bca1b3d69d4"
+    },
+    {
+      "file": "electron/computer-use/gui/execution-context.ts",
+      "previousSha256": null,
+      "currentSha256": "b45d9d371fedef76bab9d852d02313c7522273dc3f60b796d3bf06094a7f02b1"
+    },
+    {
+      "file": "electron/computer-use/gui/input.ts",
+      "previousSha256": null,
+      "currentSha256": "6e94de6be791852e24b5c460d906149b8a034702725b2e7c43c7c1d535ebcccb"
+    },
+    {
+      "file": "electron/computer-use/gui/mac-script.ts",
+      "previousSha256": null,
+      "currentSha256": "20c4cd6d5650961308de05c1d95ced77aeba6ed91133e38aa0ad0959667d4ae1"
+    },
+    {
+      "file": "electron/computer-use/gui/ocr-elements.ts",
+      "previousSha256": null,
+      "currentSha256": "6a21446171ca70a20c0e661f7c9861cba77811db1cb4fa45536c325c89baefc0"
+    },
+    {
+      "file": "electron/computer-use/gui/process.ts",
+      "previousSha256": null,
+      "currentSha256": "6669ed728739e5a79c7b733db0c4bbf1eed87cafbe8ac30221cedf79635df526"
+    },
+    {
+      "file": "electron/computer-use/gui/windows-script.ts",
+      "previousSha256": null,
+      "currentSha256": "383eb287a15b44b96f98cbb7c04e81f5c69778b2ba430f809ad2d7f1c915ec04"
+    }
+  ],
+  "dependenciesAndPolicyUnchanged": true,
+  "groundingModelPolicyUnchanged": true
+}

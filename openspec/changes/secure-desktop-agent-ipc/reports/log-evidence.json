@@ -1,0 +1,72 @@
+[
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-desktop-agent-ipc-2026-10-26\\build-final.log",
+    "bytes": 39586,
+    "sha256": "b00b2279789f5f483f9595707140b161fef114bb092e05ab4f57111df5710018"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-desktop-agent-ipc-2026-10-26\\directed-final.log",
+    "bytes": 492,
+    "sha256": "bdad6bc49a29e050e7c61b6a953fca52efae40f364714dec81993b28dce09a21"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-desktop-agent-ipc-2026-10-26\\directed-first.log",
+    "bytes": 492,
+    "sha256": "ae5e2cea8e5c4f8779c148da79fcf0452962ffa3f0226e1b3c296caf2ba4e989"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-desktop-agent-ipc-2026-10-26\\directed-fourth.log",
+    "bytes": 493,
+    "sha256": "e0dc219cf371a2487f6e2a35d31226b91f8e365352c6f436e0d5f5bed3a651f2"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-desktop-agent-ipc-2026-10-26\\directed-second.log",
+    "bytes": 493,
+    "sha256": "c201bfe5b39cf188e228df49161e4264f71c0e94fb7533ef347bf26bcba80e60"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-desktop-agent-ipc-2026-10-26\\directed-third.log",
+    "bytes": 492,
+    "sha256": "47a1e3167fa3c4b64661370455d14ae3cb986745dd1a073d640e0b7e9b2be904"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-desktop-agent-ipc-2026-10-26\\gate-final.log",
+    "bytes": 166341,
+    "sha256": "fb518f469f4676efbc3f8c75862a163b023f4a46c1976547808ca9096002056d"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-desktop-agent-ipc-2026-10-26\\green-first.log",
+    "bytes": 489,
+    "sha256": "4e37c580478d260375b505d95723f6ae3b49008cfc4da7c7aa59944ba1d86323"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-desktop-agent-ipc-2026-10-26\\red.log",
+    "bytes": 481,
+    "sha256": "6e8c214e43272c7d0040cdabfcdb682a5037c228cde8d0da6fd24420dd79be7a"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-desktop-agent-ipc-2026-10-26\\typecheck-final.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-desktop-agent-ipc-2026-10-26\\typecheck-first.log",
+    "bytes": 616,
+    "sha256": "204b6318d3b4575c282d35ada859545b31cd758e4444514170455dfa360d1496"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-desktop-agent-ipc-2026-10-26\\typecheck-fourth.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-desktop-agent-ipc-2026-10-26\\typecheck-second.log",
+    "bytes": 3089,
+    "sha256": "8974fa5694bc51fcfc1fe6f963fd9311a936c2afaafe4ca0c12d47e6410186b6"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-desktop-agent-ipc-2026-10-26\\typecheck-third.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  }
+]

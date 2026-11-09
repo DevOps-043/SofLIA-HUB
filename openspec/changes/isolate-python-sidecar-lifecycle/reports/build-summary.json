@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "at": "2026-10-23T05:10:12.033Z",
+  "exitCode": 0,
+  "sourceFiles": 3365,
+  "envFilesCopied": false,
+  "packaged": false,
+  "applicationStarted": false,
+  "sandbox": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-app-build-2hYUOV",
+  "productionSources": [
+    {
+      "file": "electron/python-runtime-service.ts",
+      "sha256": "74c6260c5839b0c8c1960f1c66161a4d3a2e97af60d6b00ab12aa6e9d5b5ae27",
+      "buildMatches": true
+    },
+    {
+      "file": "electron/python-tools-service.ts",
+      "sha256": "4b71aaffd2592356eb5041c9f0e31789ccfa1736fac7cd50bceaa3f3f8afc415",
+      "buildMatches": true
+    },
+    {
+      "file": "electron/python/sidecar-connection.ts",
+      "sha256": "c5b98d1e03d4af9616d3b9ba4ee43e3132cb90a133cb9ee4dc5e12aa5b1587f9",
+      "buildMatches": true
+    },
+    {
+      "file": "electron/python/ndjson.ts",
+      "sha256": "be2ab7fcad6e6fd717cdad8146b7f7fa8f76d259f0602d564eba19e2bafd6bb0",
+      "buildMatches": true
+    },
+    {
+      "file": "package.json",
+      "sha256": "8d7dc53ccdf7d0f3379298665c724892ea039ff6ecc486367f8c2c09824dcc4c",
+      "buildMatches": true
+    }
+  ],
+  "artifacts": [
+    {
+      "file": "dist/index.html",
+      "bytes": 460
+    },
+    {
+      "file": "dist-electron/main.js",
+      "bytes": 195748
+    },
+    {
+      "file": "dist-electron/preload.js",
+      "bytes": 46449
+    },
+    {
+      "file": "dist/presentation/presentation-runtime.iife.js",
+      "bytes": 895486
+    },
+    {
+      "file": "dist/audiovisual/film-runtime.iife.js",
+      "bytes": 223019
+    },
+    {
+      "file": "dist/zoom-runtime/index.html",
+      "bytes": 489
+    }
+  ]
+}

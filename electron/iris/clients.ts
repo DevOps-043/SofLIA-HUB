@@ -72,6 +72,13 @@ export function isIrisAvailable(): boolean {
   return !!getIrisClient();
 }
 
+/** Retira la copia de main sin revocar la sesión compartida con el renderer. */
+export async function discardSofiaClient(): Promise<void> {
+  const client = sofiaSupa;
+  sofiaSupa = null;
+  await client?.auth.dispose();
+}
+
 /**
  * Credenciales de SOFIA para clientes efimeros (ej. verificacion de contraseña
  * via Supabase Auth sin contaminar la sesion del cliente memoizado).

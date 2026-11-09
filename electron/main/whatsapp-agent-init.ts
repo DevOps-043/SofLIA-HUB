@@ -23,7 +23,6 @@ export function createWhatsAppAgentInitializer(input: {
   return function initWhatsAppAgent(apiKey: string): void {
     if (apiKey) {
       services.memoryService.setApiKey(apiKey);
-      services.workspaceAutomationService.setApiKey(apiKey);
     }
 
     if (state.waAgent) {
@@ -59,32 +58,23 @@ export function createWhatsAppAgentInitializer(input: {
     state.waAgent.setClipboardAssistant(services.clipboardAssistant);
     state.waAgent.setTaskScheduler(services.taskScheduler);
     state.waAgent.setMeetingWorkflowService(services.meetingWorkflowService);
-    if (apiKey) {
-      services.meetingWorkflowService.setApiKey(apiKey);
-      state.currentGeminiApiKey = apiKey;
-      startApiKeyBoundServices(apiKey, services, state, modules);
-    }
+    if (apiKey) state.currentGeminiApiKey = apiKey;
+    startNativeServices(services, state, modules);
   };
 }
 
-function startApiKeyBoundServices(apiKey: string, services: any, state: MainRuntimeState, modules: any): void {
+function startNativeServices(services: any, state: MainRuntimeState, modules: any): void {
   const status = services.waService.getStatus() as { masterNumber?: string; allowedNumbers?: string[] };
   services.dailyBriefingService.updateConfig({
-    apiKey,
     ownerNumber: services.dailyBriefingService.getConfig().ownerNumber || status.masterNumber || status.allowedNumbers?.[0] || '',
   });
-  services.desktopAgentService.setApiKey(apiKey);
-  services.clipboardAssistant.updateApiKey(apiKey);
   void services.clipboardAssistant.start();
 
   if (!state.neuralOrganizer) {
     state.neuralOrganizer = new modules.NeuralOrganizerService({
-      apiKey,
       notifyCallback: async (message: string) => notifyAllowedWhatsAppNumbers(services, message),
     });
     state.waAgent.setNeuralOrganizer(state.neuralOrganizer);
-  } else {
-    state.neuralOrganizer.updateApiKey(apiKey);
   }
 }
 

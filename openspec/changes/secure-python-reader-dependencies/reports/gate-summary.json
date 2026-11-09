@@ -1,0 +1,66 @@
+{
+  "exitCode": 0,
+  "stages": [
+    {
+      "script": "adapters:check",
+      "exitCode": 0
+    },
+    {
+      "script": "harness:validate",
+      "exitCode": 0
+    },
+    {
+      "script": "audit:supply-chain",
+      "exitCode": 0
+    },
+    {
+      "script": "docs:system:check",
+      "exitCode": 0
+    },
+    {
+      "script": "docs:check",
+      "exitCode": 0
+    },
+    {
+      "script": "skills:seed:check",
+      "exitCode": 0
+    },
+    {
+      "script": "openspec:validate",
+      "exitCode": 0
+    },
+    {
+      "script": "test:quality",
+      "exitCode": 0
+    },
+    {
+      "script": "typecheck",
+      "exitCode": 0
+    },
+    {
+      "script": "lint:changed",
+      "exitCode": 0
+    },
+    {
+      "script": "test",
+      "exitCode": 0
+    }
+  ],
+  "tests": {
+    "passed": 5690,
+    "skipped": 5,
+    "total": 5695
+  },
+  "files": {
+    "passed": 498,
+    "skipped": 2,
+    "total": 500
+  },
+  "durationSeconds": 225.96,
+  "lintFiles": 302,
+  "markdownFiles": 699,
+  "stableSources": 3451,
+  "sourceSnapshotSha256": "d50fa30ea5a933f63f8276dcb2b3a56b0407b3873921091bd6bdb55377a5b8f9",
+  "node": "v26.7.0",
+  "pythonGateIncluded": false
+}

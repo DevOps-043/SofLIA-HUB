@@ -1,0 +1,40 @@
+{
+  "count": 3504,
+  "before": "3da2cbdfe9bc84dd2ae2bdb27cac4fc3541bb1afc0051fa43f9ad2c6499a7324",
+  "after": "3da2cbdfe9bc84dd2ae2bdb27cac4fc3541bb1afc0051fa43f9ad2c6499a7324",
+  "changedDuringGate": [],
+  "copiedFilesMatching": 3484,
+  "deltaFromUnit30": [
+    {
+      "file": "package-lock.json",
+      "previousSha256": "16e0accb2c755825427afaa8f41e1a0760627d67a8b8305e2cc0ccb79d9563c1",
+      "currentSha256": "00907dbd199e00edf4b4fdf18392c367c355ed381f0cb55ff41714aa19cb7f9e"
+    },
+    {
+      "file": "package.json",
+      "previousSha256": "4dc85e8294854ff6785e33d72956e53970840aa8cfd693b71dcb170b814bf2be",
+      "currentSha256": "497634e40237c151f24a557f48e4c84c2430d63af98102d4962c16fddd5c0b3a"
+    },
+    {
+      "file": "scripts/quality/image-dependencies.test.mjs",
+      "previousSha256": null,
+      "currentSha256": "b89bbe8b2fef733478bc75f22fdeb38563faf5161cb7ae4da22c8d06eff68862"
+    },
+    {
+      "file": "scripts/quality/smoke-image-dependencies.mjs",
+      "previousSha256": null,
+      "currentSha256": "18b00f7c3a15fb0908dfb528a19f4f4a27e62e839a59500a1ecdb64cff548fa4"
+    },
+    {
+      "file": "test/manual/image-dependencies/contracts.cjs",
+      "previousSha256": null,
+      "currentSha256": "a3c532c39f35dc7565ef833ec08595895d75a5e3644052bd04fc8dc3e2d39234"
+    },
+    {
+      "file": "test/manual/image-dependencies/main.cjs",
+      "previousSha256": null,
+      "currentSha256": "9bc4ee7f99071b81085df6b25b2d805f64dd1246162bbff1246f9c8ceb6609e9"
+    }
+  ],
+  "head": "e166d250629e503cf12f69449fb6d66e569134c8"
+}

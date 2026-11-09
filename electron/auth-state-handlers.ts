@@ -1,139 +1,99 @@
-import { ipcMain } from 'electron';
-import { getAuthState, setAuthState, type MainAuthState } from './main/auth-state';
+import { ipcMain, type BrowserWindow } from 'electron';
+import { getAuthState, setAuthState } from './main/auth-state';
 import { applyHubSession, revokeHubSession } from './main/hub-session';
-import {
-  applySofiaSession,
-  getSofiaSessionUserId,
-  isSofiaMainSessionConfigured,
-  revokeSofiaSession,
-} from './main/sofia-session';
+import { bindOpenAIHubSession } from './openai-runtime/session-binding';
+import { applySofiaSession, getSofiaSessionUserId, isSofiaMainSessionConfigured, revokeSofiaSession } from './main/sofia-session';
 import { getProjectHubApiService } from './project-hub';
 import { setOrganizationContext } from './main/organization-context';
+import { parseAuthStatePayload } from './ipc/auth-state-contract';
+import { rendererSource } from './ipc/renderer-source';
+import { createLogger } from './utils/logger';
+import type { AuthStatePayload, AuthStateReply } from '../src/shared/auth-state';
 
-/**
- * Contrato del canal: el renderer publica su estado de sesion tras iniciarla,
- * cerrarla o restaurarla.
- *
- * El payload tiene DOS partes con reglas distintas:
- *
- *  - El estado observable (`authenticated`, `userId`): se guarda en
- *    `main/auth-state.ts` y se puede volver a leer por `auth:get-state`.
- *  - Las credenciales Lia y SOFIA: entran y NO salen. No se guardan en el
- *    estado observable, no se devuelven por ningun canal y no se registran.
- *    Sus coordinadores conservan únicamente cada refresh token cifrado.
- *
- * Este canal rechazaba tokens a proposito hasta esta version. Se admiten ahora
- * porque sin identidad el proceso main es `anon` ante la base y toda politica
- * por usuario le devuelve cero filas o un rechazo: Lia perdía preferencias y
- * Skills, mientras SOFIA no podía resolver organizaciones ni la identidad que
- * autoriza WhatsApp. La guarda anterior se sustituye por las tres de arriba, no
- * se elimina sin mas.
- */
+const log = createLogger('auth-state');
+const deniedState = (): AuthStatePayload => ({ authenticated: false, userId: null });
 
-interface AuthStatePayload extends MainAuthState {
-  organizationId: string | null;
-  accessToken: string | null;
-  refreshToken: string | null;
-  sofiaAccessToken: string | null;
-  sofiaRefreshToken: string | null;
-}
-
-function optionalToken(value: unknown): string | null {
-  return typeof value === 'string' && value.trim() ? value.trim() : null;
-}
-
-function parseAuthStatePayload(payload: unknown): AuthStatePayload | null {
-  if (!payload || typeof payload !== 'object') return null;
-  const candidate = payload as {
-    authenticated?: unknown;
-    organizationId?: unknown;
-    userId?: unknown;
-    accessToken?: unknown;
-    refreshToken?: unknown;
-    sofiaAccessToken?: unknown;
-    sofiaRefreshToken?: unknown;
-  };
-  if (typeof candidate.authenticated !== 'boolean') return null;
-  if (candidate.organizationId != null && (typeof candidate.organizationId !== 'string' || !/^[\w-]{1,128}$/.test(candidate.organizationId))) return null;
-  if (candidate.userId !== undefined && candidate.userId !== null && typeof candidate.userId !== 'string') {
-    return null;
-  }
-  const userId = typeof candidate.userId === 'string' ? candidate.userId.trim() : null;
-  if (candidate.authenticated && !userId) return null;
-  const accessToken = optionalToken(candidate.accessToken);
-  const refreshToken = optionalToken(candidate.refreshToken);
-  const sofiaAccessToken = optionalToken(candidate.sofiaAccessToken);
-  const sofiaRefreshToken = optionalToken(candidate.sofiaRefreshToken);
-  // Se aceptan ambos ausentes para compatibilidad, nunca un par parcial.
-  if (Boolean(accessToken) !== Boolean(refreshToken)) return null;
-  if (Boolean(sofiaAccessToken) !== Boolean(sofiaRefreshToken)) return null;
-  return {
-    authenticated: candidate.authenticated,
-    organizationId: typeof candidate.organizationId === 'string' ? candidate.organizationId : null,
-    userId,
-    accessToken,
-    refreshToken,
-    sofiaAccessToken,
-    sofiaRefreshToken,
-  };
-}
-
-export function registerAuthStateHandlers(): void {
+/** Sólo el Hub publica; Hub y Orbe leen. Los getters siguen el ciclo de bootstrap. */
+export function registerAuthStateHandlers(getWindow: () => BrowserWindow | null, getOrb: () => BrowserWindow | null): void {
   let publication = 0;
-  ipcMain.handle('auth:set-state', async (_event, payload: unknown) => {
-    const parsed = parseAuthStatePayload(payload);
-    if (!parsed) {
-      console.warn('[AUTH] Payload de estado invalido; se conserva el estado actual.');
-      return { ok: false, state: getAuthState() };
-    }
-
-    const revision = ++publication;
-    setOrganizationContext(parsed.authenticated ? parsed.userId : null, parsed.organizationId);
-
-    if (!parsed.authenticated) {
-      // El gate se cierra antes de esperar operaciones remotas o de disco.
-      const state = setAuthState({ authenticated: false, userId: null });
-      await Promise.all([revokeSofiaSession(), revokeHubSession(), getProjectHubApiService().logout()]);
-      return { ok: true, state };
-    }
-
-    let verifiedSofiaUserId = getSofiaSessionUserId();
-    if (parsed.sofiaAccessToken && parsed.sofiaRefreshToken) {
-      const sofiaResult = await applySofiaSession(
-        { accessToken: parsed.sofiaAccessToken, refreshToken: parsed.sofiaRefreshToken },
-        parsed.userId!,
-      );
-      verifiedSofiaUserId = sofiaResult.status === 'aplicada' ? sofiaResult.userId : null;
-    }
-
-    const sofiaRequired = isSofiaMainSessionConfigured();
-    if (revision !== publication) return { ok: false, state: getAuthState() };
-    const authenticated = sofiaRequired
-      ? Boolean(verifiedSofiaUserId && verifiedSofiaUserId === parsed.userId)
-      : parsed.authenticated;
-    const state = setAuthState({ authenticated, userId: authenticated ? parsed.userId : null });
-    setOrganizationContext(state.userId, parsed.organizationId);
-
-    if (parsed.accessToken && parsed.refreshToken) {
-      // Sin tokens no se falla: una version anterior del renderer o un flujo que
-      // aun no los publique deja a main como `anon`, que es el estado seguro.
-      await applyHubSession(
-        { accessToken: parsed.accessToken, refreshToken: parsed.refreshToken },
-        parsed.userId,
-      );
-    }
-
-    if (revision !== publication) return { ok: false, state: getAuthState() };
-    if (authenticated && parsed.sofiaAccessToken) {
-      const projectHubExchange = await getProjectHubApiService().exchangeSofiaToken(parsed.sofiaAccessToken);
-      if (!projectHubExchange.success) {
-        console.warn(`[ProjectHub] Canje SOFIA rechazado (${projectHubExchange.code || 'UNKNOWN'}): ${projectHubExchange.error || 'sin detalle'}`);
+  ipcMain.handle('auth:set-state', async (event, ...args: unknown[]): Promise<AuthStateReply> => {
+    const source = rendererSource(event.sender, event.senderFrame, () => [getWindow()]);
+    const snapshot = (): AuthStatePayload => {
+      try { source.assert(); return getAuthState(); } catch { return deniedState(); }
+    };
+    try {
+      // Antes de leer payload, estado privado o tocar cualquier servicio.
+      source.assert();
+      const parsed = args.length === 1 ? parseAuthStatePayload(args[0]) : null;
+      if (!parsed) {
+        log.warn('Payload de estado inválido; se conserva el estado actual.');
+        return { ok: false, state: getAuthState(), reason: 'invalid_payload' };
       }
-    }
+      const revision = ++publication;
+      const current = () => { source.assert(); return revision === publication; };
 
-    return { ok: true, state };
+      if (!parsed.authenticated) {
+        // Cerrar el gate y la selección antes de esperar efectos de revocación.
+        setAuthState(deniedState());
+        setOrganizationContext(null, null);
+        await Promise.all([revokeSofiaSession(), revokeHubSession(), getProjectHubApiService().logout()]);
+        return { ok: current(), state: snapshot() };
+      }
+
+      let verifiedSofiaUserId = getSofiaSessionUserId();
+      let verifiedSofiaAccessToken: string | undefined;
+      let sofiaSessionRevoked = false;
+      if (parsed.sofiaAccessToken && parsed.sofiaRefreshToken) {
+        const result = await applySofiaSession(
+          { accessToken: parsed.sofiaAccessToken, refreshToken: parsed.sofiaRefreshToken },
+          parsed.userId!,
+        );
+        if (!current()) return { ok: false, state: snapshot() };
+        verifiedSofiaUserId = result.status === 'aplicada' ? result.userId : null;
+        if (result.status === 'aplicada' && result.userId === parsed.userId) verifiedSofiaAccessToken = result.accessToken;
+        if (result.status !== 'aplicada') sofiaSessionRevoked = result.revoked === true;
+      }
+
+      if (!current()) return { ok: false, state: snapshot() };
+      const authenticated = isSofiaMainSessionConfigured()
+        ? Boolean(verifiedSofiaUserId && verifiedSofiaUserId === parsed.userId)
+        : parsed.authenticated;
+      const state = setAuthState({ authenticated, userId: authenticated ? parsed.userId : null });
+      setOrganizationContext(state.userId, parsed.organizationId);
+      if (!authenticated && parsed.sofiaAccessToken) {
+        log.warn('La sesión SOFIA publicada no pudo verificarse.');
+        return { ok: false, state, reason: sofiaSessionRevoked ? 'sofia_revoked' : 'sofia_unverified' };
+      }
+
+      if (parsed.accessToken && parsed.refreshToken) {
+        // Compatibilidad: sin tokens Lia el coordinador conserva su política actual.
+        const hubResult = await applyHubSession({ accessToken: parsed.accessToken, refreshToken: parsed.refreshToken }, parsed.userId);
+        if (!current()) return { ok: false, state: snapshot() };
+        if (hubResult === 'aplicada') bindOpenAIHubSession(state.userId);
+      }
+
+      if (authenticated && verifiedSofiaAccessToken) {
+        const exchange = await getProjectHubApiService().exchangeSofiaToken(verifiedSofiaAccessToken);
+        if (!current()) return { ok: false, state: snapshot() };
+        if (!exchange.success) {
+          const code = exchange.code;
+          log.warn({ code: code && /^[A-Z][A-Z0-9_]{0,47}$/.test(code) ? code : undefined },
+            'Canje SOFIA de Project Hub rechazado.');
+        }
+      }
+      return { ok: true, state: snapshot() };
+    } catch {
+      log.warn('Publicación de autenticación rechazada o interrumpida.');
+      return { ok: false, state: snapshot() };
+    } finally { source.dispose(); }
   });
 
-  // Devuelve SOLO el estado observable. Nunca credenciales.
-  ipcMain.handle('auth:get-state', () => getAuthState());
+  ipcMain.handle('auth:get-state', (event, ...args: unknown[]): AuthStatePayload => {
+    const source = rendererSource(event.sender, event.senderFrame, () => [getWindow(), getOrb()]);
+    try {
+      source.assert();
+      return args.length === 0 ? getAuthState() : deniedState();
+    } catch { return deniedState(); }
+    finally { source.dispose(); }
+  });
 }

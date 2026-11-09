@@ -1,0 +1,339 @@
+{
+  "sourcesBefore": [
+    {
+      "source": "src/contexts/auth/useAuthLifecycle.ts",
+      "previousSha256": "ff0e8afc45581ebe78887e17696b6ef79decc4cedd30a636f8c673bb98c1869e",
+      "currentSha256": "61b5e509d61ec2917eef598660b2316a1a22cbb19f65504922f8e8534ac3bd1e"
+    },
+    {
+      "source": "src/contexts/auth/useLiaSession.ts",
+      "previousSha256": "2c7559bcc8bba57dc655c9ed10ad56f7846460e91ff9d712e35b0ddef0cd4855",
+      "currentSha256": "d2d3081acd0861eb9b60dd6ab5a8df7960ee69450b6f14b271faeba7e877734c"
+    },
+    {
+      "source": "src/services/lia-session-exchange.ts",
+      "previousSha256": "8e5258db304386d02c3fe21fe0652c477dea3c52404522c38c9c9ea413aac9b8",
+      "currentSha256": "b1e9140286c5bd610e98ff4ebe57b9050a2047465d308a71f4975aecf607b770"
+    }
+  ],
+  "red": {
+    "behavioralFailures": 13,
+    "excludedFixtureFailures": 2,
+    "interruptedImportsExcluded": 2,
+    "logSha256": "fb1c802551a48adaec2f3bed4f9e22d71730dee5e95a8c5c894b2986b3c15207"
+  },
+  "firstGreen": {
+    "passed": 49,
+    "productRegressions": 4,
+    "fixtureFailures": 2
+  },
+  "secondGreen": {
+    "passed": 55
+  },
+  "adversarial": {
+    "passed": 66,
+    "fixtureFailures": 1,
+    "reason": "StrictMode debe envolver la raíz para repetir el efecto inicial."
+  },
+  "directed": {
+    "passed": 67,
+    "failed": 0,
+    "files": [
+      {
+        "file": "src/__tests__/contexts/auth-lifecycle-cancellation.test.tsx",
+        "cases": 27,
+        "checks": [
+          {
+            "name": "Vigencia de restauración y eventos Auth suscribe antes de leer y el callback no devuelve una promesa",
+            "status": "passed"
+          },
+          {
+            "name": "Vigencia de restauración y eventos Auth descarta restauración inicial tras cierre, SOFIA=true",
+            "status": "passed"
+          },
+          {
+            "name": "Vigencia de restauración y eventos Auth descarta restauración inicial tras cierre, SOFIA=false",
+            "status": "passed"
+          },
+          {
+            "name": "Vigencia de restauración y eventos Auth un error inicial anterior no borra la sesión nueva ni registra el error libre",
+            "status": "passed"
+          },
+          {
+            "name": "Vigencia de restauración y eventos Auth descarta resolución denied de una identidad anterior",
+            "status": "passed"
+          },
+          {
+            "name": "Vigencia de restauración y eventos Auth descarta resolución error de una identidad anterior",
+            "status": "passed"
+          },
+          {
+            "name": "Vigencia de restauración y eventos Auth A/B/A no rehabilita una resolución antigua",
+            "status": "passed"
+          },
+          {
+            "name": "Vigencia de restauración y eventos Auth INITIAL_SESSION tardío no revierte un cierre",
+            "status": "passed"
+          },
+          {
+            "name": "Vigencia de restauración y eventos Auth desmontar libera la suscripción y descarta la lectura pendiente",
+            "status": "passed"
+          },
+          {
+            "name": "Vigencia de restauración y eventos Auth al cambiar de sujeto limpia datos anteriores antes de resolver el nuevo",
+            "status": "passed"
+          },
+          {
+            "name": "Cancelación de recuperación Lia integrada al lifecycle cancela tras lectura sin publicar ni iniciar canje",
+            "status": "passed"
+          },
+          {
+            "name": "Cancelación de recuperación Lia integrada al lifecycle cancela tras refresh sin publicar ni iniciar canje",
+            "status": "passed"
+          },
+          {
+            "name": "Cancelación de recuperación Lia integrada al lifecycle cancela tras canje sin enviar OTP",
+            "status": "passed"
+          },
+          {
+            "name": "Cancelación de recuperación Lia integrada al lifecycle cancela tras OTP para a sin publicar ni cerrar otra sesión",
+            "status": "passed"
+          },
+          {
+            "name": "Cancelación de recuperación Lia integrada al lifecycle cancela tras OTP para otro sin publicar ni cerrar otra sesión",
+            "status": "passed"
+          },
+          {
+            "name": "Errores y recursos del ciclo Auth un evento inicial síncrono evita una lectura redundante",
+            "status": "passed"
+          },
+          {
+            "name": "Errores y recursos del ciclo Auth un refresh vigente conserva identidad y recupera Lia sin vaciar datos",
+            "status": "passed"
+          },
+          {
+            "name": "Errores y recursos del ciclo Auth un fallo de suscripción bloquea incluso un callback retenido y no filtra detalles",
+            "status": "passed"
+          },
+          {
+            "name": "Errores y recursos del ciclo Auth un fallo vigente al resolver se maneja sin rechazo libre",
+            "status": "passed"
+          },
+          {
+            "name": "Errores y recursos del ciclo Auth unsubscribe conserva su receptor y no rehabilita la operación si falla",
+            "status": "passed"
+          },
+          {
+            "name": "Errores y recursos del ciclo Auth StrictMode descarta la primera restauración y conserva la segunda",
+            "status": "passed"
+          },
+          {
+            "name": "Errores y recursos del ciclo Auth restaurar Lia sincroniza perfil una vez y un rechazo auxiliar no borra la sesión",
+            "status": "passed"
+          },
+          {
+            "name": "Errores y recursos del ciclo Auth una recuperación ya cancelada no lee SDK ni degrada datos",
+            "status": "passed"
+          },
+          {
+            "name": "Cancelación y reintentos del canje Lia una señal cancelada impide comenzar el canje",
+            "status": "passed"
+          },
+          {
+            "name": "Cancelación y reintentos del canje Lia cancelar backoff libera timer/listener y no reintenta",
+            "status": "passed"
+          },
+          {
+            "name": "Cancelación y reintentos del canje Lia un reintento vigente recupera sesión y libera su listener",
+            "status": "passed"
+          },
+          {
+            "name": "Cancelación y reintentos del canje Lia un fallo permanente vigente conserva la denegación sin reintentos",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/__tests__/contexts/AuthContext.test.tsx",
+        "cases": 20,
+        "checks": [
+          {
+            "name": "AuthContext initialization AUTH-001: AuthProvider initializes with loading=true",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext initialization AUTH-005: auth state change subscribes to session refresh sources",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext session actions AUTH-002: signInWithSofia sets user and Lia session on success",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext session actions AUTH-003: signOut clears user and session",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext session actions AUTH-004: setCurrentOrganization is callable without SOFIA context",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext Lia degraded mode AUTH-006: Lia sync failures mark the session as degraded without blocking SOFIA access",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext intercambio automatico de conversaciones AUTH-024: dos contraseñas incorrectas previas no se propagan al servicio operativo",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext intercambio automatico de conversaciones AUTH-025: una denegacion secundaria conserva SOFIA y muestra un estado no tecnico",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext intercambio automatico de conversaciones AUTH-026: reintentar recupera conversaciones sin pedir otra contraseña",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext intercambio automatico de conversaciones AUTH-027: una sesion operativa de otro correo se cierra localmente antes del intercambio",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext intercambio automatico de conversaciones AUTH-028: la restauracion persistida intercambia automaticamente con el token SOFIA",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext intercambio automatico de conversaciones AUTH-035: un fallo 5xx se reintenta de forma acotada y recupera la sesion",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext intercambio automatico de conversaciones AUTH-036: el canje para otro correo se revoca localmente y nunca habilita datos ajenos",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext persistencia de sesion AUTH-010: un fallo transitorio de SOFIA conserva la sesion y degrada solo el directorio",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext persistencia de sesion AUTH-013: el directorio caido no se lleva por delante las conversaciones",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext persistencia de sesion AUTH-016: el directorio se recupera solo cuando SOFIA vuelve, sin tocar nada",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext persistencia de sesion AUTH-015: una sesion sin token verificable pide volver a iniciar sesion, no reintentos",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext persistencia de sesion AUTH-014: el reintento manual recupera el directorio sin reiniciar la app",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext persistencia de sesion AUTH-011: un perfil valido sin membresia activa cierra la sesion",
+            "status": "passed"
+          },
+          {
+            "name": "AuthContext persistencia de sesion AUTH-012: una restauracion valida mantiene al usuario autenticado con su contexto",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/__tests__/contexts/use-learning-sso.test.tsx",
+        "cases": 10,
+        "checks": [
+          {
+            "name": "useLearningSso abre el navegador y queda en espera",
+            "status": "passed"
+          },
+          {
+            "name": "useLearningSso descarta un retorno cuyo state no corresponde a la solicitud viva",
+            "status": "passed"
+          },
+          {
+            "name": "useLearningSso ignora un retorno cuando no hay ninguna solicitud viva",
+            "status": "passed"
+          },
+          {
+            "name": "useLearningSso completa la sesion cuando el retorno correlaciona",
+            "status": "passed"
+          },
+          {
+            "name": "useLearningSso no consume dos veces el mismo retorno",
+            "status": "passed"
+          },
+          {
+            "name": "useLearningSso traduce un retorno de acceso denegado sin canjear",
+            "status": "passed"
+          },
+          {
+            "name": "useLearningSso cierra la sesion cuando el perfil no tiene membresia activa",
+            "status": "passed"
+          },
+          {
+            "name": "useLearningSso muestra un mensaje no tecnico si el canje falla",
+            "status": "passed"
+          },
+          {
+            "name": "useLearningSso no se suscribe ni ofrece el flujo con el interruptor apagado",
+            "status": "passed"
+          },
+          {
+            "name": "useLearningSso permite cancelar la espera",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/__tests__/services/lia-session-exchange-core.test.ts",
+        "cases": 10,
+        "checks": [
+          {
+            "name": "Nucleo del intercambio federado SOFIA AUTH-029: solo acepta el formato bearer estricto",
+            "status": "passed"
+          },
+          {
+            "name": "Nucleo del intercambio federado SOFIA AUTH-030: token ausente se niega antes de cualquier operacion administrativa",
+            "status": "passed"
+          },
+          {
+            "name": "Nucleo del intercambio federado SOFIA AUTH-031: identidad valida sin membresia activa no genera acceso",
+            "status": "passed"
+          },
+          {
+            "name": "Nucleo del intercambio federado SOFIA AUTH-034: un correo no verificado no puede tomar una cuenta operativa por coincidencia",
+            "status": "passed"
+          },
+          {
+            "name": "Nucleo del intercambio federado SOFIA AUTH-037: una cuenta migrada usa evidencia legada solo para el mismo sujeto y correo",
+            "status": "passed"
+          },
+          {
+            "name": "Nucleo del intercambio federado SOFIA AUTH-038: evidencia legada incompleta no permite consultar membresia ni generar acceso",
+            "status": "passed"
+          },
+          {
+            "name": "Nucleo del intercambio federado SOFIA AUTH-039: la evidencia legada exige UUID, correo y marcas completas",
+            "status": "passed"
+          },
+          {
+            "name": "Nucleo del intercambio federado SOFIA AUTH-032: emite solo el hash para el correo verificado",
+            "status": "passed"
+          },
+          {
+            "name": "Nucleo del intercambio federado SOFIA AUTH-033: rechaza si el proveedor devuelve acceso para otro correo",
+            "status": "passed"
+          },
+          {
+            "name": "Nucleo del intercambio federado SOFIA AUTH-040: un fallo al leer evidencia legada degrada sin consultar membresia",
+            "status": "passed"
+          }
+        ]
+      }
+    ],
+    "newCases": 27,
+    "jsonSha256": "4c6360abd1a87d7d1307de702cc19a53e641749269baf45b9e4a2a3ee62722d4"
+  },
+  "scope": "Hooks y canje Lia reales; SDK, perfil y remotos ficticios. Sin red/cuentas reales, RLS/JWT ni revocación de I/O enviado."
+}

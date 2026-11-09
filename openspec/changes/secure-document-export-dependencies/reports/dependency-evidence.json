@@ -1,0 +1,102 @@
+{
+  "changes": [
+    {
+      "path": "node_modules/image-size",
+      "before": "1.2.1",
+      "after": "2.0.4",
+      "hook": false,
+      "integrity": "sha512-QRUkFFsRV/6fuESxb9Vkq+a0LkSrgKXuc2NEqfikiXxxN/G3tjWt5EVUlMaImRBZRZK/jRBEbYvpPYZL8t08Zw==",
+      "installed": "2.0.4"
+    },
+    {
+      "path": "node_modules/uuid",
+      "before": "8.3.2",
+      "after": "11.1.1",
+      "hook": false,
+      "integrity": "sha512-vIYxrBCC/N/K+Js3qSN88go7kIfNPssr/hHCesKCQNAjmgvYS2oqr69kIufEG+O4+PfezOH4EbIeHCfFov8ZgQ==",
+      "installed": "11.1.1"
+    },
+    {
+      "path": "node_modules/queue",
+      "before": "6.0.2",
+      "hook": false,
+      "stillInstalled": false
+    }
+  ],
+  "audits": {
+    "all": {
+      "before": {
+        "info": 0,
+        "low": 0,
+        "moderate": 8,
+        "high": 8,
+        "critical": 0,
+        "total": 16
+      },
+      "after": {
+        "info": 0,
+        "low": 0,
+        "moderate": 6,
+        "high": 6,
+        "critical": 0,
+        "total": 12
+      },
+      "removed": [
+        "exceljs",
+        "image-size",
+        "pptxgenjs",
+        "uuid"
+      ],
+      "added": []
+    },
+    "-prod": {
+      "before": {
+        "info": 0,
+        "low": 0,
+        "moderate": 8,
+        "high": 8,
+        "critical": 0,
+        "total": 16
+      },
+      "after": {
+        "info": 0,
+        "low": 0,
+        "moderate": 6,
+        "high": 6,
+        "critical": 0,
+        "total": 12
+      },
+      "removed": [
+        "exceljs",
+        "image-size",
+        "pptxgenjs",
+        "uuid"
+      ],
+      "added": []
+    }
+  },
+  "baseline": {
+    "uuid": "8.3.2",
+    "imageSize": "1.2.1",
+    "shortUuidBufferRejected": false,
+    "icnsPushes": 33,
+    "icnsError": "QA: parser sin progreso"
+  },
+  "hooksExecuted": false,
+  "parentPins": {
+    "exceljs": "4.4.0",
+    "pptxgenjs": "4.0.1"
+  },
+  "selectors": {
+    "exceljs@4.4.0": {
+      "uuid": "11.1.1"
+    },
+    "pptxgenjs@4.0.1": {
+      "image-size": "2.0.4"
+    }
+  },
+  "resolvedIntegrities": {
+    "uuid": "sha512-vIYxrBCC/N/K+Js3qSN88go7kIfNPssr/hHCesKCQNAjmgvYS2oqr69kIufEG+O4+PfezOH4EbIeHCfFov8ZgQ==",
+    "image-size": "sha512-QRUkFFsRV/6fuESxb9Vkq+a0LkSrgKXuc2NEqfikiXxxN/G3tjWt5EVUlMaImRBZRZK/jRBEbYvpPYZL8t08Zw=="
+  }
+}

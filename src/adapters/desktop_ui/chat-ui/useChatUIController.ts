@@ -79,6 +79,7 @@ export function useChatUIController(props: ChatUIProps) {
   });
   const setConfirmationModal = state.confirmation.setModal;
   const pendingConfirmation = useRef<((decision: ConfirmationDecision) => void) | null>(null);
+  const confirmationSequence = useRef(0);
 
   useEffect(() => {
     setConfirmationHandler((toolName, description, options) => new Promise<ConfirmationDecision>((resolve) => {
@@ -95,7 +96,7 @@ export function useChatUIController(props: ChatUIProps) {
       const onAbort = () => finish(false);
       pendingConfirmation.current = finish;
       options?.signal?.addEventListener('abort', onAbort, { once: true });
-      setConfirmationModal({ toolName, description, allowAlways: options?.allowAlways, resolve: finish });
+      setConfirmationModal({ requestId: ++confirmationSequence.current, toolName, description, allowAlways: options?.allowAlways, resolve: finish });
     }));
     return () => {
       pendingConfirmation.current?.(false);

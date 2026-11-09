@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { safeStorage } from 'electron';
+import { createRecoveryReviewLifetime } from './recovery-review-lifetime';
+import { publishRecoveryFile } from './recovery-file-publication';
 import { validateSyncSettings, type BrowserSyncSettings } from './sync-settings-store';
 import { validateSyncCheckpoints } from './sync-checkpoint-store';
 import { validateSyncConflictJournal } from './sync-conflict-store';
@@ -30,20 +32,11 @@ function read(file: string, limit: number): Buffer | null {
   } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null; throw error; }
   finally { if (fd !== undefined) fs.closeSync(fd); }
 }
-function cleanup(file: string, published = false): void {
+function cleanup(file: string): void {
   try { fs.unlinkSync(file); } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
-    if (!published) throw error;
-    console.warn('[Navegador][Sync] Estado publicado; queda un temporal de limpieza.');
+    throw error;
   }
-}
-function publish(file: string, data: Buffer, guard: () => void, exclusive = false): void {
-  const temporary = `${file}.${randomUUID()}.tmp`; let created = false; let published = false;
-  try {
-    guard(); const fd = fs.openSync(temporary, 'wx', 0o600); created = true;
-    try { fs.writeFileSync(fd, data); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
-    guard(); if (exclusive) fs.linkSync(temporary, file); else fs.renameSync(temporary, file); published = true;
-  } finally { if (created) cleanup(temporary, published); }
 }
 const same = (a: Buffer | null, b: Buffer | null) => a === null ? b === null : b !== null && a.equals(b);
 const capture = (root: string): Snapshot => Object.fromEntries(files.map(name => [name, read(path.join(root, name), limits[name])])) as Snapshot;
@@ -96,9 +89,13 @@ function archiveCount(root: string): number {
 function finish(root: string, marker: Buffer, guard: () => void): void {
   if (archiveCount(root) >= 5 || !same(marker, read(syncRecoveryMarker(root), MAX_MARKER))) throw fail();
   const archive = path.join(root, `sync-recovery-${randomUUID()}.bin`);
-  publish(archive, marker, guard, true);
+  publishRecoveryFile(archive, marker, guard, true);
   try { guard(); if (!same(marker, read(syncRecoveryMarker(root), MAX_MARKER))) throw fail(); fs.unlinkSync(syncRecoveryMarker(root)); }
-  catch (error) { cleanup(archive); throw error; }
+  catch (error) {
+    try { cleanup(archive); }
+    catch { console.warn('[Navegador][Sync] Recuperación incompleta; quedó un archivo protegido de compensación pendiente de limpieza.'); }
+    throw error;
+  }
 }
 
 /** Recuperación local de metadata derivada. Jamás restaura claves, identidad de dispositivo ni envíos aprobados. */
@@ -137,23 +134,25 @@ export function prepareSyncStateRecovery(root: string, action: 'recover-state' |
     };
   }
   if (archiveCount(root) >= 5) throw new BrowserSyncError('Se alcanzó el límite de archivos de recuperación conservados. Revisa sus copias antes de continuar.');
-  const expires = Date.now() + 300_000; let used = false; guard();
+  const lifetime = createRecoveryReviewLifetime(); guard();
+  const assertCurrent = () => { guard(); if (lifetime.expired()) throw fail(); };
   return { settings: result, commit: () => {
-    guard(); if (used || Date.now() > expires) throw fail(); used = true;
+    guard(); if (!lifetime.consume()) throw fail();
     if (action === 'recover-state') {
       assertSyncRecoveryAvailable(root); matching(root, original); marker = pack(root, original, next);
-      publish(markerFile, marker, guard, true);
+      publishRecoveryFile(markerFile, marker, assertCurrent, true);
     } else {
       if (!same(marker, read(markerFile, MAX_MARKER))) throw fail(); matching(root, original, next);
     }
     // El marcador precede todo reemplazo y se conserva ante cualquier interrupción.
     const target = action === 'recover-state' ? next : original;
     for (const name of files) {
-      guard(); matching(root, original, next);
+      assertCurrent(); matching(root, original, next);
       const destination = path.join(root, name); const current = read(destination, limits[name]); const data = target[name];
       if (same(current, data)) continue;
-      if (data === null) fs.unlinkSync(destination); else publish(destination, data, guard, current === null);
+      assertCurrent();
+      if (data === null) fs.unlinkSync(destination); else publishRecoveryFile(destination, data, assertCurrent, current === null);
     }
-    guard(); matching(root, target); finish(root, marker!, guard);
+    assertCurrent(); matching(root, target); finish(root, marker!, assertCurrent);
   } };
 }

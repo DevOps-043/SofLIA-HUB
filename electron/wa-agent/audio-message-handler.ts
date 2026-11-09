@@ -1,4 +1,4 @@
-import type { GoogleGenerativeAI } from '@google/generative-ai';
+import type OpenAI from 'openai';
 import type { WhatsAppService } from '../whatsapp-service';
 import { voiceCallSessions } from '../voice-call/session-store';
 import { whatsAppVoiceSessionId } from './voice-delivery';
@@ -6,7 +6,7 @@ import { transcribeWhatsAppAudio } from './audio-transcription';
 
 export async function handleWhatsAppAudioMessage(params: {
   waService: WhatsAppService;
-  getGenAI: () => GoogleGenerativeAI;
+  getOpenAIClient: () => Promise<OpenAI>;
   jid: string;
   senderNumber: string;
   audioBuffer: Buffer;
@@ -22,13 +22,13 @@ export async function handleWhatsAppAudioMessage(params: {
   ) => Promise<void>;
 }): Promise<void> {
   try {
-    const transcription = await transcribeWhatsAppAudio(params.getGenAI(), params.audioBuffer);
+    const transcription = await transcribeWhatsAppAudio(await params.getOpenAIClient(), params.audioBuffer);
     if (!transcription || !transcription.trim()) {
       await params.waService.sendText(params.jid, 'No pude entender el audio. Podrias repetirlo o escribirlo?');
       return;
     }
 
-    console.log(`[WhatsApp Agent] Audio transcribed: "${transcription}"`);
+    console.log('[WhatsApp Agent] Audio transcrito.');
     params.waService.recordHistory({
       direction: 'system',
       kind: 'transcription',
@@ -59,8 +59,8 @@ export async function handleWhatsAppAudioMessage(params: {
       params.groupPassiveHistory,
       !params.isGroup,
     );
-  } catch (err: any) {
-    console.error('[WhatsApp Agent] Audio error:', err);
+  } catch {
+    console.error('[WhatsApp Agent] No se pudo transcribir el audio.');
     await params.waService.sendText(params.jid, 'No pude procesar el audio. Intenta enviar un mensaje de texto.');
   }
 }

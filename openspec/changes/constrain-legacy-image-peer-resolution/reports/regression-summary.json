@@ -1,0 +1,15 @@
+{
+  "peerResolutionRed": {
+    "failed": 1,
+    "passed": 2,
+    "logSha256": "6aefaac293a9b90d216aee8a7e9425c28a16d7ee70e79145fe429fe81237bbe2"
+  },
+  "after": {
+    "passed": 3,
+    "failed": 0,
+    "logSha256": "e9dcf01d53a8680b6120412cb814fcf498f618fbf569f9111da9fc34411fb851"
+  },
+  "productCrashObserved": false,
+  "firstNativeAttempt": "Fallo de QA por package.json no exportado por Sharp; corregido a versions.sharp sin cambiar el producto ni omitir aserciones.",
+  "invalidPowerShellDeltaExcluded": true
+}

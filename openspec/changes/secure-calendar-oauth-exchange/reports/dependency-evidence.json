@@ -1,0 +1,72 @@
+{
+  "changes": [
+    {
+      "path": "node_modules/@azure/msal-common",
+      "before": "16.12.0",
+      "after": "16.14.3",
+      "integrity": "sha512-tz3GvMrR9V/plb2lDdW8qaO8CPpfZevdExBKjltzzbAtyhK0eB2UIvji1aU+gkyHj3fxQ2ie+LNHyMXdmo8wOg==",
+      "installHook": false,
+      "installed": "16.14.3"
+    },
+    {
+      "path": "node_modules/@azure/msal-node",
+      "before": "5.5.0",
+      "after": "7.1.1",
+      "integrity": "sha512-zHXTJB38XVrsNaXrPBCMqEUjeyQysFfgmKtUHRDsEKTRjNIPckJ/w6fE5wBXrmJXBim1D3C7O7LOag0msPTrgw==",
+      "installHook": false,
+      "installed": "7.1.1"
+    }
+  ],
+  "audits": {
+    "all": {
+      "before": {
+        "info": 0,
+        "low": 0,
+        "moderate": 8,
+        "high": 11,
+        "critical": 0,
+        "total": 19
+      },
+      "after": {
+        "info": 0,
+        "low": 0,
+        "moderate": 8,
+        "high": 10,
+        "critical": 0,
+        "total": 18
+      },
+      "removed": [
+        "@azure/msal-node"
+      ],
+      "added": []
+    },
+    "-prod": {
+      "before": {
+        "info": 0,
+        "low": 0,
+        "moderate": 8,
+        "high": 11,
+        "critical": 0,
+        "total": 19
+      },
+      "after": {
+        "info": 0,
+        "low": 0,
+        "moderate": 8,
+        "high": 10,
+        "critical": 0,
+        "total": 18
+      },
+      "removed": [
+        "@azure/msal-node"
+      ],
+      "added": []
+    }
+  },
+  "realNetworkAuthentication": false,
+  "baseline": {
+    "version": "5.5.0",
+    "errorCode": "invalid_client_credential",
+    "networkUsed": false
+  }
+}

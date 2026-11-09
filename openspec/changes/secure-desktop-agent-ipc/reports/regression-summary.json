@@ -1,0 +1,14 @@
+{
+  "red": {
+    "failed": 8,
+    "passed": 0,
+    "sha256": "ae768fc30e7bc80956bfae3b908a78c75f74b7fdedce13acd9a93341b3275d23"
+  },
+  "directed": {
+    "passed": 252,
+    "failed": 0,
+    "newCases": 128,
+    "sha256": "25769bbbfda88dcd6114f89bcc69337d8d3bbced65f7fb6628b61c5e593772b8"
+  },
+  "scope": "Schemas/registro/handler/preload/allowlist/wrapper y servicios de configuración/teclado/observación reales, puertos de modelos/entrada sustituidos y filesystem temporal propio. Sin GUI/cuentas/claves reales."
+}

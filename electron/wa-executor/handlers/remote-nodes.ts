@@ -1,5 +1,6 @@
 import { remoteNodeService } from '../../remote-node-service';
 import { buildResponse, errorResponse, type FunctionResponse } from '../types';
+import { publicRemoteHostStatus, publicRemoteNodeRecord } from '../../../src/shared/remote-node-public';
 
 const REMOTE_NODE_TOOLS = new Set([
   'get_remote_node_host_status',
@@ -32,11 +33,11 @@ export async function executeRemoteNodeTool(
   if (!REMOTE_NODE_TOOLS.has(toolName)) return null;
 
   try {
-    if (toolName === 'get_remote_node_host_status') return buildResponse(toolName, await remoteNodeService.getHostStatus());
-    if (toolName === 'configure_remote_node_host') return buildResponse(toolName, await remoteNodeService.updateHostConfig(toolArgs || {}));
+    if (toolName === 'get_remote_node_host_status') return buildResponse(toolName, publicRemoteHostStatus(await remoteNodeService.getHostStatus()));
+    if (toolName === 'configure_remote_node_host') return buildResponse(toolName, publicRemoteHostStatus(await remoteNodeService.updateHostConfig(toolArgs || {})));
     if (toolName === 'list_remote_nodes') {
       const nodes = await remoteNodeService.listNodes();
-      return buildResponse(toolName, { success: true, count: nodes.length, nodes });
+      return buildResponse(toolName, { success: true, count: nodes.length, nodes: nodes.map(publicRemoteNodeRecord) });
     }
     if (toolName === 'register_remote_node') return registerRemoteNode(toolName, toolArgs);
     if (toolName === 'remove_remote_node') return buildResponse(toolName, await remoteNodeService.removeNode(nodeId(toolArgs)));
@@ -55,9 +56,7 @@ export async function executeRemoteNodeTool(
 }
 
 async function registerRemoteNode(toolName: string, toolArgs: Record<string, any>): Promise<FunctionResponse> {
-  return buildResponse(
-    toolName,
-    await remoteNodeService.registerNode({
+  const result = await remoteNodeService.registerNode({
       id: toolArgs.node_id,
       name: toolArgs.name,
       base_url: toolArgs.base_url,
@@ -66,8 +65,8 @@ async function registerRemoteNode(toolName: string, toolArgs: Record<string, any
       owner_user_id: toolArgs.owner_user_id,
       organization_id: toolArgs.organization_id,
       visibility: toolArgs.visibility,
-    }),
-  );
+    });
+  return buildResponse(toolName, { ...result, node: publicRemoteNodeRecord(result.node) });
 }
 
 async function pollProcessSession(toolName: string, toolArgs: Record<string, any>): Promise<FunctionResponse> {

@@ -1,274 +1,161 @@
-# =============================================================================
-# Soflia Hub - Lectura local de documentos (PDF, XLSX, PPTX, DOCX)
-# =============================================================================
-# Antes de este modulo, SofLIA NO podia leer un PDF localmente: la unica via era
-# subir el archivo entero a Gemini (coste, latencia, limite de 15 MB y el
-# documento completo saliendo a la nube). Ademas, ningun formato permitia
-# extraer TABLAS de forma estructurada.
-#
-# Salida: Markdown (lo que mejor entiende un LLM) + tablas como matrices.
-# =============================================================================
+"""Lectura local con admisión y construcción presupuestadas; sin extraer archivos."""
 import os
-from typing import Any
-
-# Limites defensivos: un documento gigante no debe agotar la memoria ni colgar
-# la herramienta. Se informa al usuario cuando se trunca.
-MAX_FILE_BYTES = 50 * 1024 * 1024   # 50 MB
-MAX_PDF_PAGES = 200
-MAX_SHEET_ROWS = 2000
-MAX_MARKDOWN_CHARS = 400_000
+import stat
+from document_errors import DocumentError, resource_limit
+from document_budget import (
+    DocumentBuilder, MAX_FILE_BYTES, MAX_PDF_PAGES, MAX_SHEET_ROWS,
+    MAX_MARKDOWN_CHARS, MAX_SECTIONS, validate_result,
+)
+from office_preflight import validate_office
 
 SUPPORTED_EXTENSIONS = {".pdf", ".xlsx", ".xlsm", ".pptx", ".docx"}
 
 
-class DocumentError(Exception):
-    """Error de negocio con codigo estable para el contrato del sidecar."""
-
-    def __init__(self, code: str, message: str, recoverable: bool = False):
-        super().__init__(message)
-        self.code = code
-        self.message = message
-        self.recoverable = recoverable
-
-
 def parse_document(file_path: str, max_pages: int = MAX_PDF_PAGES) -> dict:
-    """Convierte un documento a Markdown + tablas estructuradas."""
-    if not os.path.isfile(file_path):
-        raise DocumentError("DOC_NOT_FOUND", f"No existe el archivo: {file_path}")
-
-    size = os.path.getsize(file_path)
-    if size > MAX_FILE_BYTES:
-        raise DocumentError(
-            "DOC_TOO_LARGE",
-            f"El documento pesa {size // (1024 * 1024)} MB; el limite es {MAX_FILE_BYTES // (1024 * 1024)} MB.",
-        )
-
+    """Conserva la API por ruta; bibliotecas y preflight usan el mismo descriptor."""
+    if not isinstance(file_path, str) or not file_path or type(max_pages) is not int or not 1 <= max_pages <= MAX_PDF_PAGES:
+        raise DocumentError("TOOLS_INVALID_INPUT", "La solicitud de lectura no es válida.")
     extension = os.path.splitext(file_path)[1].lower()
     if extension not in SUPPORTED_EXTENSIONS:
-        raise DocumentError(
-            "DOC_UNSUPPORTED",
-            f"Formato no soportado: '{extension}'. Soportados: {', '.join(sorted(SUPPORTED_EXTENSIONS))}.",
-        )
-
-    if extension == ".pdf":
-        result = _parse_pdf(file_path, max_pages)
-    elif extension in (".xlsx", ".xlsm"):
-        result = _parse_xlsx(file_path)
-    elif extension == ".pptx":
-        result = _parse_pptx(file_path)
-    else:
-        result = _parse_docx(file_path)
-
-    markdown = result["markdown"]
-    if len(markdown) > MAX_MARKDOWN_CHARS:
-        result["markdown"] = markdown[:MAX_MARKDOWN_CHARS] + "\n\n_[Documento truncado por longitud]_"
-        result["metadata"]["truncated"] = True
-
-    result["metadata"]["format"] = extension.lstrip(".")
-    result["metadata"]["sizeBytes"] = size
-    return result
-
-
-# ── PDF ──────────────────────────────────────────────────────────────────────
-
-def _parse_pdf(file_path: str, max_pages: int) -> dict:
-    import pdfplumber
-
-    lines: list = []
-    tables: list = []
-    pages_with_text = 0
-
+        raise DocumentError("DOC_UNSUPPORTED", "El formato del documento no está admitido.")
     try:
-        with pdfplumber.open(file_path) as pdf:
-            total_pages = len(pdf.pages)
-            for index, page in enumerate(pdf.pages[:max_pages], start=1):
-                lines.append(f"## Pagina {index}")
+        before = os.stat(file_path, follow_symlinks=False)
+        if not stat.S_ISREG(before.st_mode):
+            raise DocumentError("DOC_PARSE_FAILED", "El documento no es un archivo regular local.")
+        if before.st_size > MAX_FILE_BYTES:
+            raise DocumentError("DOC_TOO_LARGE", "El documento supera 50 MiB.")
+        flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+        with os.fdopen(os.open(file_path, flags), "rb") as source:
+            opened = os.fstat(source.fileno())
+            if not stat.S_ISREG(opened.st_mode) or opened.st_size > MAX_FILE_BYTES:
+                raise DocumentError("DOC_TOO_LARGE", "La fuente abierta no es un documento regular dentro del límite.")
+            prior = lambda value: (value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns)
+            if prior(opened) != prior(before):
+                raise DocumentError("DOCUMENT_CHANGED", "El documento cambió durante la lectura.")
+            if extension != ".pdf":
+                validate_office(source, opened.st_size)
+            if extension == ".pdf":
+                result = _parse_pdf(source, max_pages)
+            elif extension in (".xlsx", ".xlsm"):
+                result = _parse_xlsx(source)
+            elif extension == ".pptx":
+                result = _parse_pptx(source)
+            else:
+                result = _parse_docx(source)
+            after = os.fstat(source.fileno())
+            identity = lambda value: (value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns, value.st_ctime_ns)
+            # Windows puede diferir ctime entre stat de ruta y primer fstat.
+            if prior(before) != prior(opened) or identity(opened) != identity(after):
+                raise DocumentError("DOCUMENT_CHANGED", "El documento cambió durante la lectura.")
+    except FileNotFoundError as error:
+        raise DocumentError("DOC_NOT_FOUND", "No se encontró el documento seleccionado.") from error
+    result["metadata"]["format"] = extension.lstrip(".")
+    result["metadata"]["sizeBytes"] = opened.st_size
+    return validate_result(result)
+
+
+def _parse_pdf(source, max_pages):
+    from reader_dependencies import assert_pdf_dependency
+    assert_pdf_dependency()
+    import pdfplumber
+    builder = DocumentBuilder()
+    pages_with_text = 0
+    try:
+        # La página adicional permite declarar parcialidad sin inventar el total.
+        with pdfplumber.open(source, pages=list(range(1, max_pages + 2))) as pdf:
+            pages = pdf.pages
+            parsed = min(len(pages), max_pages)
+            for index, page in enumerate(pages[:max_pages], start=1):
+                builder.text(f"## Pagina {index}")
                 text = (page.extract_text() or "").strip()
                 if text:
                     pages_with_text += 1
-                    lines.append(text)
-
-                for table_index, raw_table in enumerate(page.extract_tables() or [], start=1):
-                    matrix = _clean_table(raw_table)
-                    if not matrix:
-                        continue
-                    tables.append({"page": index, "index": table_index, "rows": matrix})
-                    lines.append(_table_to_markdown(matrix))
-                lines.append("")
+                    builder.text(text)
+                for table_index, rows in enumerate(page.extract_tables() or [], start=1):
+                    builder.table(rows, page=index, index=table_index)
+                builder.text("")
+            metadata = {"pagesParsed": parsed}
+            if len(pages) > max_pages:
+                metadata["truncated"] = True
+            else:
+                metadata["pages"] = len(pages)
     except DocumentError:
         raise
-    except Exception as exc:  # pdfplumber lanza excepciones variadas (cifrado, corrupto)
-        message = str(exc).lower()
-        if "password" in message or "encrypt" in message:
-            raise DocumentError("DOC_ENCRYPTED", "El PDF esta protegido con contraseña.") from exc
-        raise DocumentError("DOC_PARSE_FAILED", f"No se pudo leer el PDF: {exc}") from exc
-
-    # Un PDF escaneado es solo imagenes: no tiene capa de texto. Se informa en
-    # vez de devolver un resultado vacio que confundiria al agente.
-    if pages_with_text == 0 and not tables:
-        raise DocumentError(
-            "DOC_SCANNED",
-            "El PDF no tiene texto seleccionable (parece escaneado). Requiere OCR.",
-            recoverable=True,
-        )
-
-    return {
-        "markdown": "\n".join(lines).strip(),
-        "tables": tables,
-        "metadata": {"pages": total_pages, "pagesParsed": min(total_pages, max_pages)},
-    }
+    except Exception as error:
+        code = "DOC_ENCRYPTED" if any(word in str(error).lower() for word in ("password", "encrypt")) else "DOC_PARSE_FAILED"
+        raise DocumentError(code, "No se pudo interpretar el PDF.") from error
+    if not pages_with_text and not builder.tables:
+        raise DocumentError("DOC_SCANNED", "El PDF no tiene texto seleccionable. Requiere OCR.", recoverable=True)
+    return builder.finish(metadata)
 
 
-# ── Excel ────────────────────────────────────────────────────────────────────
-
-def _parse_xlsx(file_path: str) -> dict:
+def _parse_xlsx(source):
     from openpyxl import load_workbook
-
+    workbook = None
+    builder = DocumentBuilder()
     try:
-        # read_only + data_only: no carga formulas ni estilos (mucho mas rapido
-        # y devuelve el VALOR calculado, que es lo que le interesa al agente).
-        workbook = load_workbook(file_path, read_only=True, data_only=True)
-    except Exception as exc:
-        raise DocumentError("DOC_PARSE_FAILED", f"No se pudo leer el Excel: {exc}") from exc
-
-    lines: list = []
-    tables: list = []
-    for sheet in workbook.worksheets:
-        lines.append(f"## Hoja: {sheet.title}")
-        matrix = []
-        for row in sheet.iter_rows(max_row=MAX_SHEET_ROWS, values_only=True):
-            cells = ["" if value is None else str(value).strip() for value in row]
-            if any(cells):
-                matrix.append(cells)
-        if matrix:
-            matrix = _trim_empty_columns(matrix)
-            tables.append({"sheet": sheet.title, "rows": matrix})
-            lines.append(_table_to_markdown(matrix))
-        else:
-            lines.append("_(hoja vacia)_")
-        lines.append("")
-    workbook.close()
-
-    return {
-        "markdown": "\n".join(lines).strip(),
-        "tables": tables,
-        "metadata": {"sheets": len(tables)},
-    }
+        workbook = load_workbook(source, read_only=True, data_only=True, keep_links=False)
+        if len(workbook.worksheets) > MAX_SECTIONS:
+            raise resource_limit()
+        for sheet in workbook.worksheets:
+            builder.text(f"## Hoja: {sheet.title}")
+            # La geometría real ya pasó preflight; no confiar en dimension XML.
+            sheet.reset_dimensions()
+            tables_before = len(builder.tables)
+            builder.table(sheet.iter_rows(values_only=True), normalize_whitespace=False, sheet=sheet.title)
+            if len(builder.tables) == tables_before:
+                builder.text("_(hoja vacia)_")
+            builder.text("")
+        return builder.finish({"sheets": len(workbook.worksheets)})
+    except DocumentError:
+        raise
+    except Exception as error:
+        raise DocumentError("DOC_PARSE_FAILED", "No se pudo interpretar el Excel.") from error
+    finally:
+        if workbook is not None:
+            workbook.close()
 
 
-# ── PowerPoint ───────────────────────────────────────────────────────────────
-
-def _parse_pptx(file_path: str) -> dict:
+def _parse_pptx(source):
     from pptx import Presentation
-
+    builder = DocumentBuilder()
     try:
-        presentation = Presentation(file_path)
-    except Exception as exc:
-        raise DocumentError("DOC_PARSE_FAILED", f"No se pudo leer la presentacion: {exc}") from exc
-
-    lines: list = []
-    tables: list = []
-    for index, slide in enumerate(presentation.slides, start=1):
-        lines.append(f"## Diapositiva {index}")
-        for shape in slide.shapes:
-            if shape.has_text_frame:
-                text = shape.text_frame.text.strip()
-                if text:
-                    lines.append(text)
-            if getattr(shape, "has_table", False):
-                matrix = [[cell.text.strip() for cell in row.cells] for row in shape.table.rows]
-                matrix = _clean_table(matrix)
-                if matrix:
-                    tables.append({"slide": index, "rows": matrix})
-                    lines.append(_table_to_markdown(matrix))
-        lines.append("")
-
-    return {
-        "markdown": "\n".join(lines).strip(),
-        "tables": tables,
-        "metadata": {"slides": len(presentation.slides._sldIdLst)},  # noqa: SLF001
-    }
+        presentation = Presentation(source)
+        if len(presentation.slides) > MAX_SECTIONS:
+            raise resource_limit()
+        for index, slide in enumerate(presentation.slides, start=1):
+            builder.text(f"## Diapositiva {index}")
+            for shape in slide.shapes:
+                if shape.has_text_frame and shape.text_frame.text.strip():
+                    builder.text(shape.text_frame.text.strip())
+                if getattr(shape, "has_table", False):
+                    builder.table(([cell.text for cell in row.cells] for row in shape.table.rows), slide=index)
+            builder.text("")
+        return builder.finish({"slides": len(presentation.slides)})
+    except DocumentError:
+        raise
+    except Exception as error:
+        raise DocumentError("DOC_PARSE_FAILED", "No se pudo interpretar la presentación.") from error
 
 
-# ── Word ─────────────────────────────────────────────────────────────────────
-
-def _parse_docx(file_path: str) -> dict:
-    # mammoth (TypeScript) ya extrae el texto, pero APLANA las tablas.
-    # Aqui se conservan como estructura.
+def _parse_docx(source):
     from docx import Document
-
+    builder = DocumentBuilder()
     try:
-        document = Document(file_path)
-    except Exception as exc:
-        raise DocumentError("DOC_PARSE_FAILED", f"No se pudo leer el documento Word: {exc}") from exc
-
-    lines: list = []
-    for paragraph in document.paragraphs:
-        text = paragraph.text.strip()
-        if not text:
-            continue
-        # Los encabezados se conservan como Markdown para dar estructura al LLM.
-        style = (paragraph.style.name or "").lower()
-        if style.startswith("heading"):
-            level = "".join(char for char in style if char.isdigit()) or "1"
-            lines.append(f"{'#' * min(int(level) + 1, 6)} {text}")
-        else:
-            lines.append(text)
-
-    tables: list = []
-    for index, table in enumerate(document.tables, start=1):
-        matrix = _clean_table([[cell.text.strip() for cell in row.cells] for row in table.rows])
-        if not matrix:
-            continue
-        tables.append({"index": index, "rows": matrix})
-        lines.append(_table_to_markdown(matrix))
-
-    return {
-        "markdown": "\n".join(lines).strip(),
-        "tables": tables,
-        "metadata": {"paragraphs": len(document.paragraphs), "tables": len(tables)},
-    }
-
-
-# ── Utilidades de tabla ──────────────────────────────────────────────────────
-
-def _clean_table(raw_table: list) -> list:
-    """Normaliza celdas (None → "") y descarta filas totalmente vacias."""
-    matrix = []
-    for row in raw_table or []:
-        cells = ["" if cell is None else " ".join(str(cell).split()) for cell in row]
-        if any(cells):
-            matrix.append(cells)
-    return _trim_empty_columns(matrix) if matrix else []
-
-
-def _trim_empty_columns(matrix: list) -> list:
-    """Elimina las columnas que estan vacias en TODAS las filas."""
-    if not matrix:
-        return matrix
-    width = max(len(row) for row in matrix)
-    padded = [row + [""] * (width - len(row)) for row in matrix]
-    keep = [col for col in range(width) if any(row[col] for row in padded)]
-    return [[row[col] for col in keep] for row in padded] if keep else []
-
-
-def _table_to_markdown(matrix: list) -> str:
-    """Tabla Markdown (la primera fila se usa como encabezado)."""
-    if not matrix:
-        return ""
-    width = max(len(row) for row in matrix)
-    rows = [row + [""] * (width - len(row)) for row in matrix]
-    header = rows[0]
-    body = rows[1:]
-    escaped_header = [_escape_cell(cell) for cell in header]
-    lines = [
-        "| " + " | ".join(escaped_header) + " |",
-        "| " + " | ".join(["---"] * width) + " |",
-    ]
-    for row in body:
-        lines.append("| " + " | ".join(_escape_cell(cell) for cell in row) + " |")
-    return "\n".join(lines)
-
-
-def _escape_cell(value: Any) -> str:
-    return str(value).replace("|", "\\|").replace("\n", " ")
+        document = Document(source)
+        for paragraph in document.paragraphs:
+            text = paragraph.text.strip()
+            if not text:
+                continue
+            style = (paragraph.style.name or "").lower()
+            if style.startswith("heading"):
+                level = "".join(char for char in style if char.isdigit()) or "1"
+                text = f"{'#' * min(int(level) + 1, 6)} {text}"
+            builder.text(text)
+        for index, table in enumerate(document.tables, start=1):
+            builder.table(([cell.text for cell in row.cells] for row in table.rows), index=index)
+        return builder.finish({"paragraphs": len(document.paragraphs), "tables": len(builder.tables)})
+    except DocumentError:
+        raise
+    except Exception as error:
+        raise DocumentError("DOC_PARSE_FAILED", "No se pudo interpretar el documento Word.") from error

@@ -1,7 +1,6 @@
 /**
  * Tipos compartidos para los executors de WhatsApp tools.
  */
-import type { GoogleGenerativeAI } from '@google/generative-ai';
 import type { WhatsAppService } from '../whatsapp-service';
 import type { CalendarService } from '../calendar-service';
 import type { GmailService } from '../gmail-service';
@@ -28,7 +27,6 @@ export interface ToolExecutorContext {
   smartSearch: SmartSearchTool | null;
   memory: MemoryService;
   knowledge: KnowledgeService;
-  getGenAI: () => GoogleGenerativeAI;
   requestConfirmation: (jid: string, senderNumber: string, toolName: string, description: string, args: Record<string, any>) => Promise<boolean>;
 }
 

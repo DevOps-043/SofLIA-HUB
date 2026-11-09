@@ -10,7 +10,6 @@ import { initializeAgentActivity } from '../agent-activity';
 export async function initializeAgentRuntime(input: {
   getWindow(): BrowserWindow | null;
   getOrbWindow?(): BrowserWindow | null;
-  geminiKey(): string | null;
   meetings: MeetingWorkflowService;
 }): Promise<() => void> {
   const { app, safeStorage } = await import('electron');
@@ -28,7 +27,7 @@ export async function initializeAgentRuntime(input: {
       encryptString: value => safeStorage.encryptString(value),
       decryptString: value => safeStorage.decryptString(value),
     },
-    getUserId, getMeetingOwnerId: getHubSessionUserId, geminiKey: input.geminiKey, meetings: input.meetings,
+    getUserId, getMeetingOwnerId: getHubSessionUserId, meetings: input.meetings,
     authorize: async (scope: AgentScope) => {
       if (getUserId() !== scope.userId) throw new Error('Sesión SOFIA no disponible.');
       if (!scope.organizationId) return;

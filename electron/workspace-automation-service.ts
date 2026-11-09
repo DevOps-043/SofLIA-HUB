@@ -1,8 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { LlmTaskService } from './llm-task-service';
 import { init } from './workspace-automation/service/init';
-import { setApiKey } from './workspace-automation/service/set-api-key';
-import { isConfigured } from './workspace-automation/service/is-configured';
 import { listTemplates } from './workspace-automation/service/list-templates';
 import { createCustomTemplate } from './workspace-automation/service/create-custom-template';
 import { listRuns } from './workspace-automation/service/list-runs';
@@ -40,8 +38,6 @@ export class WorkspaceAutomationService extends EventEmitter {
   }
 
   init = init;
-  setApiKey = setApiKey;
-  isConfigured = isConfigured;
   listTemplates = listTemplates;
   createCustomTemplate = createCustomTemplate;
   listRuns = listRuns;

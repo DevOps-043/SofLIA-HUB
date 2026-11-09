@@ -1,6 +1,6 @@
 import type { ChatUIController } from '../useChatUIController';
 
-const OPTIMIZER_TARGETS = ['chatgpt', 'claude', 'gemini'] as const;
+const OPTIMIZER_TARGETS = ['chatgpt', 'claude'] as const;
 
 export function ModeBadges({ controller }: { controller: ChatUIController }) {
   const { modes, skillModals } = controller.state;
@@ -31,7 +31,7 @@ export function ModeBadges({ controller }: { controller: ChatUIController }) {
                 onClick={() => modes.setOptimizerTarget(target)}
                 className={`px-2.5 py-1 text-[11px] font-medium rounded-full transition-all ${modes.optimizerTarget === target ? 'bg-accent text-white shadow-sm' : 'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10'}`}
               >
-                {target === 'chatgpt' ? 'ChatGPT' : target === 'claude' ? 'Claude' : 'Gemini'}
+                {target === 'chatgpt' ? 'ChatGPT' : 'Claude'}
               </button>
             ))}
           </div>

@@ -5,10 +5,10 @@
  * no requieran editar la clase principal.
  */
 
-import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
+import { SOFLIA_DEFAULT_MODEL } from '../../src/shared/soflia-runtime-model';
 
-export const DEFAULT_MODEL = SOFLIA_RUNTIME_MODEL;
-export const DEFAULT_FALLBACK_MODEL = SOFLIA_RUNTIME_MODEL;
+export const DEFAULT_MODEL = SOFLIA_DEFAULT_MODEL;
+export const DEFAULT_FALLBACK_MODEL = SOFLIA_DEFAULT_MODEL;
 
 /** Cantidad máxima de elementos visibles enviados al modelo en cada snapshot. */
 export const MAX_VISIBLE_ELEMENTS = 45;

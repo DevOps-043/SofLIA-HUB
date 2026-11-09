@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import type { BrowserWebService } from '../browser-web-service';
 import type {
   BrowserHistoryEntry,
   BrowserPageSnapshot,
@@ -8,6 +9,7 @@ import type {
 import type { BrowserTaskFinalStatus } from './service-types';
 
 export type FinalizeBrowserTaskArtifactsParams = {
+  signal?: AbortSignal;
   artifacts: BrowserTaskArtifacts;
   task: string;
   options?: BrowserTaskOptions;
@@ -21,8 +23,8 @@ export type FinalizeBrowserTaskArtifactsParams = {
   finalSnapshot: BrowserPageSnapshot | null;
 };
 
-export async function finalizeBrowserTaskArtifacts(service: any, params: FinalizeBrowserTaskArtifactsParams): Promise<void> {
-  const finalSnapshot = await resolveFinalSnapshot(service, params.finalSnapshot);
+export async function finalizeBrowserTaskArtifacts(service: BrowserWebService, params: FinalizeBrowserTaskArtifactsParams): Promise<void> {
+  const finalSnapshot = await resolveFinalSnapshot(service, params.finalSnapshot, params.signal);
   const trace = await stopTrace(service, params.artifacts.tracePath, params.traceStarted, params.traceStartError);
   const screenshotPath = writeFinalScreenshot(params.artifacts.finalScreenshotPath, finalSnapshot);
   const report = {
@@ -59,20 +61,20 @@ export async function finalizeBrowserTaskArtifacts(service: any, params: Finaliz
   service.lastScreenshotPath = screenshotPath;
 }
 
-async function resolveFinalSnapshot(service: any, snapshot: BrowserPageSnapshot | null) {
-  if (snapshot || !service.page || service.page.isClosed()) return snapshot;
-  return service.collectSnapshot(service.page).catch(() => null);
+async function resolveFinalSnapshot(service: BrowserWebService, snapshot: BrowserPageSnapshot | null, signal?: AbortSignal) {
+  if (snapshot || signal?.aborted || !service.page || service.page.isClosed()) return snapshot;
+  return service.collectSnapshot(service.page, signal).catch(() => null);
 }
 
-async function stopTrace(service: any, tracePath: string, traceStarted: boolean, startError: string | null) {
+async function stopTrace(service: BrowserWebService, tracePath: string, traceStarted: boolean, startError: string | null) {
   let stopError: string | null = null;
   let path: string | null = null;
   if (traceStarted && service.context?.tracing) {
     try {
       await service.context.tracing.stop({ path: tracePath });
       if (fs.existsSync(tracePath)) path = tracePath;
-    } catch (err: any) {
-      stopError = err.message || 'No se pudo guardar el trace de Playwright.';
+    } catch (err: unknown) {
+      stopError = err instanceof Error ? err.message : 'No se pudo guardar el trace de Playwright.';
     }
   }
   return { path, startError, stopError };

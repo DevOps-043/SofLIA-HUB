@@ -15,14 +15,12 @@ export function SettingsContent({
   userId,
   onSaveSettings: _onSaveSettings,
   sofiaContext,
-  apiKey,
 }: {
   activeTab: SettingsTab;
   onClose: () => void;
   userId: string;
   onSaveSettings: (settings: UserAISettings) => void;
   sofiaContext: SofiaContext | null;
-  apiKey: string;
 }) {
   const form = useSettingsForm({ isOpen: true, userId });
 
@@ -36,7 +34,6 @@ export function SettingsContent({
     case 'integrations':
       return (
         <IntegrationsSkillsSection
-          apiKey={apiKey}
           onClose={onClose}
         />
       );

@@ -1,0 +1,95 @@
+{
+  "count": 3550,
+  "before": "d6166d65c5964b05423ddb07f24df1d41100b3d3c1a1a2204ef17ae8f1bf17d3",
+  "after": "d6166d65c5964b05423ddb07f24df1d41100b3d3c1a1a2204ef17ae8f1bf17d3",
+  "changedDuringGate": [],
+  "copiedFilesMatching": 3530,
+  "deltaFromUnit38": [
+    {
+      "file": "electron/__tests__/automation-preload-contract.test.ts",
+      "previousSha256": "3836e91b5cad649a08f83d8ffcd8a130c30988a35080a4fc8ceb17486edf065a",
+      "currentSha256": "d750367b60ff85b5bf6d262a472c252de4f018a5e1ce6959e0011ba4640bf725"
+    },
+    {
+      "file": "electron/__tests__/remote-node-credential-projection.test.ts",
+      "previousSha256": "9a5c6f53ce3e9305fbf06e96af1345cd4e1ee369de298b55873a614213c5abac",
+      "currentSha256": "9108a3840f751eda694999b263cde3e0cffc8cb1f110b4542864a4d7beb6dcb9"
+    },
+    {
+      "file": "electron/main/startup.ts",
+      "previousSha256": "b11f61f31bf94dd3d7620f0397f62a3f6fb0a2272540fece55590111ffe33865",
+      "currentSha256": "7a6c3d37826938aadd151890b6a29dce7c5ed17e7c5d22175ed07fb5f3197d01"
+    },
+    {
+      "file": "electron/remote-node-handlers.ts",
+      "previousSha256": "da8549a4f88c19f47bde8767f624473169cda9974b89ad732a9cbaa751577e05",
+      "currentSha256": "37d818c5b7b06456558c1e8f8baaf6929c21f8fff2407a90da860b879a555f61"
+    },
+    {
+      "file": "electron/remote-node/host-server.ts",
+      "previousSha256": "3677b43af50709a8149f40205812693351975d37ec5aab11f208ef129ec67d68",
+      "currentSha256": "f14f596c293f7acea02e496e7583128ec01984a0ae76b4c87acebd8919a9b24a"
+    },
+    {
+      "file": "electron/remote-node/node-client.ts",
+      "previousSha256": "c2b633037e099213d6c64ed3519f81aff22c54cf8bb71d211d8aa372d89ab9bd",
+      "currentSha256": "f7365a4df13d02eed6d3716f3cdf76f990f8736789fe0b2adf3a7c14f34e70ea"
+    },
+    {
+      "file": "electron/remote-node/service.ts",
+      "previousSha256": "bd70ad732237d662918c9d41dd41b2d13caf71028a131f1ea8894a455d68fcb1",
+      "currentSha256": "326a57796bdb0157fd618d3c6815749a192d259ae11bdcc93fc40cd2802ca5dd"
+    },
+    {
+      "file": "src/services/computer-use/remote-tools.ts",
+      "previousSha256": "edf6ffe22e57bf9f25c7a055d02248b5eb4889cbafee44d6ab6c64f8b35e9daa",
+      "currentSha256": "6952495502727dc87f2626959e60c10ce82982cf47a78f214b5282c9d24aeb69"
+    },
+    {
+      "file": "src/shared/remote-node.ts",
+      "previousSha256": "724f6467d598d872b708698860a104a6cec70bf24866bac469404a2b8ad3b24a",
+      "currentSha256": "09339573f6d551d0433dcf3328bdcfb666c24592f0e7f0506c66745fbee5d641"
+    },
+    {
+      "file": "electron/__tests__/remote-node-host-binding.test.ts",
+      "previousSha256": null,
+      "currentSha256": "bff2974a66574850b0c669f5bfd51c32e3e344293244d51d55ede7000161730e"
+    },
+    {
+      "file": "electron/__tests__/remote-node-ipc.test.ts",
+      "previousSha256": null,
+      "currentSha256": "79bee02beac9645c2836233ebdf894a49973b58b0644026578dde3a8090080fb"
+    },
+    {
+      "file": "electron/__tests__/remote-node-operation-context.test.ts",
+      "previousSha256": null,
+      "currentSha256": "f77e90f96dffdda1204103e84bf8a8752a51a599419ead89f63ce752364c0ee3"
+    },
+    {
+      "file": "electron/__tests__/remote-node-transport-security.test.ts",
+      "previousSha256": null,
+      "currentSha256": "b31f3a04aff160e945f13d1401aa94895afdd181c7229db86dd25c1f5dc1d72e"
+    },
+    {
+      "file": "electron/remote-node/http-response.ts",
+      "previousSha256": null,
+      "currentSha256": "907d70b1620fdf1595f1f4b6f903bb2c315668225fa6452d0bd235602158119c"
+    },
+    {
+      "file": "electron/remote-node/operation-context.ts",
+      "previousSha256": null,
+      "currentSha256": "c16479b05438cb08284347fbf77399f824a1536e7ade1d0fa7af69792c6c1ac0"
+    },
+    {
+      "file": "src/__tests__/services/remote-node-tools-contract.test.ts",
+      "previousSha256": null,
+      "currentSha256": "a082fa2ce49820ed7d8d82cca85b5cfae83d3fdadd39ca2af5fe769d53887763"
+    },
+    {
+      "file": "src/shared/remote-node-input.ts",
+      "previousSha256": null,
+      "currentSha256": "5a3075689c3e2acb8260c2a939fe4bd5d156b205e3705e58b42b42862f4ca64b"
+    }
+  ],
+  "dependenciesAndPolicyUnchanged": true
+}

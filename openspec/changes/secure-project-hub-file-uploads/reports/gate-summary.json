@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-22",
+  "base": "e166d250629e503cf12f69449fb6d66e569134c8",
+  "command": "npm run verify:pr",
+  "log": "%TEMP%/soflia-project-uploads-2026-10-22/verify-pr-final.log",
+  "exitCode": 0,
+  "checks": [
+    "adapters:check",
+    "harness:validate",
+    "audit:supply-chain",
+    "docs:system:check",
+    "docs:check",
+    "skills:seed:check",
+    "openspec:validate",
+    "test:quality",
+    "typecheck",
+    "lint:changed",
+    "test"
+  ],
+  "tests": {
+    "passed": 5211,
+    "skipped": 5,
+    "filesPassed": 475,
+    "filesSkipped": 2,
+    "seconds": 212.38,
+    "previousPassed": 5160,
+    "netAdditional": 51
+  },
+  "lintFiles": 187,
+  "directed": {
+    "files": 17,
+    "passed": 322
+  },
+  "sqlite": {
+    "firstGateFailed": true,
+    "clockReproductionFailed": 2,
+    "directedPassed": 32,
+    "productionChanged": false,
+    "testFile": "electron/__tests__/browser-sqlite-recovery.test.ts",
+    "sha256": "fb126f04c5f9f290917724ef5c94c60bd0575fe597245fc6fa18764c184a8bb7"
+  },
+  "build": {
+    "productionFilesVerified": 13,
+    "isolatedArtifacts": 6,
+    "precededSqliteTestClockRepair": true
+  },
+  "native": {
+    "checks": 9,
+    "serviceAndDialogsSimulated": true,
+    "realIpc": true
+  },
+  "independentReview": "pendiente",
+  "globalDebtRecalculated": false,
+  "remoteMutations": false
+}

@@ -25,8 +25,8 @@ function createReadyService() {
 }
 
 function deliver(service: PythonRuntimeService, payload: Record<string, unknown>): void {
-  (service as unknown as { handleMessage: (line: string) => void })
-    .handleMessage(JSON.stringify(payload));
+  (service as unknown as { handleMessage: (message: Record<string, unknown>) => void })
+    .handleMessage(payload);
 }
 
 function isDictating(service: PythonRuntimeService): boolean {
@@ -34,6 +34,24 @@ function isDictating(service: PythonRuntimeService): boolean {
 }
 
 describe('PythonRuntimeService voice session ownership', () => {
+  it('la reanudación antigua no cambia el estado del dictado nuevo durante stop', async () => {
+    const { service, sendCommand } = createReadyService(); const first = await service.startDictation();
+    Object.assign(service, { connection: { process: {} } });
+    const stop = deferred<Record<string, unknown>>(); sendCommand.mockImplementation(async cmd => cmd === 'stop_dictation' ? stop.promise : { ok: true });
+    const pending = service.resumeWakeAfterConversation(first.sessionId); const second = await service.startDictation();
+    stop.resolve({ ok: true }); await pending;
+    expect(second.success).toBe(true); expect(isDictating(service)).toBe(true);
+  });
+  it('dictado retira una activación wake pendiente antes de enviar captura', async () => {
+    const { service, sendCommand } = createReadyService();
+    const internal = service as unknown as { resolveWakeModelPath(): string; ensureSidecar(): Promise<void> };
+    vi.spyOn(internal, 'resolveWakeModelPath').mockReturnValue('C:/modelo-ficticio');
+    const ready = deferred<void>(); vi.mocked(internal.ensureSidecar).mockReturnValue(ready.promise);
+    const wake = service.startPassiveListening(); const dictation = service.startDictation(); ready.resolve();
+    const [wakeResult, dictationResult] = await Promise.all([wake, dictation]);
+    expect(wakeResult.success).toBe(false); expect(dictationResult.success).toBe(true);
+    expect(sendCommand.mock.calls.some(([cmd]) => cmd === 'start_wake')).toBe(false); expect(isDictating(service)).toBe(true);
+  });
   it('VOICE-SESSION-1: concurrent starts share one sidecar listener and one session ID', async () => {
     const { service, sendCommand } = createReadyService();
     const commandResponse = deferred<Record<string, unknown>>();
@@ -105,7 +123,7 @@ describe('PythonRuntimeService voice session ownership', () => {
   it('VOICE-SESSION-3: a stale stop cannot terminate the current session', async () => {
     const { service, sendCommand } = createReadyService();
     const started = await service.startDictation();
-    (service as unknown as { proc: unknown }).proc = {};
+    (service as unknown as { connection: unknown }).connection = { process: {} };
     sendCommand.mockClear();
 
     await service.stopDictation('dictation-obsoleta');
@@ -158,7 +176,7 @@ describe('PythonRuntimeService voice session ownership', () => {
     const internals = service as unknown as {
       resolvePiperPaths: () => { piperExe: string; voicePath: string } | null;
       ensureSidecar: () => Promise<void>;
-      proc: unknown;
+      connection: unknown;
     };
     vi.spyOn(internals, 'resolvePiperPaths').mockReturnValue({
       piperExe: 'C:\\piper.exe',
@@ -174,7 +192,7 @@ describe('PythonRuntimeService voice session ownership', () => {
       utterance_id: started.speechId,
     }));
 
-    internals.proc = {};
+    internals.connection = { process: {} };
     sendCommand.mockClear();
     await service.stopSpeaking('speech-obsoleto');
     expect(sendCommand).not.toHaveBeenCalled();

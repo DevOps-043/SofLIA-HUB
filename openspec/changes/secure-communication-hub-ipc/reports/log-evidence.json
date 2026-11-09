@@ -1,0 +1,77 @@
+[
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-communication-ipc-2026-10-30\\build-final.log",
+    "bytes": 39755,
+    "sha256": "040dfa2dd679af47f8e2de409032dd9824c44aad63ca9a788d623f44a0e31957"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-communication-ipc-2026-10-30\\directed-fifth.log",
+    "bytes": 18300,
+    "sha256": "443487579d795a0cbb21a384e8ee8ee9645c3e0ef7a58ccfd1577394dca1b4bd"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-communication-ipc-2026-10-30\\directed-final.log",
+    "bytes": 27138,
+    "sha256": "b2628cbb703a1eeffc97638998086c2b5240b79accba54a4941809fc5fdb77ff"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-communication-ipc-2026-10-30\\directed-first.log",
+    "bytes": 492,
+    "sha256": "9326edad1281cde4e0bcfbba0d212ecbc9b7a78c4bf58f33e032a721c561489f"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-communication-ipc-2026-10-30\\directed-fourth.log",
+    "bytes": 493,
+    "sha256": "59eb35b5d3a963e4baafad415d7edec1f25ff36e3f95270228e7196064bbab51"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-communication-ipc-2026-10-30\\directed-second.log",
+    "bytes": 493,
+    "sha256": "77114c95afc6996dc161d4f8c26b17d8884059b376eeecc74137cd4c37af9c37"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-communication-ipc-2026-10-30\\directed-third.log",
+    "bytes": 492,
+    "sha256": "011ace9355dc513542e6f42648a3ee1263f61e7468714f46d2218af345cfec63"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-communication-ipc-2026-10-30\\enum-red.log",
+    "bytes": 20353,
+    "sha256": "85b7729f06f438e75c96b2ca1e094aaf00e42da8ce5da1196496f180bcb388d4"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-communication-ipc-2026-10-30\\gate-final.log",
+    "bytes": 195796,
+    "sha256": "ff42e5c32f03a5f092be09221d20a947a32bdb5322d543287e30f96ee5e6f9a8"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-communication-ipc-2026-10-30\\openai-enum-red.log",
+    "bytes": 493,
+    "sha256": "a4014be437bdcfbcda7cde0e39a0e1829e4933b517732298222f6eaa8ad5db74"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-communication-ipc-2026-10-30\\red.log",
+    "bytes": 481,
+    "sha256": "c1a8e53e8ae1547b6f5a39ab8118e8e8c6999c3a367da9dbd0cd48308abd7618"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-communication-ipc-2026-10-30\\typecheck-final.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-communication-ipc-2026-10-30\\typecheck-first.log",
+    "bytes": 188,
+    "sha256": "3fa37656634ea47c6ee3c433f7dc017931b6ebfd6c828012bfd7bbe24820a42f"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-communication-ipc-2026-10-30\\typecheck-second.log",
+    "bytes": 209,
+    "sha256": "e1cf28b13d5d5fdc65f0ba6d6af317e5d4eb96ccc1eadf960e8e055c50a32bf6"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-communication-ipc-2026-10-30\\typecheck-third.log",
+    "bytes": 371,
+    "sha256": "3094141e690a64be3c5154b978a69c803d1dc8d97c23f7049f17e8692362bb35"
+  }
+]

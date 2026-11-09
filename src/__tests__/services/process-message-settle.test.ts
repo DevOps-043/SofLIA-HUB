@@ -47,7 +47,7 @@ function baseInput(overrides: Record<string, unknown> = {}) {
     setActiveToolCall: vi.fn(),
     preferredPrimaryModel: 'gemini-x',
     isPromptOptimizerMode: false,
-    optimizerTarget: 'gemini' as const,
+    optimizerTarget: 'chatgpt' as const,
     isImageGenMode: false,
     activeTool: null,
     ...overrides,

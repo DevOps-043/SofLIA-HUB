@@ -1,0 +1,14 @@
+{
+  "reason": "Corrección de alcance léxico AppleScript antes de entrega",
+  "interruptedByAgent": true,
+  "observedTerminalExitCodes": {
+    "gate": -1,
+    "build": -1
+  },
+  "initialEvidenceAccepted": false,
+  "finalLogs": [
+    "gate-final.log",
+    "build-final.log"
+  ],
+  "finalSourcesInventorySha256": "681195072b53a28b3a8598ef92b1c56cded9ffd275211dbdbff50eb92cbd3ad4"
+}

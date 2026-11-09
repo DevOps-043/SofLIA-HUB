@@ -1,3 +1,4 @@
+import { createSidecarTranscriptionPort } from './meeting-live/transcription-port';
 import { configureMeetingLoopback } from './main/display-media';
 /**
  * IPC + adaptadores de la transcripcion de reuniones en vivo (Meeting Live).
@@ -17,7 +18,6 @@ import { handleIPC } from './utils/ipc-helpers';
 import { MeetingLiveService } from './meeting-live/meeting-live-service';
 import type {
   MeetingLiveSource,
-  MeetingTranscriptionPort,
   StartMeetingLiveInput,
 } from './meeting-live/types';
 import type { PythonRuntimeService } from './python-runtime-service';
@@ -27,45 +27,10 @@ import { ensureSpeakerModel } from './meeting-live/speaker-model';
 import { matchMeetingWindow, MeetingDetectorService } from './meeting-live/meeting-detector';
 import { getActiveWindowInfo } from './monitoring/active-window';
 
-/** El primer meeting_start puede tardar (arranque del sidecar). */
-const MEETING_START_TIMEOUT_MS = 60_000;
-const MEETING_STOP_TIMEOUT_MS = 60_000;
-const SCREENSHOT_WIDTH = 1366;
 
-function createSidecarTranscriptionPort(runtime: PythonRuntimeService): MeetingTranscriptionPort {
-  return {
-    async start(params) {
-      await runtime.ensureSidecarRunning();
-      const res = await runtime.sendCommand('meeting_start', {
-        session_id: params.sessionId,
-        language: params.language,
-        model_size: params.modelSize,
-        download_root: params.downloadRoot,
-        speaker_model_path: params.speakerModelPath ?? '',
-        initial_prompt: params.initialPrompt ?? '',
-      }, MEETING_START_TIMEOUT_MS);
-      if (res.ok !== true) {
-        throw new Error(String(res.error ?? 'El sidecar rechazo meeting_start.'));
-      }
-      console.log(`[MeetingLive] Sesion iniciada (diarizacion: ${res.speaker_diarization === true ? 'activa' : 'no disponible'}).`);
-    },
-    pushAudio(source, audioB64) {
-      return runtime.sendNotification('meeting_audio', { source, audio_b64: audioB64 });
-    },
-    async stop(sessionId) {
-      const res = await runtime.sendCommand('meeting_stop', { session_id: sessionId }, MEETING_STOP_TIMEOUT_MS);
-      return Number(res.segments_count ?? 0);
-    },
-    onSegment(listener) {
-      runtime.on('meeting-segment', listener);
-      return () => runtime.removeListener('meeting-segment', listener);
-    },
-    onError(listener) {
-      runtime.on('meeting-error', listener);
-      return () => runtime.removeListener('meeting-error', listener);
-    },
-  };
-}
+
+
+const SCREENSHOT_WIDTH = 1366;
 
 /**
  * Captura preferentemente la VENTANA de la reunion (ahi estan los tiles con
@@ -218,3 +183,4 @@ export function registerMeetingLiveHandlers(
       return { result };
     }));
 }
+

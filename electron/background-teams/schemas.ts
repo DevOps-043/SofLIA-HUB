@@ -1,11 +1,11 @@
 import { z } from 'zod';
-import { BACKGROUND_LIMITS, BACKGROUND_MODELS } from '../../src/shared/background-teams';
+import { BACKGROUND_LIMITS, BACKGROUND_MODELS, reconcileBackgroundModel } from '../../src/shared/background-teams';
 
 export const contextSchema = z.object({ organizationId: z.string().uuid().nullable() }).strict();
 export const startSchema = z.object({
   requestId: z.string().uuid(), conversationId: z.string().trim().min(1).max(160),
   task: z.string().trim().min(1).max(8000), source: z.string().max(BACKGROUND_LIMITS.sourceChars),
-  model: z.enum(BACKGROUND_MODELS), effort: z.enum(['low', 'medium', 'high', 'xhigh', 'max']),
+  model: z.preprocess(reconcileBackgroundModel, z.enum(BACKGROUND_MODELS)), effort: z.enum(['low', 'medium', 'high', 'xhigh', 'max']),
   allowResearch: z.boolean(),
   expectedOwnerId: z.string().min(1).max(100), expectedOrganizationId: z.string().uuid().nullable(),
   messageId: z.string().uuid(),

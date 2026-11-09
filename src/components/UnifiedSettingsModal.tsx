@@ -15,7 +15,6 @@ interface UnifiedSettingsModalProps {
   userSettings: UserAISettings | null;
   onSaveSettings: (settings: UserAISettings) => void;
   sofiaContext: any;
-  apiKey: string;
   initialTab?: SettingsTab;
 }
 
@@ -27,7 +26,6 @@ export const UnifiedSettingsModal = ({
   userId,
   onSaveSettings,
   sofiaContext,
-  apiKey,
   initialTab = 'identity',
 }: UnifiedSettingsModalProps) => {
   const [activeTab, setActiveTab] = useState<SettingsTab>(resolveMasterTab(initialTab));
@@ -154,7 +152,6 @@ export const UnifiedSettingsModal = ({
             userId={userId}
             onSaveSettings={onSaveSettings}
             sofiaContext={sofiaContext}
-            apiKey={apiKey}
           />
         </div>
 

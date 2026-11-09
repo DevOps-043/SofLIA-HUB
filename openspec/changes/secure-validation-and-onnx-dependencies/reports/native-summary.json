@@ -1,0 +1,68 @@
+{
+  "command": "npm run validation:smoke:native",
+  "sandbox": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-validation-onnx-native-RhMHZT",
+  "modes": {
+    "node": {
+      "status": "passed",
+      "checks": [
+        "versiones-fisicas-coherentes",
+        "coleccion-excesiva-no-valida-hijos",
+        "api-de-extraccion-nuget-con-bytes-propios",
+        "crc-invalido-no-se-extrae-como-correcto",
+        "tamano-declarado-no-provoca-asignacion-anticipada",
+        "tamano-cero-no-desactiva-limite-de-inflado",
+        "error-de-inflado-asincrono-entregado-una-vez",
+        "inferencia-identity-cpu-con-valores-y-forma",
+        "inferencia-rechaza-forma-incompatible",
+        "sesion-de-inferencia-directa-liberada",
+        "modelo-invalido-rechazado",
+        "parser-real-sharp-onnx-letterbox-decode-nms",
+        "modelo-ausente-conserva-degradacion"
+      ],
+      "versions": {
+        "zod": "4.6.7",
+        "onnxruntime-node": "1.30.0",
+        "onnxruntime-common": "1.30.0",
+        "adm-zip": "0.6.1"
+      },
+      "node": "26.7.0",
+      "electron": null,
+      "platform": "win32",
+      "architecture": "x64",
+      "cudaUsed": false,
+      "externalModelsUsed": false,
+      "realScreenshotsUsed": false
+    },
+    "electron": {
+      "status": "passed",
+      "checks": [
+        "versiones-fisicas-coherentes",
+        "coleccion-excesiva-no-valida-hijos",
+        "api-de-extraccion-nuget-con-bytes-propios",
+        "crc-invalido-no-se-extrae-como-correcto",
+        "tamano-declarado-no-provoca-asignacion-anticipada",
+        "tamano-cero-no-desactiva-limite-de-inflado",
+        "error-de-inflado-asincrono-entregado-una-vez",
+        "inferencia-identity-cpu-con-valores-y-forma",
+        "inferencia-rechaza-forma-incompatible",
+        "sesion-de-inferencia-directa-liberada",
+        "modelo-invalido-rechazado",
+        "parser-real-sharp-onnx-letterbox-decode-nms",
+        "modelo-ausente-conserva-degradacion"
+      ],
+      "versions": {
+        "zod": "4.6.7",
+        "onnxruntime-node": "1.30.0",
+        "onnxruntime-common": "1.30.0",
+        "adm-zip": "0.6.1"
+      },
+      "node": "24.22.0",
+      "electron": "44.9.3",
+      "platform": "win32",
+      "architecture": "x64",
+      "cudaUsed": false,
+      "externalModelsUsed": false,
+      "realScreenshotsUsed": false
+    }
+  }
+}

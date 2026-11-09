@@ -88,7 +88,7 @@ def _run_command(msg: dict) -> None:
             if not file_path:
                 _respond_error(msg_id, "BAD_REQUEST", "Falta params.file_path.", started_at)
                 return
-            result = parse_document(file_path, int(params.get("max_pages", 200)))
+            result = parse_document(file_path, params.get("max_pages", 200))
             # Con redact=true, la PII se elimina AQUI: el dato sensible nunca
             # sale del sidecar hacia Electron (ni, por tanto, hacia la nube).
             if params.get("redact") is True:
@@ -125,6 +125,8 @@ def _run_command(msg: dict) -> None:
 
 def _redact_document(result: dict, privacy) -> dict:
     """Redacta la PII del Markdown y de cada celda de las tablas."""
+    from document_budget import validate_result
+    validate_result(result)
     redaction = privacy.redact(result.get("markdown", ""))
     redacted_count = redaction["redactedCount"]
 
@@ -138,10 +140,15 @@ def _redact_document(result: dict, privacy) -> dict:
                 redacted_count += cell_redaction["redactedCount"]
                 cells.append(cell_redaction["redacted"])
             rows.append(cells)
-        tables.append({**table, "rows": rows})
+        safe_table = {**table, "rows": rows}
+        if isinstance(table.get("sheet"), str):
+            sheet_redaction = privacy.redact(table["sheet"])
+            redacted_count += sheet_redaction["redactedCount"]
+            safe_table["sheet"] = sheet_redaction["redacted"]
+        tables.append(safe_table)
 
     metadata = {**result.get("metadata", {}), "piiRedacted": redacted_count, "piiEngine": privacy.ENGINE}
-    return {"markdown": redaction["redacted"], "tables": tables, "metadata": metadata}
+    return validate_result({"markdown": redaction["redacted"], "tables": tables, "metadata": metadata})
 
 
 def _report_worker_crash(future) -> None:

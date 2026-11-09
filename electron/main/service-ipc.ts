@@ -1,3 +1,4 @@
+import { registerWhatsAppHandlers } from '../whatsapp-handlers';
 import { ipcMain, app, nativeTheme } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -19,58 +20,7 @@ export function registerMainServiceIpcHandlers(input: {
     // la respuesta. El handler confirma consumo después de procesarla.
     return state.pendingLearningSession;
   });
-  ipcMain.handle('whatsapp:connect', async () => safeAsync(() => services.waService.connect()));
-  ipcMain.handle('whatsapp:disconnect', async () => safeAsync(() => services.waService.disconnect()));
-  ipcMain.handle('whatsapp:get-status', async () => services.waService.getStatus());
-  ipcMain.handle('whatsapp:get-conversation-history', async (_event, filters?: any) =>
-    safeResult(async () => {
-      await requireOrgAdmin(services, filters?.actor, 'whatsapp:get-conversation-history');
-      return services.waService.getConversationHistory(stripActor(filters));
-    }));
-  ipcMain.handle('whatsapp:get-conversation-history-stats', async (_event, actor?: any) =>
-    safeResult(async () => {
-      await requireOrgAdmin(services, actor, 'whatsapp:get-conversation-history-stats');
-      return services.waService.getConversationHistoryStats();
-    }));
-  ipcMain.handle('whatsapp:set-allowed-numbers', async (_event, numbers: string[], actor?: any) => {
-    const admin = await safeAdminCheck(services, actor, 'whatsapp:set-allowed-numbers');
-    if (!admin.success) return admin;
-    const result = await safeAsync(() => services.waService.setAllowedNumbers(numbers));
-    if (result.success && numbers.length > 0) {
-      const status = services.waService.getStatus() as { masterNumber?: string; allowedNumbers?: string[] };
-      services.dailyBriefingService.updateConfig({ ownerNumber: status.masterNumber || status.allowedNumbers?.[0] || numbers[0] });
-    }
-    return result;
-  });
-  ipcMain.handle('whatsapp:set-access-config', async (_event, config: any) => {
-    const admin = await safeAdminCheck(services, config?.actor, 'whatsapp:set-access-config');
-    if (!admin.success) return admin;
-    const result = await safeAsync(() => services.waService.setAccessConfig(stripActor(config)));
-    if (result.success) {
-      const status = services.waService.getStatus() as { masterNumber?: string; allowedNumbers?: string[] };
-      if (status.masterNumber || status.allowedNumbers?.[0]) {
-        services.dailyBriefingService.updateConfig({ ownerNumber: status.masterNumber || status.allowedNumbers?.[0] || '' });
-      }
-    }
-    return result;
-  });
-  ipcMain.handle('whatsapp:set-group-config', async (_event, config: any) =>
-    safeAsync(async () => {
-      await requireOrgAdmin(services, config?.actor, 'whatsapp:set-group-config');
-      await services.waService.setGroupConfig(stripActor(config));
-    }));
-  ipcMain.handle('whatsapp:set-personalization', async (_event, update: any) =>
-    safeAsync(async () => {
-      if (requiresOrgAdminForPersonalization(update)) {
-        await requireOrgAdmin(services, update?.actor, 'whatsapp:set-personalization');
-      }
-      await services.waService.setPersonalization(stripActor(update));
-    }));
-  ipcMain.handle('whatsapp:set-api-key', async (_event, apiKey: string) => {
-    initWhatsAppAgent(apiKey);
-    await services.waService.saveApiKey(apiKey);
-    return { success: true };
-  });
+  registerWhatsAppHandlers(services, () => [state.win, state.orbWin], initWhatsAppAgent);
 
   ipcMain.handle('app:get-pending-share-link', async () => {
     const nextShareLink = state.pendingShareLink;
@@ -212,50 +162,4 @@ export function registerMainServiceIpcHandlers(input: {
     }
   });
 }
-
-async function safeAsync(action: () => Promise<void>): Promise<{ success: boolean; error?: string }> {
-  try {
-    await action();
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : String(error) };
-  }
-}
-
-async function safeResult<T>(action: () => Promise<T>): Promise<{ success: boolean; data?: T; error?: string }> {
-  try {
-    return { success: true, data: await action() };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : String(error) };
-  }
-}
-
-async function safeAdminCheck(services: any, actor: any, action: string): Promise<{ success: boolean; error?: string }> {
-  try {
-    await requireOrgAdmin(services, actor, action);
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : String(error) };
-  }
-}
-
-async function requireOrgAdmin(services: any, actor: any, action: string): Promise<void> {
-  if (!services.communicationHubService) return;
-  const status = await services.communicationHubService.getOrgStatus(actor || undefined);
-  if (!status?.success) throw new Error(status?.error || `La accion ${action} requiere rol owner o admin.`);
-}
-
-function stripActor<T>(value: T): T {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
-  const { actor: _actor, ...rest } = value as Record<string, unknown>;
-  return rest as T;
-}
-
-function requiresOrgAdminForPersonalization(update: any): boolean {
-  if (!update || typeof update !== 'object') return false;
-  return Boolean(
-    Object.prototype.hasOwnProperty.call(update, 'whitelistEnabled') ||
-    update.contactPersonalizations ||
-    update.groupPersonalizations,
-  );
-}
+

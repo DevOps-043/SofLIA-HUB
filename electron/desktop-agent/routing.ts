@@ -9,6 +9,7 @@ type BrowserBackend = {
     profileId?: string;
     isolated?: boolean;
     resetProfile?: boolean;
+    signal?: AbortSignal;
   }): Promise<string>;
 };
 
@@ -18,7 +19,7 @@ type WindowsUIARunResult = WindowsUIAFallbackRunResult & {
 };
 
 type WindowsUIABackend = {
-  executeTask(task: string, options?: { maxSteps?: number }): Promise<string>;
+  executeTask(task: string, options?: { maxSteps?: number; signal?: AbortSignal }): Promise<string>;
   getLastRunResult(): WindowsUIARunResult | null;
 };
 
@@ -102,6 +103,7 @@ export function executeBrowserBackendTask(
     profileId: options?.browserProfile,
     isolated: options?.browserIsolated,
     resetProfile: options?.resetBrowserProfile,
+    ...(options?.signal ? { signal: options.signal } : {}),
   });
 }
 
@@ -111,7 +113,7 @@ export async function executeWindowsUIABackendTask(input: {
   options?: DesktopTaskExecutionOptions;
   runFallback: (runResult: WindowsUIAFallbackRunResult) => Promise<string>;
 }): Promise<string> {
-  const result = await input.windowsUIA.executeTask(input.task, { maxSteps: input.options?.maxSteps });
+  const result = await input.windowsUIA.executeTask(input.task, { maxSteps: input.options?.maxSteps, ...(input.options?.signal ? { signal: input.options.signal } : {}) });
   const runResult = input.windowsUIA.getLastRunResult();
 
   if (runResult && runResult.status !== 'completed' && runResult.fallbackRecommended) {

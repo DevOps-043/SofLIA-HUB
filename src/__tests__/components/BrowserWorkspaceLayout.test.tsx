@@ -4,7 +4,6 @@ import userEvent from '@testing-library/user-event';
 import { BrowserWorkspaceLayout } from '../../components/browser/BrowserWorkspaceLayout';
 import { orbService } from '../../services/orb-service';
 import { scopedPreferenceKey } from '../../services/user-scope';
-import { SOFLIA_RUNTIME_MODEL } from '../../shared/soflia-runtime-model';
 import { AgentActivityContext, type AgentActivityPanelState } from '../../components/agents/agent-activity-context';
 
 vi.mock('../../services/orb-service', () => ({
@@ -83,18 +82,18 @@ describe('BrowserWorkspaceLayout', () => {
     renderLayout();
 
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar modelo y razonamiento' }));
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /SofLIA Pro/ }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /SofLIA Max/ }));
 
-    expect(localStorage.getItem(scopedPreferenceKey('soflia:selected-model'))).toBe(SOFLIA_RUNTIME_MODEL);
-    expect(screen.getByRole('button', { name: 'Cambiar modelo y razonamiento' })).toHaveTextContent('SofLIA Pro');
+    expect(localStorage.getItem(scopedPreferenceKey('soflia:selected-model'))).toBe('gpt-6.1-sol');
+    expect(screen.getByRole('button', { name: 'Cambiar modelo y razonamiento' })).toHaveTextContent('SofLIA Max');
   });
 
-  it('activa Max con un clic real después de Pro y conserva Sol al reabrir el menú', async () => {
+  it('activa Max con un clic real después de SofLIA y conserva Sol al reabrir el menú', async () => {
     const user = userEvent.setup();
     renderLayout();
     const selector = screen.getByRole('button', { name: 'Cambiar modelo y razonamiento' });
     await user.click(selector);
-    await user.click(screen.getByRole('menuitemradio', { name: /SofLIA Pro/ }));
+    await user.click(screen.getByRole('menuitemradio', { name: /^SofLIA(?! Max)/ }));
     await user.click(selector);
     await user.click(screen.getByRole('menuitemradio', { name: /SofLIA Max/ }));
     expect(selector).toHaveTextContent('SofLIA Max');

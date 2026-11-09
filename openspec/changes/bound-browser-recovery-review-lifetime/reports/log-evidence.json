@@ -1,0 +1,237 @@
+[
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\baseline-01.log",
+    "bytes": 2297,
+    "sha256": "28ee48bcb3b84dd3c619cc4200e8267517562253c398c049ad358deb8664abfa"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\baseline-02.log",
+    "bytes": 2297,
+    "sha256": "4262a20401b33f7856944a2304bcfb5b186ecfbcbe241b7372c5c51a1b8e5a73"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\baseline-03.log",
+    "bytes": 2297,
+    "sha256": "e4c53a90f3f0c0586a9f5d4a4e55862f7af220253de9e24b1a5017813bbfa301"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\baseline-04.log",
+    "bytes": 2297,
+    "sha256": "5fcf77ae5a0559df4700aacceae3b86d38235e2fdc6af28d89e17c35435b6ea9"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\baseline-05.log",
+    "bytes": 2297,
+    "sha256": "e4a851bb6b1a9ed7f69e7a32ddbdceac09401b83131e14960dd2f0d133b01f42"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\baseline-06.log",
+    "bytes": 2297,
+    "sha256": "6798cb426370d7a2c6cafdc6327edb6f5c06ceac49476a5875b5ed61c59da2bc"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\baseline-07.log",
+    "bytes": 2297,
+    "sha256": "f60d55f179609615990416296e94421b3c67fe2bcde668cde95f8b76fc75c54c"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\baseline-08.log",
+    "bytes": 2297,
+    "sha256": "91b83ca5d8b3f192f53e13969c1f064b43be0c9102b09881a328ffaba0e8c2f1"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\baseline-09.log",
+    "bytes": 2297,
+    "sha256": "f5331f4d249c5d9af57a5154c6ffdce2265dc3c1ffb370e6aa0c385dd431acb1"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\baseline-10.log",
+    "bytes": 2297,
+    "sha256": "4bcdb10fda4d70ddfcbcff1bcb82ba0bde9397a7bc6b5893c9966b60956734b4"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\before-quarantine-build-final.log",
+    "bytes": 38893,
+    "sha256": "20cacf6c383a46de90246ef72ae7b5c37cffc3727e13bfbec695e8f64a4e38a9"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\before-quarantine-gate-final.log",
+    "bytes": 121508,
+    "sha256": "8414c73d5fef4dad9ba9a6f454a86a7e117a89722eae04924b54c0876176ab6a"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\build-final.log",
+    "bytes": 38603,
+    "sha256": "0a2ac3f7d259985203cdecf33a94916fb2f5d75182f6df95b5f91081b6441d08"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\cleanup-error-red.log",
+    "bytes": 2089,
+    "sha256": "8d896ff91bfb32068b45b1dc04296fd712d593d723027afd21b3b3c721b4284c"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\clock-first-green.log",
+    "bytes": 637,
+    "sha256": "e8214354018b05c7a9732c3da926587e6d8376ba1ad54af8a8c6b0314a8d08db"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\clock-io-red.log",
+    "bytes": 2862,
+    "sha256": "d4897dc12d7d1ae7b88e9efbbe7f38a0d5604e838d432ab593dc3af5605af179"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\clock-red.log",
+    "bytes": 2007,
+    "sha256": "5ae783e71fa3f097727f22ce6ca8c577e4536a83d76648725bab6e3ddc277ef2"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\docs-final.log",
+    "bytes": 139,
+    "sha256": "a7856b59d7437555872e2738949b09b463ec9a1186d918fbc6c26930487a5a1a"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\docs-system-final.log",
+    "bytes": 195,
+    "sha256": "ac40b61a6a4b30408f077a427025fda02fa232ea38cefabe25393890cc016fd3"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\gate-final.log",
+    "bytes": 121442,
+    "sha256": "f1c34b87cacff2db5ba13d97fbbf9d6f031f88b0169b398a500582113f65d078"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\harness-final.log",
+    "bytes": 144,
+    "sha256": "916e65bfd3de6fbfa30c2fa5e9d816f138601dd577b5d8ebf17711b92b2aeebd"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\lint-first.log",
+    "bytes": 145,
+    "sha256": "a0b108380b6757cdcbcbecb263b88a7352fd062080a9c96778383d770df01c19"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\native-all-final.log",
+    "bytes": 12523,
+    "sha256": "7d2309a38334d0d3f7dcf200a8852473208b7f6410bbb56ca98e7b3da69da755"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\native-all-readiness-final.log",
+    "bytes": 12587,
+    "sha256": "f1c44c1531264c6552fdeeb13015614a5723a936d576af57aba5493259f673d7"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\native-final.log",
+    "bytes": 12581,
+    "sha256": "26a5548a9309f29051bca0ca5c27fa067c983eb30e1f750bca3010b0e659e9ad"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\native-first.log",
+    "bytes": 3096,
+    "sha256": "a1f92a6ee6eb2613697920ba9b6ab321b2b57988e2400de045f1f61269dc7f15"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\native-quarantine-final.log",
+    "bytes": 12581,
+    "sha256": "7baa3dc6b6f133fafce17a8aec58c3791ec3ef1980d2b6c4c8dd48ef8c9f5908"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\native-second.log",
+    "bytes": 1266,
+    "sha256": "df21f7ec6a8fded520ad7ed7a72efc1fc38fdfe7a2fd03356d8dbbd95547e070"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\native-sharing-first-green.log",
+    "bytes": 1443,
+    "sha256": "66acd461ce5b5623987952b798d38cfdcae8d5efaef7a0bf1bc52885a1f00f5f"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\native-sharing-red.log",
+    "bytes": 1094,
+    "sha256": "550c47e0db74cbc1a6df867a51f18bacd6daece968646ab2c5ab08cf5ea11fbb"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\native-sharing-second-green.log",
+    "bytes": 3061,
+    "sha256": "7529721e33ddce62bcd02456282346bca01b12eb591033f7813654c28510bcaa"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\openspec-final.log",
+    "bytes": 58,
+    "sha256": "3095d2bb27b569f4de447365bce8bb414df539f9bc7f1739c878651b71db5938"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\perception-readiness.log",
+    "bytes": 1192,
+    "sha256": "0ea293da18e05a47ad6eee9f2cf93f6026bcd7c6d6469abb4e5f6fb305c45f97"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\quarantine-ownership-red.log",
+    "bytes": 6153,
+    "sha256": "80a46becfb4321d1d5b49b9ae468ab15c2389bf4394caf9d1523c390de7b4b4a"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\temporary-ownership-red.log",
+    "bytes": 2003,
+    "sha256": "c865fc201d706e614830f04f3c34d645917cb2334aa0bd92f88aa83252f3dfbf"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\tests-directed-final.log",
+    "bytes": 629,
+    "sha256": "879d55011c4d97d5b56fbdd33812f9e3aafd2c00b23fcc942b21e04d924b18b1"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\tests-final.log",
+    "bytes": 629,
+    "sha256": "cccdc38b90dd7d2407d0ac446c335109a651de52290245142a9c38eb399f6aae"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\tests-first.log",
+    "bytes": 629,
+    "sha256": "375e4c32e0e81e0d7e8b0c4261d619a55df14026e6e60b6d4766715b461e1382"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\tests-fourth.log",
+    "bytes": 629,
+    "sha256": "0906e3622aa217bed555c5d4a4ea263e23bba1d010c0b4415859ec03ff66065f"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\tests-publication-first.log",
+    "bytes": 629,
+    "sha256": "b97250de6fa435adafdf9ed811174cc210b5e4a7b8beb8283ca2d884056b1943"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\tests-quarantine-final.log",
+    "bytes": 3135,
+    "sha256": "57bcf88c439b80d966700b52f8e79dc3ef3964dfe5c9b908fb36476537976d0e"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\tests-second.log",
+    "bytes": 2077,
+    "sha256": "9a4008b2dbb189efcb4d9eb6d6633c51ec8e7ff86387fafa4c5094ad390a2b0f"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\tests-third.log",
+    "bytes": 628,
+    "sha256": "966b657fd3d632f29cd236a7a49e885a1732288b42bb19994b4638aaf4d85642"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\typecheck-final.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\typecheck-first.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\typecheck-second.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-policy-recovery-2026-10-25\\typecheck-third.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  }
+]

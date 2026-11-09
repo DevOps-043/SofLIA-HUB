@@ -1,6 +1,7 @@
+import type { CalendarEventDto } from '../../../shared/calendar';
 import type { CalendarEvent } from './types';
 
-export function mapCalendarEvents(events: any[]): CalendarEvent[] {
+export function mapCalendarEvents(events: CalendarEventDto[]): CalendarEvent[] {
   return events.map(event => ({
     ...event,
     start: new Date(event.start),

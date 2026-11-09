@@ -1,0 +1,73 @@
+{
+  "scripts": [
+    {
+      "script": "adapters:check",
+      "exitCode": 0
+    },
+    {
+      "script": "harness:validate",
+      "exitCode": 0
+    },
+    {
+      "script": "audit:supply-chain",
+      "exitCode": 0
+    },
+    {
+      "script": "docs:system:check",
+      "exitCode": 0
+    },
+    {
+      "script": "docs:check",
+      "exitCode": 0
+    },
+    {
+      "script": "skills:seed:check",
+      "exitCode": 0
+    },
+    {
+      "script": "openspec:validate",
+      "exitCode": 0
+    },
+    {
+      "script": "test:quality",
+      "exitCode": 0
+    },
+    {
+      "script": "typecheck",
+      "exitCode": 0
+    },
+    {
+      "script": "lint:changed",
+      "exitCode": 0
+    },
+    {
+      "script": "test",
+      "exitCode": 0
+    }
+  ],
+  "exitCode": 0,
+  "productionChangedDuringGate": false,
+  "at": "2026-10-23T19:40:45.5479643Z",
+  "independentReview": "pending",
+  "directed": {
+    "passed": 377,
+    "log": "C:\\Users\\fysg5\\AppData\\Local\\Temp/soflia-voice-authorization-2026-10-22/directed-complete.log",
+    "files": 22
+  },
+  "markdownFiles": 668,
+  "vitest": {
+    "passed": 5391,
+    "skipped": 5,
+    "durationSeconds": 198.65,
+    "total": 5396,
+    "filesPassed": 487,
+    "filesTotal": 489,
+    "filesSkipped": 2
+  },
+  "archived": false,
+  "log": "C:\\Users\\fysg5\\AppData\\Local\\Temp/soflia-voice-authorization-2026-10-22/verify-pr-complete.log",
+  "ipcChannels": 495,
+  "lintFiles": 239,
+  "documentedTestFiles": 659,
+  "command": "npm run verify:pr"
+}

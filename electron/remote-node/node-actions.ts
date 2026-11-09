@@ -7,8 +7,8 @@ type RemoteNodeAction =
 
 export function buildRemoteNodeAction(
   action: RemoteNodeAction,
-  args: Record<string, any> = {},
-): { method: string; routePath: string; body?: Record<string, any> } {
+  args: Record<string, unknown> = {},
+): { method: string; routePath: string; body?: Record<string, unknown> } {
   if (action === 'open_application') {
     return { method: 'POST', routePath: '/v1/open-application', body: { path: args.path } };
   }

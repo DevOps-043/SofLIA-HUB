@@ -24,8 +24,9 @@ const onlyPasskeys = process.argv.includes('--passkeys-only');
 const onlyExtensions = process.argv.includes('--extensions-only');
 const onlyCatalog = process.argv.includes('--catalog-only');
 const onlyPolicies = process.argv.includes('--policies-only');
-assert.ok([onlyLifecycle, onlyVault, onlyAutosave, onlySafety, onlyZoom, onlyZoomStartup, onlyPasskeys, onlyExtensions, onlyCatalog, onlyPolicies].filter(Boolean).length <= 1, 'Selecciona una sola fase focalizada.');
-const args = process.argv.slice(2).filter((arg) => !['--lifecycle-only', '--vault-only', '--autosave-only', '--safety-only', '--zoom-only', '--zoom-startup-only', '--passkeys-only', '--extensions-only', '--catalog-only', '--policies-only'].includes(arg));
+const onlyPerception = process.argv.includes('--perception-only');
+assert.ok([onlyLifecycle, onlyVault, onlyAutosave, onlySafety, onlyZoom, onlyZoomStartup, onlyPasskeys, onlyExtensions, onlyCatalog, onlyPolicies, onlyPerception].filter(Boolean).length <= 1, 'Selecciona una sola fase focalizada.');
+const args = process.argv.slice(2).filter((arg) => !['--lifecycle-only', '--vault-only', '--autosave-only', '--safety-only', '--zoom-only', '--zoom-startup-only', '--passkeys-only', '--extensions-only', '--catalog-only', '--policies-only', '--perception-only'].includes(arg));
 assert.equal(process.platform, 'win32', 'Este smoke nativo sólo está preparado para Windows.');
 assert.ok(args.length === 1 && args[0] === '--download-runtime'
   || args.length === 2 && args[0] === '--electron' && path.isAbsolute(args[1]),
@@ -91,7 +92,10 @@ try {
   // Transpilar módulos reales, sin empaquetar ni sustituir Electron por un mock.
   const modules = [
     'integrated-browser/platform-types', 'integrated-browser/profile-scope',
-    'integrated-browser/session-store', 'integrated-browser/browser-history-store',
+    'integrated-browser/session-store', 'integrated-browser/session-checkpoint', 'integrated-browser/browser-history-store',
+    'integrated-browser/resource-policy',
+    'integrated-browser/perception-state', 'integrated-browser/page-observation', 'integrated-browser/dom-limits',
+    'integrated-browser/agent-world', 'integrated-browser/cdp-dom-snapshot',
     'integrated-browser/bookmark-store', 'integrated-browser/diagnostic-report',
     'integrated-browser/page-tools', 'integrated-browser/download-manager', 'main/shutdown-guard',
     'main/app-lifecycle', 'app-protocol',
@@ -101,6 +105,8 @@ try {
     'integrated-browser/sqlite-store-recovery',
     'integrated-browser/semantic-memory-store', 'integrated-browser/semantic-memory-recovery',
     'integrated-browser/policy-file-recovery', 'integrated-browser/site-permissions', 'integrated-browser/types',
+    'integrated-browser/recovery-review-lifetime',
+    'integrated-browser/recovery-file-publication',
     'integrated-browser/privacy-store', 'integrated-browser/agent-policy-store',
     'integrated-browser/agent-shortcut-store', 'integrated-browser/sync-settings-store', 'integrated-browser/sync-remote',
     'integrated-browser/sync-checkpoint-store', 'integrated-browser/sync-recovery-guard', 'integrated-browser/sync-state-recovery',
@@ -125,24 +131,20 @@ try {
     await fs.writeFile(destination, compiled.outputText, { flag: 'wx' });
   }
   let hasLimitations = false;
-  // El store real de atajos consume el mismo validador compartido que la UI.
-  const shortcutSource = await fs.readFile(path.join(root, 'src/shared/browser-agent-shortcuts.ts'), 'utf8');
-  const shortcutTarget = path.join(sandbox, 'src/shared/browser-agent-shortcuts.js');
-  await fs.mkdir(path.dirname(shortcutTarget), { recursive: true });
-  await fs.writeFile(shortcutTarget, ts.transpileModule(shortcutSource, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText, { flag: 'wx' });
-  // La fase de zoom resuelve teclas reales con la misma tabla de atajos del producto.
-  const keyboardSource = await fs.readFile(path.join(root, 'src/shared/browser-keyboard-shortcuts.ts'), 'utf8');
-  await fs.writeFile(path.join(sandbox, 'src/shared/browser-keyboard-shortcuts.js'), ts.transpileModule(keyboardSource, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText, { flag: 'wx' });
-  const semanticSource = await fs.readFile(path.join(root, 'src/shared/browser-semantic-memory.ts'), 'utf8');
-  await fs.writeFile(path.join(sandbox, 'src/shared/browser-semantic-memory.js'), ts.transpileModule(semanticSource, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText, { flag: 'wx' });
-  for (const phase of onlyZoomStartup ? ['zoom-startup'] : onlyPolicies ? ['policies'] : onlyCatalog ? ['catalog'] : onlyExtensions ? ['extensions'] : onlyPasskeys ? ['passkeys'] : onlyZoom ? ['zoom'] : onlyLifecycle ? ['lifecycle'] : onlyVault ? ['vault'] : onlyAutosave ? ['autosave'] : onlySafety ? ['safety'] : ['exercise', 'restore', 'lifecycle', 'vault', 'autosave', 'zoom-startup', 'zoom', 'safety', 'passkeys', 'extensions', 'policies']) {
-    const harness = path.join(root, phase === 'safety' ? 'test/manual/browser-native/safety.mjs' : ['lifecycle', 'vault', 'autosave', 'zoom-startup', 'zoom', 'passkeys', 'extensions', 'catalog', 'policies'].includes(phase) ? `test/manual/browser-native/${phase}.cjs` : 'test/manual/browser-native/main.cjs');
+  // Dependencias compartidas de los stores, atajos y protocolo usados en el smoke.
+  const sharedModules = [
+    'browser-agent-shortcuts', 'browser-home', 'browser-keyboard-shortcuts',
+    'browser-semantic-memory', 'learning-live-session',
+  ];
+  await fs.mkdir(path.join(sandbox, 'src/shared'), { recursive: true });
+  for (const module of sharedModules) {
+    const source = await fs.readFile(path.join(root, 'src/shared', `${module}.ts`), 'utf8');
+    await fs.writeFile(path.join(sandbox, 'src/shared', `${module}.js`), ts.transpileModule(source, {
+      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+    }).outputText, { flag: 'wx' });
+  }
+  for (const phase of onlyPerception ? ['perception'] : onlyZoomStartup ? ['zoom-startup'] : onlyPolicies ? ['policies'] : onlyCatalog ? ['catalog'] : onlyExtensions ? ['extensions'] : onlyPasskeys ? ['passkeys'] : onlyZoom ? ['zoom'] : onlyLifecycle ? ['lifecycle'] : onlyVault ? ['vault'] : onlyAutosave ? ['autosave'] : onlySafety ? ['safety'] : ['exercise', 'restore', 'lifecycle', 'vault', 'autosave', 'zoom-startup', 'zoom', 'safety', 'passkeys', 'extensions', 'policies', 'perception']) {
+    const harness = path.join(root, phase === 'safety' ? 'test/manual/browser-native/safety.mjs' : ['lifecycle', 'vault', 'autosave', 'zoom-startup', 'zoom', 'passkeys', 'extensions', 'catalog', 'policies', 'perception'].includes(phase) ? `test/manual/browser-native/${phase}.cjs` : 'test/manual/browser-native/main.cjs');
     await run(executable, [harness, sandbox, version, phase]);
     const report = JSON.parse(await fs.readFile(path.join(sandbox, `${phase}.json`), 'utf8'));
     assert.equal(report.status, 'passed');

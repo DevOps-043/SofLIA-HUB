@@ -1,11 +1,8 @@
-import { MODELS } from '../config';
-import { getGenAI } from './gemini-chat/client';
-import { withGeminiTimeout } from './gemini-chat/resilience';
+import { generateAssistantText } from './openai-chat/generate-text';
 
 /**
- * Reescritura de un fragmento seleccionado en el navegador integrado. Vive en
- * el renderer porque aqui esta la clave del usuario y el modelo del producto;
- * main solo hace de puente entre la pagina y esta llamada.
+ * Reescritura de un fragmento seleccionado en el navegador integrado. La
+ * inferencia Electron pasa por el servicio nativo de OpenAI.
  *
  * Es una tarea de un solo turno: no toca la conversacion, no guarda nada y no
  * usa herramientas. La respuesta vuelve al panel de la pagina, donde el usuario
@@ -28,17 +25,11 @@ export async function improveBrowserSelection(input: BrowserWritingInput): Promi
   const texto = input.text.trim();
   if (!texto) throw new Error('No hay texto seleccionado que mejorar.');
 
-  const ai = await getGenAI();
-  const model = ai.getGenerativeModel({
-    model: MODELS.FALLBACK,
-    generationConfig: { temperature: 0.4 },
+  const result = await generateAssistantText({
+    prompt: buildWritingPrompt({ ...input, text: texto }),
+    timeout: { label: 'Redacción del navegador', ms: WRITING_TIMEOUT_MS },
   });
-  const result = await withGeminiTimeout(
-    'Redaccion del navegador',
-    () => model.generateContent(buildWritingPrompt({ ...input, text: texto })),
-    WRITING_TIMEOUT_MS,
-  );
-  const propuesta = sanitizeWritingResult(result.response.text());
+  const propuesta = sanitizeWritingResult(result);
   if (!propuesta) throw new Error('El modelo no devolvio una version utilizable.');
   return propuesta.slice(0, MAX_RESULT_CHARS);
 }

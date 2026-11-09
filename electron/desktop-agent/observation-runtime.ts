@@ -1,15 +1,15 @@
-import type { GoogleGenerativeAI } from '@google/generative-ai';
+import type { DesktopInference } from './inference';
 import type { DesktopActionPayload } from '../desktop-agent-types';
 import { parseDesktopActionResponse } from './parsers';
 
-type VisionContentPart = { inlineData: { mimeType: 'image/png'; data: string } } | { text: string };
-
 export function startContinuousObservation(input: {
+  signal?: AbortSignal;
+  onCycleEnd?: () => void;
   objective: string;
   reactionRules?: string;
   intervalMs: number;
   modelName: string;
-  ai: GoogleGenerativeAI;
+  ai: DesktopInference;
   isRunning: () => boolean;
   setRunning: (running: boolean) => void;
   takeScreenshot: () => Promise<string>;
@@ -19,37 +19,44 @@ export function startContinuousObservation(input: {
   getErrorMessage: (error: unknown) => string;
 }): ReturnType<typeof setInterval> {
   let lastHash = '';
-  return setInterval(async () => {
+  const current = () => !input.signal?.aborted;
+  const interval = setInterval(async () => {
+    if (!current()) return;
     if (input.isRunning()) return;
     input.setRunning(true);
 
     try {
       const screenshot = await input.takeScreenshot();
+      if (!current()) return;
       const hash = input.quickHash(screenshot);
       if (hash === lastHash) {
-        input.setRunning(false);
         return;
       }
       lastHash = hash;
 
-      const model = input.ai.getGenerativeModel({ model: input.modelName });
-      const parts: VisionContentPart[] = [
-        { inlineData: { mimeType: 'image/png', data: screenshot } },
-        { text: buildObservationPrompt(input.objective, input.reactionRules) },
-      ];
-      const result = await model.generateContent(parts);
-      const action = parseDesktopActionResponse(result.response.text());
+      if (!current()) return;
+      const result = await input.ai(buildObservationPrompt(input.objective, input.reactionRules), {
+        images: [`data:image/png;base64,${screenshot}`], json: true, signal: input.signal,
+      });
+      if (!current()) return;
+      const action = parseDesktopActionResponse(result);
 
       if (action.action !== 'wait') {
         input.emit('observation-action', action);
+        if (!current()) return;
         await input.executeAction(action);
       }
     } catch (error: unknown) {
-      console.error('[DesktopAgent] Error en observacion:', input.getErrorMessage(error));
+      if (current()) console.warn('[DesktopAgent] No se completó el ciclo de observación.');
+      void error;
     } finally {
-      input.setRunning(false);
+      input.onCycleEnd?.();
+      if (current()) input.setRunning(false);
     }
   }, input.intervalMs);
+  input.signal?.addEventListener('abort', () => clearInterval(interval), { once: true });
+  if (!current()) clearInterval(interval);
+  return interval;
 }
 
 function buildObservationPrompt(objective: string, reactionRules?: string): string {

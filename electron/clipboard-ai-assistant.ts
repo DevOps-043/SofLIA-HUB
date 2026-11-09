@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { clipboard } from 'electron';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { onAuthStateChange, isAuthenticated } from './main/auth-state';
 import {
   addClipboardText,
   formatClipboardLogText,
@@ -28,30 +28,46 @@ export class ClipboardAIAssistant extends EventEmitter {
   private intervalId?: NodeJS.Timeout;
   private history: ClipboardItem[] = [];
   private lastCopiedText = '';
-  private genAI: GoogleGenerativeAI | null = null;
   private isRunning = false;
+  private revision = 0;
+  private removeAuthListener?: () => void;
 
   constructor(config: ClipboardConfig) {
     super();
     this.config = { maxHistorySize: 100, pollingIntervalMs: 5000, ...config };
-    if (this.config.apiKey) this.genAI = new GoogleGenerativeAI(this.config.apiKey);
   }
 
   async init(): Promise<void> {
     this.history = [];
+    this.removeAuthListener?.();
+    this.removeAuthListener = onAuthStateChange(({ authenticated }) => {
+      this.resetCapture();
+      if (authenticated) void this.start();
+    });
   }
 
   async start(): Promise<void> {
-    if (this.isRunning) return;
+    if (this.isRunning || !isAuthenticated()) return;
+    const revision = this.revision;
     this.isRunning = true;
-    this.lastCopiedText = await readClipboardText(clipboard);
+    const initial = await readClipboardText(clipboard);
+    if (revision !== this.revision) return;
+    this.lastCopiedText = initial;
     this.intervalId = setInterval(() => { void this.pollClipboard(); }, this.config.pollingIntervalMs || 5000);
     console.log('[ClipboardAIAssistant] Servicio de portapapeles iniciado silenciosamente.');
   }
 
   async stop(): Promise<void> {
-    if (!this.isRunning) return;
+    this.removeAuthListener?.();
+    this.removeAuthListener = undefined;
+    this.resetCapture();
+  }
+
+  private resetCapture(): void {
+    this.revision++;
     this.isRunning = false;
+    this.history = [];
+    this.lastCopiedText = '';
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = undefined;
@@ -67,21 +83,18 @@ export class ClipboardAIAssistant extends EventEmitter {
     return this.config;
   }
 
-  updateApiKey(apiKey: string): void {
-    this.config.apiKey = apiKey;
-    this.genAI = new GoogleGenerativeAI(apiKey);
-  }
-
   getHistory(): ClipboardItem[] {
     return this.history;
   }
 
   async searchClipboardHistory(query: string): Promise<string> {
-    return searchClipboardItems(this.history, this.genAI, query);
+    return searchClipboardItems(this.history, query);
   }
 
   private async pollClipboard(): Promise<void> {
+    const revision = this.revision;
     const currentText = await readClipboardText(clipboard);
+    if (!this.isRunning || revision !== this.revision) return;
     if (currentText === this.lastCopiedText) return;
 
     const item = addClipboardText(this.history, currentText, this.config);

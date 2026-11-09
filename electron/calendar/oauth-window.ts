@@ -1,57 +1,49 @@
-import { BrowserWindow } from 'electron';
-import http from 'node:http';
-import { URL } from 'node:url';
+import { BrowserWindow, shell } from 'electron';
+import { onAuthStateChange } from '../main/auth-state';
 import { OAUTH_REDIRECT_PORT } from './constants';
+import { validateOAuthDestination, type OAuthProof } from './oauth-proof';
+import { createOAuthReceiver } from './oauth-receiver';
 
-export function openOAuthWindow(authUrl: string, title: string): Promise<string | null> {
-  return new Promise((resolve) => {
-    let resolved = false;
-    let server: http.Server | null = null;
+export interface OAuthWindowOptions {
+  provider: 'google' | 'microsoft';
+  clientId: string;
+  proof: OAuthProof;
+  assertCurrent: () => void;
+}
 
-    server = http.createServer((req, res) => {
-      const url = new URL(req.url || '', `http://localhost:${OAUTH_REDIRECT_PORT}`);
-      const code = url.searchParams.get('code');
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(`
-        <html><body style="font-family:system-ui;text-align:center;padding:60px;background:#1a1a2e;color:white">
-          <h2>${code ? 'Conectado exitosamente' : 'Error de conexion'}</h2>
-          <p>${code ? 'Puedes cerrar esta ventana.' : 'No se pudo obtener autorizacion.'}</p>
-          <script>setTimeout(() => window.close(), 2000)</script>
-        </body></html>
-      `);
-      if (!resolved) {
-        resolved = true;
-        resolve(code || null);
-      }
-      setTimeout(() => {
-        server?.close();
-        authWin?.close();
-      }, 1000);
-    });
+const statusHtml = '<!doctype html><html lang="es"><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; base-uri \'none\'; form-action \'none\'"><title>Autorización</title><body><h1>Continúa en tu navegador</h1><p>Autoriza la conexión en el navegador del sistema. Cierra esta ventana para cancelar.</p></body></html>';
 
-    server.listen(OAUTH_REDIRECT_PORT, '127.0.0.1');
-    const authWin = new BrowserWindow({
-      width: 600,
-      height: 700,
-      title: `Conectar ${title}`,
-      webPreferences: { nodeIntegration: false, contextIsolation: true },
-    });
-
-    authWin.loadURL(authUrl);
-    authWin.on('closed', () => {
-      if (!resolved) {
-        resolved = true;
-        resolve(null);
-        server?.close();
-      }
-    });
-    setTimeout(() => {
-      if (!resolved) {
-        resolved = true;
-        resolve(null);
-        server?.close();
-        authWin?.close();
-      }
-    }, 300000);
-  });
+/** Fachada main: nunca carga el proveedor dentro del WebContents del Hub. */
+export async function openOAuthWindow(authUrl: string, title: string, options: OAuthWindowOptions): Promise<string | null> {
+  validateOAuthDestination(authUrl, options.provider, options.proof, options.clientId); options.assertCurrent();
+  const receiver = createOAuthReceiver({ state: options.proof.state, assertCurrent: options.assertCurrent, port: OAUTH_REDIRECT_PORT });
+  let window: BrowserWindow | null = null;
+  const unsubscribe = onAuthStateChange(() => { try { options.assertCurrent(); } catch { void receiver.cancel(); } });
+  const closed = () => { void receiver.cancel(); };
+  const completed = receiver.result.then(code => ({ kind: 'completed' as const, code }));
+  const complete = (code: string | null) => { options.assertCurrent(); return code; };
+  try {
+    if (!await receiver.ready) throw new Error('No se pudo iniciar la recepción OAuth local.');
+    options.assertCurrent();
+    if (!receiver.isPending()) return complete(await receiver.result);
+    window = new BrowserWindow({ width: 440, height: 260, title: `Conectar ${title}`, show: false,
+      webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true } });
+    window.on('closed', closed);
+    window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    window.webContents.on('will-navigate', event => event.preventDefault());
+    const loaded = await Promise.race([window.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(statusHtml))
+      .then(() => ({ kind: 'loaded' as const })), completed]);
+    if (loaded.kind === 'completed') return complete(loaded.code);
+    options.assertCurrent();
+    if (window.isDestroyed() || !receiver.isPending()) return complete(await receiver.result);
+    window.show();
+    const launched = await Promise.race([shell.openExternal(authUrl).then(() => ({ kind: 'launched' as const })), completed]);
+    if (launched.kind === 'completed') return complete(launched.code);
+    options.assertCurrent();
+    return complete(await receiver.result);
+  } finally {
+    unsubscribe();
+    try { if (window && !window.isDestroyed()) { window.removeListener('closed', closed); window.destroy(); } }
+    finally { await receiver.cancel(); }
+  }
 }

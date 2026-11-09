@@ -1,0 +1,77 @@
+[
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-chat-session-2026-10-25\\build-final.log",
+    "bytes": 38602,
+    "sha256": "142df97eeb7597b8cf1ecc1e7b27674f45e7d2678242b32583e5288d1c315d54"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-chat-session-2026-10-25\\consumers-first.log",
+    "bytes": 2035,
+    "sha256": "6fa5db836c05005bbff3182c73c9918133d5bdf31727cb6e450679da9725841d"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-chat-session-2026-10-25\\contracts-adversarial.log",
+    "bytes": 1111,
+    "sha256": "d483a675e1fbcc7f36e5bb19a615154efa30add6bf54facea0e588e33d191831"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-chat-session-2026-10-25\\directed-final.log",
+    "bytes": 1083,
+    "sha256": "b7a466a7e9439e263a4874e23d52864fe1900254f65ffc1607eb126b99635a92"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-chat-session-2026-10-25\\docs-final.log",
+    "bytes": 139,
+    "sha256": "c912a53e8c52aba062222a2bce62ca695168eea292583353be363e36f80c3ad9"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-chat-session-2026-10-25\\docs-system-final.log",
+    "bytes": 195,
+    "sha256": "638b54286de4517bde040ef06c07f493090647308ad3d3236cf8013b816cf336"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-chat-session-2026-10-25\\gate-final.log",
+    "bytes": 121987,
+    "sha256": "8f9aec69611c0ee53ee9ec7cf514fcc6e95c2b2db7c4313178f58013281d9b3b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-chat-session-2026-10-25\\harness-final.log",
+    "bytes": 144,
+    "sha256": "916e65bfd3de6fbfa30c2fa5e9d816f138601dd577b5d8ebf17711b92b2aeebd"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-chat-session-2026-10-25\\lint-final-directed.log",
+    "bytes": 145,
+    "sha256": "3bfd15dd269f0989b477c357e8f79247bb086a6d7e25fbe994eecf9883e843eb"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-chat-session-2026-10-25\\lint-first.log",
+    "bytes": 145,
+    "sha256": "f857d84869a90dd5afdd4026169021d8350ecd843b70c1639071adeaad2df2a8"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-chat-session-2026-10-25\\openspec-final.log",
+    "bytes": 49,
+    "sha256": "e0b3300f6bec1071e7a9f6ccf9571c41e84a0482f53738eaf67c31b712dddec6"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-chat-session-2026-10-25\\session-first-green.log",
+    "bytes": 746,
+    "sha256": "7f56df08aaf47f2dbabdc1ffc71723833a0a6f22fd604eabf7248aa9665e7a0d"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-chat-session-2026-10-25\\session-red.log",
+    "bytes": 14719,
+    "sha256": "5186074deb69ee749d91ff8d6c6d44983470d58320e4ce3f9272d6f934137b40"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-chat-session-2026-10-25\\typecheck-adversarial.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-chat-session-2026-10-25\\typecheck-first.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  }
+]

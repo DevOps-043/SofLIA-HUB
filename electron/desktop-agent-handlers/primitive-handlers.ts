@@ -1,41 +1,12 @@
-import { ipcMain } from 'electron';
 import type { DesktopAgentService } from '../desktop-agent-service';
-import { denyIfUnauthenticated } from '../main/require-auth';
-import { getErrorMessage } from './errors';
-
-type PrimitiveResult = { success: boolean; error?: string; message?: string };
-
-/**
- * Registra una primitiva de mouse/teclado negando por defecto sin sesion.
- * Todas producen efectos reales sobre la maquina del usuario, asi que ninguna
- * queda exenta del guard.
- */
-function handleGuardedPrimitive(
-  channel: string,
-  handler: (...args: never[]) => Promise<void>,
-): void {
-  ipcMain.handle(channel, async (_event, ...args: unknown[]): Promise<PrimitiveResult> => {
-    const denegado = denyIfUnauthenticated(channel);
-    if (denegado) return { success: false, error: denegado.error, message: denegado.message };
-    try {
-      // El canal IPC entrega argumentos sin tipar; cada primitiva declara su
-      // firma concreta arriba y el cast se limita a este punto de entrada.
-      await (handler as (...primitiveArgs: unknown[]) => Promise<void>)(...args);
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: getErrorMessage(error) };
-    }
-  });
-}
-
-export function registerDesktopAgentPrimitiveHandlers(agentService: DesktopAgentService) {
-  handleGuardedPrimitive('desktop-agent:click', (x: number, y: number) => agentService.mouseClick(x, y));
-  handleGuardedPrimitive('desktop-agent:double-click', (x: number, y: number) => agentService.mouseDoubleClick(x, y));
-  handleGuardedPrimitive('desktop-agent:right-click', (x: number, y: number) => agentService.mouseRightClick(x, y));
-  handleGuardedPrimitive('desktop-agent:drag', (x1: number, y1: number, x2: number, y2: number) =>
-    agentService.mouseDrag(x1, y1, x2, y2));
-  handleGuardedPrimitive('desktop-agent:type', (text: string) => agentService.keyboardType(text));
-  handleGuardedPrimitive('desktop-agent:key', (key: string) => agentService.keyboardKey(key));
-  handleGuardedPrimitive('desktop-agent:scroll', (direction: 'up' | 'down', amount?: number) =>
-    agentService.mouseScroll(direction, amount));
+import type { DesktopRegister } from './authorized-registration';
+import { desktopKeys } from '../../src/shared/desktop-keys';
+export function registerDesktopAgentPrimitiveHandlers(service: DesktopAgentService, register: DesktopRegister) {
+  register('click', async (_ctx, x, y) => { await service.mouseClick(x, y); return { success: true }; }, { effect: true });
+  register('double-click', async (_ctx, x, y) => { await service.mouseDoubleClick(x, y); return { success: true }; }, { effect: true });
+  register('right-click', async (_ctx, x, y) => { await service.mouseRightClick(x, y); return { success: true }; }, { effect: true });
+  register('drag', async (_ctx, x1, y1, x2, y2) => { await service.mouseDrag(x1, y1, x2, y2); return { success: true }; }, { effect: true });
+  register('type', async (_ctx, text) => { await service.keyboardType(text); return { success: true }; }, { effect: true });
+  register('key', async (_ctx, key) => { desktopKeys(key); await service.keyboardKey(key); return { success: true }; }, { effect: true });
+  register('scroll', async (_ctx, direction, amount) => { await service.mouseScroll(direction, amount); return { success: true }; }, { effect: true });
 }

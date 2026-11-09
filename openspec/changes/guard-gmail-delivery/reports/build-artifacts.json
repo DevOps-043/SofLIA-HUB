@@ -1,0 +1,32 @@
+[
+  {
+    "ruta": "dist/index.html",
+    "bytes": 460,
+    "sha256": "98378b34148ca83fe6cf66bd58bfef5a305b9ab30381728418db08ce4965685f"
+  },
+  {
+    "ruta": "dist-electron/main.js",
+    "bytes": 184152,
+    "sha256": "0274a317940d92a1be279a03ba58fabca2e24d97f67379441825b5bf83d5d46e"
+  },
+  {
+    "ruta": "dist-electron/preload.js",
+    "bytes": 46394,
+    "sha256": "eeada63a0898031de86184458c636e6a43dc8696cfafb250e59eca40896c1c7c"
+  },
+  {
+    "ruta": "dist/presentation/presentation-runtime.iife.js",
+    "bytes": 895486,
+    "sha256": "23a06410288a6b71a84f73b141b879ecedea86faf3788f3ccc4747d3f5f1e162"
+  },
+  {
+    "ruta": "dist/audiovisual/film-runtime.iife.js",
+    "bytes": 223019,
+    "sha256": "1e497c8583b88e5b2c8ff1299eb48e121afc5a3073a06351f574841a0d61109d"
+  },
+  {
+    "ruta": "dist/zoom-runtime/index.html",
+    "bytes": 489,
+    "sha256": "86ccc046c0eb931d8fe2599ac3d0a3de8dc73fea00df5ec2b8cdbac705b6b9fb"
+  }
+]

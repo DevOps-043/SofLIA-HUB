@@ -1,0 +1,67 @@
+[
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-ipc-2026-10-26\\build-final.log",
+    "bytes": 38604,
+    "sha256": "772bfe97b13f204dae031a8d7885e9c0800b7b982e9c524a286521facfaba116"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-ipc-2026-10-26\\directed-final.log",
+    "bytes": 29880,
+    "sha256": "e929d376dbbf5dac24563e2adb451d4e3861f177a0a7d59479487491677bd2a6"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-ipc-2026-10-26\\first-green.log",
+    "bytes": 9019,
+    "sha256": "df7aa6b9c64b8e0a350e277f3fa77b319a5c4b9873f8e5877819d0197871ba70"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-ipc-2026-10-26\\gate-final.log",
+    "bytes": 153293,
+    "sha256": "bb56cc28f87567b58da543876f73777e9882bf7ccbb15f86845d4694f8d21313"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-ipc-2026-10-26\\initial-build-final.log",
+    "bytes": 38991,
+    "sha256": "f40dd6692282f2ba865794ee212a027356079320437e101675b9079eb3733e61"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-ipc-2026-10-26\\initial-gate-final.log",
+    "bytes": 153279,
+    "sha256": "9b8f721001a8ae9cd64c2603eaf661d3c429abc781a0fa5da647f05a0a905f4a"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-ipc-2026-10-26\\ipc-red.log",
+    "bytes": 483,
+    "sha256": "7348fba2454a7212bddb561b73b260bf6b6888a16f7b86071b258b6d8dfa43df"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-ipc-2026-10-26\\red.log",
+    "bytes": 479,
+    "sha256": "d2c6bfd968b537887e5045ef2b130fd141e7ee963c2ac83d8314c25bd1e827d4"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-ipc-2026-10-26\\second-green.log",
+    "bytes": 9020,
+    "sha256": "4248e2a4010f488b49496a297947b3056d01bd548e9243b1167bcc718f7d7f87"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-ipc-2026-10-26\\third-green.log",
+    "bytes": 28981,
+    "sha256": "edf1b597681db4760f04f4c91dd0d9dda2fb6b5c07b954b291347571a1716426"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-ipc-2026-10-26\\typecheck-first.log",
+    "bytes": 816,
+    "sha256": "0d1987ebabea358c3ad1e9a1003f476f097f833e6404a496e6bb75faa49da1fe"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-ipc-2026-10-26\\typecheck-second.log",
+    "bytes": 468,
+    "sha256": "10c3946fcce19fa271abc387fe3cc04a0694a1ce284df91c557b4f018d39b07e"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-ipc-2026-10-26\\typecheck-third.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  }
+]

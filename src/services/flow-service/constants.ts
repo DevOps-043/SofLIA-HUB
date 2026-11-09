@@ -1,8 +1,8 @@
-import { MODELS } from '../../config';
+import { SOFLIA_DEFAULT_MODEL } from '../../shared/soflia-runtime-model';
 import type { FlowActionType, FlowIntent, FlowMode } from './types';
 
-export const FLOW_MODEL = MODELS.PRIMARY;
-export const FLOW_TRANSCRIPTION_MODEL = MODELS.TRANSCRIPTION || FLOW_MODEL;
+export const FLOW_MODEL = SOFLIA_DEFAULT_MODEL;
+export const FLOW_TRANSCRIPTION_MODEL = 'gpt-transcribe';
 
 export const VALID_INTENTS: FlowIntent[] = [
   'answer',

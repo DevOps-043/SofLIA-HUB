@@ -1,5 +1,5 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { SOFLIA_RUNTIME_MODEL } from '../src/shared/soflia-runtime-model';
+import { getSessionOpenAIClient } from './ai-provider/session-client';
+import { SOFLIA_DEFAULT_MODEL } from '../src/shared/soflia-runtime-model';
 import { composeJsonTaskPrompt } from './llm-task/prompt';
 import { parseJsonResponse } from './llm-task/json-parser';
 import { validateSchema } from './llm-task/schema-validator';
@@ -11,31 +11,17 @@ export type {
   LlmTaskSchema,
 } from './llm-task/types';
 
-const DEFAULT_MODEL = SOFLIA_RUNTIME_MODEL;
+const DEFAULT_MODEL = SOFLIA_DEFAULT_MODEL;
 
 export class LlmTaskService {
-  private apiKey: string | null = null;
-  private genAI: GoogleGenerativeAI | null = null;
-
-  setApiKey(apiKey: string | null): void {
-    const normalized = apiKey?.trim() || null;
-    if (normalized === this.apiKey) return;
-    this.apiKey = normalized;
-    this.genAI = null;
-  }
-
-  isConfigured(): boolean {
-    return Boolean(this.apiKey);
-  }
-
   async runJsonTask<T = unknown>(task: LlmJsonTaskInput): Promise<LlmJsonTaskResult<T>> {
-    const model = this.getClient().getGenerativeModel({
-      model: task.model || DEFAULT_MODEL,
-      generationConfig: { responseMimeType: 'application/json' },
+    const client = await getSessionOpenAIClient();
+    const response = await client.responses.create({
+      model: DEFAULT_MODEL, input: composeJsonTaskPrompt(task), store: false,
+      max_output_tokens: 8192, reasoning: { effort: 'low' },
+      text: { format: { type: 'json_object' } },
     });
-
-    const result = await model.generateContent(composeJsonTaskPrompt(task));
-    const rawText = result.response.text().trim();
+    const rawText = response.output_text.trim();
     const parsed = parseJsonResponse(rawText);
     const validationErrors = validateSchema(parsed, task.schema, '$');
 
@@ -46,9 +32,4 @@ export class LlmTaskService {
     return { output: parsed as T, rawText };
   }
 
-  private getClient(): GoogleGenerativeAI {
-    if (!this.apiKey) throw new Error('No hay API key configurada para llm-task.');
-    if (!this.genAI) this.genAI = new GoogleGenerativeAI(this.apiKey);
-    return this.genAI;
-  }
 }

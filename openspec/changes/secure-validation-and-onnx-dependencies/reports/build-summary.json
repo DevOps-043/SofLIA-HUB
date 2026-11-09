@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "at": "2026-10-24T15:37:53.560Z",
+  "exitCode": 0,
+  "sourceFiles": 3457,
+  "envFilesCopied": false,
+  "packaged": false,
+  "applicationStarted": false,
+  "sandbox": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-app-build-wmyPVH",
+  "outputs": [
+    {
+      "file": "dist/index.html",
+      "bytes": 548,
+      "sha256": "e18c8c24bf76459d462040047b8bfbf744cf3857e70ab94ffea516368fafda40"
+    },
+    {
+      "file": "dist-electron/main.js",
+      "bytes": 199532,
+      "sha256": "63a3419a5da865b43a0288a072b3f8f4de10f305ec8d9e3d7011bd93282a528c"
+    },
+    {
+      "file": "dist-electron/preload.js",
+      "bytes": 48857,
+      "sha256": "3dc4c65558a3e95a20ea7c986707156c706eb67d942bc274f5a70eefd0d45d6a"
+    },
+    {
+      "file": "dist/presentation/presentation-runtime.iife.js",
+      "bytes": 915199,
+      "sha256": "4f89da10d5c334ce9bb9978648ebb96bda1f8cfe5c7896bc6d004959c4d32235"
+    },
+    {
+      "file": "dist/audiovisual/film-runtime.iife.js",
+      "bytes": 223019,
+      "sha256": "1e497c8583b88e5b2c8ff1299eb48e121afc5a3073a06351f574841a0d61109d"
+    },
+    {
+      "file": "dist/zoom-runtime/index.html",
+      "bytes": 489,
+      "sha256": "86ccc046c0eb931d8fe2599ac3d0a3de8dc73fea00df5ec2b8cdbac705b6b9fb"
+    }
+  ],
+  "copied": [
+    {
+      "file": "package.json",
+      "sha256": "f5effc793046a33921cf1557618e2a0b671ec2e3f27903ff8f1d1f3a0c041233"
+    },
+    {
+      "file": "package-lock.json",
+      "sha256": "94c7df3e727d1294c64c634d3069da2e4a9807737e7d48b3c7dbfdc9c46fc407"
+    },
+    {
+      "file": "electron/__tests__/zod-resource-boundary.test.ts",
+      "sha256": "cebdfe8af38bdb35df0f4c431666c6179809fd884e794d3d92f59041d89fc4ae"
+    },
+    {
+      "file": "scripts/quality/smoke-validation-onnx.mjs",
+      "sha256": "9e34404876b311d3e846ccec414e44e20e965c0fe4de1a3d723e2008c8ef2360"
+    },
+    {
+      "file": "scripts/quality/onnx-install-zip.test.mjs",
+      "sha256": "32a8460fa99eafefc89cc33c5f91667e77483733e7e7e87d67d0a733ac4a42ed"
+    },
+    {
+      "file": "test/manual/validation-onnx/main.cjs",
+      "sha256": "5f2b45b77f71355dc19f94d1bd51295ec52c5d7dd668f0387ae46847b445a0f0"
+    },
+    {
+      "file": "test/manual/validation-onnx/contracts.cjs",
+      "sha256": "a1b8485fbbc7c23f5eea46bf3145ca05b7090ad062dc63773ecb40c173781045"
+    },
+    {
+      "file": "test/manual/validation-onnx/models.cjs",
+      "sha256": "b49da280f6eaa806f141ac4e15aa2bceb713fc383e4c00388704039a879e2b57"
+    },
+    {
+      "file": "electron/desktop-agent/visual-parser/onnx-parser.ts",
+      "sha256": "c3168b34472e552ff66ddea12fd87434f7229fb549bdecd6071535590b28f272"
+    },
+    {
+      "file": "electron/desktop-agent/visual-parser/letterbox.ts",
+      "sha256": "cea54aa8fb1d0c89f1e3104050e6759d93349c28fdea2aa7bd3134622afec4f8"
+    },
+    {
+      "file": "electron/desktop-agent/visual-parser/yolo-postprocess.ts",
+      "sha256": "24fc1abc3413d6eb2abd6cdad4802896118ea57683c801e8051cd19943df526e"
+    },
+    {
+      "file": "electron/desktop-agent/sharp.ts",
+      "sha256": "299b01de2269cc3c1b0d08d7997a4c706b24b6f278c662f2ed60c4bda99298df"
+    }
+  ],
+  "stableSources": 3476,
+  "installerCertified": false
+}

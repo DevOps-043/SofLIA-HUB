@@ -12,12 +12,11 @@ export async function executeGmailPlanTool(
   toolName: string,
   toolArgs: Record<string, any>,
   ctx: ToolExecutorContext,
-  bulkLabelsToVerify: Set<string> | null,
 ): Promise<GoogleExecutorResult | null> {
   if (!GMAIL_PLAN_TOOLS.has(toolName)) return null;
 
   try {
-    if (!ctx.gmailService) return { response: toolError(toolName, 'Gmail no conectado.'), bulkLabelsToVerify };
+    if (!ctx.gmailService) return { response: toolError(toolName, 'Gmail no conectado.') };
 
     if (toolName === 'gmail_preview_organization') {
       return {
@@ -28,7 +27,6 @@ export async function executeGmailPlanTool(
           removeFromInbox: toolArgs.remove_from_inbox,
           pageLimit: toolArgs.page_limit,
         })),
-        bulkLabelsToVerify,
       };
     }
 
@@ -37,15 +35,13 @@ export async function executeGmailPlanTool(
         response: toolResponse(toolName, await ctx.gmailService.applyOrganizationPlan(toolArgs.plan_id, {
           removeFromInbox: toolArgs.remove_from_inbox,
         })),
-        bulkLabelsToVerify,
       };
     }
 
     return {
       response: toolResponse(toolName, await ctx.gmailService.undoOrganizationPlan(toolArgs.plan_id)),
-      bulkLabelsToVerify,
     };
-  } catch (err: any) {
-    return { response: toolError(toolName, err.message), bulkLabelsToVerify };
+  } catch {
+    return { response: toolError(toolName, 'No se pudo completar la operación de planes Gmail. Revisa la cuenta y los datos.') };
   }
 }

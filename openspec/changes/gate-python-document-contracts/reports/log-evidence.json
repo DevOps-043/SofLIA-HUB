@@ -1,0 +1,80 @@
+{
+  "directory": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-python-gate-2026-10-24",
+  "files": [
+    {
+      "file": "wrapper-red.log",
+      "bytes": 1561,
+      "sha256": "747de06340e05148e287f0642901391fa5aefd69edb51238fbdf300170b5a60e"
+    },
+    {
+      "file": "workflow-red.log",
+      "bytes": 4758,
+      "sha256": "b3e4a9c4adfd0b4a44686406979dea12fc0ccb2d3d82606391ba15db9974feeb"
+    },
+    {
+      "file": "directed-final.log",
+      "bytes": 1401,
+      "sha256": "9fadad1f33b9fe2e2f2155635380021810941b7c4d04b18c32331a8bffdc309b"
+    },
+    {
+      "file": "runtime-regressions.log",
+      "bytes": 624,
+      "sha256": "b924b703b1b95a24c901c71a447e6df85a6caa701f1a654b1de05421c12c6c73"
+    },
+    {
+      "file": "prepare-real.log",
+      "bytes": 342,
+      "sha256": "da2f5612c5509a6a6205ff80833c503ed380b4ef509535b5ca5487e2f7aa1f1c"
+    },
+    {
+      "file": "prepare-final.log",
+      "bytes": 342,
+      "sha256": "2a6df1352aaa38239d047ce6fc4c86dc031d77e9508224e013af093dd8519daf"
+    },
+    {
+      "file": "stdlib311-final.log",
+      "bytes": 5128,
+      "sha256": "e503f4cd95716ddda3084b35be44e4506c44c9c76a05ff80fdccd72bdd53cbec"
+    },
+    {
+      "file": "formats311.log",
+      "bytes": 6178,
+      "sha256": "e1ed1763ca17c5f730647a19875f5dc264836ec9ed7300e13d528cda5366a99b"
+    },
+    {
+      "file": "pip-check311.log",
+      "bytes": 31,
+      "sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf"
+    },
+    {
+      "file": "missing-python.log",
+      "bytes": 136,
+      "sha256": "65681bbf3568b24eaa6dda8e30b8eb66939bb110bf3afe97e872fc5dea0ea07e"
+    },
+    {
+      "file": "missing-reader-dependencies.log",
+      "bytes": 7404,
+      "sha256": "962a5867a78c90fd96af0e0cbe10ed798ee57a529f6acbecc95d2046766c5cbd"
+    },
+    {
+      "file": "lint-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "verify-pr-inventory-failure.log",
+      "bytes": 948,
+      "sha256": "60f5959b54c3ab77f9bb759e0759058cab942324d36f469690a662304eef6983"
+    },
+    {
+      "file": "verify-pr-final.log",
+      "bytes": 118273,
+      "sha256": "13da414c0272e15222e657eba34613409cc3670d6da05de55c4c04811736ecc2"
+    },
+    {
+      "file": "build-final.log",
+      "bytes": 38989,
+      "sha256": "06bea2a5c6b59f94e90ea69cdbf7a61e8884043d0f99da6482047c56b911f6ba"
+    }
+  ]
+}

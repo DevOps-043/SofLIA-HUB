@@ -15,7 +15,7 @@ export interface UseChatProcessorParams {
   thinkingMode: string;
   isImageGenMode: boolean;
   isPromptOptimizerMode: boolean;
-  optimizerTarget: 'chatgpt' | 'claude' | 'gemini';
+  optimizerTarget: 'chatgpt' | 'claude';
   activeSkill: ActiveSkillState | null;
   /** Alcance estable de la memoria reciente para esta conversación. */
   memorySessionScope: string;

@@ -1,0 +1,23 @@
+{
+  "stableSources": 3461,
+  "selected": {
+    ".github/workflows/ci.yml": "c98eef3b5965f0384e90a3e049ffb3898b85f217f159e4f39e47e5cba1eaf449",
+    ".github/workflows/python-reader-native.yml": "9681760624525e8870b59f4f1fba7820fdf552fd2e087391ab1b3cda1d8f0b1f",
+    ".github/workflows/python-readers.yml": "c2eb224b8d6b241f34f9904b31a6eb11ccdb5541ddb42d660ad30f0e06f0e788",
+    ".github/workflows/release.yml": "1f36046a2cf4001bcdabb9b10cc38e4b0495892dbbf13c5fe59d61bc04d9c1b5",
+    "package-lock.json": "79828027026b958ed58a4fe1834d9d27ba48e1c80c521b22baff1ee9cd2c27b3",
+    "package.json": "18b44881aa71918a8a3bc5c3cfc3116aa63fb737e95dbc2ade9ce40a8b6504c7",
+    "scripts/python-runtime-download.mjs": "1d35613f503b95d4f5eea08cedf8771c406cbb721cc6ea585c4fbcb59c2ef276",
+    "scripts/python-runtime-support.cjs": "ecf4a83337fc95f3db403ac40823a0ebe88ef9e9ffe489106ac284883938dc6b",
+    "scripts/quality/prepare-test-python.mjs": "d6f47b80aef158c183df3682f52ac255f952ea6db4a3c0b2195e4787fad21aae",
+    "scripts/quality/prepare-test-python.test.mjs": "45b5d8d60849b6f051074c6ba860a927bcb698c7765d6cc5c461571b9aa2e260",
+    "scripts/quality/python-runtime-download.test.mjs": "9a915b32a9eb6f4a2f4515542451433a311e01889a107f99c1bb9cf8b91e5f94",
+    "scripts/quality/python-tools-test.mjs": "33a6d4d53fab1057398003756b10889c61275aa178215582f6eddc0cfdb16389",
+    "scripts/quality/python-tools-test.test.mjs": "e8063ca7a7aebd7abbb565d2c9241996473c29b09989522431a194afc10e3aa2",
+    "scripts/quality/python-workflows.test.mjs": "2b93af4252cd76e2e33897f314ddcf516879b6755af6b9263d3639ffcc62f533",
+    "scripts/quality/run-gate.mjs": "40d3028cba9c295c1031798fa2d596af7267a8c7b80ee2646306cae0da81e1bc",
+    "scripts/setup-python-runtime.js": "daf2cdb3b5972e85f63859be4a1f12b9bca4df877ee785e2e806e5be67274ded"
+  },
+  "allStable": true,
+  "sourceSnapshotSha256": "01c8b4a175539f38bd9dd6aec96176ff7c455d4f314b9ec9d74df8da6668b250"
+}

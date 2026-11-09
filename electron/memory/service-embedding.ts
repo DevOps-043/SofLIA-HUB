@@ -1,7 +1,6 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { embedSessionTexts } from '../ai-provider/embeddings';
 import {
-  EMBEDDING_MODEL,
-  EMBEDDING_MODEL_FALLBACK,
+  MEMORY_EMBEDDING_DIMENSIONS,
   SEMANTIC_TOP_K,
 } from './constants';
 import { chunkMemoryText } from './chunking';
@@ -11,20 +10,14 @@ import type { MemoryEmbeddingApi, MemoryServiceConstructor } from './service-typ
 
 export function attachMemoryEmbedding(Service: MemoryServiceConstructor): void {
   Object.assign(Service.prototype, {
-    async embedText(text: string) {
-      if (!this.apiKey) return null;
-      const genAI = new GoogleGenerativeAI(this.apiKey);
-      for (const modelName of [EMBEDDING_MODEL, EMBEDDING_MODEL_FALLBACK]) {
-        try {
-          const model = genAI.getGenerativeModel({ model: modelName });
-          const result = await model.embedContent(text);
-          return result.embedding.values;
-        } catch (err: any) {
-          console.warn(`[MemoryService] embedText error with ${modelName}:`, err.message);
-        }
+    async embedText(text: string, signal?: AbortSignal) {
+      try {
+        const [vector] = await embedSessionTexts([text], MEMORY_EMBEDDING_DIMENSIONS, signal);
+        return vector;
+      } catch {
+        console.warn('[MemoryService] No se pudo generar el vector.');
+        return null;
       }
-      console.error('[MemoryService] All embedding models failed');
-      return null;
     },
     semanticSearch(sessionKey: string, phoneNumber: string, queryEmbedding: number[], topK: number) {
       return searchMemoryEmbeddings(this, sessionKey, phoneNumber, queryEmbedding, topK);
@@ -42,7 +35,6 @@ export function attachMemoryEmbedding(Service: MemoryServiceConstructor): void {
       return chunkMemoryText(text);
     },
     async searchMemory(sessionKey: string, phoneNumber: string, query: string, maxResults = SEMANTIC_TOP_K) {
-      if (!this.apiKey) return [];
       try {
         const queryEmbedding = await this.embedText(query);
         if (!queryEmbedding) return [];

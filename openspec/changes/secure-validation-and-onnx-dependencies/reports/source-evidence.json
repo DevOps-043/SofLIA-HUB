@@ -1,0 +1,20 @@
+{
+  "stableSources": 3476,
+  "inventoryUnchanged": true,
+  "selected": {
+    "package.json": "f5effc793046a33921cf1557618e2a0b671ec2e3f27903ff8f1d1f3a0c041233",
+    "package-lock.json": "94c7df3e727d1294c64c634d3069da2e4a9807737e7d48b3c7dbfdc9c46fc407",
+    "eslint.config.mjs": "9edd246533deaa9fac214f4e337675c23fc9b2361c943a9d43765551c18645df",
+    "electron/__tests__/zod-resource-boundary.test.ts": "cebdfe8af38bdb35df0f4c431666c6179809fd884e794d3d92f59041d89fc4ae",
+    "scripts/quality/smoke-validation-onnx.mjs": "9e34404876b311d3e846ccec414e44e20e965c0fe4de1a3d723e2008c8ef2360",
+    "scripts/quality/onnx-install-zip.test.mjs": "32a8460fa99eafefc89cc33c5f91667e77483733e7e7e87d67d0a733ac4a42ed",
+    "test/manual/validation-onnx/main.cjs": "5f2b45b77f71355dc19f94d1bd51295ec52c5d7dd668f0387ae46847b445a0f0",
+    "test/manual/validation-onnx/contracts.cjs": "a1b8485fbbc7c23f5eea46bf3145ca05b7090ad062dc63773ecb40c173781045",
+    "test/manual/validation-onnx/models.cjs": "b49da280f6eaa806f141ac4e15aa2bceb713fc383e4c00388704039a879e2b57",
+    "electron/desktop-agent/visual-parser/onnx-parser.ts": "c3168b34472e552ff66ddea12fd87434f7229fb549bdecd6071535590b28f272",
+    "electron/desktop-agent/visual-parser/letterbox.ts": "cea54aa8fb1d0c89f1e3104050e6759d93349c28fdea2aa7bd3134622afec4f8",
+    "electron/desktop-agent/visual-parser/yolo-postprocess.ts": "24fc1abc3413d6eb2abd6cdad4802896118ea57683c801e8051cd19943df526e",
+    "electron/desktop-agent/sharp.ts": "299b01de2269cc3c1b0d08d7997a4c706b24b6f278c662f2ed60c4bda99298df"
+  },
+  "sourceSnapshotSha256": "bf554e3cde4d46e11d936ee24f85740fb01b895eb6c71f2a3dd2ea317478be15"
+}

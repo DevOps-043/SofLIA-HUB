@@ -1,8 +1,6 @@
-import type { ThinkingLevel } from '@google/genai';
-import { isOpenAIModel } from '../../shared/model-providers';
+import { SOFLIA_DEFAULT_MODEL } from '../../shared/soflia-runtime-model';
 import { selectTeam, TEAM_COORDINATOR_INSTRUCTION, TEAM_LIMITS } from '../../shared/agent-teams/policy';
 import { assertTeamActive, runAgentTeam, type TeamGenerate } from '../../shared/agent-teams/runner';
-import { getGenAiClient } from './client';
 import { getOpenAI } from '../openai-chat/client';
 import { SOFLIA_MAX_MODEL_ID, recordSofliaMaxTokens } from '../model-quota';
 import type { ConversationMessage, SendMessageStreamOptions } from './types';
@@ -17,26 +15,19 @@ export async function prepareChatTeam(input: {
   const plan = selectTeam({ task: input.message, surface: 'chat', mode: input.options?.teamMode, skillId: input.options?.activeSkill?.id });
   if (!plan) return { context: '', instruction: '' };
   const generate: TeamGenerate = async request => {
-    if (isOpenAIModel(input.modelId)) {
-      const client = await getOpenAI();
-      assertTeamActive(request.signal);
-      input.onFirstModelCall?.();
-      const response = await client.responses.create({
-        model: input.modelId, instructions: request.instruction, input: request.input,
-        max_output_tokens: request.maxOutputTokens, store: false,
-        // El presupuesto breve del worker debe dejar espacio para texto útil.
-        reasoning: { effort: 'low' },
-      }, { signal: request.signal, maxRetries: 0 });
-      if (input.modelId === SOFLIA_MAX_MODEL_ID) recordSofliaMaxTokens(input.options?.userId, response.usage?.total_tokens ?? 0);
-      return response.output_text;
-    }
-    const client = await getGenAiClient();
+    const modelId = input.modelId.trim().startsWith('gpt-') ? input.modelId.trim() : SOFLIA_DEFAULT_MODEL;
     assertTeamActive(request.signal);
-    const response = await client.models.generateContent({
-      model: input.modelId, contents: request.input,
-      config: { systemInstruction: request.instruction, maxOutputTokens: request.maxOutputTokens, thinkingConfig: { thinkingLevel: 'LOW' as ThinkingLevel }, abortSignal: request.signal },
-    });
-    return response.text ?? '';
+    const client = await getOpenAI();
+    assertTeamActive(request.signal);
+    input.onFirstModelCall?.();
+    const response = await client.responses.create({
+      model: modelId, instructions: request.instruction, input: request.input,
+      max_output_tokens: request.maxOutputTokens, store: false,
+      reasoning: { effort: 'low' },
+    }, { signal: request.signal, maxRetries: 0 });
+    assertTeamActive(request.signal);
+    if (modelId === SOFLIA_MAX_MODEL_ID) recordSofliaMaxTokens(input.options?.userId, response.usage?.total_tokens ?? 0);
+    return response.output_text;
   };
   const result = await runAgentTeam({
     plan, surface: 'chat', source: buildTeamSource(input.source, input.conversationHistory), generate, signal: input.options?.signal,

@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
 import { LEARNING_SSO, isLearningSsoConfigured } from '../config';
 import { sofiaSupa } from '../lib/sofia-client';
+import { throwIfAuthCancelled, waitForAuthRetry } from './auth-cancellation';
 
 /**
  * Inicio de sesion federado con SofLIA Learning.
@@ -113,26 +114,31 @@ export async function consumePendingLearningSsoCallback(): Promise<LearningSsoCa
 export async function exchangeTicketForSofiaSession(
   ticket: string,
   codeVerifier: string,
+  signal?: AbortSignal,
 ): Promise<Session> {
+  throwIfAuthCancelled(signal);
   if (!isLearningSsoConfigured()) throw new LearningSsoError('not_configured', false);
   if (!sofiaSupa) throw new LearningSsoError('exchange_unavailable', false);
 
   let lastError: LearningSsoError | null = null;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+    throwIfAuthCancelled(signal);
     try {
-      return await exchangeOnce(ticket, codeVerifier);
+      return await exchangeOnce(ticket, codeVerifier, signal);
     } catch (error) {
+      throwIfAuthCancelled(signal);
       const ssoError = toSsoError(error);
       lastError = ssoError;
       if (!ssoError.retryable || attempt === MAX_ATTEMPTS - 1) throw ssoError;
-      await wait(RETRY_DELAYS_MS[attempt] || RETRY_DELAYS_MS[RETRY_DELAYS_MS.length - 1]);
+      await waitForAuthRetry(RETRY_DELAYS_MS[attempt] || RETRY_DELAYS_MS[RETRY_DELAYS_MS.length - 1], signal);
     }
   }
 
   throw lastError || new LearningSsoError('exchange_unavailable', true);
 }
 
-async function exchangeOnce(ticket: string, codeVerifier: string): Promise<Session> {
+async function exchangeOnce(ticket: string, codeVerifier: string, signal?: AbortSignal): Promise<Session> {
+  throwIfAuthCancelled(signal);
   const response = await fetch(`${LEARNING_SSO.BASE_URL}${EXCHANGE_PATH}`, {
     body: JSON.stringify({ code_verifier: codeVerifier, ticket }),
     // Sin credenciales: el endpoint se autentica por el ticket y el verificador,
@@ -140,11 +146,14 @@ async function exchangeOnce(ticket: string, codeVerifier: string): Promise<Sessi
     credentials: 'omit',
     headers: { 'Content-Type': 'application/json' },
     method: 'POST',
+    ...(signal ? { signal } : {}),
   });
 
+  throwIfAuthCancelled(signal);
   if (!response.ok) throw errorFromStatus(response.status);
 
   const payload = await response.json().catch(() => null) as { tokenHash?: unknown } | null;
+  throwIfAuthCancelled(signal);
   if (!payload || typeof payload.tokenHash !== 'string' || !payload.tokenHash) {
     throw new LearningSsoError('exchange_unavailable', false);
   }
@@ -154,6 +163,7 @@ async function exchangeOnce(ticket: string, codeVerifier: string): Promise<Sessi
     type: 'magiclink',
   });
 
+  throwIfAuthCancelled(signal);
   if (error || !data.session) throw new LearningSsoError('exchange_unavailable', true);
   return data.session;
 }
@@ -182,8 +192,4 @@ function toBase64Url(bytes: Uint8Array): string {
   let binary = '';
   bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-function wait(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 }

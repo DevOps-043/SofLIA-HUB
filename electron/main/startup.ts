@@ -28,12 +28,12 @@ type WhatsAppStartupServices = {
 export function registerPlatformHandlers(input: { modules: any; services: any; state: any; controls: StartupWindowControls }): void {
   const { modules, services, state, controls } = input;
   registerScreenCaptureHandlers(logBootstrapError);
-  modules.registerComputerUseHandlers();
+  modules.registerComputerUseHandlers(() => state.win, () => state.orbWin);
   modules.registerBackgroundHostHandlers(modules.backgroundHostService);
-  modules.registerRemoteNodeHandlers();
+  modules.registerRemoteNodeHandlers(() => state.win, () => state.orbWin);
   modules.registerMonitoringHandlers(services.monitoringService, () => state.win);
-  modules.registerCalendarHandlers(services.calendarService, () => state.win);
-  modules.registerGmailHandlers(services.gmailService, () => state.win);
+  modules.registerCalendarHandlers(services.calendarService, () => state.win, () => state.orbWin);
+  modules.registerGmailHandlers(services.gmailService, () => state.win, () => state.orbWin);
   modules.registerDriveHandlers(services.driveService, () => state.win);
   modules.registerGChatHandlers(services.gchatService, () => state.win);
   modules.registerIntegratedBrowserHandlers(services.integratedBrowserService, () => state.win);
@@ -49,7 +49,7 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
   bindBrowserProfileToSession(services.integratedBrowserService);
   // Contexto de aplicaciones abiertas: el chat lee lo que el usuario ya tiene
   // delante. Solo se registra si la capacidad esta activa.
-  modules.registerDesktopContextHandlers(services.desktopContextService, () => state.win);
+  state.desktopContextIpc = modules.registerDesktopContextHandlers(services.desktopContextService, () => state.win);
   // Espacio de trabajo de Skills y protocolo local de presentaciones. El
   // protocolo se registra aqui (post `app.ready`); el ESQUEMA se declara
   // antes de ready en el bootstrap, que es donde Electron lo exige.
@@ -59,7 +59,7 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
   modules.setSkillWorkspaceService(services.skillWorkspaceService);
   modules.registerSkillWorkspaceHandlers(services.skillWorkspaceService, () => state.win);
   modules.registerPresentationProtocolHandler(services.skillWorkspaceService);
-  modules.registerDesktopAgentHandlers(services.desktopAgentService);
+  modules.registerDesktopAgentHandlers(services.desktopAgentService, () => state.win, () => state.orbWin);
   // Skills ejecutables (Fase 3): el motor de ejecución con HITL es Workspace Automation.
   modules.registerMemoryHandlers(services.memoryService, {
     executeCustomTemplate: (payload: { templateId: string; input: Record<string, unknown> }) =>
@@ -68,18 +68,17 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
   // Aprender de las tareas de escritorio: su resultado se guarda en la memoria
   // del usuario activo (mismo motor que chat/WhatsApp) para futuras mejoras.
   services.desktopAgentService.on('task-completed', (payload: unknown) =>
-    recordDesktopTaskMemory(services.memoryService, payload as { task?: string; message?: string }, false));
+    recordDesktopTaskMemory(services.memoryService, payload, false));
   services.desktopAgentService.on('task-failed', (payload: unknown) =>
-    recordDesktopTaskMemory(services.memoryService, payload as { task?: string; message?: string }, true));
+    recordDesktopTaskMemory(services.memoryService, payload, true));
   modules.registerUpdaterHandlers(services.updaterService, () => state.win);
   modules.registerMeetingHandlers(services.meetingWorkflowService);
   void initializeAgentRuntime({
     getWindow: () => state.win,
     getOrbWindow: () => state.orbWin,
-    geminiKey: () => state.currentGeminiApiKey,
     meetings: services.meetingWorkflowService,
   }).catch(() => logBootstrapError('agent-runtime', new Error('No se pudo iniciar el arnés multiagente.')));
-  void initializeBackgroundTeams({ getWindow: () => state.win, geminiKey: () => state.currentGeminiApiKey })
+  void initializeBackgroundTeams({ getWindow: () => state.win })
     .catch(() => logBootstrapError('background-teams', new Error('No se pudieron iniciar los equipos ejecutores.')));
   // Transcripcion de reuniones en vivo: audio del renderer -> sidecar Python
   // (faster-whisper) -> pipeline de meetings existente para la minuta.
@@ -89,15 +88,16 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
   );
   modules.registerWorkspaceAutomationHandlers(services.workspaceAutomationService);
   modules.registerPassiveSkillsHandlers(services.passiveSkillsService);
-  modules.registerTelegramHandlers(services.telegramService);
-  modules.registerCommunicationHubHandlers(services.communicationHubService);
-  modules.registerVoicePassiveHandlers(modules.pythonRuntimeService);
-  modules.registerPythonToolsHandlers(modules.pythonToolsService);
+  modules.registerTelegramHandlers(services.telegramService, services.communicationHubService, () => [state.win, state.orbWin]);
+  modules.registerCommunicationHubHandlers(services.communicationHubService, () => [state.win, state.orbWin]);
+  state.localVoiceSession = modules.registerVoicePassiveHandlers(modules.pythonRuntimeService, () => state.win, () => state.orbWin,
+    () => { state.pendingOrbWake = false; });
+  state.pythonToolsIpc = modules.registerPythonToolsHandlers(modules.pythonToolsService, () => state.win);
   // La clave se resuelve en main al usar la memoria; nunca cruza IPC.
-  services.integratedBrowserService.configureSemanticMemoryKey(() => state.currentGeminiApiKey);
   modules.registerOrbIpcHandlers({
     integratedBrowser: services.integratedBrowserService,
     pythonRuntimeService: modules.pythonRuntimeService,
+    voiceSession: state.localVoiceSession,
     getOrbWindow: () => state.orbWin,
     getMainWindow: () => state.win,
     showOrbWindow: () => controls.createOrbWindow(false),
@@ -150,9 +150,9 @@ export async function initializeMainServices(input: {
     },
     // Telegram transporta el audio; con que se transcribe lo decide el arranque,
     // igual que quien ejecuta las Skills.
-    transcribeAudio: (audio: Buffer, mimetype: string) => {
+    transcribeAudio: async (audio: Buffer, mimetype: string) => {
       if (!state.waAgent) return Promise.resolve('');
-      return transcribeChannelAudio(state.waAgent.getGenAI(), audio, mimetype);
+      return transcribeChannelAudio(await state.waAgent.getOpenAIClient(), audio, mimetype);
     },
   }));
   await runOptionalStep('sofliaLearningService.init', () => Promise.resolve(services.sofliaLearningService.init()));
@@ -160,6 +160,7 @@ export async function initializeMainServices(input: {
   // Voz pasiva local (Vosk): al detectar la wake word se abre la orbe con
   // escucha automatica (pendingWake consumido por el renderer, sin race).
   modules.pythonRuntimeService.on('wake-word', () => {
+    if (!state.localVoiceSession?.isApproved()) return;
     void runOptionalStep('orbWindow.wakeWord', () => controls.createOrbWindow(true));
   });
   await runOptionalStep('pythonRuntimeService.init', () => modules.pythonRuntimeService.init());

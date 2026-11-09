@@ -5,6 +5,7 @@ import {
   normalizeWhatsAppMasterNumber,
 } from './access-control';
 import { normalizePhoneNumber, numbersMatch } from './phone-utils';
+import { isJsonStringChoice } from '../../src/shared/bounded-json';
 
 export interface WhatsAppPersonalizationUpdate {
   whitelistEnabled?: boolean;
@@ -25,8 +26,8 @@ export interface ResolvedWhatsAppPersonalization {
   profileRef: string | null;
 }
 
-const VALID_GROUP_POLICIES = new Set(['open', 'allowlist', 'disabled']);
-const VALID_GROUP_ACTIVATIONS = new Set(['mention', 'always']);
+const VALID_GROUP_POLICIES = ['open', 'allowlist', 'disabled'] as const;
+const VALID_GROUP_ACTIVATIONS = ['mention', 'always'] as const;
 const VALID_TONES = new Set<WhatsAppPersonaTone>(['professional', 'warm', 'emotional_support', 'direct', 'custom']);
 
 const TONE_LABELS: Record<WhatsAppPersonaTone, string> = {
@@ -62,11 +63,11 @@ export function normalizeWhatsAppConfig(input: Partial<WhatsAppConfig> = {}): Wh
     ),
     contactPermissions: normalizeWhatsAppContactPermissions(input.contactPermissions),
     allowedGroups: normalizeStringArray(input.allowedGroups),
-    groupPolicy: VALID_GROUP_POLICIES.has(String(input.groupPolicy))
+    groupPolicy: isJsonStringChoice(input.groupPolicy, VALID_GROUP_POLICIES)
       ? input.groupPolicy as WhatsAppConfig['groupPolicy']
       : DEFAULT_CONFIG.groupPolicy,
     groupAllowFrom: normalizeStringArray(input.groupAllowFrom),
-    groupActivation: VALID_GROUP_ACTIVATIONS.has(String(input.groupActivation))
+    groupActivation: isJsonStringChoice(input.groupActivation, VALID_GROUP_ACTIVATIONS)
       ? input.groupActivation as WhatsAppConfig['groupActivation']
       : DEFAULT_CONFIG.groupActivation,
     groupPrefix: normalizeText(input.groupPrefix, DEFAULT_CONFIG.groupPrefix, 40, true),

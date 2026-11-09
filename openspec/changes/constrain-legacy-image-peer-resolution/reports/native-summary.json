@@ -1,0 +1,134 @@
+{
+  "nativeDirectory": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-image-contract-native-ZTkcAr",
+  "copiedSources": [
+    {
+      "source": "test/manual/image-dependencies/main.cjs",
+      "sha256": "9bc4ee7f99071b81085df6b25b2d805f64dd1246162bbff1246f9c8ceb6609e9"
+    },
+    {
+      "source": "test/manual/image-dependencies/contracts.cjs",
+      "sha256": "a3c532c39f35dc7565ef833ec08595895d75a5e3644052bd04fc8dc3e2d39234"
+    }
+  ],
+  "modes": [
+    {
+      "mode": "node",
+      "reportSha256": "fd7bc9390cda1228ebfd93d74883fa7f03756a184a143175403f055029e0fc67",
+      "status": "passed",
+      "checks": [
+        {
+          "parent": "@jimp/plugin-scale",
+          "peer": "@jimp/plugin-resize",
+          "version": "0.22.12"
+        },
+        {
+          "parent": "@jimp/plugin-shadow",
+          "peer": "@jimp/plugin-resize",
+          "version": "0.22.12"
+        },
+        {
+          "parent": "@jimp/plugin-shadow",
+          "peer": "@jimp/plugin-blur",
+          "version": "0.22.12"
+        },
+        "nut: PNG conserva RGBA por buffer/archivo y JPEG conserva dimensiones",
+        "nut: scale/resize/blur/shadow conservan API posicional y rechazan entrada inválida",
+        "shared: PNG conserva RGBA por buffer/archivo y JPEG conserva dimensiones",
+        "shared: scale/resize/blur/shadow conservan API posicional y rechazan entrada inválida",
+        "lector/escritor reales conservan PNG y orden RGB/BGR",
+        "conversión compartida y colorAt conservan píxel RGBA",
+        "proveedores rechazan archivo inválido y coordenadas fuera de rango"
+      ],
+      "artifacts": [
+        {
+          "file": "inválida.png",
+          "bytes": 26,
+          "sha256": "9a6d42439911da5b260cb27d4fe806a62a04620e749ae2d43b6e3344299ed191"
+        },
+        {
+          "file": "nut.png",
+          "bytes": 83,
+          "sha256": "27acbaacbb95e547beaaee88b94070b3a9bca953c38f4f08df4fba94ad159f67"
+        },
+        {
+          "file": "proveedor.png",
+          "bytes": 74,
+          "sha256": "1e2bb3db74a5d511c7f216ba0196c8f04dbf14fcc72b3b3f38fe9fe2f7d181d3"
+        },
+        {
+          "file": "shared.png",
+          "bytes": 83,
+          "sha256": "27acbaacbb95e547beaaee88b94070b3a9bca953c38f4f08df4fba94ad159f67"
+        }
+      ],
+      "node": "26.7.0",
+      "electron": null,
+      "platform": "win32",
+      "architecture": "x64",
+      "electronRunAsNode": false,
+      "browserWindowCreated": false,
+      "desktopCapturedOrControlled": false,
+      "data": "Imágenes sintéticas propias; HTTP(S)/fetch bloqueados."
+    },
+    {
+      "mode": "electron",
+      "reportSha256": "a19791455a510b544fcee8b45cfcfa85574712cbef18b1a4db1b20d2cab1f740",
+      "status": "passed",
+      "checks": [
+        {
+          "parent": "@jimp/plugin-scale",
+          "peer": "@jimp/plugin-resize",
+          "version": "0.22.12"
+        },
+        {
+          "parent": "@jimp/plugin-shadow",
+          "peer": "@jimp/plugin-resize",
+          "version": "0.22.12"
+        },
+        {
+          "parent": "@jimp/plugin-shadow",
+          "peer": "@jimp/plugin-blur",
+          "version": "0.22.12"
+        },
+        "nut: PNG conserva RGBA por buffer/archivo y JPEG conserva dimensiones",
+        "nut: scale/resize/blur/shadow conservan API posicional y rechazan entrada inválida",
+        "shared: PNG conserva RGBA por buffer/archivo y JPEG conserva dimensiones",
+        "shared: scale/resize/blur/shadow conservan API posicional y rechazan entrada inválida",
+        "lector/escritor reales conservan PNG y orden RGB/BGR",
+        "conversión compartida y colorAt conservan píxel RGBA",
+        "proveedores rechazan archivo inválido y coordenadas fuera de rango"
+      ],
+      "artifacts": [
+        {
+          "file": "inválida.png",
+          "bytes": 26,
+          "sha256": "9a6d42439911da5b260cb27d4fe806a62a04620e749ae2d43b6e3344299ed191"
+        },
+        {
+          "file": "nut.png",
+          "bytes": 83,
+          "sha256": "27acbaacbb95e547beaaee88b94070b3a9bca953c38f4f08df4fba94ad159f67"
+        },
+        {
+          "file": "proveedor.png",
+          "bytes": 74,
+          "sha256": "1e2bb3db74a5d511c7f216ba0196c8f04dbf14fcc72b3b3f38fe9fe2f7d181d3"
+        },
+        {
+          "file": "shared.png",
+          "bytes": 83,
+          "sha256": "27acbaacbb95e547beaaee88b94070b3a9bca953c38f4f08df4fba94ad159f67"
+        }
+      ],
+      "node": "24.22.0",
+      "electron": "44.9.3",
+      "platform": "win32",
+      "architecture": "x64",
+      "electronRunAsNode": true,
+      "browserWindowCreated": false,
+      "desktopCapturedOrControlled": false,
+      "data": "Imágenes sintéticas propias; HTTP(S)/fetch bloqueados."
+    }
+  ],
+  "scope": "Datos sintéticos de QA en Node y Electron en modo Node, sin bootstrap/UI/captura/control del escritorio. No sustituye la revisión visual pendiente de otra unidad."
+}

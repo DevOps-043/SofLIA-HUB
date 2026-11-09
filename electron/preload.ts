@@ -10,6 +10,11 @@ import { exposeArtifactViewerApi } from './preload/artifact-viewer-api';
 import { exposeAuthApis } from './preload/auth-apis';
 import { exposeLearningLiveApi } from './preload/learning-live-api';
 import { exposeCalendarApi } from './preload/calendar-api';
+import { exposeGroundingApi } from './preload/grounding-api';
+import { exposeOpenAIRuntime } from './preload/openai-runtime-api';
+import { exposeImageGenerationApi } from './preload/image-generation-api';
+import { exposeFlowInferenceApi } from './preload/flow-inference-api';
+import { exposeGeminiConversation } from './preload/gemini-conversation-api';
 import { exposeComputerApis } from './preload/computer-apis';
 import {
   exposeCommunicationHubApi,
@@ -59,6 +64,11 @@ if (process.argv.includes('--studio-output')) {
   exposeWhatsAppApi(contextBridge, safeIpc);
   exposeMonitoringApi(contextBridge, safeIpc);
   exposeCalendarApi(contextBridge, safeIpc);
+  exposeGroundingApi(contextBridge, safeIpc);
+  exposeOpenAIRuntime(contextBridge, safeIpc);
+  exposeImageGenerationApi(contextBridge, safeIpc);
+  exposeFlowInferenceApi(contextBridge, safeIpc);
+  exposeGeminiConversation(contextBridge, safeIpc);
   exposeGoogleApis(contextBridge, safeIpc);
   exposeIntegratedBrowserApi(contextBridge, safeIpc);
   exposeProjectHubApi(contextBridge, safeIpc);

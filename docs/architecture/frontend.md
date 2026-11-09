@@ -1,12 +1,17 @@
 # Arquitectura frontend
 
-Estado: vigente. Actualizado: 2026-07-21.
+Estado: vigente. Actualizado: 2026-10-25.
 
 <!-- evidence: src/main.tsx -->
 <!-- evidence: src/app/AppContent.tsx -->
 <!-- evidence: src/app/AppWorkspace.tsx -->
 
 ## Entrada y composicion
+
+Los contratos globales de automatización referencian interfaces canónicas
+[compartidas](ipc-and-integrations.md#contratos-de-automatización), sin importar
+implementaciones main. Los resultados dinámicos requieren estrechar unknown;
+el compilador comprueba argumentos y opciones serializables del puente.
 
 `src/main.tsx` monta `App`; `src/App.tsx` envuelve la aplicacion en
 `AuthProvider`, renderiza `AppContent` y mantiene `UpdateNotification` global.
@@ -52,6 +57,42 @@ envie: enterarse despues no le sirve de nada. Al enviar solo se espera lo que
 siga en curso, y lo que no llegue se declara como no leido en lugar de retener
 el turno.
 
+## Apartado de proyecto dentro del workspace
+
+El panel de proyectos reutiliza Sidebar, SidebarHeader, UserMenu, PanelResizeGrip
+y las primitives Button/Card. La tipografía es la de interfaz existente
+(`--font-system-ui`), también en títulos; el mockup no introduce una familia
+distinta. Sus botones usan radios amplios y los iconos conservan la familia SVG
+de trazo del Hub, sin dependencias nuevas.
+
+`useProjectWorkspace` mantiene navegación y contexto por usuario, organización
+y proyecto. El lateral cambia de contenido, conserva su envolvente flotante y
+ofrece Nuevo chat, navegador, búsqueda y chats recientes. Las secciones cambian
+la superficie principal sin pestañas o ventanas nuevas. En ancho reducido se
+presenta el lateral compacto; la preferencia global de posición inferior se
+conserva, pero este apartado usa una columna vertical para sus secciones.
+
+Los proyectos de gestión cargan datos mediante Project Hub API y presentan
+resumen, tareas, archivos/webs, colaboradores, métricas y actividad. Cada recurso
+distingue carga, error y ausencia. Hitos/ciclos y detalle de equipos declaran la
+capacidad no disponible del contrato actual; no se deducen de tablas o datos de
+ejemplo. Las carpetas anteriores tienen el mismo lateral y conservan su dominio
+de conversaciones y fuentes, sin convertirse en proyectos IRIS.
+
+La lectura de `project_chat_bindings` es un adaptador de compatibilidad con el
+contrato Lia existente y exige además que la carpeta figure entre las accesibles.
+No crea carpetas por nombre ni inventa un vínculo. Si falta la tabla/vínculo o
+los permisos, bloquea Nuevo chat para ese proyecto de gestión. El contexto de
+carpeta se captura antes de guardar mensajes; los guards de las acciones de chat
+descartan una selección tardía al cambiar de proyecto. El navegador conserva el
+lateral en el layout y recibe sólo las conversaciones de ese proyecto, sin
+publicar automáticamente historial o sesiones.
+
+La implementación del panel no equivale a completar el almacenamiento portable,
+los proveedores directos, las invitaciones externas ni las migraciones del plan.
+Evidencia y límites en
+[el reporte del panel](../../openspec/changes/add-portable-project-workspaces/reports/panel-implementation.md).
+
 ## Capas del renderer
 
 | Ruta | Responsabilidad | Regla de dependencia |
@@ -86,8 +127,28 @@ fetch con timeout/retry controlados.
 
 - Chat divide cache, remote, pending state, recovery y sync bajo
   `src/services/chat/`; no existe un store global de Redux.
+  `sync.ts` coordina una pasada activa y una pendiente fusionada por identidad;
+  `sync-pass.ts` conserva orden de borrados, conversaciones y mensajes. Los
+  filtros pendientes se unen sin perder destinos; sólo una solicitud global
+  amplía a toda la cola. El error de un lote no bloquea el siguiente.
+  La revisión privada de sesión enlaza cada lote al sujeto/ciclo observado del
+  SDK Lia y se libera al quedar ocioso; cierre/cambio impiden reconocer o publicar
+  respuestas de otro ciclo. La cola persistida sigue disponible para otro intento.
+  [Reconocimiento local y límites](../data/data-architecture.md#chat)
+  explican protección del contenido nuevo y publicación de cache.
 - Folder sigue el mismo patron bajo `src/services/folder/`.
 - Auth se descompone en hooks de ciclo de vida, SOFIA, Lia y sign-out.
+  El ciclo de restauración/eventos suscribe antes de leer y cancela la operación
+  anterior al cambiar de evento o desmontar. Sus respuestas antiguas no publican
+  identidad, contexto ni estado de carga. AbortSignal se propaga por recuperación
+  y canje Lia para impedir pasos posteriores y liberar esperas de reintento.
+  Login, SSO, reintentos y cierre comparten además un coordinador privado por
+  proveedor. Una intención nueva revoca la anterior antes de esperar; una cola
+  de una operación activa y una pendiente ordena mutaciones SDK y libera
+  continuaciones sustituidas. El cierre retira perfil local inmediatamente.
+  useAuthPublication separa publicación del modelo: revocación no espera tokens;
+  publicaciones positivas comprueban señal y sujeto SDK. No revierte I/O enviado
+  ni coordina ventanas/equipos. [Alcance y evidencia](../../openspec/changes/coordinate-authentication-intents/reports/verification.md).
 - Settings usa carga/guardado y formularios por modal; la navegacion tiene once
   tabs declaradas en `src/components/unified-settings/settings-tabs.tsx`.
 - Estado UI efimero (view, modal, sidebar) usa hooks locales; posicion/tema tambien

@@ -3,6 +3,8 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /**
  * Configuracion plana de ESLint 10. Reemplaza a `.eslintrc.cjs` conservando el
@@ -24,22 +26,39 @@ export default tseslint.config(
       'python-runtime/**',
       'models/**',
       'coverage/**',
+      '.worktrees/**',
     ],
   },
+  { files: ['scripts/**/*.mjs', 'test/**/*.mjs', 'eslint.config.mjs'], languageOptions: { globals: globals.node } },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    // Entradas Node CommonJS: el hook afterPack y el preparador se cargan con require.
-    files: ['scripts/setup-python-runtime.js', 'scripts/python-runtime-support.cjs', 'scripts/verify-packaged-python.cjs'],
+    languageOptions: { parserOptions: { tsconfigRootDir: dirname(fileURLToPath(import.meta.url)) } },
+  },
+  {
+    // Entradas Node CommonJS: hooks y fixtures nativas se cargan con require.
+    files: ['scripts/**/*.{js,cjs}', 'test/**/*.cjs', 'postcss.config.js', 'tailwind.config.js'],
     languageOptions: { sourceType: 'commonjs', globals: globals.node },
     rules: { '@typescript-eslint/no-require-imports': 'off' },
   },
   {
-    files: ['**/*.{ts,tsx}'],
+    files: ['src/**/*.{js,jsx,mjs}', 'public/**/*.js', 'resources/**/*.js'],
+    languageOptions: { globals: globals.browser, parserOptions: { ecmaFeatures: { jsx: true } } },
+  },
+  {
+    // Sólo callbacks de page.evaluate de este smoke acceden al DOM.
+    files: ['test/manual/project-panel/smoke.mjs'],
+    languageOptions: { globals: { document: 'readonly', window: 'readonly' } },
+  },
+  {
+    files: ['**/*.{ts,tsx,mts,cts}'],
     languageOptions: {
       ecmaVersion: 2020,
       globals: { ...globals.browser, ...globals.node },
     },
+  },
+  {
+    files: ['**/*.{ts,tsx,mts,cts,js,jsx}'],
     plugins: {
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,

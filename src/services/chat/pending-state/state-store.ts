@@ -37,7 +37,7 @@ export function readPendingChatState(userId: string): PendingChatState {
   }
 }
 
-export function writePendingChatState(userId: string, state: PendingChatState): void {
+export function writePendingChatState(userId: string, state: PendingChatState): boolean {
   try {
     const hasEntries =
       Object.keys(state.conversationUpserts).length > 0 ||
@@ -46,12 +46,14 @@ export function writePendingChatState(userId: string, state: PendingChatState): 
 
     if (!hasEntries) {
       localStorage.removeItem(getPendingChatStateKey(userId));
-      return;
+      return true;
     }
 
     localStorage.setItem(getPendingChatStateKey(userId), JSON.stringify(state));
+    return true;
   } catch {
-    // Degradacion silenciosa: el sync se reintentara en una proxima sesion.
+    // Sin escritura confirmada no se acredita la retirada de una entrada.
+    return false;
   }
 }
 

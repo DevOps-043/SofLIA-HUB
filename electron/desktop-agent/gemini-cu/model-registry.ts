@@ -1,5 +1,5 @@
 import type { DesktopAgentConfig } from '../../desktop-agent-types';
-import { SOFLIA_RUNTIME_MODEL } from '../../../src/shared/soflia-runtime-model';
+import { SOFLIA_DEFAULT_MODEL } from '../../../src/shared/soflia-runtime-model';
 
 /**
  * Registro central de modelos actuadores de Computer Use.
@@ -12,20 +12,20 @@ import { SOFLIA_RUNTIME_MODEL } from '../../../src/shared/soflia-runtime-model';
 export type ComputerUseProfile = 'recommended' | 'compatibility' | 'economy';
 
 export interface ComputerUseModelConfig {
-  provider: 'google';
+  provider: 'openai';
   model: string;
   profile: ComputerUseProfile;
 }
 
 /**
- * Modelo recomendado por Google para Computer Use de escritorio. Los perfiles
+ * Modelo de OpenAI para Computer Use de escritorio. Los perfiles
  * de compatibilidad y economia son respaldo, no alternativas equivalentes:
  * degradar de perfil cuesta pasos y precision visual.
  */
 export const COMPUTER_USE_MODEL_DEFAULTS: Record<ComputerUseProfile, string> = {
-  recommended: SOFLIA_RUNTIME_MODEL,
-  compatibility: SOFLIA_RUNTIME_MODEL,
-  economy: SOFLIA_RUNTIME_MODEL,
+  recommended: SOFLIA_DEFAULT_MODEL,
+  compatibility: SOFLIA_DEFAULT_MODEL,
+  economy: SOFLIA_DEFAULT_MODEL,
 };
 
 export function resolveComputerUseModel(
@@ -33,7 +33,7 @@ export function resolveComputerUseModel(
   profile: ComputerUseProfile = 'recommended',
 ): ComputerUseModelConfig {
   void config;
-  return { provider: 'google', model: SOFLIA_RUNTIME_MODEL, profile };
+  return { provider: 'openai', model: SOFLIA_DEFAULT_MODEL, profile };
 }
 
 /**

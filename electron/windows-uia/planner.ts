@@ -1,33 +1,22 @@
-import { DEFAULT_FALLBACK_MODEL, DEFAULT_MODEL } from './constants';
-import { getGenAI } from './ai';
+import { assertBackendTaskActive, runBackendTaskStage } from '../desktop-agent/task-cancellation';
+import { generateSessionText } from '../ai-provider/text';
 import { parseAction } from './parse-action';
 import { buildPrompt } from './prompt';
 import type { WindowsUIAServiceCore } from './core';
 import type { WindowsUIAActionPayload, WindowsUIAHistoryEntry, WindowsUIASnapshot } from './types';
 
 export async function decideNextAction(
-  service: WindowsUIAServiceCore,
+  _service: WindowsUIAServiceCore,
   task: string,
   snapshot: WindowsUIASnapshot,
   history: WindowsUIAHistoryEntry[],
+  signal?: AbortSignal,
 ): Promise<WindowsUIAActionPayload> {
   const prompt = buildPrompt(task, snapshot, history);
-  const ai = getGenAI(service);
-
-  for (const modelId of [DEFAULT_MODEL, DEFAULT_FALLBACK_MODEL]) {
-    try {
-      const model = ai.getGenerativeModel({ model: modelId });
-      const parts: any[] = [];
-      if (snapshot.screenshotBase64) {
-        parts.push({ inlineData: { mimeType: 'image/png', data: snapshot.screenshotBase64 } });
-      }
-      parts.push({ text: prompt });
-      const result = await model.generateContent(parts);
-      return parseAction(result.response.text());
-    } catch (err: any) {
-      if (modelId === DEFAULT_FALLBACK_MODEL) throw err;
-    }
-  }
-
-  throw new Error('No se pudo obtener una accion del modelo para windows_uia.');
+  assertBackendTaskActive(signal);
+  let text: string;
+  try { text = await runBackendTaskStage(signal, () => generateSessionText(prompt, {
+    json: true, signal, images: snapshot.screenshotBase64 ? [`data:image/png;base64,${snapshot.screenshotBase64}`] : [],
+  })); } finally { assertBackendTaskActive(signal); }
+  return parseAction(text);
 }

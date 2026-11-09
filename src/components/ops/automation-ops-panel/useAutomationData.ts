@@ -1,13 +1,14 @@
 import { useCallback, useMemo, useState } from 'react';
 import { listAutomationRuns, listAutomationTemplates, type WorkflowRunRecord, type WorkflowTemplateDefinition } from '../../../services/automation-service';
 import { listGChatSpaces, type ChatSpace } from '../../../services/gchat-service';
-import { getRemoteNodeHostStatus, listRemoteNodes, type RemoteNodeHostStatus, type RemoteNodeRecord } from '../../../services/remote-node-service';
+import { useRemoteNodeData } from './useRemoteNodeData';
 import { getTelegramStatus, listTelegramRecentChats, type TelegramRecentChat, type TelegramStatusSnapshot } from '../../../services/telegram-service';
 import type { BridgeAvailability } from './types';
 
 export function useAutomationData(
   bridge: BridgeAvailability,
   hydrateTelegram: (status: TelegramStatusSnapshot) => void,
+  userId: string,
 ) {
   const [templates, setTemplates] = useState<WorkflowTemplateDefinition[]>([]);
   const [runs, setRuns] = useState<WorkflowRunRecord[]>([]);
@@ -16,8 +17,8 @@ export function useAutomationData(
   const [spaces, setSpaces] = useState<ChatSpace[]>([]);
   const [telegramStatus, setTelegramStatus] = useState<TelegramStatusSnapshot | null>(null);
   const [recentChats, setRecentChats] = useState<TelegramRecentChat[]>([]);
-  const [hostStatus, setHostStatus] = useState<RemoteNodeHostStatus | null>(null);
-  const [nodes, setNodes] = useState<RemoteNodeRecord[]>([]);
+  const remote = useRemoteNodeData(userId);
+  const refreshRemoteNodes = remote.refresh;
   const [telegramHydrated, setTelegramHydrated] = useState(false);
 
   const selectedRun = useMemo(() => runs.find((run) => run.id === selectedRunId) || null, [runs, selectedRunId]);
@@ -65,16 +66,11 @@ export function useAutomationData(
     }
 
     if (bridge.remoteNode) {
-      tasks.push((async () => {
-        const [hostResult, nodesResult] = await Promise.all([getRemoteNodeHostStatus(), listRemoteNodes()]);
-        setHostStatus(hostResult);
-        if (!nodesResult.success) throw new Error(nodesResult.error || 'No pude cargar nodos.');
-        setNodes(nodesResult.nodes || []);
-      })());
+      tasks.push(refreshRemoteNodes());
     }
 
     await Promise.all(tasks);
-  }, [bridge.automation, bridge.gchat, bridge.remoteNode, bridge.telegram, hydrateTelegram, telegramHydrated]);
+  }, [bridge.automation, bridge.gchat, bridge.remoteNode, bridge.telegram, hydrateTelegram, telegramHydrated, refreshRemoteNodes]);
 
-  return { templates, runs, selectedRun, selectedRunId, setSelectedRunId, customTemplates, selectedCustomTemplate, selectedCustomTemplateId, setSelectedCustomTemplateId, pendingRuns, spaces, telegramStatus, setTelegramStatus, recentChats, hostStatus, setHostStatus, nodes, refreshOverview };
+  return { templates, runs, selectedRun, selectedRunId, setSelectedRunId, customTemplates, selectedCustomTemplate, selectedCustomTemplateId, setSelectedCustomTemplateId, pendingRuns, spaces, telegramStatus, setTelegramStatus, recentChats, hostStatus: remote.hostStatus, setHostStatus: remote.setHostStatus, nodes: remote.nodes, refreshOverview };
 }

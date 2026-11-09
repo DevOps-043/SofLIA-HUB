@@ -3,6 +3,8 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { safeStorage } from 'electron';
+import { createRecoveryReviewLifetime } from './recovery-review-lifetime';
+import { publishRecoveryFile } from './recovery-file-publication';
 
 const LIMIT = 16 * 1024 * 1024;
 const fail = () => new Error('No se pudo recuperar la memoria local. Se conservan los archivos disponibles.');
@@ -37,22 +39,6 @@ function unprotect(file: string, data: Buffer): Buffer {
   const result = Buffer.from(value.data, 'base64');
   if (result.length > LIMIT || result.toString('base64') !== value.data) throw fail(); return result;
 }
-function atomic(file: string, data: Buffer, guard: () => void, exclusive = false): void {
-  const temporary = `${file}.${randomUUID()}.tmp`; let published = false; let created = false;
-  try {
-    guard(); const descriptor = fs.openSync(temporary, 'wx', 0o600); created = true;
-    try { fs.writeFileSync(descriptor, data); fs.fsyncSync(descriptor); } finally { fs.closeSync(descriptor); }
-    guard(); if (exclusive) fs.linkSync(temporary, file); else fs.renameSync(temporary, file); published = true;
-  } finally { if (created) cleanTemporary(temporary, published); }
-}
-function cleanTemporary(file: string, published: boolean): void {
-  try { fs.unlinkSync(file); } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-      if (!published) throw error;
-      console.warn('[Navegador][Memoria] Recuperación publicada; queda un temporal de limpieza.');
-    }
-  }
-}
 function sidecarsAbsent(file: string): void {
   // No separar una base de su WAL o de una transacción SQLite pendiente.
   for (const suffix of ['-wal', '-shm', '-journal']) if (bytes(`${file}${suffix}`) !== null) throw fail();
@@ -70,7 +56,7 @@ export function ensureSemanticRecovery(file: string, guard: () => void): void {
     const descriptor = fs.openSync(temporary, 'wx', 0o600); created = true; fs.closeSync(descriptor);
     db = new DatabaseSync(temporary);
     db.exec('CREATE TABLE snapshot (id INTEGER PRIMARY KEY CHECK(id=1), payload BLOB NOT NULL); PRAGMA user_version=1;'); db.close(); db = undefined;
-    atomic(semanticRecoveryPath(file), protect(file, bytes(temporary)!), guard, true);
+    publishRecoveryFile(semanticRecoveryPath(file), protect(file, bytes(temporary)!), guard, true);
   } finally { db?.close(); if (created) fs.unlinkSync(temporary); }
 }
 export function forgetDamagedSemanticCopies(file: string, guard: () => void): void {
@@ -106,19 +92,27 @@ export function prepareSemanticRecovery(file: string, validate: (db: DatabaseSyn
   const probe = `${file}.${randomUUID()}.tmp`; let created = false;
   try { const descriptor = fs.openSync(probe, 'wx', 0o600); created = true; try { fs.writeFileSync(descriptor, restored); } finally { fs.closeSync(descriptor); } inspect(probe, validate, true); }
   finally { if (created) fs.unlinkSync(probe); }
-  const expires = Date.now() + 300_000; let used = false; guard();
+  const lifetime = createRecoveryReviewLifetime(); guard();
+  const assertCurrent = () => { guard(); if (lifetime.expired()) throw fail(); };
   return { count: 0, commit: async () => {
-    guard(); if (used || Date.now() > expires) throw fail(); used = true; sidecarsAbsent(file);
+    guard(); if (!lifetime.consume()) throw fail(); sidecarsAbsent(file);
     if (!same(original, bytes(file)) || !same(backup, bytes(semanticRecoveryPath(file), LIMIT * 2))) throw fail();
-    let damaged: string | undefined; let committed = false;
+    let damaged: string | undefined; let archived = false; let committed = false;
     try {
       if (original !== null) {
         if (damagedFiles(file).length >= 5) throw fail();
-        damaged = `${file}.damaged-${randomUUID()}.bin`; atomic(damaged, protect(file, original), guard, true);
+        damaged = `${file}.damaged-${randomUUID()}.bin`; publishRecoveryFile(damaged, protect(file, original), assertCurrent, true); archived = true;
       }
-      guard(); sidecarsAbsent(file);
+      assertCurrent(); sidecarsAbsent(file);
       if (!same(original, bytes(file)) || !same(backup, bytes(semanticRecoveryPath(file), LIMIT * 2))) throw fail();
-      atomic(file, restored, guard, original === null); committed = true;
-    } finally { if (damaged && !committed) fs.unlinkSync(damaged); }
+      publishRecoveryFile(file, restored, assertCurrent, original === null); committed = true;
+    } finally {
+      if (damaged && archived && !committed) {
+        try { fs.unlinkSync(damaged); }
+        catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') console.warn('[Navegador][Memoria] Recuperación no publicada; quedó una copia protegida pendiente de limpieza.');
+        }
+      }
+    }
   } };
 }

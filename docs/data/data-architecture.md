@@ -1,10 +1,13 @@
 # Arquitectura de datos
 
-Estado: vigente. Actualizado: 2026-08-04.
+Estado: vigente. Actualizado: 2026-10-25.
 
 <!-- evidence: database/README.md -->
 <!-- evidence: src/config.ts -->
 <!-- evidence: electron/memory/schema.ts -->
+<!-- evidence: src/services/chat/sync-pass.ts -->
+<!-- evidence: src/services/chat/pending-state/clear.ts -->
+<!-- evidence: src/services/chat/session-review.ts -->
 
 ## Autoridades remotas
 
@@ -27,6 +30,7 @@ meeting sync crea referencias externas mediante `external_ref`.
 | Indice FTS5 | `~/.sofia-semantic-indexer.db` | filepath, filename, content | reindex reemplaza contenido; daemon configurable |
 | Knowledge Markdown | `userData/knowledge/` | `MEMORY.md`, `users/`, `memory/`, `PATHS.md` | escrituras/reescritura explicitas |
 | Config JSON | `userData/*.json` | desktop, scheduler, canales, workflow, tools | overwrite atomico no garantizado en todos los servicios |
+| Planes Gmail | `userData/gmail-private-plans/` | grupos, IDs de mensajes/etiquetas y diario de efectos por usuario/cuenta, cifrados con el SO | hasta 100 planes por cuenta; sin borrado automático; legado sin dueño separado |
 | Credenciales WhatsApp | directorio auth del servicio | sesion Baileys | persiste para auto-connect hasta desconectar/eliminar |
 | Screenshots | directorio monitoring en `userData` | capturas habilitadas | cleanup por edad invocable; transitorias se borran si no se guardan |
 
@@ -51,6 +55,43 @@ fuente remota Lia sigue siendo autoridad; recovery purga/replica pendientes y
 normaliza conversaciones/mensajes. Borrar una conversacion debe respetar shares y
 politicas RLS, no solo remover cache.
 
+La sincronización local del chat reconoce el contenido normalizado que envió,
+no sólo su ID. Revalida antes de cada efecto y después de esperar red: otra
+versión o una intención de borrado conservan su pendiente. La retirada sólo se
+acredita si `writePendingChatState` confirma la escritura local; un fallo
+transitorio conserva la entrada y un rechazo permanente retira únicamente el
+contenido vigente. Un borrado heredado contradictorio invalida también sus
+payloads, evitando recreación en la misma pasada.
+
+El cache puede adelantarse a la cola por autosave. Una revisión efímera sólo
+permite publicar la respuesta si el cache estaba ausente o coincidía con lo
+enviado y su valor persistido sigue intacto. Un cambio ajeno bajo la misma clave
+puede omitir un refresco canónico; se preserva el contenido local. No se agregan
+campos al formato persistente ni cambia el contrato Supabase.
+
+La coordinación serializa por identidad dentro del mismo renderer y fusiona
+una sola pasada pendiente. No ofrece transacción entre ventanas, CAS de servidor
+o resolución de edición simultánea entre equipos. El ID recibido por sí solo
+no acredita sesión: `session-review.ts` lo contrasta con el sujeto del SDK Lia
+y vincula cada lote a un ciclo efímero. Cambiar/cerrar sesión revoca trabajo
+anterior, incluido A/B/A; no se reconoce ni publica su respuesta. Una solicitud
+nueva válida puede recuperar los pendientes conservados. Los scopes de ciclos
+distintos no se fusionan; refresh/eventos repetidos de la misma identidad
+conservan trabajo vigente. Se libera el listener al quedar ocioso.
+
+La suscripción precede a la lectura inicial. Un evento vigente puede liberar
+una lectura que siga esperando; su resultado tardío no sustituye al evento.
+Error o falta de sesión coincidente bloquean efectos nuevos. Sólo se observa
+el estado del SDK, sin conservar tokens: getSession no verifica por sí solo un
+JWT. Autenticación, cierre/revocación global y RLS conservan su autoridad en el
+proveedor existente; las preferencias y los aliases SOFIA no son pruebas de Lia.
+[Evidencia de sesión](../../openspec/changes/bind-chat-sync-to-lia-session/reports/verification.md).
+
+Una petición ya enviada puede
+tener efecto: la intención posterior sigue disponible para otra pasada. Cuota,
+errores o payloads corruptos de localStorage conservan sus límites de recuperación;
+el éxito remoto no demuestra durabilidad local. [Evidencia de concurrencia](../../openspec/changes/preserve-pending-chat-sync-intent/reports/verification.md).
+
 ### Meetings
 
 - `meeting_runs.trace_id` es unico; owner+source_hash+version evita duplicados.
@@ -62,18 +103,27 @@ politicas RLS, no solo remover cache.
 
 ## RLS y riesgo efectivo
 
+La [inspección IRIS del 22 de octubre](../reports/iris-access-2026-10-22.md)
+consultó sólo metadatos del proyecto conectado: el asesor registra 30 tablas
+públicas sin RLS; workspace_members tiene políticas permisivas sin actor y
+el borrado de proyectos sigue compuesto por peticiones independientes. El
+snapshot local no bastaba para determinar ese estado. La corrección requiere
+transición de consumidores heredados a un servidor con identidad verificada,
+permisos y una transacción de dominio; no se aplicaron cambios remotos.
+
 El estado no es uniforme:
 
 - tablas de monitoreo declaran `auth.uid() = user_id`;
-- meeting y `hub_service_state` tienen RLS habilitado pero politicas
-  permisivas para `anon, authenticated` porque main usa anon key sin sesion;
-- por tanto el aislamiento de esas tablas depende hoy de filtros/validacion de
-  aplicacion, no de una barrera tenant fuerte en Postgres.
+- main dispone de sesión Lia en `electron/main/hub-session.ts`;
+- las migraciones históricas de meetings son permisivas, pero
+  `project-hub-federation.sql` las reemplaza con ownership Lia verificable;
+- `hub_service_state` conserva una política permisiva y clave global por
+  servicio. Sus consumidores deben migrarse a ownership explícito.
 
-Esto es un riesgo conocido expresamente comentado como migracion pendiente en los
-SQL. No debe afirmarse que RLS protege por owner esas tablas. Endurecer requiere
-propagar sesion/JWT confiable a main o una API backend y migrar politicas sin
-bloquear el Hub.
+La presencia de ambas migraciones no demuestra cuál se aplicó por entorno.
+Verificar políticas y privilegios efectivos, orden, backfill y CRUD entre
+actores antes de afirmar aislamiento. No ejecutar el antiguo fix permisivo
+para resolver errores de sesión: investigar la causa y planificar rollback.
 
 ## Migraciones y snapshots
 
@@ -111,6 +161,13 @@ prueba de JWT/PostgREST real y aprobación de migración. El rollback operativo
   verificacion y rollback segun `docs/standards/database.md`.
 
 ## Respaldo y restauracion
+
+Los eventos tool del historial WhatsApp se proyectan al escribir y leer, con
+estado/conteos y correlación permitidos; no almacenan argumentos ni errores
+libres nuevos. Esta proyección no reescribe el JSONL heredado ni cifra el
+historial. Los backups anteriores pueden conservar PII. Eventos de conversación
+y contactos mantienen su contrato. Operación en
+[historial de herramientas](../operations/configuration.md#historial-operativo-de-herramientas-whatsapp).
 
 Supabase gestiona backup remoto fuera de este repo. Localmente no existe job de
 backup integral versionado. `hub_service_state` espeja ciertos estados JSON a Lia,

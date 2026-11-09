@@ -7,9 +7,9 @@ import { useBridgeAvailability } from './useBridgeAvailability';
 
 export function useAutomationOpsController(userId: string) {
   const bridge = useBridgeAvailability();
-  const forms = useAutomationFormState();
+  const forms = useAutomationFormState(userId);
   const runner = useActionRunner();
-  const data = useAutomationData(bridge, forms.telegram.hydrate);
+  const data = useAutomationData(bridge, forms.telegram.hydrate, userId);
   const setError = runner.setError;
 
   useEffect(() => {

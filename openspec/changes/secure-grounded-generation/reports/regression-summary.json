@@ -1,0 +1,14 @@
+{
+  "red": {
+    "failed": 6,
+    "passed": 0,
+    "sha256": "301038caaccb74db17335b76bd718a16eba61aebfd04cbee034ff1505b8ebaa8"
+  },
+  "directed": {
+    "passed": 120,
+    "failed": 0,
+    "newCases": 49,
+    "sha256": "731a5852ea163631ba572322698116b87a4a73ad1c6d1b57153036598084b33b"
+  },
+  "scope": "Wrapper/preload/allowlist/handler/servicio y consumidores reales, fetch sustituido. Sin modelos, claves, cuentas, red ni GUI reales."
+}

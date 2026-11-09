@@ -1,13 +1,15 @@
-import type { GoogleGenerativeAI } from '@google/generative-ai';
+import type { DesktopInference } from './inference';
 import { startContinuousObservation } from './observation-runtime';
 import type { DesktopActionPayload } from '../desktop-agent-types';
 
 export function startDesktopAgentObservation(params: {
+  signal?: AbortSignal;
+  onCycleEnd?: () => void;
   objective: string;
   reactionRules?: string;
   intervalMs: number;
   modelName: string;
-  ai: GoogleGenerativeAI;
+  ai: DesktopInference;
   isRunning: () => boolean;
   setRunning: (running: boolean) => void;
   takeScreenshot: () => Promise<string>;
@@ -19,6 +21,8 @@ export function startDesktopAgentObservation(params: {
   console.log(`[DesktopAgent] Modo observacion: "${params.objective}"`);
   params.emit('observation-started', { objective: params.objective });
   return startContinuousObservation({
+    signal: params.signal,
+    onCycleEnd: params.onCycleEnd,
     objective: params.objective,
     reactionRules: params.reactionRules,
     intervalMs: params.intervalMs,

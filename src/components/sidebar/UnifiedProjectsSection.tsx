@@ -6,7 +6,7 @@ import { SidebarSectionLabel } from './SidebarSectionLabel';
 interface ListedProject extends ProjectHubProject { workspaceName: string }
 
 const AUTO_RETRY_DELAY_MS = 3_000;
-const RECOVERABLE_CODES = new Set(['UNAVAILABLE', 'TIMEOUT', 'NOT_AUTHENTICATED', 'SOFIA_SESSION_PENDING']);
+const RECOVERABLE_CODES = new Set(['UNAVAILABLE', 'TIMEOUT', 'NOT_AUTHENTICATED', 'SOFIA_SESSION_PENDING', 'SESSION_CHANGED']);
 
 export function UnifiedProjectsSection({ props }: { props: SidebarProps }) {
   const [projects, setProjects] = useState<ListedProject[]>([]);
@@ -17,11 +17,12 @@ export function UnifiedProjectsSection({ props }: { props: SidebarProps }) {
   const [projectName, setProjectName] = useState('');
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('');
   const [creating, setCreating] = useState(false);
-  const [autoRetry, setAutoRetry] = useState(false);
+  const [retrySequence, setRetrySequence] = useState<number | null>(null);
   const loadSequence = useRef(0);
 
   const load = useCallback(async (retryAuthentication = false) => {
     const sequence = ++loadSequence.current;
+    setRetrySequence(null);
     setLoading(true);
     setError(null);
     let status = await projectHubApi.status();
@@ -34,7 +35,7 @@ export function UnifiedProjectsSection({ props }: { props: SidebarProps }) {
       setError(status.error || status.data?.authError?.error || (status.data?.configured === false
         ? 'Project Hub no está configurado en esta versión de Soflia Hub.'
         : 'Project Hub no está conectado.'));
-      setAutoRetry(RECOVERABLE_CODES.has(status.code || status.data?.authError?.code || ''));
+      setRetrySequence(RECOVERABLE_CODES.has(status.code || status.data?.authError?.code || '') ? sequence : null);
       setLoading(false);
       return;
     }
@@ -45,7 +46,7 @@ export function UnifiedProjectsSection({ props }: { props: SidebarProps }) {
     setProjects(results.flatMap(({ workspace, result }) => (result.data || []).map((project) => ({ ...project, workspaceName: workspace.name }))));
     const failed = results.find(({ result }) => !result.success)?.result;
     setError(failed?.error || null);
-    setAutoRetry(Boolean(failed && RECOVERABLE_CODES.has(failed.code || '')));
+    setRetrySequence(failed && RECOVERABLE_CODES.has(failed.code || '') ? sequence : null);
     setLoading(false);
   }, []);
 
@@ -55,10 +56,12 @@ export function UnifiedProjectsSection({ props }: { props: SidebarProps }) {
   }, [load]);
 
   useEffect(() => {
-    if (!autoRetry) return;
-    const timer = window.setTimeout(() => { void load(true); }, AUTO_RETRY_DELAY_MS);
+    if (retrySequence === null) return;
+    const timer = window.setTimeout(() => {
+      if (retrySequence === loadSequence.current) void load(true);
+    }, AUTO_RETRY_DELAY_MS);
     return () => { window.clearTimeout(timer); };
-  }, [autoRetry, error, load]);
+  }, [retrySequence, load]);
 
   const openCreator = () => {
     if (!workspaces.length) return setError('No hay un workspace disponible.');

@@ -31,7 +31,7 @@ export function attachMemoryContext(Service: MemoryServiceConstructor): void {
       context.rollingSummary = summaries.length > 0 ? formatMultipleSummaries(summaries) : null;
 
       context.timelineRecall = buildTimelineRecall(this.db, sessionKey, currentMessage, 30);
-      if (this.apiKey && currentMessage.trim().length > 10) {
+      if (currentMessage.trim().length > 10) {
         try {
           const queryEmbedding = await this.embedText(currentMessage);
           if (queryEmbedding) context.semanticRecall = this.semanticSearch(sessionKey, phoneNumber, queryEmbedding, SEMANTIC_TOP_K);

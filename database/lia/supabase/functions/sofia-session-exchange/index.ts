@@ -19,12 +19,12 @@ const RESPONSE_HEADERS = {
 Deno.serve(async (request: Request) => {
   try {
     return await handleRequest(request);
-  } catch (error) {
+  } catch {
     // Sin esta red, un fallo inesperado devuelve un 500 opaco y SIN cabeceras
     // CORS: el navegador solo ve "bloqueado por CORS" y la causa real queda
     // invisible. Aqui se convierte en la misma respuesta degradada que el
     // cliente ya sabe reintentar.
-    console.error('[intercambio-sesion] fallo no controlado:', error instanceof Error ? error.message : 'desconocido');
+    console.error('[intercambio-sesion] fallo no controlado');
     return jsonResponse(503, { code: 'exchange_unavailable' });
   }
 });
@@ -48,6 +48,7 @@ async function handleRequest(request: Request): Promise<Response> {
   });
 
   const result = await exchangeSofiaSession(request.headers.get('Authorization'), {
+    reportUnavailable: (stage) => console.error('[intercambio-sesion] dependencia no disponible', { stage }),
     getSofiaIdentity: async (accessToken) => {
       const sofia = createSofiaClient(sofiaUrl, sofiaAnonKey, accessToken);
       const { data, error } = await sofia.auth.getUser(accessToken);
@@ -62,13 +63,10 @@ async function handleRequest(request: Request): Promise<Response> {
         emailVerified: Boolean(data.user.email_confirmed_at),
       };
     },
-    getLegacyEmailVerification: async (accessToken, userId) => {
+    getLegacyEmailVerification: async (accessToken) => {
       const sofia = createSofiaClient(sofiaUrl, sofiaAnonKey, accessToken);
       const { data, error } = await sofia
-        .from('users')
-        .select('id, email, email_verified, email_verified_at')
-        .eq('id', userId)
-        .limit(1)
+        .rpc('get_desktop_own_email_verification')
         .maybeSingle();
       if (error) throw new Error('legacy_email_verification_lookup_failed');
       if (!data) return null;
@@ -115,7 +113,6 @@ async function handleRequest(request: Request): Promise<Response> {
     },
   });
 
-  if (result.status >= 500) console.error('[intercambio-sesion] servicio no disponible');
   return jsonResponse(result.status, result.body);
 }
 

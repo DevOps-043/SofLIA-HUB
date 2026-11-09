@@ -1,0 +1,153 @@
+{
+  "allProfile": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-browser-smoke-mf7lU0",
+  "phases": [
+    {
+      "phase": "exercise",
+      "checks": 12,
+      "sha256": "2d65f707abe7cfd4539d60dca63584812ac7ce95a52e1e0c4b670092d4163560"
+    },
+    {
+      "phase": "restore",
+      "checks": 4,
+      "sha256": "e29bdb1ee4c58def249ac03a6eaabe3267a89fd2b0c0723c9bdb3a70a62145d2"
+    },
+    {
+      "phase": "lifecycle",
+      "checks": 8,
+      "sha256": "b83db7815a25956b800d90b878b99d9c9ef97298a5b4d483d20b5e7b5e4a9d60"
+    },
+    {
+      "phase": "vault",
+      "checks": 11,
+      "sha256": "fcf41db6960dba6a5f78b4c266233e8df163c2d233992a8a834b0c2ff6b4a1ac"
+    },
+    {
+      "phase": "autosave",
+      "checks": 11,
+      "sha256": "b543e5ec6a41fb70ed8f10abf4c42eb5b1317a4225446d79f63f71af59f5e2ac"
+    },
+    {
+      "phase": "zoom-startup",
+      "checks": 11,
+      "sha256": "3eb89b0b685720c8cf2501c19edf514a1be6b79a777fe77bce11dcd9346cde04"
+    },
+    {
+      "phase": "zoom",
+      "checks": 15,
+      "sha256": "aa6edccc18989b1b81419e33e8e8f28d6dec6973ef2fec5d8d4f13f45417b752"
+    },
+    {
+      "phase": "safety",
+      "checks": 12,
+      "sha256": "f3136daa2ee56366a41fe45c04ad259478a970151e861c7d1945aea3b50e2883"
+    },
+    {
+      "phase": "passkeys",
+      "checks": 9,
+      "sha256": "44176e59dfd6d5420e0f1265016f90ad13a3d03322b69b508e2d1e273a5fefc3"
+    },
+    {
+      "phase": "extensions",
+      "checks": 5,
+      "sha256": "d49f2d171cc77e0edceeda48e3428fc0c78b7fcc316ddb30b2ab81c8842986eb"
+    },
+    {
+      "phase": "policies",
+      "checks": 19,
+      "sha256": "4038154b88ae6017d78b79ddebe2479f573435c65ead1b5b6057d7408f92b41e"
+    },
+    {
+      "phase": "perception",
+      "checks": 7,
+      "sha256": "c5867e4a573c7b3779cba33e0c21773d4786c9927c5a901eeaf084e6fec16360"
+    }
+  ],
+  "totalChecks": 124,
+  "finalPerceptionProfile": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-browser-smoke-2lDoWF",
+  "finalPerception": {
+    "status": "passed",
+    "phase": "perception",
+    "electron": "44.9.3",
+    "checks": [
+      "pausa/reactivación descarta frame pendiente y serializa una captura nativa nueva",
+      "dos solicitudes compatibles comparten un único frame nativo",
+      "DOM productivo en mundo aislado y frame real se publican bajo un ciclo vigente",
+      "navegación ABA a la misma URL no recupera un frame del documento anterior",
+      "cierre lógico descarta también lectura DOM pendiente sin error del ciclo anterior",
+      "cambio de política durante un frame nativo impide publicarlo",
+      "timer por evento se cancela al pausar y no se convierte en polling"
+    ],
+    "artifacts": [
+      {
+        "file": "frame-1.png",
+        "bytes": 21943,
+        "sha256": "bc3689950010fd2f39463792db369400583b13c8d4aedb5c92b8ebec6bb99600"
+      },
+      {
+        "file": "frame-2.png",
+        "bytes": 21943,
+        "sha256": "bc3689950010fd2f39463792db369400583b13c8d4aedb5c92b8ebec6bb99600"
+      },
+      {
+        "file": "frame-3.png",
+        "bytes": 21943,
+        "sha256": "bc3689950010fd2f39463792db369400583b13c8d4aedb5c92b8ebec6bb99600"
+      },
+      {
+        "file": "frame-4.png",
+        "bytes": 21943,
+        "sha256": "bc3689950010fd2f39463792db369400583b13c8d4aedb5c92b8ebec6bb99600"
+      },
+      {
+        "file": "frame-5.png",
+        "bytes": 21943,
+        "sha256": "bc3689950010fd2f39463792db369400583b13c8d4aedb5c92b8ebec6bb99600"
+      }
+    ],
+    "limitations": [],
+    "scope": "Módulos productivos con Electron/DOM reales; el servicio completo y sus permisos se verifican por separado.",
+    "maximumConcurrentCaptures": 1
+  },
+  "compiledSources": [
+    {
+      "source": "electron/integrated-browser/perception-state.ts",
+      "sourceSha256": "c54b989e848b639b27c80368a03cfe05bf846970f0f6282f798df973d0c1f422",
+      "compiledSha256": "e71fa9452a0edd6e27699be1a7c01bbc02bbe346fd15054bc2a9885c5e4df386"
+    },
+    {
+      "source": "electron/integrated-browser/page-observation.ts",
+      "sourceSha256": "13f868fdcfc335294208236ded6866679e2a668995b6047c41db74ebdb039960",
+      "compiledSha256": "7db0e909d6377357b7df2e54dac03045b82a10f6195ea35a33d8ebd2adf2d68b"
+    },
+    {
+      "source": "electron/integrated-browser/agent-world.ts",
+      "sourceSha256": "5e6b7140c4889a120c130dce2f918a93441862d50a5aea50b6322e1f1f87e270",
+      "compiledSha256": "d15c4e62b0ab60b4691e7ae40750924089d316b710685fd222e0c93db6951904"
+    },
+    {
+      "source": "electron/integrated-browser/dom-limits.ts",
+      "sourceSha256": "fc8ac1be6de965cf6ee115d766b2e59883474632d923f91f34c5440aa7b7c3e0",
+      "compiledSha256": "1149e7e64d909312ac33313057073b9f28ca8c0e1475e41e37085e7c7e95f542"
+    },
+    {
+      "source": "electron/integrated-browser/cdp-dom-snapshot.ts",
+      "sourceSha256": "e4c26b11192762c479d3c26cb557c36fd82244fbda1eef47eff61d9f6c70da55",
+      "compiledSha256": "bf8dcbf1387b68940e25ee3ed77681b2e99c4d58200913da0255560049c0c207"
+    },
+    {
+      "source": "electron/integrated-browser/cdp-session.ts",
+      "sourceSha256": "88d7ed8bf9ce69d0d22d46d5100d3efefddb6f983ff3477dd9e6c42193f0fbda",
+      "compiledSha256": "2c92dccee8604cd0a9acc85d40c77a89471664bb709afa150095386f93b575b0"
+    }
+  ],
+  "firstPoliciesFailure": {
+    "profile": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-browser-smoke-YIZlaD",
+    "reproduced": false,
+    "cause": "No demostrada; el arnés anterior no conservó diagnóstico"
+  },
+  "policiesRepeat": {
+    "profile": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-browser-smoke-xR8M9W",
+    "passed": true
+  },
+  "remoteExecuted": false
+}

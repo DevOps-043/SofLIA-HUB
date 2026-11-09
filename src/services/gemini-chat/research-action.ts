@@ -1,6 +1,7 @@
 import { buildServerSideToolInvocationsConfig } from '../../shared/gemini-grounding-config';
 import { runAgenticLoop } from './agentic-loop';
-import { getGenAiClient } from './client';
+import { getPublicAiErrorMessage } from './public-error';
+import { withGeminiConversation } from './conversation';
 import { buildModelTools, type GeminiChatConfig } from './model-config';
 import { collectStreamText, isAbortError, singleChunkStream, stoppedStreamResult } from './streams';
 import type { SendMessageStreamOptions, StreamResult } from './types';
@@ -33,7 +34,6 @@ export async function runResearchActionPhase(input: {
   const signal = input.options?.signal;
   // Estado visible: la investigacion termino y ahora se generan los entregables.
   input.options?.onToolCall?.({ name: 'research_actions', args: {} });
-  const ai = await getGenAiClient();
   let lastError: unknown = null;
 
   for (const modelId of input.candidateModelIds) {
@@ -48,18 +48,21 @@ export async function runResearchActionPhase(input: {
         // ella la API rechaza el turno con 400.
         toolConfig: buildServerSideToolInvocationsConfig(modelTools),
       };
-      const chatSession = ai.chats.create({ model: modelId, config: chatConfig, history: input.history });
       // Se siembran las graficas de la investigacion para que la fase de accion
       // las inyecte en el documento (chart_images de create_word_document).
-      const actionResult = await runAgenticLoop({
-        chatSession,
-        chatConfig,
-        messageContent: buildActionMessage(input.originalMessage, researchText),
-        options: input.options,
-        allToolCalls: [],
-        allGeneratedImages: [...(input.grounded.generatedImages || [])],
-        failFastOnModelError: true,
-      });
+      const actionResult = await withGeminiConversation(
+        { model: modelId, config: chatConfig, history: input.history },
+        signal,
+        (chatSession, turnSignal) => runAgenticLoop({
+          chatSession,
+          chatConfig,
+          messageContent: buildActionMessage(input.originalMessage, researchText),
+          options: { ...input.options, signal: turnSignal },
+          allToolCalls: [],
+          allGeneratedImages: [...(input.grounded.generatedImages || [])],
+          failFastOnModelError: true,
+        }),
+      );
       const actionText = await collectStreamText(actionResult.stream);
       const mergedImages = uniqueImages([...(input.grounded.generatedImages || []), ...(actionResult.generatedImages || [])]);
       return {
@@ -71,11 +74,11 @@ export async function runResearchActionPhase(input: {
     } catch (error) {
       if (isAbortError(error, signal)) return stoppedStreamResult([], [], researchText);
       lastError = error;
-      console.warn('[GeminiChat] research action phase attempt failed:', { modelId, error });
+      console.warn('[GeminiChat] Falló el intento de acciones de investigación:', { modelId, message: getPublicAiErrorMessage(error) });
     }
   }
 
-  console.warn('[GeminiChat] research action phase unavailable:', lastError);
+  console.warn('[GeminiChat] Acciones de investigación no disponibles:', getPublicAiErrorMessage(lastError));
   return {
     ...rebuiltGrounded,
     stream: singleChunkStream(

@@ -1,0 +1,54 @@
+{
+  "fecha": "2026-10-22",
+  "rama": "codex/reduce-technical-debt",
+  "baseGit": "e166d250629e503cf12f69449fb6d66e569134c8",
+  "entorno": { "plataforma": "Windows x64", "node": "26.7.0", "npm": "11.19.0" },
+  "compuertaFinal": {
+    "comando": "npm run verify:pr",
+    "salida": 0,
+    "archivosAprobados": 436,
+    "archivosOmitidos": 2,
+    "pruebasAprobadas": 4492,
+    "pruebasOmitidas": 5,
+    "pruebasFallidas": 0,
+    "duracionSegundos": 205.15
+  },
+  "regresionesSmoke": {
+    "antesDeCorregir": { "aprobadas": 58, "fallidas": 9 },
+    "despuesDeCorregir": { "aprobadas": 67, "fallidas": 0 }
+  },
+  "consumidoresDocumentosImagenes": { "antes": 81, "despues": 81, "fallidas": 0 },
+  "instalacion": {
+    "sinScripts": true,
+    "registrosModificadosPresentesComprobados": 48,
+    "discrepancias": 0,
+    "npmLsAllSalida": 0,
+    "sharpCargado": "0.35.5",
+    "libvipsCargado": "8.18.7",
+    "librsvgCargado": "2.63.2"
+  },
+  "compilacion": {
+    "comando": "npm run app:smoke:build",
+    "salida": 0,
+    "fuentesCopiadas": 3258,
+    "archivosEnvCopiados": false,
+    "artefactosComprobados": 6,
+    "informe": "build-summary.json"
+  },
+  "auditoria": {
+    "paquetesAntes": 45,
+    "paquetesDespues": 28,
+    "highAntes": 20,
+    "highDespues": 9,
+    "paquetesNuevos": 0,
+    "avisosNuevos": 0,
+    "informe": "audit-comparison.json"
+  },
+  "revision": "Autorrevisión adversarial; revisión independiente pendiente",
+  "limites": [
+    "Sin instaladores, arranque ni proveedores reales",
+    "Sin ejecución remota de CI Node 24 ni plataformas Linux/macOS",
+    "Los 28 paquetes afectados residuales mantienen npm audit con salida 1",
+    "Sin reevaluación del índice global de deuda ni publicación"
+  ]
+}

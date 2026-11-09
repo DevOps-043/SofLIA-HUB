@@ -1,0 +1,72 @@
+{
+  "exitCode": 0,
+  "stages": [
+    {
+      "script": "adapters:check",
+      "exitCode": 0
+    },
+    {
+      "script": "harness:validate",
+      "exitCode": 0
+    },
+    {
+      "script": "audit:supply-chain",
+      "exitCode": 0
+    },
+    {
+      "script": "docs:system:check",
+      "exitCode": 0
+    },
+    {
+      "script": "docs:check",
+      "exitCode": 0
+    },
+    {
+      "script": "skills:seed:check",
+      "exitCode": 0
+    },
+    {
+      "script": "openspec:validate",
+      "exitCode": 0
+    },
+    {
+      "script": "test:quality",
+      "exitCode": 0
+    },
+    {
+      "script": "python-tools:test",
+      "exitCode": 0
+    },
+    {
+      "script": "typecheck",
+      "exitCode": 0
+    },
+    {
+      "script": "lint:changed",
+      "exitCode": 0
+    },
+    {
+      "script": "test",
+      "exitCode": 0
+    }
+  ],
+  "tests": {
+    "passed": 5690,
+    "skipped": 5,
+    "total": 5695
+  },
+  "files": {
+    "passed": 498,
+    "skipped": 2,
+    "total": 500
+  },
+  "toolingTests": 18,
+  "pythonTests": 33,
+  "pythonVersion": "3.12.11",
+  "durationSeconds": 230.78,
+  "lintFiles": 302,
+  "markdownFiles": 704,
+  "stableSources": 3461,
+  "node": "v26.7.0",
+  "remoteMatrixExecuted": false
+}

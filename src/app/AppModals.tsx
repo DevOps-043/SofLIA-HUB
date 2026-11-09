@@ -1,4 +1,3 @@
-import { GOOGLE_API_KEY } from "../config";
 import { CreateFolderModal, MoveChatModal } from "../components/FolderModals";
 import { ShareModal } from "../components/ShareModal";
 import { UnifiedSettingsModal, type SettingsTab } from "../components/UnifiedSettingsModal";
@@ -56,7 +55,6 @@ export function AppModals(props: AppModalsProps) {
           userSettings={props.userSettings}
           onSaveSettings={props.onSetUserSettings}
           sofiaContext={props.sofiaContext}
-          apiKey={GOOGLE_API_KEY}
           initialTab={props.activeSettingsTab}
         />
       )}

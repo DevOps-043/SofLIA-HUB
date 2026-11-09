@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "at": "2026-10-26T23:32:23.922Z",
+  "exitCode": 0,
+  "sourceFiles": 3566,
+  "envFilesCopied": false,
+  "packaged": false,
+  "applicationStarted": false,
+  "durationSeconds": 93.9629378,
+  "sandbox": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-app-build-RcDgnb",
+  "copiedFilesMatching": 3566,
+  "missingTrackedSourcesSkipped": [],
+  "priorDeletion": {
+    "file": "electron/wa-agent/bulk-label-verification.ts",
+    "status": "D  electron/wa-agent/bulk-label-verification.ts",
+    "restored": false
+  },
+  "outputs": [
+    {
+      "file": "dist/index.html",
+      "bytes": 548,
+      "sha256": "0c58c6b39db3e2a0684a3985e27e5485bbffd66cc99300fcbb0a1f945fa6716f"
+    },
+    {
+      "file": "dist-electron/main.js",
+      "bytes": 205502,
+      "sha256": "3334b4ce6591e50ef3ce37d2165a178b24fda07788da7fd3d210b028b294248a"
+    },
+    {
+      "file": "dist-electron/preload.js",
+      "bytes": 49070,
+      "sha256": "5b08f697bd1e1e6d596cf4240f5efb15b26da4059449d6815c32cfed1b7bf85e"
+    },
+    {
+      "file": "dist/presentation/presentation-runtime.iife.js",
+      "bytes": 915199,
+      "sha256": "4f89da10d5c334ce9bb9978648ebb96bda1f8cfe5c7896bc6d004959c4d32235"
+    },
+    {
+      "file": "dist/audiovisual/film-runtime.iife.js",
+      "bytes": 223019,
+      "sha256": "1e497c8583b88e5b2c8ff1299eb48e121afc5a3073a06351f574841a0d61109d"
+    },
+    {
+      "file": "dist/zoom-runtime/index.html",
+      "bytes": 489,
+      "sha256": "86ccc046c0eb931d8fe2599ac3d0a3de8dc73fea00df5ec2b8cdbac705b6b9fb"
+    }
+  ]
+}

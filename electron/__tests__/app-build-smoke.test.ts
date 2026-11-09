@@ -10,8 +10,14 @@ const { isBuildSource, isInstallerSource, buildEnvironment } = await import(/* @
 const { installerArguments, installerEnvironment, installerArtifact, hasEmbeddedSignature, inspectInstaller } = await import(/* @vite-ignore */ pathToFileURL(resolve('scripts/quality/smoke-installer-win.mjs')).href);
 
 describe('build aislado sin credenciales', () => {
-  it.each(['src/main.tsx', 'electron/main.ts', 'public/assets/icon.png', 'vite.config.mts', 'package.json', 'database/lia/supabase/functions/_shared/sofia-session-exchange-core.ts'])('incluye fuente %s', file => {
+  it.each(['src/main.tsx', 'electron/main.ts', 'public/assets/icon.png', 'vite.config.mts', 'vite.presentation.config.mts', 'vite.audiovisual.config.mts', 'vite.zoom.config.mts', 'package.json', 'database/lia/supabase/functions/_shared/sofia-session-exchange-core.ts'])('incluye fuente %s', file => {
     expect(isBuildSource(file)).toBe(true);
+  });
+  it.each(['package.json', 'package-lock.json', 'tsconfig.json', 'index.html', 'runtime.ts', 'share-lifecycle.ts'])('incluye fuente del runtime aislado de Zoom: %s', file => {
+    expect(isBuildSource('packages/zoom-runtime/' + file)).toBe(true);
+  });
+  it.each(['packages/zoom-runtime/.env', 'packages/zoom-runtime/.npmrc', 'packages/zoom-runtime/local-config.json', 'packages/zoom-runtime/node_modules/paquete/index.js', 'packages/zoom-runtime/dist/index.html', 'packages/zoom-runtime/certificate.pem', 'packages/otro/package.json'])('excluye archivo ajeno al runtime aislado: %s', file => {
+    expect(isBuildSource(file)).toBe(false);
   });
   it.each(['.env', '.env.production', 'src/.env', 'src/../.env', '/src/main.ts', 'C:/src/main.ts', 'src\\main.ts', 'src//main.ts', 'node_modules/paquete/index.js', 'src/node_modules/paquete/index.js', 'dist/index.html', 'release/app.exe', 'python-runtime/python.exe', '.git/config', 'database/lia/snapshot.sql', ''])('excluye archivo ajeno %s', file => {
     expect(isBuildSource(file)).toBe(false);

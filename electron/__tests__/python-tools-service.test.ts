@@ -78,6 +78,16 @@ describe('degradación cuando Python no está instalado', () => {
 });
 
 describe('configuración de privacidad', () => {
+  it('un fallo de escritura no publica éxito ni cambia la protección en memoria', () => {
+    const { service, internals } = createService({ runtimeInstalled: true }); service.setPrivacyConfig({ redactDocuments: true });
+    vi.spyOn(internals, 'getPrivacyConfigPath').mockReturnValue(path.join(tempDir, 'ausente', 'privacy.json'));
+    expect(() => service.setPrivacyConfig({ redactDocuments: false })).toThrow();
+    expect(service.getPrivacyConfig().redactDocuments).toBe(true);
+  });
+  it('configuración corrupta no se convierte silenciosamente en protección desactivada', () => {
+    const { service } = createService({ runtimeInstalled: true }); fs.writeFileSync(path.join(tempDir, 'privacy-config.json'), '{');
+    expect(() => service.getPrivacyConfig()).toThrow();
+  });
   it('viene DESACTIVADA por defecto (opt-in: no cambia el comportamiento sin consentimiento)', () => {
     const { service } = createService({ runtimeInstalled: true });
     expect(service.getPrivacyConfig().redactDocuments).toBe(false);

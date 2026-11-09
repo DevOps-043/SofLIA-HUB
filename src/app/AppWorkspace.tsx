@@ -8,13 +8,16 @@ import { usePresentationWorkspaceContext } from '../contexts/presentation-worksp
 import type { MouseEvent } from 'react';
 import { LiaDegradedNotice, ShareLinkNoticeBanner } from './AppNotices';
 import { AppChatView } from './AppChatView';
-import { AppProjectView } from './AppProjectView';
+import { FolderProjectPanel } from '../components/project-workspace/FolderProjectPanel';
+import type { useProjectWorkspace } from './useProjectWorkspace';
+import { Button } from '../components/ui/Button';
 import { UnifiedProjectHub } from '../components/project-hub/UnifiedProjectHub';
 import type { ActiveView, ChatState, FolderState, ShareLinkNotice, ShareTarget } from './app-types';
 import type { UserAISettings } from '../services/settings-service';
 import type { BrowserSelectionActionRequest } from '../services/integrated-browser-service';
 
 interface AppWorkspaceProps {
+  projectWorkspace?: ReturnType<typeof useProjectWorkspace>;
   accessUserIds?: string[];
   activeView: ActiveView;
   browserWorkspaceOpen?: boolean;
@@ -53,7 +56,8 @@ export function AppWorkspace(props: AppWorkspaceProps) {
   const presentation = usePresentationWorkspaceContext();
   const artifactViewer = useArtifactViewer();
 
-  const chatView = (
+  const navigation = props.projectWorkspace?.navigation;
+  const chatView = navigation && !props.projectWorkspace?.canShowChat ? <div className="grid h-full place-items-center p-6 text-sm text-secondary">{navigation.chatMessage || 'Selecciona o crea un chat de este proyecto.'}</div> : (
     <AppChatView
       compact={props.browserWorkspaceOpen}
       avatarUrl={props.avatarUrl}
@@ -82,12 +86,12 @@ export function AppWorkspace(props: AppWorkspaceProps) {
         {props.liaDegraded && !props.userId && <LiaDegradedNotice message={props.liaStatusMessage || undefined} />}
         <BrowserWorkspaceLayout
           chat={chatView}
-          conversations={props.chat.conversations}
-          currentConversationId={props.chat.currentConversationId}
+          conversations={navigation?.conversations ?? props.chat.conversations}
+          currentConversationId={navigation ? navigation.currentConversationId : props.chat.currentConversationId}
           externalSelection={props.externalSelection}
           onClose={props.onCloseBrowserWorkspace ?? (() => undefined)}
-          onNewChat={props.onNewChat}
-          onSelectConversation={props.onSelectConversation}
+          onNewChat={navigation?.onBrowserNewChat ?? props.onNewChat}
+          onSelectConversation={navigation?.onBrowserOpenChat ?? props.onSelectConversation}
         />
       </main>
     );
@@ -124,23 +128,10 @@ export function AppWorkspace(props: AppWorkspaceProps) {
           <MeetingOpsPanel userId={props.userId} organizationId={props.orgId || null} accessUserIds={props.accessUserIds} />
         </div>
       )}
-      {props.activeView === 'project' && props.currentFolder && props.userId && (
-        <AppProjectView
-          chat={props.chat}
-          currentFolder={props.currentFolder}
-          folder={props.folder}
-          onDeleteConversation={props.onDeleteConversation}
-          onNewChatInProject={props.onNewChatInProject}
-          onNewChatWithMessage={props.onNewChatWithMessage}
-          onSelectConversation={props.onSelectConversation}
-          orgId={props.orgId}
-          setShareTarget={props.setShareTarget}
-          userId={props.userId}
-        />
-      )}
-      {props.activeView === 'project-hub' && props.unifiedProject && (
-        <UnifiedProjectHub workspaceId={props.unifiedProject.workspaceId} projectId={props.unifiedProject.projectId} />
-      )}
+      {(props.activeView === 'project' || props.activeView === 'project-hub') && !navigation && <div className="grid h-full place-items-center p-6"><div><p className="text-sm text-secondary">Selecciona un proyecto de la organización actual.</p><Button size="sm" variant="ghost" onClick={props.projectWorkspace?.exit}>Volver a proyectos</Button></div></div>}
+      {navigation?.section === 'chat' && <div className="flex min-h-0 flex-1 flex-col"><header className="flex items-center gap-3 border-b border-border px-5 py-2"><Button size="sm" variant="ghost" className="!rounded-full" onClick={() => navigation.onNavigate('chats')}>Volver al proyecto</Button><span className="truncate text-xs text-secondary">{navigation.name} / Chat</span></header><div className="min-h-0 flex-1">{chatView}</div></div>}
+      {props.activeView === 'project' && props.currentFolder && props.userId && navigation && navigation.section !== 'chat' && <FolderProjectPanel key={props.currentFolder.id} folder={props.currentFolder} navigation={navigation} userId={props.userId} orgId={props.orgId} />}
+      {props.activeView === 'project-hub' && props.unifiedProject && navigation && navigation.section !== 'chat' && <UnifiedProjectHub workspaceId={props.unifiedProject.workspaceId} projectId={props.unifiedProject.projectId} section={navigation?.section} navigation={navigation} onNavigate={navigation?.onNavigate} onProjectReady={props.projectWorkspace?.onProjectReady} onOpenWeb={props.projectWorkspace?.onOpenWeb} />}
     </main>
   );
 }

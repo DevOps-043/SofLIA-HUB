@@ -1,4 +1,3 @@
-import type { GoogleGenerativeAI } from '@google/generative-ai';
 
 export interface SlideData {
   type: string;
@@ -40,5 +39,4 @@ export interface CreatePresentationPDFOptions {
   outputPath: string;
   customTheme?: ThemeConfig;
   includeImages?: boolean;
-  genAI?: GoogleGenerativeAI;
 }

@@ -1,0 +1,53 @@
+{
+  "directory": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-document-deps-2026-10-24",
+  "logs": [
+    {
+      "file": "baseline.json",
+      "sha256": "46e7dcc23df27987fb43bfa10fc52773144d5b48897b46bbdf40373900008173"
+    },
+    {
+      "file": "consumers-before.log",
+      "sha256": "2be89b65544d3c986ba3be5ea7964094ac486abd5f54e645427ebb56ddeb60e4"
+    },
+    {
+      "file": "consumers-after.log",
+      "sha256": "d1ccd438046df90c231e21e8bd38b79742e31be0fc6fe2ac7613c23d4ca152ea"
+    },
+    {
+      "file": "contracts-first.log",
+      "sha256": "17a2680b976741d3de051a29b91ceb5162f55d30afbe6d4dc71798d453d99b53"
+    },
+    {
+      "file": "native-first.log",
+      "sha256": "35567a9ac055055bff6c1cca8d5ec43e395001cb32aa5e5a77cbea025a24980a"
+    },
+    {
+      "file": "native-final.log",
+      "sha256": "617e4ea7746e58645419a9020276847b9d130f2bb6a9253eaebc9e0bff22c5a2"
+    },
+    {
+      "file": "gate-final.log",
+      "sha256": "edbdf52f420643edbaea2683006ca87bc75ff260db201ed908f5504ce991f90a"
+    },
+    {
+      "file": "build-final.log",
+      "sha256": "7fa3c8f03244bf660f4c86e85ce1d7341050fa7405419adc9ed51e3ba5024186"
+    },
+    {
+      "file": "npm-audit-before.json",
+      "sha256": "23f9575ce6cc0d10a8f6fa7d6768d8ee3a09c32ac063c7415541202b41a807f3"
+    },
+    {
+      "file": "npm-audit-after.json",
+      "sha256": "b0cc9ed2678f3bb53ea3e32b07c92269b61b69262e0ca1bdac1f4903f613a0c9"
+    },
+    {
+      "file": "npm-audit-prod-before.json",
+      "sha256": "23f9575ce6cc0d10a8f6fa7d6768d8ee3a09c32ac063c7415541202b41a807f3"
+    },
+    {
+      "file": "npm-audit-prod-after.json",
+      "sha256": "b0cc9ed2678f3bb53ea3e32b07c92269b61b69262e0ca1bdac1f4903f613a0c9"
+    }
+  ]
+}

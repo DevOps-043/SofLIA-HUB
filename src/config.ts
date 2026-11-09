@@ -1,10 +1,8 @@
+import { OPENAI_IMAGE_MODEL } from './shared/image-generation';
 import { SOFLIA_MAX_MODEL, SOFLIA_DEFAULT_MODEL, SOFLIA_RUNTIME_MODEL } from './shared/soflia-runtime-model';
 
 export const GOOGLE_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 
-// OpenAI. Variable del entorno que habilita Sol/Luna cuando el usuario
-// no tiene una llave guardada en su configuración.
-export const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY || '';
 
 // Lia Supabase (conversaciones, meetings, settings)
 export const SUPABASE = {
@@ -51,8 +49,8 @@ export const MODELS = {
   FALLBACK: SOFLIA_RUNTIME_MODEL,
   PRO: SOFLIA_RUNTIME_MODEL,
   WEB_AGENT: SOFLIA_RUNTIME_MODEL,
-  ORB: SOFLIA_RUNTIME_MODEL,
-  IMAGE_GENERATION: 'gemini-3.1-flash-image',
+  ORB: SOFLIA_DEFAULT_MODEL,
+  IMAGE_GENERATION: OPENAI_IMAGE_MODEL,
   DEEP_RESEARCH: 'deep-research-pro-preview-12-2025',
   TRANSCRIPTION: SOFLIA_RUNTIME_MODEL,
   MAPS: SOFLIA_RUNTIME_MODEL,
@@ -60,7 +58,7 @@ export const MODELS = {
 
 // Familia GPT-6 de OpenAI. Sol corresponde a SofLIA Max y conserva la clave
 // histórica `COMPUTER_USE` por compatibilidad de cuota mensual, aunque el
-// actuador Computer Use usa exclusivamente Gemini 3.8 Flash. Luna corresponde a
+// actuador Computer Use usa el modelo OpenAI de main. Luna corresponde a
 // SofLIA (predeterminado). El proveedor efectivo se decide por el modelo
 // seleccionado; la llave puede provenir de la configuración guardada del usuario
 // o del entorno.
@@ -78,7 +76,3 @@ export const OPENAI_VECTOR_STORE_IDS = (import.meta.env.VITE_OPENAI_VECTOR_STORE
   .split(',')
   .map((id: string) => id.trim())
   .filter(Boolean);
-
-export function isOpenAIConfigured(): boolean {
-  return OPENAI_API_KEY.trim().length > 0;
-}

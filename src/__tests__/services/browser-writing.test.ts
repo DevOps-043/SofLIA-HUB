@@ -1,10 +1,13 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildWritingPrompt, improveBrowserSelection, sanitizeWritingResult } from '../../services/browser-writing';
 
 const generateContent = vi.fn();
+let originalIpc: Window['ipcRenderer'];
+beforeEach(() => { originalIpc = window.ipcRenderer; Reflect.set(window, 'ipcRenderer', undefined); });
+afterEach(() => { Reflect.set(window, 'ipcRenderer', originalIpc); });
 
-vi.mock('../../services/gemini-chat/client', () => ({
-  getGenAI: async () => ({ getGenerativeModel: () => ({ generateContent }) }),
+vi.mock('../../services/openai-chat/client', () => ({
+  getOpenAI: async () => ({ responses: { create: generateContent } }),
 }));
 
 vi.mock('../../services/gemini-chat/resilience', () => ({
@@ -41,7 +44,7 @@ describe('Redacción del navegador integrado', () => {
   });
 
   it('BW-004: devuelve la propuesta limpia y no llama al modelo sin texto', async () => {
-    generateContent.mockResolvedValueOnce({ response: { text: () => '```\nBuenos días, Fernando.\n```' } });
+    generateContent.mockResolvedValueOnce({ output_text: '```\nBuenos días, Fernando.\n```' });
 
     await expect(improveBrowserSelection({ text: 'buenos dias fer', prompt: '' }))
       .resolves.toBe('Buenos días, Fernando.');
@@ -52,7 +55,7 @@ describe('Redacción del navegador integrado', () => {
   });
 
   it('BW-005: una respuesta vacía del modelo se declara como fallo', async () => {
-    generateContent.mockResolvedValueOnce({ response: { text: () => '   ' } });
+    generateContent.mockResolvedValueOnce({ output_text: '   ' });
 
     await expect(improveBrowserSelection({ text: 'buenos dias fer', prompt: '' }))
       .rejects.toThrow(/no devolvio una version utilizable/i);

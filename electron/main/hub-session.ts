@@ -1,4 +1,4 @@
-import { getHubDbClient } from '../hub-db-client';
+import { discardHubDbClient, getHubDbClient } from '../hub-db-client';
 import {
   clearHubRefreshToken,
   hasStoredHubSession,
@@ -30,6 +30,7 @@ export type HubSessionResult = 'aplicada' | 'sin-sesion' | 'rechazada' | 'no-dis
 /** Usuario con el que main esta operando ahora mismo. */
 let currentUserId: string | null = null;
 let refreshListenerBound = false;
+let generation = 0;
 
 export function getHubSessionUserId(): string | null {
   return currentUserId;
@@ -42,8 +43,9 @@ export function getHubSessionUserId(): string | null {
 function bindRefreshPersistence(): void {
   if (refreshListenerBound) return;
   try {
+    const ownerGeneration = generation;
     getHubDbClient().auth.onAuthStateChange((event, session) => {
-      if (event !== 'TOKEN_REFRESHED' || !session?.refresh_token) return;
+      if (generation !== ownerGeneration || event !== 'TOKEN_REFRESHED' || !session?.refresh_token) return;
       saveHubRefreshToken(session.refresh_token);
     });
     refreshListenerBound = true;
@@ -63,6 +65,7 @@ export async function applyHubSession(
   const accessToken = String(tokens.accessToken || '').trim();
   const refreshToken = String(tokens.refreshToken || '').trim();
   if (!accessToken || !refreshToken) return 'sin-sesion';
+  const ownerGeneration = generation;
 
   try {
     const client = getHubDbClient();
@@ -70,6 +73,7 @@ export async function applyHubSession(
       access_token: accessToken,
       refresh_token: refreshToken,
     });
+    if (generation !== ownerGeneration) return 'sin-sesion';
     if (error) {
       console.warn('[HubSession] El servidor rechazo la sesion publicada:', error.message);
       return 'rechazada';
@@ -98,10 +102,12 @@ export async function restoreHubSession(): Promise<HubSessionResult> {
 
   const refreshToken = readHubRefreshToken();
   if (!refreshToken) return 'sin-sesion';
+  const ownerGeneration = generation;
 
   try {
     const client = getHubDbClient();
     const { data, error } = await client.auth.refreshSession({ refresh_token: refreshToken });
+    if (generation !== ownerGeneration) return 'sin-sesion';
     if (error || !data.session) {
       // Token caducado, revocado o de otra instancia: se descarta y se arranca
       // sin sesion. Conservarlo solo produciria un fallo por consulta.
@@ -124,20 +130,21 @@ export async function restoreHubSession(): Promise<HubSessionResult> {
 
 /** Borra la credencial y devuelve a main a cliente anonimo. */
 export async function revokeHubSession(): Promise<void> {
+  generation += 1;
   clearHubRefreshToken();
   currentUserId = null;
+  refreshListenerBound = false;
   try {
-    // `scope: 'local'` cierra solo esta sesion del cliente: cerrar sesion en el
-    // escritorio no debe echar al usuario de sus otros dispositivos.
-    await getHubDbClient().auth.signOut({ scope: 'local' });
-    console.log('[HubSession] Sesion revocada: main vuelve a operar como anonimo.');
-  } catch (error) {
-    console.warn('[HubSession] No se pudo cerrar la sesion del cliente:', describe(error));
+    await discardHubDbClient();
+    console.log('[HubSession] Sesión local descartada en main.');
+  } catch {
+    console.warn('[HubSession] No se pudo detener la renovación del cliente anterior.');
   }
 }
 
 /** Solo para pruebas. */
 export function resetHubSessionForTests(): void {
+  generation += 1;
   currentUserId = null;
   refreshListenerBound = false;
 }

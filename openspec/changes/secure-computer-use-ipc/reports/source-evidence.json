@@ -1,0 +1,76 @@
+{
+  "count": 3574,
+  "before": "1e183542069c1b6b9243b1a0453f187311f89264a0c9ac31c0e9a4f94c85176a",
+  "after": "1e183542069c1b6b9243b1a0453f187311f89264a0c9ac31c0e9a4f94c85176a",
+  "changedDuringGate": [],
+  "copiedFilesMatching": 3554,
+  "deltaFromUnit41": [
+    {
+      "file": "electron/__tests__/command-confirmation-ipc.test.ts",
+      "previousSha256": "fa7305c1b32dcb9a0f4898aff78d22d59975b339447b7f74040df0ac573e5b4c",
+      "currentSha256": "5fb6dcde6bd655ee48ae18b1a9958afa456e0ebbb17c592371105cc9a394c753"
+    },
+    {
+      "file": "electron/computer-use/ipc-registration.ts",
+      "previousSha256": "eadac95f5f4e5cdab0541256d00bdb11235d310c47e542b011a4d10f8893dfa0",
+      "currentSha256": "eefba42919a703f71a5cc8404f028c30f6176514b3b394588c78b70ee2bbab80"
+    },
+    {
+      "file": "electron/main/startup.ts",
+      "previousSha256": "7a6c3d37826938aadd151890b6a29dce7c5ed17e7c5d22175ed07fb5f3197d01",
+      "currentSha256": "bcc1fd211931068c7902d731a55cf2e0f690ed2ba41afdb963f6398c3d07198b"
+    },
+    {
+      "file": "electron/preload/computer-apis.ts",
+      "previousSha256": "aca58c15067ae55dc1e6d4609ca0cec861f07c9648565327bf56661880bef065",
+      "currentSha256": "1626eae6cf90eacc67be46895af689f7f47d25ebd93337b770ce237e2004e428"
+    },
+    {
+      "file": "src/__tests__/services/computer-use-confirmation.test.ts",
+      "previousSha256": "b5a064f87d07847147d59f59b9d8d3cad858a345031e892ab4d678de7a90b29f",
+      "currentSha256": "57a8d612d53c7e463a34554ae610d3192da0f60b6827a0416c74239b9708ccb6"
+    },
+    {
+      "file": "src/services/computer-use/confirmation.ts",
+      "previousSha256": "a6e045ff30e20c9e34ac2bbfa12ae85061f665518c37ff7105d1f60e3818c942",
+      "currentSha256": "da961b42442d0f3ffd2eeecbf5fb81c5cb29691a5309f31875919fe65daf4656"
+    },
+    {
+      "file": "src/shared/computer-use.ts",
+      "previousSha256": "7db9d4872ca58cf06ff01e8b9806200a067626b593f36b94733c0e0ff69ffe27",
+      "currentSha256": "393b9641d9b97d0740514c16acea314e72990936b9ec06ddf18042c295928c39"
+    },
+    {
+      "file": "electron/__tests__/computer-use-ipc-authority.test.ts",
+      "previousSha256": null,
+      "currentSha256": "295b38330b36492daf90fc5f8ddadee4c9013b93092bfed0108286a6d9afa046"
+    },
+    {
+      "file": "electron/__tests__/computer-use-ipc-contracts.test.ts",
+      "previousSha256": null,
+      "currentSha256": "aec7bcb565ccb85214f11e8405e41f14457f764caa8eb3471fe4fc3fe04ac615"
+    },
+    {
+      "file": "electron/computer-use/ipc-review.ts",
+      "previousSha256": null,
+      "currentSha256": "1c1608909bd8b5261a7ec83fd55e34cf5573440ece8dfffa8ea6e90946ccd649"
+    },
+    {
+      "file": "electron/computer-use/ipc-tools.ts",
+      "previousSha256": null,
+      "currentSha256": "d2086393726ba1f15be6bdfea34696674234f868cb8a10cf8e9478e268e05d5e"
+    },
+    {
+      "file": "src/shared/computer-use-input.ts",
+      "previousSha256": null,
+      "currentSha256": "3642f6ff51548cb5dfcde46a570fe1ef3b7eb30329f4a23184022928899511d9"
+    },
+    {
+      "file": "src/shared/computer-use-policy.ts",
+      "previousSha256": null,
+      "currentSha256": "5454c9f7f99580fff663485f06303e5fd2bf75a98c67a57bf6186d1f085d0aaa"
+    }
+  ],
+  "dependenciesAndPolicyUnchanged": true,
+  "groundingModelPolicyUnchanged": true
+}

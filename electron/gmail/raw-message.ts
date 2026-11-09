@@ -1,63 +1,27 @@
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import { getMimeType } from './helpers';
+import MailComposer from 'nodemailer/lib/mail-composer';
+import { GMAIL_DELIVERY_LIMITS, gmailRecipient } from '../../src/shared/gmail-delivery';
 import type { SendEmailParams } from './types';
+import { prepareGmailAttachments } from './attachments';
 
-export async function buildRawMessage(params: SendEmailParams): Promise<string> {
-  const contentType = params.isHtml ? 'text/html' : 'text/plain';
-  const toLine = params.to.join(', ');
-
-  if (!params.attachmentPaths?.length) {
-    return [
-      `To: ${toLine}`,
-      ...(params.cc?.length ? [`Cc: ${params.cc.join(', ')}`] : []),
-      ...(params.bcc?.length ? [`Bcc: ${params.bcc.join(', ')}`] : []),
-      `Subject: ${params.subject}`,
-      `Content-Type: ${contentType}; charset=utf-8`,
-      '',
-      params.body,
-    ].join('\r\n');
-  }
-
-  const boundary = `----=_SofLIA_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  const headerLines = [
-    `To: ${toLine}`,
-    ...(params.cc?.length ? [`Cc: ${params.cc.join(', ')}`] : []),
-    ...(params.bcc?.length ? [`Bcc: ${params.bcc.join(', ')}`] : []),
-    `Subject: ${params.subject}`,
-    'MIME-Version: 1.0',
-    `Content-Type: multipart/mixed; boundary="${boundary}"`,
-    '',
-    `--${boundary}`,
-    `Content-Type: ${contentType}; charset=utf-8`,
-    '',
-    params.body,
-  ];
-
-  const parts: string[] = [headerLines.join('\r\n')];
-
-  for (const filePath of params.attachmentPaths) {
-    try {
-      const fileData = await fs.readFile(filePath);
-      const fileName = path.basename(filePath);
-      const base64Data = fileData.toString('base64');
-      const mimeType = getMimeType(fileName);
-
-      parts.push(
-        [
-          `--${boundary}`,
-          `Content-Type: ${mimeType}; name="${fileName}"`,
-          'Content-Transfer-Encoding: base64',
-          `Content-Disposition: attachment; filename="${fileName}"`,
-          '',
-          base64Data,
-        ].join('\r\n'),
-      );
-    } catch (fileErr: any) {
-      console.warn(`[GmailService] Could not attach ${filePath}: ${fileErr.message}`);
-    }
-  }
-
-  parts.push(`--${boundary}--`);
-  return parts.join('\r\n');
+/** El compositor sólo recibe bytes preparados: no puede abrir rutas ni URLs. */
+export async function buildRawMessage(params: SendEmailParams, assertCurrent: () => void = () => {}) {
+  const attachments = await prepareGmailAttachments(params.attachmentPaths ?? [], assertCurrent);
+  assertCurrent();
+  const addresses = (values: string[] = []) => values.map(value => {
+    const parsed = gmailRecipient(value);
+    if (!parsed) throw new Error('invalid_recipient');
+    return parsed;
+  });
+  const message = new MailComposer({
+    to: addresses(params.to), cc: addresses(params.cc), bcc: addresses(params.bcc),
+    subject: params.subject, ...(params.isHtml ? { html: params.body } : { text: params.body }),
+    attachments: attachments.map(file => ({ filename: file.filename, content: file.content, contentDisposition: 'attachment' })),
+    disableFileAccess: true, disableUrlAccess: true, newline: '\r\n',
+  }).compile();
+  // Gmail obtiene el sobre del raw: BCC debe viajar al proveedor, que lo retira.
+  message.keepBcc = true;
+  const raw = await message.build();
+  assertCurrent();
+  if (raw.length > GMAIL_DELIVERY_LIMITS.rawMessageBytes) throw new Error('message_too_large');
+  return { raw, attachments: attachments.map(file => ({ filename: file.filename, path: file.path, bytes: file.content.length })) };
 }

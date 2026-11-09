@@ -15,7 +15,7 @@ interface CreateProcessMessageInput {
   thinkingOption?: ThinkingOption;
   personalization?: { nickname?: string; occupation?: string; tone?: string; instructions?: string };
   isPromptOptimizerMode: boolean;
-  optimizerTarget: 'chatgpt' | 'claude' | 'gemini';
+  optimizerTarget: 'chatgpt' | 'claude';
   isImageGenMode: boolean;
   activeSkill: ActiveSkillState | null;
   memorySessionScope: string;

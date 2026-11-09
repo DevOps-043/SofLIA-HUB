@@ -1,0 +1,185 @@
+{
+  "count": 3542,
+  "before": "ce7b1885a09b4a67848015fe031dbe37a65f312485ca15ff5ff1b33699ec50ea",
+  "after": "ce7b1885a09b4a67848015fe031dbe37a65f312485ca15ff5ff1b33699ec50ea",
+  "changedDuringGate": [],
+  "copiedFilesMatching": 3522,
+  "deltaFromUnit37": [
+    {
+      "file": "electron/browser-web/types.ts",
+      "previousSha256": "75996a1ed281913f8fb626e7262752746760fa62cebee8be9b00331ea10cc8e3",
+      "currentSha256": "7b9780f3eb5ad14cf0f50da7a574993202abef80406973c67b1fe8360dfc4d13"
+    },
+    {
+      "file": "electron/computer-use/document-tool.ts",
+      "previousSha256": "76b0a7f13986718675a2cae1a593f27c529f1f1b8a2d5d3df7fde5e5b44aaad2",
+      "currentSha256": "a1ba5cbb0642d74d28ff80c6dff1da261d2a3a45ef6336a5488d794043b60ea2"
+    },
+    {
+      "file": "electron/desktop-agent-handlers/active-task-view.ts",
+      "previousSha256": "ec6231ccb72dc38d4a2f673173179d7abc7039a346d3289f64326105e07c95d1",
+      "currentSha256": "9830710efeed4b6516de47c14b55f316c66341a13b4275e56789d5d1fdf20e11"
+    },
+    {
+      "file": "electron/desktop-agent-handlers/task-handlers.ts",
+      "previousSha256": "83d1491e3ecb8ebe5a162fc1a7589f2c8b72f1a832a92f1785a5533a6d270a0e",
+      "currentSha256": "cc4e3e0bd075c5ab23f5769695e5ae1b641c239f9cba0c5f135dc173c0c6cb4e"
+    },
+    {
+      "file": "electron/desktop-agent/agent-config.ts",
+      "previousSha256": "f58360a1f604b7ed9f23ff50668462e3e995175895d0c1efd758ee6dcf5b8421",
+      "currentSha256": "2f13453f0df84f925901e85feb14d7079ae8d55049895f49f9ac5e69ba6bf591"
+    },
+    {
+      "file": "electron/desktop-agent/coordinate-selftest.ts",
+      "previousSha256": "b021dc4c9aa6542848dd17881a1cf72c63466d6fb597851e4b325d2d9f2656ef",
+      "currentSha256": "50e63f43655e9501f4d814781af45d50f30df1420a4c74c9bd7049aeb1a129e5"
+    },
+    {
+      "file": "electron/desktop-agent/planning-types.ts",
+      "previousSha256": "0d629cb2ec99c20455a21c066e5dae020517c0095856750ab4cef9beb9303e58",
+      "currentSha256": "c0fcefc20ecee4b550531b6003262c013661ffefcf1a7cdfc96cb9e722680493"
+    },
+    {
+      "file": "electron/desktop-agent/task-outcome.ts",
+      "previousSha256": "014863a169870b549f0c9b927804986444c26bbabd14dccd919a3b688220d6df",
+      "currentSha256": "2d1af3286671433ddc3f27c231cf388729cf7a1f0cfc942400129011e064a300"
+    },
+    {
+      "file": "electron/desktop-agent/task-status-types.ts",
+      "previousSha256": "a92ddf783097001764aa2da895affa974330953b62caf48a782999263e9f1d59",
+      "currentSha256": "09c6a8a4d6b73dda04b4cdcb61dd305afbb0c69e78724686e424af5cc71ac058"
+    },
+    {
+      "file": "electron/desktop-agent/types.ts",
+      "previousSha256": "52aa67049cf63b2b4976840a563517c4d13d4d4e5ca9c4c86434aa7ba9a0b3df",
+      "currentSha256": "ad7971820ff464c9bcf4d7c0ee6ddc5169fd2fdd4cd22f5b42cbccc1bb072991"
+    },
+    {
+      "file": "electron/platform-capabilities.ts",
+      "previousSha256": "f215f4554d04715d097de63e8775ecc944eec74107aa9a6aa76b06de26165ef8",
+      "currentSha256": "956cf9e0575b40d3963d1845e630b14e587df29354e32a562f9550d8ee40dda9"
+    },
+    {
+      "file": "electron/preload/computer-apis.ts",
+      "previousSha256": "109e3d36ec12d187be5084be5a5266676edc91d89dd6005c52e3ffaacf371b1a",
+      "currentSha256": "aca58c15067ae55dc1e6d4609ca0cec861f07c9648565327bf56661880bef065"
+    },
+    {
+      "file": "electron/preload/desktop-apis.ts",
+      "previousSha256": "2c8ef51ebc9c2526fd10bd62517dcac24f9eeb226d6d10ddfdc99347fc426557",
+      "currentSha256": "ae9c00f9c4a50caf9d2a24577c98c9f68a568801fef7212ebc62eed3102953f2"
+    },
+    {
+      "file": "electron/preload/remote-apis.ts",
+      "previousSha256": "409975c07ec6cac6f74db05296f3c6d3460f5d83e10a47d0e79e901b1ccf4277",
+      "currentSha256": "90ae9ec8b7d0e749eb8dcb38501c070054aed7ea94a6454b3ef46f1f7106e8cf"
+    },
+    {
+      "file": "electron/remote-node/node-actions.ts",
+      "previousSha256": "03f3739930327ebe4b0acd65afe18235852f86d3386009f4aebc21187d7c9354",
+      "currentSha256": "935ea36d29d89dd4341f717a0e54a0db517e1d225d43c69cb89188422b92b443"
+    },
+    {
+      "file": "electron/remote-node/node-client.ts",
+      "previousSha256": "9e78b6cd885a7a0b4b2dd1a874c2c38776839c54d7189b620925611178676a3e",
+      "currentSha256": "c2b633037e099213d6c64ed3519f81aff22c54cf8bb71d211d8aa372d89ab9bd"
+    },
+    {
+      "file": "electron/remote-node/node-registry.ts",
+      "previousSha256": "46e8c2fbcb2f92d23d05e846866cac0ead1f17007e4a02cf387df104213074f1",
+      "currentSha256": "b9696f2f9cda7a645a52b8e21c28ae20b6d431ac52580d3fb2be26c76db88af0"
+    },
+    {
+      "file": "electron/remote-node/service.ts",
+      "previousSha256": "a4fc903ca51f77bce66dd78f2fec51f987ea796e466e8e3d97da816ded62496d",
+      "currentSha256": "bd70ad732237d662918c9d41dd41b2d13caf71028a131f1ea8894a455d68fcb1"
+    },
+    {
+      "file": "electron/remote-node/status.ts",
+      "previousSha256": "38e5c72b7c12860af96fd1400d7677b2f783105f7d263dad15b684b8696eec0b",
+      "currentSha256": "26e15b118775df9b9cb5fde316c23d7bfd037d2e1b056c56af82e104d0515c27"
+    },
+    {
+      "file": "electron/remote-node/types.ts",
+      "previousSha256": "d5176fba9b84d734847d165148ba3656f79059d22f88b6f214ce008b3c0f3182",
+      "currentSha256": "18089a0ab8165952f95af5b7fb8151c8860a3a242410c28e2e47262489f75f9e"
+    },
+    {
+      "file": "electron/wa-executor/handlers/remote-nodes.ts",
+      "previousSha256": "d6ddf9eadf089416dcb60662e8fd17b87a59db7cb8dc634db85494e917a8076d",
+      "currentSha256": "e3f79d153a63d763ebf196dcf418dda1a35a844b9a4f44454f2155c34556a1b0"
+    },
+    {
+      "file": "src/__tests__/services/clipboard-service.test.ts",
+      "previousSha256": "7a0500f2a100a7248445a56e1d3490a90e2bf8f044b41110446663482737bc84",
+      "currentSha256": "137e91b0a2107cd3c49aedd6249ea64563b928630f9f7e26491dbc8f66fd45d1"
+    },
+    {
+      "file": "src/__tests__/services/computer-use-service.test.ts",
+      "previousSha256": "66be99e10aee36f4c03a1bce9b46d742a2f63b8b4899a2159ac87b5bda40021b",
+      "currentSha256": "98b781a18aa744c7e91f13caecf242f51cc0ddb524bea6e538a44009a89bf0f8"
+    },
+    {
+      "file": "src/services/computer-use/remote-tools.ts",
+      "previousSha256": "e55331fe1bd2e515b267f62ea74b883f4e0ce79fec1c7b2def5fcae9078d1c94",
+      "currentSha256": "edf6ffe22e57bf9f25c7a055d02248b5eb4889cbafee44d6ab6c64f8b35e9daa"
+    },
+    {
+      "file": "src/services/computer-use/window-types.ts",
+      "previousSha256": "a93fd8dc1a32548626e8dddbb192abbcd9d56cae0c18e9742903e8d73cf34902",
+      "currentSha256": "eba3bf4ca5b27708b21169c1b9bcc80df3a79ab300c85b0073fc5a0b99aaf359"
+    },
+    {
+      "file": "src/services/remote-node-service.ts",
+      "previousSha256": "669d8b2ebaa9efe4e819d2891caf173848d0bb02913f7230d2dbaf68e1c07cd7",
+      "currentSha256": "5a1c4db4cc9f3043bf65a3b62717ecd2795309c3bb1da7806a35f4d6a1a8fc75"
+    },
+    {
+      "file": "electron/__tests__/automation-preload-contract.test.ts",
+      "previousSha256": null,
+      "currentSha256": "3836e91b5cad649a08f83d8ffcd8a130c30988a35080a4fc8ceb17486edf065a"
+    },
+    {
+      "file": "electron/__tests__/remote-node-credential-projection.test.ts",
+      "previousSha256": null,
+      "currentSha256": "9a5c6f53ce3e9305fbf06e96af1345cd4e1ee369de298b55873a614213c5abac"
+    },
+    {
+      "file": "electron/__tests__/remote-node-response-contract.test.ts",
+      "previousSha256": null,
+      "currentSha256": "f50cd68a9e36733a0ff51f066d5966ae25e172658c77e469c38de091c3f5f335"
+    },
+    {
+      "file": "src/__tests__/contracts/automation-bridge.ts",
+      "previousSha256": null,
+      "currentSha256": "1ade5d86311d956361ed8b97f794520d2b55fa9521d61da56987ed4c43b1d9b4"
+    },
+    {
+      "file": "src/__tests__/services/remote-node-service-contract.test.ts",
+      "previousSha256": null,
+      "currentSha256": "671d242c0b8db26c4fae1dd12b4d56ba9b888bde47b4bd3e97be0a64518eb300"
+    },
+    {
+      "file": "src/shared/computer-use.ts",
+      "previousSha256": null,
+      "currentSha256": "7db9d4872ca58cf06ff01e8b9806200a067626b593f36b94733c0e0ff69ffe27"
+    },
+    {
+      "file": "src/shared/desktop-agent.ts",
+      "previousSha256": null,
+      "currentSha256": "0945c94a7d7620431c2ed9db27d1614067e1e18761ae5ba30cceb6e3a730ea32"
+    },
+    {
+      "file": "src/shared/remote-node-public.ts",
+      "previousSha256": null,
+      "currentSha256": "9097762a56d123ae0e080fdc2a0e1539bfb04ab2520d7547031e559947a5dd58"
+    },
+    {
+      "file": "src/shared/remote-node.ts",
+      "previousSha256": null,
+      "currentSha256": "724f6467d598d872b708698860a104a6cec70bf24866bac469404a2b8ad3b24a"
+    }
+  ],
+  "dependenciesAndPolicyUnchanged": true
+}

@@ -1,0 +1,75 @@
+{
+  "directory": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-reader-dependencies-2026-10-23",
+  "files": [
+    {
+      "file": "guard-red.log",
+      "sha256": "146a95cf4a797bc434baeaa5bb4ad4db221696bb2f9d2e9ba4e0abc4f50ca84e",
+      "bytes": 3793
+    },
+    {
+      "file": "fingerprint-red.log",
+      "sha256": "8a6cb3652ca0b652f96f54f2f1f085d0beb89f46f75890f4e65d6da9e317fa6e",
+      "bytes": 1609
+    },
+    {
+      "file": "hash-rejected.log",
+      "sha256": "b11675ab5ee5042bf9ec49747d8c8e14726110f919f7cc8c7d8faae4e939be7a",
+      "bytes": 9858
+    },
+    {
+      "file": "python-final.log",
+      "sha256": "8fdb0940b05b7b1f37bbfb89aad52c0e4eba1d979ffa369a83b73d24eba2c696",
+      "bytes": 6064
+    },
+    {
+      "file": "stdlib-final.log",
+      "sha256": "653b5dfd862ce8b7db17ab59948d73f2e2cf840995e0082419f85382f1e0ca5c",
+      "bytes": 5032
+    },
+    {
+      "file": "pip-check-final.log",
+      "sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf",
+      "bytes": 31
+    },
+    {
+      "file": "imports-final.log",
+      "sha256": "4078949994731f95c2be449981632a617efe26ac7c32763a3611b6137c03a62e",
+      "bytes": 35
+    },
+    {
+      "file": "directed-complete.log",
+      "sha256": "6b136d9218254d58b457eb3df3be611e17ccfdb230791e6d202c859431e2cb25",
+      "bytes": 8860
+    },
+    {
+      "file": "types-final.log",
+      "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b",
+      "bytes": 113
+    },
+    {
+      "file": "lint-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "file": "voice-install.log",
+      "sha256": "4275dc567ecb843a84cf0f7e75553c50dd1c3c0d37a8ce90511b78b9ba3af444",
+      "bytes": 10565
+    },
+    {
+      "file": "joint-resolve.log",
+      "sha256": "c8da1e0dac04f18d78d992935183df5552ca9259824a7039f5bdf62eef511a53",
+      "bytes": 13545
+    },
+    {
+      "file": "verify-pr-final.log",
+      "sha256": "086ae08cd573fe503ec1a21803dda9118bf7488874c9beb341c70b41898ca92d",
+      "bytes": 111681
+    },
+    {
+      "file": "build-final.log",
+      "sha256": "7e23dfd998a74e73474a4765da7fc19b614551e3697ac3f080ec6effbfa5a38b",
+      "bytes": 38994
+    }
+  ]
+}

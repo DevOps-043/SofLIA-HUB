@@ -23,7 +23,10 @@ export type SessionExchangeDependencies = {
   hasActiveMembership: (accessToken: string, userId: string) => Promise<boolean>;
   generateOperationalAccess: (email: string) => Promise<OperationalAccess>;
   recordFederatedIdentity: (sofiaUserId: string, liaUserId: string) => Promise<void>;
+  reportUnavailable?: (stage: ExchangeStage) => void;
 };
+
+type ExchangeStage = 'sofia_identity' | 'legacy_email' | 'membership' | 'lia_access' | 'federated_identity';
 
 export type SessionExchangeResult = {
   status: 200 | 401 | 403 | 503;
@@ -44,11 +47,17 @@ export async function exchangeSofiaSession(
   const accessToken = readBearerToken(authorization);
   if (!accessToken) return failure(401, 'not_authenticated');
 
+  let stage: ExchangeStage = 'sofia_identity';
+  const unavailable = () => {
+    dependencies.reportUnavailable?.(stage);
+    return failure(503, 'exchange_unavailable');
+  };
   try {
     const identity = await dependencies.getSofiaIdentity(accessToken);
     const email = normalizeEmail(identity?.email);
     if (!identity?.id || !email) return failure(401, 'not_authenticated');
 
+    stage = 'legacy_email';
     const legacyVerification = identity.emailVerified
       ? null
       : await dependencies.getLegacyEmailVerification(accessToken, identity.id);
@@ -59,23 +68,26 @@ export async function exchangeSofiaSession(
     );
     if (!emailVerified) return failure(401, 'not_authenticated');
 
+    stage = 'membership';
     const active = await dependencies.hasActiveMembership(accessToken, identity.id);
     if (!active) return failure(403, 'access_denied');
 
+    stage = 'lia_access';
     const operationalAccess = await dependencies.generateOperationalAccess(email);
     if (
       !operationalAccess.tokenHash ||
       !operationalAccess.liaUserId ||
       normalizeEmail(operationalAccess.email) !== email
     ) {
-      return failure(503, 'exchange_unavailable');
+      return unavailable();
     }
+    stage = 'federated_identity';
 
     await dependencies.recordFederatedIdentity(identity.id, operationalAccess.liaUserId);
 
     return { status: 200, body: { tokenHash: operationalAccess.tokenHash } };
   } catch {
-    return failure(503, 'exchange_unavailable');
+    return unavailable();
   }
 }
 

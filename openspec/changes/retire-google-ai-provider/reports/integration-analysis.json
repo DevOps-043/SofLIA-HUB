@@ -1,0 +1,791 @@
+{
+  "date": "2026-11-07",
+  "method": "Simulacion de merge por ruta contra HEAD y worktree; CRLF normalizado. merge-tree para los dos commits.",
+  "applied": false,
+  "betweenTargets": {
+    "conflicts": 36,
+    "paths": [
+      "docs/architecture/ipc-and-integrations.md",
+      "docs/architecture/project-hub-unified.md",
+      "docs/quality/test-strategy-and-inventory.md",
+      "electron/__tests__/project-cloud-storage.test.ts",
+      "electron/__tests__/project-creation-ipc.test.ts",
+      "electron/__tests__/project-direct-database.test.ts",
+      "electron/__tests__/project-hub-bridge.test.ts",
+      "electron/__tests__/project-location-files.test.ts",
+      "electron/preload/channel-group-5.ts",
+      "electron/preload/project-hub-api.ts",
+      "electron/project-hub-handlers.ts",
+      "electron/project-hub/cloud-storage.ts",
+      "electron/project-hub/cloud-types.ts",
+      "electron/project-hub/creation-handlers.ts",
+      "electron/project-hub/direct-context.ts",
+      "electron/project-hub/direct-projects.ts",
+      "electron/project-hub/direct-tasks.ts",
+      "electron/project-hub/direct-views.ts",
+      "electron/project-hub/google-project-storage.ts",
+      "electron/project-hub/location-files.ts",
+      "openspec/changes/redesign-task-board/specs/task-board/spec.md",
+      "openspec/changes/redesign-task-board/tasks.md",
+      "package.json",
+      "src/__tests__/components/IntegratedBrowserPanel.test.tsx",
+      "src/__tests__/components/ProjectManagement.test.tsx",
+      "src/__tests__/components/UnifiedProjectHub.test.tsx",
+      "src/components/browser/IntegratedBrowserPanel.tsx",
+      "src/components/project-workspace/ProjectFiles.tsx",
+      "src/components/project-workspace/ProjectResources.tsx",
+      "src/components/project-workspace/ProjectTasks.tsx",
+      "src/components/project-workspace/task-board-model.ts",
+      "src/index.css",
+      "src/services/project-hub-api.ts",
+      "src/shared/project-creation.ts",
+      "src/styles/task-board.css",
+      "test/manual/task-board/smoke.mjs"
+    ],
+    "exitCode": 1
+  },
+  "againstWorktree": [
+    {
+      "target": "0dc4d698709405b7eed64c6f7bb6d2cae3626c2f",
+      "base": "e166d250629e503cf12f69449fb6d66e569134c8",
+      "targetChangedFiles": 846,
+      "sharedPaths": 621,
+      "counts": {
+        "identical": 537,
+        "onlyTarget": 0,
+        "cleanTextMerge": 12
+      },
+      "conflicts": [
+        {
+          "path": ".github/workflows/python-reader-native.yml",
+          "type": "add/add"
+        },
+        {
+          "path": ".github/workflows/release.yml",
+          "type": "content",
+          "hunks": 4
+        },
+        {
+          "path": "docs/README.md",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "docs/architecture/integrated-browser-platform.md",
+          "type": "content",
+          "hunks": 2
+        },
+        {
+          "path": "docs/architecture/ipc-and-integrations.md",
+          "type": "content",
+          "hunks": 5
+        },
+        {
+          "path": "docs/architecture/project-hub-unified.md",
+          "type": "content",
+          "hunks": 2
+        },
+        {
+          "path": "docs/architecture/runtime-agents-manual.md",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "docs/architecture/runtime-parameters.md",
+          "type": "content",
+          "hunks": 2
+        },
+        {
+          "path": "docs/data/data-architecture.md",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "docs/operations/configuration.md",
+          "type": "content",
+          "hunks": 3
+        },
+        {
+          "path": "docs/operations/development-and-devops.md",
+          "type": "content",
+          "hunks": 6
+        },
+        {
+          "path": "docs/plans/technical-debt-reduction.md",
+          "type": "add/add"
+        },
+        {
+          "path": "docs/quality/test-strategy-and-inventory.md",
+          "type": "content",
+          "hunks": 3
+        },
+        {
+          "path": "docs/security/python-document-boundary.md",
+          "type": "add/add"
+        },
+        {
+          "path": "docs/security/security-and-privacy.md",
+          "type": "content",
+          "hunks": 3
+        },
+        {
+          "path": "docs/standards/testing.md",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "docs/ux/accessibility.md",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "electron/__tests__/app-lifecycle.test.ts",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "electron/__tests__/calendar-mutations.test.ts",
+          "type": "add/add"
+        },
+        {
+          "path": "electron/__tests__/gmail-delivery.test.ts",
+          "type": "add/add"
+        },
+        {
+          "path": "electron/__tests__/project-hub-bridge.test.ts",
+          "type": "add/add"
+        },
+        {
+          "path": "electron/__tests__/project-hub-transport.test.ts",
+          "type": "add/add"
+        },
+        {
+          "path": "electron/auth-state-handlers.ts",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "electron/calendar/google-oauth.ts",
+          "type": "content",
+          "hunks": 4
+        },
+        {
+          "path": "electron/calendar/microsoft-oauth.ts",
+          "type": "content",
+          "hunks": 4
+        },
+        {
+          "path": "electron/calendar/oauth-window.ts",
+          "type": "content",
+          "hunks": 3
+        },
+        {
+          "path": "electron/gmail/raw-message.ts",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "electron/integrated-browser/service.ts",
+          "type": "content",
+          "hunks": 2
+        },
+        {
+          "path": "electron/ipc/caller-authorization.ts",
+          "type": "add/add"
+        },
+        {
+          "path": "electron/main/app-lifecycle.ts",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "electron/main/startup.ts",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "electron/preload/channel-group-5.ts",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "electron/preload/project-hub-api.ts",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "electron/project-hub-handlers.ts",
+          "type": "content",
+          "hunks": 2
+        },
+        {
+          "path": "electron/project-hub/service.ts",
+          "type": "content",
+          "hunks": 11
+        },
+        {
+          "path": "electron/project-hub/session-contract.ts",
+          "type": "add/add"
+        },
+        {
+          "path": "electron/project-hub/transport.ts",
+          "type": "add/add"
+        },
+        {
+          "path": "eslint.config.mjs",
+          "type": "content",
+          "hunks": 2
+        },
+        {
+          "path": "openspec/changes/secure-python-reader-dependencies/context-pack.md",
+          "type": "add/add"
+        },
+        {
+          "path": "openspec/changes/secure-python-reader-dependencies/design.md",
+          "type": "add/add"
+        },
+        {
+          "path": "openspec/changes/secure-python-reader-dependencies/specs/verified-python-reader-dependencies/spec.md",
+          "type": "add/add"
+        },
+        {
+          "path": "openspec/changes/secure-python-reader-dependencies/tasks.md",
+          "type": "add/add"
+        },
+        {
+          "path": "package-lock.json",
+          "type": "content",
+          "hunks": 4
+        },
+        {
+          "path": "package.json",
+          "type": "content",
+          "hunks": 7
+        },
+        {
+          "path": "python/tools_sidecar/tests/test_reader_native_build.py",
+          "type": "add/add"
+        },
+        {
+          "path": "scripts/quality/build-reader-wheel.py",
+          "type": "add/add"
+        },
+        {
+          "path": "scripts/quality/lint-baseline.mjs",
+          "type": "add/add"
+        },
+        {
+          "path": "scripts/quality/lint-baseline.test.mjs",
+          "type": "add/add"
+        },
+        {
+          "path": "scripts/quality/lint-changed.mjs",
+          "type": "content",
+          "hunks": 2
+        },
+        {
+          "path": "scripts/quality/run-gate.mjs",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "scripts/quality/smoke-browser-native.mjs",
+          "type": "content",
+          "hunks": 2
+        },
+        {
+          "path": "scripts/quality/smoke-project-ipc.mjs",
+          "type": "add/add"
+        },
+        {
+          "path": "scripts/quality/smoke-select-dropdown.mjs",
+          "type": "add/add"
+        },
+        {
+          "path": "src/__tests__/components/ProjectManagement.test.tsx",
+          "type": "add/add"
+        },
+        {
+          "path": "src/__tests__/components/UnifiedProjectHub.test.tsx",
+          "type": "add/add"
+        },
+        {
+          "path": "src/components/connections-panel/window-connections.ts",
+          "type": "content",
+          "hunks": 2
+        },
+        {
+          "path": "src/components/project-workspace/ProjectFiles.tsx",
+          "type": "add/add"
+        },
+        {
+          "path": "src/components/project-workspace/ProjectGlyph.tsx",
+          "type": "add/add"
+        },
+        {
+          "path": "src/components/project-workspace/ProjectOverview.tsx",
+          "type": "add/add"
+        },
+        {
+          "path": "src/components/project-workspace/ProjectResources.tsx",
+          "type": "add/add"
+        },
+        {
+          "path": "src/components/project-workspace/ProjectSidebarContent.tsx",
+          "type": "add/add"
+        },
+        {
+          "path": "src/components/project-workspace/ProjectTasks.tsx",
+          "type": "add/add"
+        },
+        {
+          "path": "src/contexts/auth/useAuthLifecycle.ts",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "src/contexts/auth/useAuthProviderModel.ts",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "src/contexts/auth/useLiaSession.ts",
+          "type": "content",
+          "hunks": 3
+        },
+        {
+          "path": "src/index.css",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "src/services/auth-state.ts",
+          "type": "content",
+          "hunks": 2
+        },
+        {
+          "path": "src/services/project-hub-api.ts",
+          "type": "content",
+          "hunks": 3
+        },
+        {
+          "path": "src/shared/project-management.ts",
+          "type": "add/add"
+        },
+        {
+          "path": "src/styles/project-workspace.css",
+          "type": "add/add"
+        },
+        {
+          "path": "vite.config.mts",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "vitest.config.ts",
+          "type": "content",
+          "hunks": 1
+        }
+      ],
+      "errors": [],
+      "limitations": [
+        "CRLF normalizado a LF; simulacion por ruta sin resolucion de renombrados.",
+        "No acredita compatibilidad semantica ni ejecuta pruebas sobre el resultado combinado.",
+        "No modifica worktree ni indice."
+      ]
+    },
+    {
+      "target": "18cec13811a8c926b7aafd2c2f7f86389f6af677",
+      "base": "e166d250629e503cf12f69449fb6d66e569134c8",
+      "targetChangedFiles": 978,
+      "sharedPaths": 622,
+      "counts": {
+        "identical": 526,
+        "onlyTarget": 0,
+        "cleanTextMerge": 14
+      },
+      "conflicts": [
+        {
+          "path": ".github/workflows/python-reader-native.yml",
+          "type": "add/add"
+        },
+        {
+          "path": ".github/workflows/release.yml",
+          "type": "content",
+          "hunks": 4
+        },
+        {
+          "path": "docs/README.md",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "docs/architecture/frontend.md",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "docs/architecture/integrated-browser-platform.md",
+          "type": "content",
+          "hunks": 2
+        },
+        {
+          "path": "docs/architecture/ipc-and-integrations.md",
+          "type": "content",
+          "hunks": 6
+        },
+        {
+          "path": "docs/architecture/project-hub-unified.md",
+          "type": "content",
+          "hunks": 4
+        },
+        {
+          "path": "docs/architecture/runtime-agents-manual.md",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "docs/architecture/runtime-parameters.md",
+          "type": "content",
+          "hunks": 2
+        },
+        {
+          "path": "docs/data/data-architecture.md",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "docs/operations/configuration.md",
+          "type": "content",
+          "hunks": 3
+        },
+        {
+          "path": "docs/operations/development-and-devops.md",
+          "type": "content",
+          "hunks": 6
+        },
+        {
+          "path": "docs/plans/technical-debt-reduction.md",
+          "type": "add/add"
+        },
+        {
+          "path": "docs/quality/test-strategy-and-inventory.md",
+          "type": "content",
+          "hunks": 3
+        },
+        {
+          "path": "docs/security/python-document-boundary.md",
+          "type": "add/add"
+        },
+        {
+          "path": "docs/security/security-and-privacy.md",
+          "type": "content",
+          "hunks": 3
+        },
+        {
+          "path": "docs/standards/testing.md",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "docs/ux/accessibility.md",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "electron/__tests__/app-lifecycle.test.ts",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "electron/__tests__/calendar-mutations.test.ts",
+          "type": "add/add"
+        },
+        {
+          "path": "electron/__tests__/gmail-delivery.test.ts",
+          "type": "add/add"
+        },
+        {
+          "path": "electron/__tests__/project-hub-bridge.test.ts",
+          "type": "add/add"
+        },
+        {
+          "path": "electron/__tests__/project-hub-ipc.test.ts",
+          "type": "add/add"
+        },
+        {
+          "path": "electron/__tests__/project-hub-transport.test.ts",
+          "type": "add/add"
+        },
+        {
+          "path": "electron/auth-state-handlers.ts",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "electron/calendar/google-oauth.ts",
+          "type": "content",
+          "hunks": 4
+        },
+        {
+          "path": "electron/calendar/microsoft-oauth.ts",
+          "type": "content",
+          "hunks": 4
+        },
+        {
+          "path": "electron/calendar/oauth-window.ts",
+          "type": "content",
+          "hunks": 3
+        },
+        {
+          "path": "electron/gmail/raw-message.ts",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "electron/integrated-browser/service.ts",
+          "type": "content",
+          "hunks": 2
+        },
+        {
+          "path": "electron/ipc/caller-authorization.ts",
+          "type": "add/add"
+        },
+        {
+          "path": "electron/main/app-lifecycle.ts",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "electron/main/startup.ts",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "electron/preload/channel-group-5.ts",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "electron/preload/project-hub-api.ts",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "electron/project-hub-handlers.ts",
+          "type": "content",
+          "hunks": 3
+        },
+        {
+          "path": "electron/project-hub/service.ts",
+          "type": "content",
+          "hunks": 11
+        },
+        {
+          "path": "electron/project-hub/session-contract.ts",
+          "type": "add/add"
+        },
+        {
+          "path": "electron/project-hub/transport.ts",
+          "type": "add/add"
+        },
+        {
+          "path": "eslint.config.mjs",
+          "type": "content",
+          "hunks": 2
+        },
+        {
+          "path": "openspec/changes/secure-python-reader-dependencies/context-pack.md",
+          "type": "add/add"
+        },
+        {
+          "path": "openspec/changes/secure-python-reader-dependencies/design.md",
+          "type": "add/add"
+        },
+        {
+          "path": "openspec/changes/secure-python-reader-dependencies/specs/verified-python-reader-dependencies/spec.md",
+          "type": "add/add"
+        },
+        {
+          "path": "openspec/changes/secure-python-reader-dependencies/tasks.md",
+          "type": "add/add"
+        },
+        {
+          "path": "package-lock.json",
+          "type": "content",
+          "hunks": 4
+        },
+        {
+          "path": "package.json",
+          "type": "content",
+          "hunks": 8
+        },
+        {
+          "path": "python/tools_sidecar/tests/test_reader_native_build.py",
+          "type": "add/add"
+        },
+        {
+          "path": "scripts/quality/build-reader-wheel.py",
+          "type": "add/add"
+        },
+        {
+          "path": "scripts/quality/lint-baseline.mjs",
+          "type": "add/add"
+        },
+        {
+          "path": "scripts/quality/lint-baseline.test.mjs",
+          "type": "add/add"
+        },
+        {
+          "path": "scripts/quality/lint-changed.mjs",
+          "type": "content",
+          "hunks": 2
+        },
+        {
+          "path": "scripts/quality/run-gate.mjs",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "scripts/quality/smoke-browser-native.mjs",
+          "type": "content",
+          "hunks": 2
+        },
+        {
+          "path": "scripts/quality/smoke-project-ipc.mjs",
+          "type": "add/add"
+        },
+        {
+          "path": "scripts/quality/smoke-select-dropdown.mjs",
+          "type": "add/add"
+        },
+        {
+          "path": "src/__tests__/components/ProjectManagement.test.tsx",
+          "type": "add/add"
+        },
+        {
+          "path": "src/__tests__/components/ProjectWorkspace.test.tsx",
+          "type": "add/add"
+        },
+        {
+          "path": "src/__tests__/components/UnifiedProjectHub.test.tsx",
+          "type": "add/add"
+        },
+        {
+          "path": "src/__tests__/hooks/useProjectWorkspace.test.tsx",
+          "type": "add/add"
+        },
+        {
+          "path": "src/app/AppWorkspace.tsx",
+          "type": "content",
+          "hunks": 3
+        },
+        {
+          "path": "src/app/useProjectWorkspace.ts",
+          "type": "add/add"
+        },
+        {
+          "path": "src/components/connections-panel/window-connections.ts",
+          "type": "content",
+          "hunks": 2
+        },
+        {
+          "path": "src/components/project-hub/UnifiedProjectHub.tsx",
+          "type": "content",
+          "hunks": 2
+        },
+        {
+          "path": "src/components/project-workspace/ProjectFiles.tsx",
+          "type": "add/add"
+        },
+        {
+          "path": "src/components/project-workspace/ProjectGlyph.tsx",
+          "type": "add/add"
+        },
+        {
+          "path": "src/components/project-workspace/ProjectOverview.tsx",
+          "type": "add/add"
+        },
+        {
+          "path": "src/components/project-workspace/ProjectSidebarContent.tsx",
+          "type": "add/add"
+        },
+        {
+          "path": "src/components/project-workspace/ProjectTasks.tsx",
+          "type": "add/add"
+        },
+        {
+          "path": "src/components/project-workspace/TaskCollaboration.tsx",
+          "type": "add/add"
+        },
+        {
+          "path": "src/components/project-workspace/types.ts",
+          "type": "add/add"
+        },
+        {
+          "path": "src/contexts/auth/useAuthLifecycle.ts",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "src/contexts/auth/useAuthProviderModel.ts",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "src/contexts/auth/useLiaSession.ts",
+          "type": "content",
+          "hunks": 3
+        },
+        {
+          "path": "src/index.css",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "src/services/auth-state.ts",
+          "type": "content",
+          "hunks": 2
+        },
+        {
+          "path": "src/services/project-chat-binding.ts",
+          "type": "add/add"
+        },
+        {
+          "path": "src/services/project-hub-api.ts",
+          "type": "content",
+          "hunks": 3
+        },
+        {
+          "path": "src/shared/project-hub.ts",
+          "type": "add/add"
+        },
+        {
+          "path": "src/shared/project-management.ts",
+          "type": "add/add"
+        },
+        {
+          "path": "src/styles/project-workspace.css",
+          "type": "add/add"
+        },
+        {
+          "path": "vite.config.mts",
+          "type": "content",
+          "hunks": 1
+        },
+        {
+          "path": "vitest.config.ts",
+          "type": "content",
+          "hunks": 1
+        }
+      ],
+      "errors": [],
+      "limitations": [
+        "CRLF normalizado a LF; simulacion por ruta sin resolucion de renombrados.",
+        "No acredita compatibilidad semantica ni ejecuta pruebas sobre el resultado combinado.",
+        "No modifica worktree ni indice."
+      ]
+    }
+  ],
+  "productionSourceSha256": "cab2e3cb755a04df62493bbc00087ec62eaf807ab1ff45f729daeff02701b2d3"
+}

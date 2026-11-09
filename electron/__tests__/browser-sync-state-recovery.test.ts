@@ -12,6 +12,7 @@ import { BrowserSyncClient } from '../integrated-browser/sync-client';
 import { BrowserSyncController, type BrowserSyncControlContext, validateSyncControlRequest } from '../integrated-browser/sync-controller';
 import { prepareSyncStateRecovery } from '../integrated-browser/sync-state-recovery';
 import { assertSyncRecoveryAvailable, syncRecoveryMarker } from '../integrated-browser/sync-recovery-guard';
+import { failRecoveryPublication } from './helpers/recovery-publication-faults';
 
 let root: string;
 const binding = { ownerId: '11111111-1111-4111-8111-111111111111', origin: 'https://fixture.supabase.co' };
@@ -31,6 +32,66 @@ async function fixture(damage = true) {
   return { settings, checkpoints, conflicts };
 }
 describe('recuperación coordinada de estado sync', () => {
+  it('conserva el fallo de retirar el marcador si también falla limpiar su archivo compensatorio', async () => {
+    const f = await fixture(), before = snapshot(), unlink = fs.unlinkSync;
+    const primary = Object.assign(new Error('Marcador ficticio retenido'), { code: 'EPERM' });
+    vi.spyOn(fs, 'unlinkSync').mockImplementation(target => {
+      if (String(target) === syncRecoveryMarker(root)) throw primary;
+      if (/^sync-recovery-[a-f0-9-]{36}\.bin$/i.test(path.basename(String(target)))) throw Object.assign(new Error('Compensación denegada'), { code: 'EACCES' });
+      unlink(target);
+    });
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let caught: unknown;
+    try { prepareSyncStateRecovery(root, 'recover-state', guard).commit(); } catch (error) { caught = error; }
+    expect(caught).toBe(primary); expect(fs.existsSync(syncRecoveryMarker(root))).toBe(true);
+    await expect(f.settings.read()).rejects.toThrow(); await expect(f.checkpoints.read(binding)).rejects.toThrow();
+    expect(warning).toHaveBeenCalledOnce();
+    expect(JSON.stringify(warning.mock.calls)).not.toContain(JSON.stringify(root).slice(1, -1));
+    expect(JSON.stringify(warning.mock.calls)).not.toMatch(/Marcador ficticio|Compensación denegada/);
+    expect(fs.readdirSync(root).filter(name => /^sync-recovery-[a-f0-9-]{36}\.bin$/i.test(name))).toHaveLength(1);
+    vi.restoreAllMocks(); prepareSyncStateRecovery(root, 'rollback-state', guard).commit();
+    expect(snapshot()).toEqual(before); expect(fs.existsSync(syncRecoveryMarker(root))).toBe(false);
+  });
+
+  it.each(['unlink', 'close'] as const)('conserva error, marcador y rollback si falla también %s', async secondary => {
+    const f = await fixture(), before = snapshot();
+    const review = prepareSyncStateRecovery(root, 'recover-state', guard);
+    const file = path.join(root, names[0]), fault = failRecoveryPublication(file, secondary);
+    expect(() => review.commit()).toThrow(fault.primary);
+    expect(fs.existsSync(syncRecoveryMarker(root))).toBe(true);
+    expect(snapshot()).toEqual(before);
+    await expect(f.settings.read()).rejects.toThrow(); await expect(f.checkpoints.read(binding)).rejects.toThrow();
+    await expect(f.conflicts.list()).rejects.toThrow();
+    expect(fault.warning).toHaveBeenCalled();
+    expect(JSON.stringify(fault.warning.mock.calls)).not.toContain(JSON.stringify(file).slice(1, -1));
+    expect(JSON.stringify(fault.warning.mock.calls)).not.toMatch(/Publicación ficticia|Recurso ficticio/);
+    vi.restoreAllMocks(); prepareSyncStateRecovery(root, 'rollback-state', guard).commit();
+    expect(snapshot()).toEqual(before); expect(fs.existsSync(syncRecoveryMarker(root))).toBe(false);
+  });
+
+  it('vence sin publicar marcador si el reloj civil retrocede y el intervalo ya terminó', async () => {
+    let elapsed = 0n; vi.spyOn(process.hrtime, 'bigint').mockImplementation(() => elapsed);
+    await fixture(); const original = snapshot(); const review = prepareSyncStateRecovery(root, 'recover-state', guard);
+    vi.spyOn(Date, 'now').mockReturnValue(Date.now() - 3_600_000); elapsed = 300_001_000_000n;
+    expect(() => review.commit()).toThrow(); expect(snapshot()).toEqual(original);
+    expect(fs.existsSync(syncRecoveryMarker(root))).toBe(false);
+  });
+
+  it('vencer tras publicar el marcador conserva bloqueo y permite rollback bajo otra revisión', async () => {
+    let elapsed = 0n; vi.spyOn(process.hrtime, 'bigint').mockImplementation(() => elapsed);
+    const f = await fixture(), original = snapshot();
+    const review = prepareSyncStateRecovery(root, 'recover-state', guard), link = fs.linkSync;
+    const linked = vi.spyOn(fs, 'linkSync').mockImplementation((source, destination) => {
+      link(source, destination); if (String(destination) === syncRecoveryMarker(root)) elapsed = 300_001_000_000n;
+    });
+    expect(() => review.commit()).toThrow(); linked.mockRestore();
+    expect(snapshot()).toEqual(original); expect(fs.existsSync(syncRecoveryMarker(root))).toBe(true);
+    await expect(f.settings.read()).rejects.toThrow(); await expect(f.checkpoints.read(binding)).rejects.toThrow();
+    await expect(f.conflicts.list()).rejects.toThrow();
+    prepareSyncStateRecovery(root, 'rollback-state', guard).commit();
+    expect(snapshot()).toEqual(original); expect(fs.existsSync(syncRecoveryMarker(root))).toBe(false);
+  });
+
   it('archiva originales y reinicia sólo metadata, pausada y sin decisiones antiguas', async () => {
     const f = await fixture(); const original = snapshot(); const key = path.join(root, 'sync-key.json'); const device = path.join(root, 'sync-device.json');
     fs.writeFileSync(key, 'clave-fixture'); fs.writeFileSync(device, 'dispositivo-fixture');

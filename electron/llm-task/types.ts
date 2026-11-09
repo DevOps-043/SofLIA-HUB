@@ -23,7 +23,6 @@ export interface LlmJsonTaskInput {
   prompt: string;
   input?: unknown;
   schema: LlmTaskSchema;
-  model?: string;
 }
 
 export interface LlmJsonTaskResult<T = unknown> {

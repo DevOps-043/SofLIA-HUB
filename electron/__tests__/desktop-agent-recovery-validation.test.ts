@@ -5,21 +5,12 @@ import { DEFAULT_CONFIG } from '../desktop-agent-types';
 describe('Recovery validation', () => {
   it('RV-001: rechaza acciones desconocidas dentro de recovery', async () => {
     const executeAction = vi.fn(async () => {});
-    const ai = {
-      getGenerativeModel: () => ({
-        generateContent: vi.fn(async () => ({
-          response: {
-            text: () => JSON.stringify({
-              strategy: 'alternative_approach',
-              actions: [
-                { action: 'hover_magic', message: 'accion inventada' },
-                { action: 'wait', amount: 1, message: 'esperar' },
-              ],
-            }),
-          },
-        })),
-      }),
-    } as any;
+    const ai = vi.fn(async () => JSON.stringify({
+      strategy: 'alternative_approach', actions: [
+        { action: 'hover_magic', message: 'accion inventada' },
+        { action: 'wait', amount: 1, message: 'esperar' },
+      ],
+    }));
 
     const ok = await executeProactiveRecovery({
       task: 'test',

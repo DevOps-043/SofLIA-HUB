@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "at": "2026-10-24T15:17:56.155Z",
+  "exitCode": 0,
+  "sourceFiles": 3451,
+  "envFilesCopied": false,
+  "packaged": false,
+  "applicationStarted": false,
+  "sandbox": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-app-build-Wad9Y3",
+  "outputs": [
+    {
+      "file": "dist/index.html",
+      "bytes": 548,
+      "sha256": "f9cc9a1d2a4221aa6c84dea6092870e1fd4ff0d482efbb2b54f016ace629b70e"
+    },
+    {
+      "file": "dist-electron/main.js",
+      "bytes": 199532,
+      "sha256": "63a3419a5da865b43a0288a072b3f8f4de10f305ec8d9e3d7011bd93282a528c"
+    },
+    {
+      "file": "dist-electron/preload.js",
+      "bytes": 48857,
+      "sha256": "3dc4c65558a3e95a20ea7c986707156c706eb67d942bc274f5a70eefd0d45d6a"
+    },
+    {
+      "file": "dist/presentation/presentation-runtime.iife.js",
+      "bytes": 895486,
+      "sha256": "23a06410288a6b71a84f73b141b879ecedea86faf3788f3ccc4747d3f5f1e162"
+    },
+    {
+      "file": "dist/audiovisual/film-runtime.iife.js",
+      "bytes": 223019,
+      "sha256": "1e497c8583b88e5b2c8ff1299eb48e121afc5a3073a06351f574841a0d61109d"
+    },
+    {
+      "file": "dist/zoom-runtime/index.html",
+      "bytes": 489,
+      "sha256": "86ccc046c0eb931d8fe2599ac3d0a3de8dc73fea00df5ec2b8cdbac705b6b9fb"
+    }
+  ],
+  "copied": [
+    {
+      "file": "package.json",
+      "sha256": "ccbd3632bbf4e170115dc49b41da5831d36d3c45567c5d9c8062f76c6e4414d0"
+    },
+    {
+      "file": "package-lock.json",
+      "sha256": "d8c8533741d9cd64fd0a20f8ab952a2684e6a8be5408bb3bf78b45cfb7243f2c"
+    },
+    {
+      "file": "electron/calendar/oauth-proof.ts",
+      "sha256": "f13d37ea00ea8d8a57346f67ad604b45addfca9e06dcf90749c0a6c0e72f3799"
+    },
+    {
+      "file": "electron/calendar/oauth-receiver.ts",
+      "sha256": "efe742952c444e93ca9c62f679890cfe55a85a546b1b1992d3fd15dd7e4de07c"
+    },
+    {
+      "file": "electron/calendar/oauth-window.ts",
+      "sha256": "0603a5756d094f21b653aa689b5daf4b8360ee4fe8a9c48b2f4a4667c6d7aa7c"
+    },
+    {
+      "file": "electron/calendar/google-oauth.ts",
+      "sha256": "7d958a3c7b05ad946e4634ba12e1f97bda54cf438e5d59ee17ffdc6517c4a6e3"
+    },
+    {
+      "file": "electron/calendar/microsoft-oauth.ts",
+      "sha256": "2b1778ca0de3b70012e16c7399ea2d455bf3cffb6cf56ae9feb0615d09fa4845"
+    },
+    {
+      "file": "scripts/quality/smoke-calendar-oauth.mjs",
+      "sha256": "bf29478f05cf770142a853e296d86bd78dc4e9dc865016dada573c50dd066938"
+    },
+    {
+      "file": "test/manual/calendar-oauth/main.cjs",
+      "sha256": "0441f5874c7b6ccbc29c8c9869e946ef3ea28cab7c845fe5fcdb6a318f37c542"
+    }
+  ],
+  "stableSources": 3470,
+  "installerCertified": false
+}

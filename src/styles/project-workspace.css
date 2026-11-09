@@ -1,0 +1,19 @@
+.project-nav-button {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  width: 100%;
+  min-height: 1.875rem;
+  padding: .3rem .65rem;
+  border-radius: 1rem;
+  font-size: 12.5px;
+  text-align: left;
+  transition: background-color .15s, color .15s;
+}
+.project-nav-button > svg { flex-shrink: 0; }
+.project-nav-button:hover { background-color: color-mix(in srgb, var(--color-primary-val) 6%, transparent); }
+.project-nav-button:focus-visible { outline: 2px solid var(--color-accent-val); outline-offset: -2px; }
+.project-workspace { font-family: var(--font-system-ui); }
+.project-workspace button { border-radius: 1rem; }
+.project-workspace h1, .project-workspace h2, .project-workspace h3 { font-family: var(--font-system-ui); }
+@media (prefers-reduced-motion: reduce) { .project-nav-button { transition: none; } }

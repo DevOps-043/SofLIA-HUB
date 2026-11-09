@@ -1,3 +1,4 @@
+import { LONG_RUNNING_TOOL_TIMEOUTS_MS } from './tool-timeouts';
 import { sanitizeAssistantText } from './assistant-text-sanitizer';
 import { completedStreamResult, isAbortError, singleChunkStream, stoppedStreamResult } from './streams';
 import { isMalformedFunctionCall, resolveEmptyGeminiText } from './empty-response';
@@ -161,18 +162,7 @@ export async function runAgenticLoop(params: {
   };
 }
 
-/**
- * Presupuesto de tiempo por herramienta: las tareas de computer use tardan
- * MINUTOS (planeacion + varios pasos de vision). Con el timeout generico de
- * 30s el chat "abandonaba" la llamada (que seguia corriendo en el main),
- * reintentaba con otra use_computer y terminaba con agentes duplicados.
- */
-export const LONG_RUNNING_TOOL_TIMEOUTS_MS: Record<string, number> = {
-  workspace_render_video: 13 * 60_000,
-  workspace_inspect_video: 90_000,
-  use_computer: 15 * 60_000,
-  use_computer_on_node: 15 * 60_000,
-};
+
 
 async function executeFunctionCalls(
   functionCalls: any[],
@@ -185,6 +175,7 @@ async function executeFunctionCalls(
 ): Promise<any[]> {
   const responses: any[] = [];
   for (const part of functionCalls) {
+    if (params.options?.signal?.aborted) break;
     const fc = (part as any).functionCall;
     // El catalogo del turno incluye las herramientas de la Skill activa; sin
     // Skill, la comprobacion es la del catalogo base de siempre.
@@ -268,8 +259,8 @@ function safeFailureResult(
   error: unknown,
   params: { allToolCalls: ToolCallInfo[]; allGeneratedImages: string[] },
 ): StreamResult {
-  console.warn('[GeminiChat] agentic loop failed:', error);
   const message = getPublicAiErrorMessage(error);
+  console.warn('[GeminiChat] Falló el ciclo de herramientas:', message);
   return {
     stream: singleChunkStream(message),
     sources: Promise.resolve(null),
