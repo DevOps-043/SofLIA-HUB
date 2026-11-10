@@ -183,11 +183,29 @@ export function start(initial: MessageEvent) {
       status.hidden = true; emit('connected'); render();
       const currentRecording = client.getRecordingClient().getCloudRecordingStatus();
       if (currentRecording === 'Recording' || currentRecording === 'Paused') emit('recording', currentRecording);
-      recordingTimer = setTimeout(() => {
-        if (joined && !disposed && client.getRecordingClient().getCloudRecordingStatus() !== 'Recording') {
-          emit('recording-error');
+      recordingTimer = setTimeout(async () => {
+        if (!joined || disposed) return;
+        const recording = client.getRecordingClient();
+        const state = recording.getCloudRecordingStatus();
+        if (state === 'Recording' || state === 'Paused') {
+          emit('recording', state);
+          return;
         }
-      }, 15000);
+        try {
+          if (!args.recording_required || !client.getCurrentUserInfo()?.isHost || !recording.canStartRecording()) {
+            emit('recording-error');
+            return;
+          }
+          await checked(recording.startCloudRecording());
+          if (disposed) return;
+          recordingTimer = setTimeout(() => {
+            if (!joined || disposed) return;
+            const state = recording.getCloudRecordingStatus();
+            if (state === 'Recording') emit('recording', state);
+            else emit('recording-error');
+          }, 8000);
+        } catch { if (!disposed) emit('recording-error'); }
+      }, 7000);
     } catch { if (!disposed) { failure(true); void dispose(); } }
   })();
 }

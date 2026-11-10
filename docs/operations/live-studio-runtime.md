@@ -1,6 +1,6 @@
 # Operación del estudio síncrono
 
-El cambio `migrate-zoom-video-sdk` añade Video SDK junto al Meeting histórico. La guía canónica de activación del servidor vive en `SofLIA-Learning/docs/live-video-sdk.md`; la migración coordinada es `20261019120000_live_video_sdk.sql`. No se activó el proveedor ni se modificaron secretos o producción. El Hub selecciona el SDK mediante el grant autorizado y empaqueta los recursos multimedia locales. Video ofrece controles en español, nueve cámaras visibles y pantalla compartida; requiere conectar audio para escuchar. Los requisitos siguientes corresponden a las aulas Meeting.
+El cambio `migrate-zoom-video-sdk` añade Video SDK junto al Meeting histórico. La guía canónica de activación del servidor vive en `SofLIA-Learning/docs/live-video-sdk.md`; la migración coordinada es `20261019120000_live_video_sdk.sql`. El proveedor está activado en Learning y el ensayo del 10 de noviembre verificó conexión desde Hub, grabación sintética e importación privada mediante GitHub Actions. El Hub selecciona el SDK mediante el grant autorizado y empaqueta los recursos multimedia locales. Video ofrece controles en español, nueve cámaras visibles y pantalla compartida; requiere conectar audio para escuchar. Los requisitos siguientes corresponden a las aulas Meeting.
 
 <!-- evidence: packages/zoom-runtime/video-runtime.ts -->
 <!-- evidence: config/vite/zoom-video-assets.mts -->
@@ -23,14 +23,25 @@ dentro de la escena y, en vista combinada con contenido preparado, la superpone.
 Cambiar de vista conserva la conexión. El encabezado indica el estado de
 grabación confirmado por el SDK.
 
-Estado: preparación local, pendiente de publicación y prueba real. Actualizado: 2026-11-03.
+Si el inicio automático no confirma grabación a los siete segundos, el anfitrión
+intenta iniciarla mediante Video SDK cuando el grant la requiere y Zoom confirma
+su capacidad. Ocho segundos después se comprueba el resultado. La ausencia de
+confirmación conserva el aviso de error; no se muestra una grabación supuesta.
+
+Estado: backend publicado y ensayo del instructor con medios sintéticos aprobado;
+integración visual aplicada al Hub de desarrollo. Actualizado: 2026-11-10. Evidencia
+en [monitor integrado](../../openspec/changes/migrate-zoom-video-sdk/reports/instructor-monitor-2026-11-10.md).
 
 <!-- evidence: electron/main/zoom-protocol.ts -->
 <!-- evidence: packages/zoom-runtime/package-lock.json -->
 <!-- evidence: scripts/quality/smoke-zoom-runtime.mjs -->
 <!-- evidence: openspec/changes/implement-live-studio-runtime/tasks.md -->
 
-El backend vive en el repositorio SofLIA-Learning, rama `codex/live-studio-runtime`. Su migración es `supabase/migrations/20261012193000_live_studio_runtime.sql`; API, dominio, assets y firma están en `apps/web/src/features/live/studio*.ts` y `live-studio*.ts`. El checkout de esta sesión está en `C:/Users/FerSG/Desktop/Soflia/SofLIA-Learning/SofLIA-Learning`. No se aplicó SQL remoto ni se publicó Learning.
+El backend vive en el repositorio SofLIA-Learning. La migración inicial del estudio
+es `supabase/migrations/20261012193000_live_studio_runtime.sql`; API, dominio,
+assets y firma están en `apps/web/src/features/live/studio*.ts` y `live-studio*.ts`.
+La activación actual de Video SDK y el importador está publicada en `main` de
+Learning. Los pasos siguientes conservan la preparación y diagnóstico de Meeting.
 
 ## Prueba local de ambos paneles
 

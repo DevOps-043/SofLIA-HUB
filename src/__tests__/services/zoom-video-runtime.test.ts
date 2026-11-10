@@ -33,6 +33,30 @@ beforeEach(() => {
 });
 afterEach(async () => { command('leave'); await flush(); vi.useRealTimers(); });
 describe('ciclo de vida del adaptador Video SDK', () => {
+  it('respeta una pausa existente sin reiniciar la grabación automáticamente', async () => {
+    const recording = { getCloudRecordingStatus: vi.fn(() => 'Paused'), canStartRecording: vi.fn(() => true), startCloudRecording: vi.fn() };
+    sdk.client.getRecordingClient.mockReturnValue(recording);
+    sdk.client.getCurrentUserInfo.mockReturnValue({ muted: true, bVideoOn: false, isHost: true });
+    launch(); await flush();
+    await vi.advanceTimersByTimeAsync(7000);
+    expect(recording.startCloudRecording).not.toHaveBeenCalled();
+  });
+  it('inicia la grabación requerida solo como anfitrión con capacidad confirmada', async () => {
+    const recording = { getCloudRecordingStatus: vi.fn(() => 'Stopped'), canStartRecording: vi.fn(() => true), startCloudRecording: vi.fn(async () => '') };
+    sdk.client.getRecordingClient.mockReturnValue(recording);
+    sdk.client.getCurrentUserInfo.mockReturnValue({ muted: true, bVideoOn: false, isHost: true });
+    launch(); await flush();
+    await vi.advanceTimersByTimeAsync(7000);
+    expect(recording.startCloudRecording).toHaveBeenCalledOnce();
+  });
+  it('conserva la autorización del proveedor al intentar recuperar la grabación', async () => {
+    const recording = { getCloudRecordingStatus: vi.fn(() => 'Stopped'), canStartRecording: vi.fn(() => true), startCloudRecording: vi.fn() };
+    sdk.client.getRecordingClient.mockReturnValue(recording);
+    sdk.client.getCurrentUserInfo.mockReturnValue({ muted: true, bVideoOn: false, isHost: false });
+    launch(); await flush();
+    await vi.advanceTimersByTimeAsync(7000);
+    expect(recording.startCloudRecording).not.toHaveBeenCalled();
+  });
   it('publica el estado real de grabación y recibe los controles sin dibujar botones duplicados', async () => {
     const post = vi.spyOn(window, 'postMessage');
     launch(); await flush();

@@ -40,6 +40,11 @@ El Hub SHALL permitir conectarse, controlar micrófono, cámara y pantalla y lib
 ### Requirement: Grabación privada y verificada
 El sistema SHALL configurar grabación automática compuesta y reconciliar los archivos del proveedor con la sesión autorizada antes de importarlos al almacenamiento privado.
 
+#### Scenario: Inicio automático sin confirmación
+- **WHEN** el proveedor no confirma grabación tras el ingreso y el acceso exige grabar
+- **THEN** el Hub intenta iniciarla solo si el SDK confirma el rol anfitrión y su capacidad, y muestra éxito únicamente después de confirmar el estado del proveedor
+- **AND** conserva una pausa existente y cancela las comprobaciones al salir
+
 #### Scenario: Grabación ajena
 - **WHEN** los metadatos remotos no corresponden al proveedor y aula asociados al trabajo
 - **THEN** se rechaza la importación sin publicar archivos
