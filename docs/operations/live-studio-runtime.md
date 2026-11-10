@@ -17,6 +17,12 @@ y [CSP de Video SDK](https://developers.zoom.us/docs/video-sdk/web/browser-suppo
 Ejecutar `npm run zoom:build:prepared` tras preparar las dependencias y antes de
 probar el aula en desarrollo; `npm run dev` no genera `dist/zoom-runtime`.
 
+En Video SDK, la barra inferior del instructor controla micrófono, cámara,
+pantalla y salida del aula. El monitor de «Tu transmisión» muestra la cámara
+dentro de la escena y, en vista combinada con contenido preparado, la superpone.
+Cambiar de vista conserva la conexión. El encabezado indica el estado de
+grabación confirmado por el SDK.
+
 Estado: preparación local, pendiente de publicación y prueba real. Actualizado: 2026-11-03.
 
 <!-- evidence: electron/main/zoom-protocol.ts -->

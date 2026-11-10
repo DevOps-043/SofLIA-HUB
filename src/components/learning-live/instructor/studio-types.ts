@@ -1,5 +1,6 @@
 import type { StudioCaptureBinding } from '../../../shared/studio-capture';
 import type { StudioHolding } from '../../../shared/studio-program';
+import type { StudioCallView } from '../../../shared/studio-call';
 export type StudioMessage = {
   id: string;
   authorId: string;
@@ -17,7 +18,7 @@ export type StudioExamples = {
   participants: number;
   scenes?: StudioPreparedScene[];
 };
-export type StudioViewMode = 'screen' | 'camera' | 'combined';
+export type StudioViewMode = StudioCallView;
 export type StudioRoom = { id: string; name: string; participants: number };
 export type StudioPreparedScene = {
   id: string;

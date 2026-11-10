@@ -3,12 +3,13 @@ import type { ZoomJoin } from '../../../shared/live-studio.contract';
 import { studioRoomsStatusSchema,type StudioRoomsStatus } from '../../../shared/studio-call';
 import {StudioProgramAudioSender} from '../../../services/studio-program-audio';
 import { studioCallControlsSchema, studioCaptionSchema, studioCallDevicesSchema, type StudioCallDevices, type StudioCallCommand, type StudioCallControls, type StudioCaption } from '../../../shared/studio-call';
+import { studioCallVisualSchema, studioRecordingStatusSchema, type StudioCallVisual, type StudioRecordingStatus } from '../../../shared/studio-call';
 
 export type StudioZoomHandle = { command: (type: StudioCallCommand, detail?: unknown) => void; visitRoom:(id:string|null)=>Promise<boolean>;setProgramAudio:(stream:MediaStream|null)=>Promise<boolean> };
-export const StudioZoomFrame = forwardRef<StudioZoomHandle, { join: ZoomJoin; onStatus: (connected: boolean, error?: string) => void; onMedia: (media: { mic: boolean; camera: boolean }) => void; onShare: (sharing: boolean) => void; onControls?: (controls: StudioCallControls) => void; onCaption?: (caption: StudioCaption) => void; onDevices?: (devices: StudioCallDevices) => void; onRooms?:(state:StudioRoomsStatus)=>void; participant?: boolean }>(function StudioZoomFrame({ join, onStatus, onMedia, onShare, onControls, onCaption, onDevices, onRooms, participant = false }, handle) {
+export const StudioZoomFrame = forwardRef<StudioZoomHandle, { join: ZoomJoin; onStatus: (connected: boolean, error?: string) => void; onMedia: (media: { mic: boolean; camera: boolean }) => void; onShare: (sharing: boolean) => void; onControls?: (controls: StudioCallControls) => void; onCaption?: (caption: StudioCaption) => void; onDevices?: (devices: StudioCallDevices) => void; onRooms?:(state:StudioRoomsStatus)=>void; onVisual?: (state: StudioCallVisual) => void; onRecording?: (status: StudioRecordingStatus) => void; participant?: boolean }>(function StudioZoomFrame({ join, onStatus, onMedia, onShare, onControls, onCaption, onDevices, onRooms, onVisual, onRecording, participant = false }, handle) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [nonce] = useState(() => crypto.randomUUID());
-  const callbacks = useRef({ onStatus, onMedia, onShare, onControls, onCaption, onDevices }); callbacks.current = { onStatus, onMedia, onShare, onControls, onCaption, onDevices };
+  const callbacks = useRef({ onStatus, onMedia, onShare, onControls, onCaption, onDevices, onVisual, onRecording }); callbacks.current = { onStatus, onMedia, onShare, onControls, onCaption, onDevices, onVisual, onRecording };
   const roomRequests=useRef(new Map<string,{resolve:(ok:boolean)=>void;timer:number}>());
   const roomsCallback=useRef(onRooms);roomsCallback.current=onRooms;
   const credentials = useRef(join);
@@ -45,6 +46,8 @@ export const StudioZoomFrame = forwardRef<StudioZoomHandle, { join: ZoomJoin; on
       else if (message.type === 'call-controls') { const parsed = studioCallControlsSchema.safeParse(message.detail); if (parsed.success) callbacks.current.onControls?.(parsed.data); }
       else if (message.type === 'call-devices') { const parsed=studioCallDevicesSchema.safeParse(message.detail); if(parsed.success)callbacks.current.onDevices?.(parsed.data); }
       else if (message.type === 'caption') { const parsed = studioCaptionSchema.safeParse(message.detail); if (parsed.success) callbacks.current.onCaption?.(parsed.data); }
+      else if (message.type === 'visual') { const parsed = studioCallVisualSchema.safeParse(message.detail); if (parsed.success) callbacks.current.onVisual?.(parsed.data); }
+      else if (message.type === 'recording') { const parsed = studioRecordingStatusSchema.safeParse(message.detail); if (parsed.success) callbacks.current.onRecording?.(parsed.data); }
       else if (message.type === 'media' && typeof message.detail?.mic === 'boolean' && typeof message.detail?.camera === 'boolean') callbacks.current.onMedia(message.detail);
       else if (message.type === 'recording-error') callbacks.current.onStatus(true,'No se confirmó el inicio de la grabación. Revisa la configuración de la cuenta de Soflia.');
       else if (message.type === 'sharing' && typeof message.detail === 'boolean') callbacks.current.onShare(message.detail);
