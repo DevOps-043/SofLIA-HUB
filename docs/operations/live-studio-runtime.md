@@ -5,6 +5,18 @@ El cambio `migrate-zoom-video-sdk` añade Video SDK junto al Meeting histórico.
 <!-- evidence: packages/zoom-runtime/video-runtime.ts -->
 <!-- evidence: config/vite/zoom-video-assets.mts -->
 
+En el iframe nativo `soflia-zoom://`, Video SDK usa `Global` para cargar los
+recursos multimedia HTTPS de la misma versión del paquete instalado. Video SDK
+2.6 solo admite rutas HTTP(S) propias; una ruta con el esquema nativo activa su
+fallback legado y puede dejar el ingreso pendiente por incompatibilidad. Las
+pruebas web HTTP(S) conservan los assets locales. La CSP del iframe permite las
+conexiones a `https://zoom.us` y `https://zoom.com`, además de sus subdominios:
+el SDK consulta `https://zoom.us/wc/lsdk` durante su inicialización. Referencias:
+[assets del cliente](https://marketplacefront.zoom.us/sdk/custom/web/modules/ZoomVideo.VideoClient.html)
+y [CSP de Video SDK](https://developers.zoom.us/docs/video-sdk/web/browser-support/).
+Ejecutar `npm run zoom:build:prepared` tras preparar las dependencias y antes de
+probar el aula en desarrollo; `npm run dev` no genera `dist/zoom-runtime`.
+
 Estado: preparación local, pendiente de publicación y prueba real. Actualizado: 2026-11-03.
 
 <!-- evidence: electron/main/zoom-protocol.ts -->

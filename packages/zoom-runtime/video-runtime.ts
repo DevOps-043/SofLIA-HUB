@@ -5,6 +5,13 @@ import { callDevices } from './call-devices';
 import { academicRooms } from './academic-rooms';
 import { receiveProgramAudio } from './program-audio';
 
+export function videoAssetSource(pageUrl: string): string {
+  const url = new URL(pageUrl);
+  // El proveedor solo admite HTTP(S) para assets propios; otros esquemas
+  // activan su fallback legado, incompatible con la versión instalada.
+  return url.protocol === 'http:' || url.protocol === 'https:' ? new URL('./lib', url).href : 'Global';
+}
+
 /** Adaptador aislado: los listeners y recursos pertenecen a este iframe. */
 export function start(initial: MessageEvent) {
   const args = videoJoinSchema.parse(initial.data.detail);
@@ -167,7 +174,7 @@ export function start(initial: MessageEvent) {
   });
   joinTask = (async () => {
     try {
-      await checked(client.init('es-ES', new URL('./lib', location.href).href, { patchJsMedia: false, leaveOnPageUnload: true }));
+      await checked(client.init('es-ES', videoAssetSource(location.href), { patchJsMedia: false, leaveOnPageUnload: true }));
       if (disposed) return;
       await checked(client.join(args.sessionName, args.token, args.userName, args.password));
       joined = true; stream = client.getMediaStream();

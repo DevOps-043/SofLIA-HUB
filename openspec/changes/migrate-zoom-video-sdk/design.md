@@ -8,6 +8,7 @@ Integrar Video SDK para nuevas aulas, identidad Soflia, sesiones simultáneas y 
 - Guardar el proveedor por sesión; la configuración del servidor selecciona el de nuevas programaciones. Ausencia de proveedor significa Meeting SDK durante la transición.
 - Emitir JWT de Video SDK exclusivamente en Learning, derivando rol, usuario y nombre de sesión del aula autorizada. No aceptar roles del cliente ni compartir credenciales API.
 - Usar el runtime aislado actual con adaptadores separados. Video SDK ofrece controles en español y libera cámara, micrófono y pantalla al salir.
+- En el esquema nativo, usar los assets HTTPS `Global` de la versión fijada de Video SDK. La versión 2.6 ignora rutas de assets con esquemas distintos de HTTP(S) y carga un fallback legado incompatible. El runtime web HTTP(S) conserva assets locales; la CSP nativa permite únicamente los orígenes Zoom necesarios, incluidos los dominios raíz HTTPS.
 - Crear las sesiones Video por REST con grabación automática cloud verificada. Mantener credenciales y referencia remota en tablas privadas con RLS sin acceso cliente.
 - Reconciliar grabaciones Video por REST y reutilizar la importación privada, validando proveedor, sesión y archivos antes de descargarlos. No incorporar webhooks nuevos.
 - Implementar primero en worktrees aislados coordinados de Hub y Learning. Sincronizar el contrato canónico de Learning mediante el script existente.

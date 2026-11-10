@@ -6,7 +6,7 @@ const sdk = vi.hoisted(() => ({
   destroy: vi.fn(),
 }));
 vi.mock('../../../packages/zoom-runtime/video-client', () => ({ ZoomVideo: { createClient: () => sdk.client, destroyClient: sdk.destroy }, VideoQuality: { Video_360P: 2 } }));
-import { start } from '../../../packages/zoom-runtime/video-runtime';
+import { start, videoAssetSource } from '../../../packages/zoom-runtime/video-runtime';
 const origin = location.origin;
 const flush = async () => { for (let index = 0; index < 20; index++) await Promise.resolve(); };
 function launch() {
@@ -33,6 +33,12 @@ beforeEach(() => {
 });
 afterEach(async () => { command('leave'); await flush(); vi.useRealTimers(); });
 describe('ciclo de vida del adaptador Video SDK', () => {
+  it('usa assets de la versión oficial en el protocolo nativo y conserva los locales bajo HTTP(S)', () => {
+    expect(videoAssetSource('soflia-zoom://meeting/index.html#prueba')).toBe('Global');
+    expect(videoAssetSource('file:///app/zoom-runtime/index.html')).toBe('Global');
+    expect(videoAssetSource('http://localhost:5173/packages/zoom-runtime/index.html')).toBe('http://localhost:5173/packages/zoom-runtime/lib');
+    expect(videoAssetSource('https://soflia.ai/zoom-runtime/index.html')).toBe('https://soflia.ai/zoom-runtime/lib');
+  });
   it('valida selección desde el padre sin capturar y aplica entrada al activar micrófono',async()=>{
     const post=vi.spyOn(window,'postMessage');launch();await flush();command('select-device',{kind:'microphone',id:'usb'});await flush();expect(sdk.stream.startAudio).not.toHaveBeenCalled();
     command('get-devices');await flush();expect(post.mock.calls.some(([message])=>message.type==='call-devices'&&message.detail.input==='usb')).toBe(true);

@@ -24,6 +24,10 @@ El sistema SHALL conservar el proveedor de cada aula y permitir configurar Video
 ### Requirement: Recursos audiovisuales del aula
 El Hub SHALL permitir conectarse, controlar micrófono, cámara y pantalla y liberar todos los recursos al salir o destruir el iframe.
 
+#### Scenario: Inicialización desde el protocolo nativo
+- **WHEN** el aula Video SDK se carga en el iframe `soflia-zoom://`
+- **THEN** usa recursos multimedia HTTPS compatibles con la versión fijada del SDK y permite sus destinos oficiales mediante CSP, sin abrir conexiones a cualquier origen
+
 #### Scenario: Salida mientras se comparte
 - **WHEN** el usuario abandona el aula durante una captura
 - **THEN** la captura se detiene y se informa la desconexión al estudio
