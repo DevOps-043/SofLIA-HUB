@@ -1,10 +1,22 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LearningWorkspace } from '../../components/learning-live/LearningWorkspace';
 import { emptyStudioState } from '../../shared/live-studio-domain';
+import { STUDIO_RECORDING_NOTICE_VERSION } from '../../shared/live-studio.contract';
 const studio = vi.fn(), watch = vi.fn(), unwatch = vi.fn();
 const reference = { organization_slug: 'acme', session_id: '00000000-0000-4000-8000-000000000031' };
 const snapshot = { session_id: reference.session_id, user_id: '00000000-0000-4000-8000-000000000011', title: 'Clase autorizada', can_manage: true, server_time: '2026-10-12T20:00:00Z', state: emptyStudioState(), asset_urls: {} };
+const nativeDialogs = new Map(['showModal', 'close'].map(name => [name, Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, name)]));
+beforeAll(() => {
+  HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
+  HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
+});
+afterAll(() => {
+  for (const [name, descriptor] of nativeDialogs) {
+    if (descriptor) Object.defineProperty(HTMLDialogElement.prototype, name, descriptor);
+    else Reflect.deleteProperty(HTMLDialogElement.prototype, name);
+  }
+});
 beforeEach(() => {
   vi.clearAllMocks();
   studio.mockResolvedValue({ success: true, snapshot }); watch.mockResolvedValue({ success: true });
@@ -36,6 +48,20 @@ describe('acceso al estudio conectado', () => {
     expect(screen.queryByText(/Realtime|Zoom|Permitir ver después/)).not.toBeInTheDocument();
     expect(screen.queryByText('Acceso no disponible')).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Estudio del instructor' })).not.toBeInTheDocument(); expect(screen.queryByRole('button', { name: 'Moderar chat' })).not.toBeInTheDocument();
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Conectar transmisión' })); });
+    expect(studio).toHaveBeenCalledWith(reference, { type: 'zoom' });
+    expect(screen.queryByRole('dialog', { name: 'Aviso de privacidad de la grabación' })).not.toBeInTheDocument();
+  });
+  it('exige aceptar el aviso de grabación antes de solicitar acceso como instructor', async () => {
+    render(<LearningWorkspace reference={reference} onBackToSessions={vi.fn()} onClose={vi.fn()} />);
+    const connect = await screen.findByRole('button', { name: 'Conectar sesión' });
+    fireEvent.click(connect);
+    expect(screen.getByRole('dialog', { name: 'Aviso de privacidad de la grabación' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(studio.mock.calls.some(([, operation]) => operation.type === 'zoom')).toBe(false);
+    fireEvent.click(connect);
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Aceptar y conectar' })); });
+    expect(studio).toHaveBeenCalledWith(reference, { type: 'zoom', recording_notice_version: STUDIO_RECORDING_NOTICE_VERSION });
   });
   it('muestra la integración no publicada sin culpar a la cuenta y mantiene la navegación', async () => {
     studio.mockResolvedValue({success:false,code:'unavailable',error:'El estudio de Learning todavía no está habilitado para Soflia Hub.'});
@@ -55,6 +81,7 @@ describe('acceso al estudio conectado', () => {
     studio.mockImplementation(async (_ref, operation) => operation.type === 'zoom' ? {success:true,zoom:{meetingNumber:'123456789',signature:'firma-efimera',userName:'Instructor',password:''}} : {success:true,snapshot});
     render(<LearningWorkspace reference={reference} onBackToSessions={vi.fn()} onClose={vi.fn()} />);
     fireEvent.click(await screen.findByRole('button',{name:/^Conectar sesión$/}));
+    fireEvent.click(screen.getByRole('button', { name: 'Aceptar y conectar' }));
     const frame = await screen.findByTitle('Sesión audiovisual integrada') as HTMLIFrameElement;
     expect(frame).toBeInTheDocument();
     // JSDOM destruye el origen de la ventana hija antes del cleanup pasivo de React.

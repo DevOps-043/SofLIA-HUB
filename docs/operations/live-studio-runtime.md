@@ -34,6 +34,32 @@ No se requieren credenciales SDK por instructor mientras las reuniones pertenezc
 
 ## Diagnóstico del aviso de configuración audiovisual
 
+Al pulsar **Conectar sesión**, el Hub distingue un fallo de comunicación, una
+respuesta que no pudo validar, un fallo al comprobar la identidad y el
+vencimiento del plazo de 25 segundos. Para estos fallos y las respuestas 5xx,
+el proceso main registra `learning-studio` con la fase y, si está disponible,
+el estado HTTP. El registro no incluye el cuerpo de la respuesta ni credenciales.
+
+El registro de Learning «Live dependency failure» indica un rechazo controlado
+de una dependencia. El `503` por sí solo no identifica cuál. Para el ingreso
+audiovisual, Hub traduce motivos conocidos del cuerpo HTTP en instrucciones
+seguras sobre grabación, cuenta anfitriona o disponibilidad de los datos del
+estudio. Si Learning devuelve un motivo desconocido, se mantiene el aviso genérico.
+
+En **Conectar sesión**, Hub muestra el aviso de grabación automática al
+instructor. **Aceptar y conectar** envía la versión vigente del aviso en la
+petición autenticada. **Cancelar** cierra el aviso sin solicitar acceso
+audiovisual. Cada intento requiere una aceptación nueva.
+
+Publicar el Hub con el aviso antes de actualizar Learning. El Hub envía la
+aceptación por cabecera y conserva el JSON que aceptan las versiones anteriores.
+En versiones anteriores de Learning, el control administrativo puede seguir
+bloqueando el ingreso. Learning actualizado exige la aceptación para emitir el
+acceso de anfitrión y mantiene la autorización y las comprobaciones técnicas.
+En Meeting, la aceptación sustituye la aprobación global para este ingreso. Las
+aulas Video conservan su aprobación de cuenta porque pueden empezar al entrar
+el primer participante.
+
 El mensaje «Falta configurar Meeting SDK en Learning» es una respuesta del
 servidor a la operación `zoom` de `POST /api/auth/live/studio`. Hub no lo genera
 al comprobar la instalación del paquete ni al conectar Realtime. La petición

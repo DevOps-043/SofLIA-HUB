@@ -40,6 +40,14 @@ Cerrar Hub no SHALL cancelar por sí solo una grabación si el evento Zoom conti
 Una terminación real del webinar no SHALL presentarse como captura continua.
 La aplicación SHALL mostrar aviso de grabación y respetar política de consentimiento.
 
+#### Scenario: Aceptación del instructor desde Hub
+- **WHEN** un instructor autorizado elige conectar el audio y video desde Hub
+- **THEN** Hub MUST mostrar el aviso de grabación antes de solicitar acceso audiovisual y exigir aceptación explícita en cada intento
+- **AND** cancelar MUST dejar la sesión sin conectar
+- **AND** Learning MUST exigir la versión vigente del aviso en la petición autenticada del instructor antes de emitir el acceso
+- **AND** en Meeting, esa aceptación sustituye el control global de aprobación de privacidad para el ingreso al estudio de Hub
+- **AND** se conservan las comprobaciones de autorización, proveedor y grabación automática
+
 #### Scenario: Instructor sale del escritorio
 - **WHEN** Hub se desconecta y el webinar sigue activo en Zoom
 - **THEN** la captura y su recuperación posterior no dependen de ese proceso Electron

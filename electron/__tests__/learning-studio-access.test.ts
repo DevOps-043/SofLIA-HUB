@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { requestLearningStudio } from '../learning-studio-access';
 import { emptyStudioState } from '../../src/shared/live-studio-domain';
-import { studioRequestSchema,studioResponseSchema } from '../../src/shared/live-studio.contract';
+import { STUDIO_RECORDING_NOTICE_HEADER, STUDIO_RECORDING_NOTICE_VERSION, studioRequestSchema,studioResponseSchema } from '../../src/shared/live-studio.contract';
 
 const user = '00000000-0000-4000-8000-000000000001', session = '00000000-0000-4000-8000-000000000031';
 const input = { organization_slug: 'acme', session_id: session, operation: { type: 'snapshot' } };
@@ -41,6 +41,61 @@ describe('frontera HTTP del estudio', () => {
     const result = await requestLearningStudio({ ...input, operation: { type: 'zoom' } }, { ...deps, fetcher });
     expect(result).toMatchObject({ success: false, code: 'unavailable', error: expect.stringContaining(expected) });
     if (!result.success) expect(result.error).not.toMatch(/Zoom|SDK|ZAK/);
+  });
+  it.each([
+    ['Soflia debe verificar privacidad y retención de la grabación del proveedor antes de habilitar webinars.', 'Actualiza Learning'],
+    ['El evento no está preparado para grabarse automáticamente en Soflia.', 'habilite la grabación automática'],
+    ['Configura ZOOM_CLIENT_SECRET para activar Zoom', 'configuración de la cuenta anfitriona'],
+    ['No se pudo acceder al módulo In Live. Verifica su configuración.', 'no pudo consultar los datos'],
+  ])('traduce el 503 conocido del ingreso sin copiar el texto del servidor', async (error, expected) => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error }), { status: 503 }));
+    const result = await requestLearningStudio({ ...input, operation: { type: 'zoom' } }, { ...deps, fetcher });
+    expect(result).toMatchObject({ success: false, code: 'unavailable', error: expect.stringContaining(expected) });
+    if (!result.success) expect(result.error).not.toContain(error);
+  });
+  it('envía la aceptación por cabecera y conserva el cuerpo que acepta Learning anterior', async () => {
+    const fetcher = vi.fn().mockImplementation(async () => new Response('{}'));
+    await requestLearningStudio({ ...input, operation: { type: 'zoom' } }, { ...deps, fetcher });
+    await requestLearningStudio({ ...input, operation: { type: 'zoom', recording_notice_version: STUDIO_RECORDING_NOTICE_VERSION } }, { ...deps, fetcher });
+    const withoutNotice = fetcher.mock.calls[0][1];
+    const withNotice = fetcher.mock.calls[1][1];
+    expect(withoutNotice.headers).not.toHaveProperty(STUDIO_RECORDING_NOTICE_HEADER);
+    expect(withNotice.headers[STUDIO_RECORDING_NOTICE_HEADER]).toBe(String(STUDIO_RECORDING_NOTICE_VERSION));
+    expect(JSON.parse(withNotice.body).operation).toEqual({ type: 'zoom' });
+  });
+  it('mantiene el aviso genérico para un 503 con detalle desconocido del ingreso', async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: 'detalle interno del proveedor' }), { status: 503 }));
+    expect(await requestLearningStudio({ ...input, operation: { type: 'zoom' } }, { ...deps, fetcher })).toEqual({
+      success: false, code: 'unavailable', error: 'No se pudo conectar el estudio. Revisa la configuración de Learning.',
+    });
+  });
+  it('distingue una respuesta audiovisual incompatible de un fallo de transporte', async () => {
+    const request = { ...input, operation: { type: 'zoom' } };
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ zoom: { token: 'credencial privada' } })))
+      .mockRejectedValueOnce(new TypeError('detalle privado de transporte'));
+    expect(await requestLearningStudio(request, { ...deps, fetcher })).toEqual({
+      success: false, code: 'unavailable', error: 'El Hub recibió una respuesta de Learning que no pudo validar para conectar el audio y video.',
+    });
+    expect(await requestLearningStudio(request, { ...deps, fetcher })).toEqual({
+      success: false, code: 'unavailable', error: 'No se pudo contactar a Learning para conectar el audio y video.',
+    });
+  });
+  it('identifica el vencimiento del límite a partir de la señal de la solicitud', async () => {
+    const timeout = AbortSignal.abort(new DOMException('Tiempo agotado', 'TimeoutError'));
+    const timer = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(timeout);
+    const fetcher = vi.fn<typeof fetch>(async (_url, options) => {
+      options?.signal?.throwIfAborted();
+      return new Response('{}');
+    });
+    try {
+      expect(await requestLearningStudio({ ...input, operation: { type: 'zoom' } }, { ...deps, fetcher })).toEqual({
+        success: false, code: 'unavailable', error: 'Learning no completó la solicitud de audio y video en 25 segundos.',
+      });
+      expect(timer).toHaveBeenCalledWith(25000);
+    } finally {
+      timer.mockRestore();
+    }
   });
   it.each(['constructor', '__proto__', 'toString'])('no acepta propiedades heredadas como diagnóstico %s', async (error) => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error }), { status: 503 }));

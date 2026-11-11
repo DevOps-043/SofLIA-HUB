@@ -2,9 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LearningLiveSessionReference } from '../../shared/learning-live-session';
 import type { StudioCallControls, StudioCaption, StudioCallDevices } from '../../shared/studio-call';
 import type { StudioRoomsStatus } from '../../shared/studio-call';
-import type { ZoomJoin } from '../../shared/live-studio.contract';
+import { STUDIO_RECORDING_NOTICE_VERSION, type ZoomJoin } from '../../shared/live-studio.contract';
 import { studioOperation } from '../../services/live-studio-service';
 import { InstructorStudio } from './instructor/InstructorStudio';
+import { StudioDialog } from './instructor/StudioDialog';
 import { useStudioSession } from './instructor/useStudioSession';
 import { StudioRuntimeContext } from './instructor/StudioRuntimeContext';
 import { StudioMediaContext } from './instructor/StudioMediaContext';
@@ -29,6 +30,7 @@ function StudioConnection({ reference, onClose, onBack, runtime }: ConnectedStud
   const [join, setJoin] = useState<ZoomJoin | null>(null);
   const [zoomConnected, setConnected] = useState(false);
   const [zoomPending, setZoomPending] = useState(false);
+  const [showRecordingNotice, setShowRecordingNotice] = useState(false);
   const [zoomError, setZoomError] = useState('');
   const [zoomMedia, setZoomMedia] = useState({ mic: false, camera: false });
   const [zoomSharing, setZoomSharing] = useState(false);
@@ -64,21 +66,34 @@ function StudioConnection({ reference, onClose, onBack, runtime }: ConnectedStud
   const authorized = !!runtime.snapshot;
   const stopMedia = media.stop;
   useEffect(() => { if (!authorized) stopMedia(); }, [authorized, stopMedia]);
-  async function connectZoom() {
-    if (zoomPending || join) return;
+  async function connectZoom(recordingNoticeAccepted = false) {
+    if (!authorized || zoomPending || join) return;
+    if (canManage && !recordingNoticeAccepted) {
+      setShowRecordingNotice(true);
+      return;
+    }
     setZoomPending(true); setZoomError('');
-    const result = await studioOperation(reference, { type: 'zoom' });
+    const result = await studioOperation(reference, canManage
+      ? { type: 'zoom', recording_notice_version: STUDIO_RECORDING_NOTICE_VERSION }
+      : { type: 'zoom' });
     if (!alive.current) return;
     if (!result.success || !result.zoom) { setZoomError(result.success ? 'Learning no devolvió acceso a la conexión audiovisual.' : result.error); setZoomPending(false); return; }
     media.stop(); setJoin(result.zoom);
   }
   function leave(callback: () => void) { zoom.current?.command('leave'); media.stop(); callback(); }
   const snapshot = runtime.snapshot;
+  const visibleError = zoomError || runtime.error || media.error;
   if (!snapshot) return <section className="learning-workspace"><header className="learning-workspace-toolbar"><button type="button" aria-label="Volver a mis sesiones" onClick={() => leave(onBack)}><LiveIcon name="back" /></button><button type="button" aria-label="Cerrar aula" onClick={() => leave(onClose)}><LiveIcon name="close" /></button></header><div className="learning-workspace-canvas learning-workspace-state" role="region" aria-label="Espacio de la sesión">{runtime.error ? <div className="learning-workspace-status" role="alert"><LiveIcon name="video" /><h2>Tu aula aún no está disponible</h2><p>{runtime.error}</p><button type="button" onClick={() => void runtime.reconnect()}>Reintentar</button></div> : <p className="learning-workspace-status" role="status">Conectando con tu sesión…</p>}</div></section>;
   const zoomStage = join ? <StudioZoomFrame ref={zoom} join={join} participant={!snapshot.can_manage} onMedia={setZoomMedia} onShare={setZoomSharing} onControls={setCallControls} onDevices={setCallDeviceList} onRooms={setRoomsStatus} onCaption={setCaption} onStatus={(connected, error) => { setConnected(connected); setZoomPending(false); if (!connected) { setZoomSharing(false); setCallControls({camera:false,captions:false,captionsEnabled:false}); setCaption(null); setCallDeviceList(null); } if (error) setZoomError(error); }} /> : null;
   return <StudioRuntimeContext.Provider value={{ ...runtime, snapshot, reference }}><StudioMediaContext.Provider value={{ ...media, configureProgramAudio:setProgramAudio,programAudioAvailable:join?.provider==='zoom-video',visitRoom,roomsStatus, zoomConnected, zoomPending, connectZoom: () => void connectZoom(), zoomStage, zoomMic: zoomMedia.mic, zoomCamera: zoomMedia.camera, zoomSharing, stopZoomShare: () => zoom.current?.command('stop-share'), muteZoom: () => zoom.current?.command('toggle-mic'), toggleZoomCamera: () => zoom.current?.command('toggle-camera'), callControls, callDevices:callDeviceList, refreshCallDevices, selectCallDevice:(choice)=>zoom.current?.command('select-device',choice), caption, setCaptions: (enabled) => { if (!enabled) setCaption(null); zoom.current?.command('captions', enabled); } }}><div className="studio-connected-root">
-    {(runtime.error || zoomError || media.error) && <div className="studio-runtime-error" role="alert">{runtime.error || zoomError || media.error}<button onClick={() => { setZoomError(''); if (!zoomConnected) setJoin(null); void runtime.reconnect(); }}>Reintentar</button></div>}
+    {visibleError && <div className="studio-runtime-error" role="alert">{visibleError}<button onClick={() => { setZoomError(''); if (!zoomConnected) setJoin(null); void runtime.reconnect(); }}>Reintentar</button></div>}
     {snapshot.can_manage&&snapshot.state.rooms.length>0&&zoomConnected&&<p role="status" className="studio-muted">{join?.provider!=='zoom-video'?'Las salas académicas están preparadas. Gestiona el audio y video desde la llamada.':roomsStatus?.status==='ready'?'Salas de audio y video preparadas.':roomsStatus?.status==='unavailable'?'Esta cuenta no tiene habilitadas las salas de audio y video.':roomsStatus?.missing?`Esperando la conexión audiovisual de ${roomsStatus.missing} participantes.`:'Preparando salas de audio y video…'}</p>}
     {snapshot.can_manage ? <InstructorStudio title={snapshot.title} instructorName={snapshot.state.members.find((member) => member.user_id === snapshot.user_id)?.name || 'Instructor'} onClose={() => leave(onClose)} onBack={() => leave(onBack)} /> : <ParticipantStudio onClose={() => leave(onClose)} onBack={() => leave(onBack)} />}
+    {showRecordingNotice && snapshot.can_manage && <StudioDialog title="Aviso de privacidad de la grabación" onClose={() => setShowRecordingNotice(false)}>
+      <p>Al conectar como instructor, la sesión se grabará automáticamente en la nube. La grabación puede incluir audio, video y contenido compartido.</p>
+      <p>La repetición estará disponible para los participantes autorizados si se publica.</p>
+      <button type="button" onClick={() => setShowRecordingNotice(false)}>Cancelar</button>
+      <button type="button" className="studio-primary-button" onClick={() => { setShowRecordingNotice(false); void connectZoom(true); }}>Aceptar y conectar</button>
+    </StudioDialog>}
   </div></StudioMediaContext.Provider></StudioRuntimeContext.Provider>;
 }
