@@ -16,3 +16,4 @@
 
 - Decisión confirmada: el instructor no asocia cuenta Zoom. Soflia gestiona el pool de anfitriones centrales y su capacidad/licencias.
 - Learning no tiene raíz OpenSpec vigente: su contrato y runbook coordinados están en apps/web/src/features/live/recordings y docs/live-recordings.md.
+- Continuación del ingreso desde Hub. El instructor acepta el aviso vigente en cada intento. El servidor verifica la aceptación en la petición autenticada y mantiene la autorización y las verificaciones técnicas. El cambio al control global aplica al ingreso de Meeting desde Hub. La programación de eventos, la activación de Video, la retención y la publicación conservan sus controles propios.

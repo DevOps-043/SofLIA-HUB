@@ -162,9 +162,9 @@ describe('Equipos ejecutores en main', () => {
     expect(service.state().jobs[0].status).toBe('failed');
     expect(service.state().jobs[0].artifacts).toHaveLength(2); service.close();
   });
-  it('admite inmediatamente, ejecuta dos trabajadores y coordina archivos reales', async () => {
+  it.each(['gpt-6-luna', 'gpt-6.1-terra'])('admite el modelo %s, ejecuta dos trabajadores y coordina archivos reales', async (model) => {
     const { service, repository } = fixture(); await service.context(null);
-    const input = request(); const job = await service.start(input);
+    const input = { ...request(), model }; const job = await service.start(input);
     expect(job.conversationId).toBe('chat-origen');
     expect((await service.start(input)).id).toBe(job.id);
     await service.idle();
@@ -174,7 +174,7 @@ describe('Equipos ejecutores en main', () => {
     expect(finished.artifacts.every(file => file.verified)).toBe(true);
     expect(finished.agents.map(agent => agent.status)).toEqual(['completed', 'completed', 'completed']);
     expect(finished.calls).toBe(3);
-    expect(repository.load(scope)[0].status).toBe('completed');
+    expect(repository.load(scope)[0]).toMatchObject({ model, status: 'completed' });
     const file = await service.artifactFile(job.id, finished.artifacts[0].id);
     expect(fs.readFileSync(file, 'utf8')).toContain('Archivo creado');
     service.close();

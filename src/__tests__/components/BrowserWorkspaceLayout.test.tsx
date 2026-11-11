@@ -116,13 +116,16 @@ describe('BrowserWorkspaceLayout', () => {
     expect(screen.getByRole('button', { name: 'Cambiar modelo y razonamiento' })).toHaveTextContent('SofLIA Max');
   });
 
-  it('activa Max con un clic real después de SofLIA y conserva Sol al reabrir el menú', async () => {
+  it('permite alternar entre Pro y Max y conserva la última selección', async () => {
     const user = userEvent.setup();
     renderLayout();
     const selector = screen.getByRole('button', { name: 'Cambiar modelo y razonamiento' });
     await user.click(selector);
-    await user.click(screen.getByRole('menuitemradio', { name: /^SofLIA(?! Max)/ }));
+    await user.click(screen.getByRole('menuitemradio', { name: /SofLIA Pro/ }));
+    expect(selector).toHaveTextContent('SofLIA Pro');
+    expect(localStorage.getItem(scopedPreferenceKey('soflia:selected-model'))).toBe('gpt-6.1-terra');
     await user.click(selector);
+    expect(screen.getByRole('menuitemradio', { name: /SofLIA Pro/ })).toHaveAttribute('aria-checked', 'true');
     await user.click(screen.getByRole('menuitemradio', { name: /SofLIA Max/ }));
     expect(selector).toHaveTextContent('SofLIA Max');
     expect(localStorage.getItem(scopedPreferenceKey('soflia:selected-model'))).toBe('gpt-6.1-sol');

@@ -32,3 +32,12 @@ Learning `type-check:features` falla en LiaQuickActionsChips, PageShell, AdminCo
 No se aplicó migración remota, no se publicó Learning y no se cambiaron secretos ni archivos `.env`. No se verificó el recorrido real Supabase/Zoom. El contrato admite importar preparación de Engine; Engine todavía no publica automáticamente. Salas académicas y escenas de contenido funcionan separadas del traslado audiovisual y composición de la transmisión.
 
 Las tareas de continuación permanecen abiertas en `tasks.md`; este cambio no se archiva ni se presenta como release completo.
+
+## Diagnóstico audiovisual del 9 de noviembre de 2026
+
+- Pasaron 22 pruebas dirigidas de acceso al estudio, grabaciones y preload. Incluyen respuesta audiovisual incompatible, fallo de transporte y vencimiento de la señal HTTP.
+- Pasaron `npm run typecheck`, `npm run lint:changed`, `npm run docs:check` y `npm run harness:validate`.
+- Pasó `npm run verify:pr` con Python de pruebas 3.12.11. La suite con cobertura aprobó 7412 pruebas y omitió 5.
+- La prueba anónima a la API de Learning respondió 401 desde el handler del Hub. La confirmación de la causa de un fallo de ingreso requiere repetir la solicitud autenticada en el estudio.
+- En la reproducción autenticada de las 11:55:33, hora de Ciudad de México, Learning registró `Live dependency failure` con estado 503. El registro compartido no identifica la dependencia. La ampliación de los avisos de ingreso aprobó 33 pruebas dirigidas, incluida la presentación del estudio y la reserva del aviso genérico para detalles desconocidos.
+- La reproducción posterior mostró el aviso de aprobación de privacidad y retención. El backend devuelve ese motivo cuando `ZOOM_RECORDING_PRIVACY_APPROVED` no vale exactamente `true` en el entorno activo. La aprobación administrativa y el nuevo despliegue quedan pendientes.

@@ -390,23 +390,8 @@ ejecutando acciones a espaldas del usuario.
 
 ### 2.3 Modelos y razonamiento
 
-`src/hooks/model-selector-options.ts` expone el catálogo conversacional:
-
-| Nombre en la UI | Modelo | Modos de razonamiento |
-|---|---|---|
-| SofLIA | `gemini-3.8-flash` | Bajo / Medio / Alto |
-| SofLIA Max | `gpt-6.1-sol` | Bajo / Medio / Alto / Muy alto / Maximo |
-| SofLIA Pro | `gpt-5.6-luna` | Bajo / Medio / Alto / Muy alto / Maximo |
-| SofLIA Lite | `gemini-3.5-flash-lite` | Bajo / Medio / Alto |
-
-SofLIA usa `gemini-3.8-flash` por defecto. El modelo elegido determina el
-proveedor del turno: SofLIA y Lite usan Google; Max y Pro usan OpenAI. La
-selección y el nivel se conservan por modelo en preferencias locales. El modo
-“Rápido” no se expone; preferencias antiguas `minimal` o `none` se migran a
-`low`. Una solicitud que necesita Computer Use conserva el modelo y esfuerzo
-seleccionados como orquestador. `use_computer` delega únicamente la percepción
-y actuación al `gemini-3.8-flash` fijo de main; los fallos se reportan sin
-sustituir silenciosamente ninguno de los dos proveedores.
+El catálogo, las preferencias y la delegación de Computer Use se describen en el
+[manual del agente runtime](runtime-agents-manual.md#23-modelos-y-razonamiento).
 
 `buildGenerationConfig` fija `maxOutputTokens: 16384` y envía
 `thinkingConfig.thinkingLevel` a Gemini. OpenAI usa Responses API y envía el

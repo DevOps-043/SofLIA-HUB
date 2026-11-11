@@ -43,13 +43,15 @@ describe('Inferencia OpenAI en cuatro capas', () => {
     await invoke('start', [first.scopeId, 'uno', { model: 'gpt-6-luna', input: 'prueba' }, 0]); const pending = invoke('pull', [first.scopeId, 'uno', 0]); await vi.waitFor(() => expect(provider).toHaveBeenCalledOnce());
     setAuthState({ authenticated: false, userId: null }); expect(await pending).toMatchObject({ success: false }); finish(modelResponse());
   });
-  it('wrapper/preload/allowlist/handler conservan respuesta sin claves', async () => {
+  it.each(['gpt-6-luna', 'gpt-6.1-terra'])('wrapper/preload/allowlist/handler conservan modelo %s y respuesta sin claves', async (model) => {
     let api!: OpenAIRuntimeApi;
     const transport = vi.fn((channel: string, ...args: unknown[]) => ipc._getHandler(channel)(hub.event, ...args));
     const safe = createSafeIpc({ invoke: transport, send: vi.fn(), on: vi.fn(), off: vi.fn(), removeAllListeners: vi.fn() });
     exposeOpenAIRuntime({ exposeInMainWorld: (_name, value) => { api = value as OpenAIRuntimeApi; } }, safe);
     vi.stubGlobal('window', { openaiRuntime: api }); const client = await openNativeResponses();
-    expect(await client.responses.create({ model: 'gpt-6-luna', input: 'prueba', store: false }, { maxRetries: 0 })).toMatchObject({ output_text: 'texto ficticio' });
+    expect(await client.responses.create({ model, input: 'prueba', store: false, reasoning: { effort: 'xhigh' } }, { maxRetries: 0 }))
+      .toMatchObject({ output_text: 'texto ficticio' });
+    expect(provider.mock.calls[0]?.[1]).toMatchObject({ model, reasoning: { effort: 'xhigh' } });
     expect(provider).toHaveBeenCalledOnce(); expect(JSON.stringify(transport.mock.calls)).not.toContain('clave-ficticia-main'); expect(() => safe.safeInvoke('ai:openai-arbitrary-url')).toThrow();
   });
   it('Stop del wrapper cancela el proveedor bajo las cuatro capas', async () => {

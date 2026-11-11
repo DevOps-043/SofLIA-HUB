@@ -23,7 +23,7 @@ export async function installZoomProtocol(target: Session, runtimeRoot: string) 
     try {
       const content = await readFile(file);
       const mime = file.endsWith('.html') ? 'text/html; charset=utf-8' : file.endsWith('.css') ? 'text/css' : file.endsWith('.wasm') ? 'application/wasm' : file.endsWith('.json') ? 'application/json' : file.endsWith('.wav') ? 'audio/wav' : 'text/javascript';
-      return new Response(content, { headers: { 'Content-Type': mime, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'self'; script-src 'self' blob: https://source.zoom.us 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.zoom.us https://*.zoom.com; connect-src 'self' https://*.zoom.us https://*.zoom.com https://*.zoomcdn.net wss://*.zoom.us wss://*.zoom.com; media-src 'self' blob:; worker-src 'self' blob: https://source.zoom.us; font-src 'self' data:; frame-src 'self' https://*.zoom.us" } });
+      return new Response(content, { headers: { 'Content-Type': mime, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'self'; script-src 'self' blob: https://source.zoom.us 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.zoom.us https://*.zoom.com; connect-src 'self' https://zoom.us https://*.zoom.us https://zoom.com https://*.zoom.com https://*.zoomcdn.net wss://*.zoom.us wss://*.zoom.com; media-src 'self' blob:; worker-src 'self' blob: https://source.zoom.us; font-src 'self' data:; frame-src 'self' https://*.zoom.us" } });
     } catch { return new Response('No se pudo cargar la conexión audiovisual', { status: 503 }); }
   });
 }

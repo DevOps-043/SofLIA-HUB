@@ -5,7 +5,13 @@ export const studioCallControlsSchema = z.object({
   camera: z.boolean(), captions: z.boolean(), captionsEnabled: z.boolean(),
 }).strict();
 export type StudioCallControls = z.infer<typeof studioCallControlsSchema>;
-export type StudioCallCommand = 'mute' | 'toggle-mic' | 'toggle-camera' | 'captions' | 'visit-room' | 'sync-rooms' | 'leave' | 'stop-share' | 'get-devices' | 'select-device';
+export type StudioCallCommand = 'mute' | 'toggle-mic' | 'toggle-camera' | 'captions' | 'visit-room' | 'sync-rooms' | 'leave' | 'start-share' | 'stop-share' | 'get-devices' | 'select-device' | 'set-view';
+export const studioCallViewSchema = z.enum(['screen', 'camera', 'combined']);
+export type StudioCallView = z.infer<typeof studioCallViewSchema>;
+export const studioCallVisualSchema = z.object({ cameras: z.boolean(), remoteShare: z.boolean() }).strict();
+export type StudioCallVisual = z.infer<typeof studioCallVisualSchema>;
+export const studioRecordingStatusSchema = z.enum(['Recording', 'Paused', 'Stopped']);
+export type StudioRecordingStatus = z.infer<typeof studioRecordingStatusSchema>;
 export const studioRoomPlanSchema=z.array(z.object({id:z.string().uuid(),user_ids:z.array(z.string().uuid()).max(500)}).strict()).max(50).refine(rooms=>{
   const people=rooms.flatMap(room=>room.user_ids);
   return new Set(rooms.map(room=>room.id)).size===rooms.length&&people.length<=500&&new Set(people).size===people.length;

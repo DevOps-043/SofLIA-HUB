@@ -58,6 +58,12 @@
 .studio-program-canvas[hidden] { display: none; }
 .studio-monitor-area > .studio-zoom-stage { width: 100%; height: 100%; min-height: 0; overflow: auto; }
 .studio-monitor-area .studio-zoom-frame { min-height: 0; height: 100%; }
+.studio-embedded-video { position: absolute; inset: 0; z-index: 2; overflow: hidden; }
+.studio-embedded-video[hidden] { display: none; }
+.studio-embedded-video.is-overlay { inset: auto 10px 10px auto; width: min(32%, 210px); aspect-ratio: 16 / 9; border: 1px solid var(--studio-border); border-radius: 8px; background: var(--studio-inset); }
+.studio-embedded-video .studio-zoom-frame { display: block; border-radius: 0; }
+.studio-recording-status { display: inline-flex; align-items: center; gap: 6px; color: var(--studio-muted); font-size: 11px; }
+.studio-recording-status[data-recording='true']::before { content: ''; width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--color-danger-val, currentColor); }
 .studio-compact-production .studio-room-stage { flex: 0 0 auto; margin: 0; padding: 4px 8px; }
 .studio-compact-production .studio-preview-caption { flex: 0 0 auto; padding: 0; min-height: 18px; font-size: 10px; }
 .studio-output-error { flex: 0 0 auto; margin: 0; font-size: 11px; color: var(--studio-accent); }

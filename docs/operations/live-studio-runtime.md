@@ -1,18 +1,47 @@
 # Operación del estudio síncrono
 
-El cambio `migrate-zoom-video-sdk` añade Video SDK junto al Meeting histórico. La guía canónica de activación del servidor vive en `SofLIA-Learning/docs/live-video-sdk.md`; la migración coordinada es `20261019120000_live_video_sdk.sql`. No se activó el proveedor ni se modificaron secretos o producción. El Hub selecciona el SDK mediante el grant autorizado y empaqueta los recursos multimedia locales. Video ofrece controles en español, nueve cámaras visibles y pantalla compartida; requiere conectar audio para escuchar. Los requisitos siguientes corresponden a las aulas Meeting.
+El cambio `migrate-zoom-video-sdk` añade Video SDK junto al Meeting histórico. La guía canónica de activación del servidor vive en `SofLIA-Learning/docs/live-video-sdk.md`; la migración coordinada es `20261019120000_live_video_sdk.sql`. El proveedor está activado en Learning y el ensayo del 10 de noviembre verificó conexión desde Hub, grabación sintética e importación privada mediante GitHub Actions. El Hub selecciona el SDK mediante el grant autorizado y empaqueta los recursos multimedia locales. Video ofrece controles en español, nueve cámaras visibles y pantalla compartida; requiere conectar audio para escuchar. Los requisitos siguientes corresponden a las aulas Meeting.
 
 <!-- evidence: packages/zoom-runtime/video-runtime.ts -->
 <!-- evidence: config/vite/zoom-video-assets.mts -->
 
-Estado: preparación local, pendiente de publicación y prueba real. Actualizado: 2026-11-03.
+En el iframe nativo `soflia-zoom://`, Video SDK usa `Global` para cargar los
+recursos multimedia HTTPS de la misma versión del paquete instalado. Video SDK
+2.6 solo admite rutas HTTP(S) propias; una ruta con el esquema nativo activa su
+fallback legado y puede dejar el ingreso pendiente por incompatibilidad. Las
+pruebas web HTTP(S) conservan los assets locales. La CSP del iframe permite las
+conexiones a `https://zoom.us` y `https://zoom.com`, además de sus subdominios:
+el SDK consulta `https://zoom.us/wc/lsdk` durante su inicialización. Referencias:
+[assets del cliente](https://marketplacefront.zoom.us/sdk/custom/web/modules/ZoomVideo.VideoClient.html)
+y [CSP de Video SDK](https://developers.zoom.us/docs/video-sdk/web/browser-support/).
+Ejecutar `npm run zoom:build:prepared` tras preparar las dependencias y antes de
+probar el aula en desarrollo; `npm run dev` no genera `dist/zoom-runtime`.
+
+En Video SDK, la barra inferior del instructor controla micrófono, cámara,
+pantalla y salida del aula. El monitor de «Tu transmisión» muestra la cámara
+dentro de la escena y, en vista combinada con contenido preparado, la superpone.
+Cambiar de vista conserva la conexión. El encabezado indica el estado de
+grabación confirmado por el SDK.
+
+Si el inicio automático no confirma grabación a los siete segundos, el anfitrión
+intenta iniciarla mediante Video SDK cuando el grant la requiere y Zoom confirma
+su capacidad. Ocho segundos después se comprueba el resultado. La ausencia de
+confirmación conserva el aviso de error; no se muestra una grabación supuesta.
+
+Estado: backend publicado y ensayo del instructor con medios sintéticos aprobado;
+integración visual aplicada al Hub de desarrollo. Actualizado: 2026-11-10. Evidencia
+en [monitor integrado](../../openspec/changes/migrate-zoom-video-sdk/reports/instructor-monitor-2026-11-10.md).
 
 <!-- evidence: electron/main/zoom-protocol.ts -->
 <!-- evidence: packages/zoom-runtime/package-lock.json -->
 <!-- evidence: scripts/quality/smoke-zoom-runtime.mjs -->
 <!-- evidence: openspec/changes/implement-live-studio-runtime/tasks.md -->
 
-El backend vive en el repositorio SofLIA-Learning, rama `codex/live-studio-runtime`. Su migración es `supabase/migrations/20261012193000_live_studio_runtime.sql`; API, dominio, assets y firma están en `apps/web/src/features/live/studio*.ts` y `live-studio*.ts`. El checkout de esta sesión está en `C:/Users/FerSG/Desktop/Soflia/SofLIA-Learning/SofLIA-Learning`. No se aplicó SQL remoto ni se publicó Learning.
+El backend vive en el repositorio SofLIA-Learning. La migración inicial del estudio
+es `supabase/migrations/20261012193000_live_studio_runtime.sql`; API, dominio,
+assets y firma están en `apps/web/src/features/live/studio*.ts` y `live-studio*.ts`.
+La activación actual de Video SDK y el importador está publicada en `main` de
+Learning. Los pasos siguientes conservan la preparación y diagnóstico de Meeting.
 
 ## Prueba local de ambos paneles
 
@@ -33,6 +62,34 @@ Un 404 con «Sesión no encontrada» procede del handler y revoca el aula/grant 
 No se requieren credenciales SDK por instructor mientras las reuniones pertenezcan a la cuenta Zoom maestra. La firma con rol anfitrión requiere ZAK; una cuenta sin permiso/licencia de webinar no adquiere esa licencia al configurar el SDK. Referencia oficial: [autenticación Meeting SDK](https://developers.zoom.us/docs/meeting-sdk/auth/).
 
 ## Diagnóstico del aviso de configuración audiovisual
+
+Al pulsar **Conectar sesión**, el Hub distingue un fallo de comunicación, una
+respuesta que no pudo validar, un fallo al comprobar la identidad y el
+vencimiento del plazo de 25 segundos. Para estos fallos y las respuestas 5xx,
+el proceso main registra `learning-studio` con la fase y, si está disponible,
+el estado HTTP. El registro no incluye el cuerpo de la respuesta ni credenciales.
+
+El registro de Learning «Live dependency failure» indica un rechazo controlado
+de una dependencia. El `503` por sí solo no identifica cuál. Para el ingreso
+audiovisual, Hub traduce motivos conocidos del cuerpo HTTP en instrucciones
+seguras sobre grabación, cuenta anfitriona o disponibilidad de los datos del
+estudio. Si Learning devuelve un motivo desconocido, se mantiene el aviso genérico.
+
+En **Conectar sesión**, Hub muestra el aviso de grabación automática al
+instructor. El aviso explica qué contenido puede grabarse, que el archivo se
+mantiene privado y quién puede ver la repetición si se publica en Learning.
+**Aceptar y conectar** envía la versión vigente del aviso en la
+petición autenticada. **Cancelar** cierra el aviso sin solicitar acceso
+audiovisual. Cada intento requiere una aceptación nueva.
+
+Publicar el Hub con el aviso antes de actualizar Learning. El Hub envía la
+aceptación por cabecera y conserva el JSON que aceptan las versiones anteriores.
+En versiones anteriores de Learning, el control administrativo puede seguir
+bloqueando el ingreso. Learning actualizado exige la aceptación para emitir el
+acceso de anfitrión y mantiene la autorización y las comprobaciones técnicas.
+En Meeting, la aceptación sustituye la aprobación global para este ingreso. Las
+aulas Video conservan su aprobación de cuenta porque pueden empezar al entrar
+el primer participante.
 
 El mensaje «Falta configurar Meeting SDK en Learning» es una respuesta del
 servidor a la operación `zoom` de `POST /api/auth/live/studio`. Hub no lo genera

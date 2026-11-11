@@ -83,6 +83,8 @@ describe('Ruteo de modelos', () => {
 
     expect(routed.modelId).toBe('gpt-6-luna');
     expect(routed.quotaExhausted).toBe(true);
+    expect(resolveRoutedModel({ options: { model: 'gpt-6.1-terra', userId: 'user-1' } }))
+      .toEqual({ modelId: 'gpt-6.1-terra' });
   });
 
   it('MR-007: un modelo OpenAI conserva su proveedor para que el cliente resuelva la llave', () => {

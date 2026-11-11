@@ -6,11 +6,11 @@ const sdk = vi.hoisted(() => ({
   destroy: vi.fn(),
 }));
 vi.mock('../../../packages/zoom-runtime/video-client', () => ({ ZoomVideo: { createClient: () => sdk.client, destroyClient: sdk.destroy }, VideoQuality: { Video_360P: 2 } }));
-import { start } from '../../../packages/zoom-runtime/video-runtime';
+import { start, videoAssetSource } from '../../../packages/zoom-runtime/video-runtime';
 const origin = location.origin;
 const flush = async () => { for (let index = 0; index < 20; index++) await Promise.resolve(); };
 function launch() {
-  start(new MessageEvent('message', { origin, source: window, data: { detail: { provider: 'zoom-video', sessionName: 'aula', token: 'jwt', userName: 'Ana', password: '123456', recording_required: true } } }));
+  start(new MessageEvent('message', { origin, source: window, data: { presentation: 'instructor', detail: { provider: 'zoom-video', sessionName: 'aula', token: 'jwt', userName: 'Ana', password: '123456', recording_required: true } } }));
 }
 function command(type: string, detail?: unknown, source: MessageEventSource | null = window, from = origin) {
   window.dispatchEvent(new MessageEvent('message', { source, origin: from, data: { source: 'soflia-studio', nonce: 'video-prueba', type, detail } }));
@@ -33,6 +33,47 @@ beforeEach(() => {
 });
 afterEach(async () => { command('leave'); await flush(); vi.useRealTimers(); });
 describe('ciclo de vida del adaptador Video SDK', () => {
+  it('respeta una pausa existente sin reiniciar la grabación automáticamente', async () => {
+    const recording = { getCloudRecordingStatus: vi.fn(() => 'Paused'), canStartRecording: vi.fn(() => true), startCloudRecording: vi.fn() };
+    sdk.client.getRecordingClient.mockReturnValue(recording);
+    sdk.client.getCurrentUserInfo.mockReturnValue({ muted: true, bVideoOn: false, isHost: true });
+    launch(); await flush();
+    await vi.advanceTimersByTimeAsync(7000);
+    expect(recording.startCloudRecording).not.toHaveBeenCalled();
+  });
+  it('inicia la grabación requerida solo como anfitrión con capacidad confirmada', async () => {
+    const recording = { getCloudRecordingStatus: vi.fn(() => 'Stopped'), canStartRecording: vi.fn(() => true), startCloudRecording: vi.fn(async () => '') };
+    sdk.client.getRecordingClient.mockReturnValue(recording);
+    sdk.client.getCurrentUserInfo.mockReturnValue({ muted: true, bVideoOn: false, isHost: true });
+    launch(); await flush();
+    await vi.advanceTimersByTimeAsync(7000);
+    expect(recording.startCloudRecording).toHaveBeenCalledOnce();
+  });
+  it('conserva la autorización del proveedor al intentar recuperar la grabación', async () => {
+    const recording = { getCloudRecordingStatus: vi.fn(() => 'Stopped'), canStartRecording: vi.fn(() => true), startCloudRecording: vi.fn() };
+    sdk.client.getRecordingClient.mockReturnValue(recording);
+    sdk.client.getCurrentUserInfo.mockReturnValue({ muted: true, bVideoOn: false, isHost: false });
+    launch(); await flush();
+    await vi.advanceTimersByTimeAsync(7000);
+    expect(recording.startCloudRecording).not.toHaveBeenCalled();
+  });
+  it('publica el estado real de grabación y recibe los controles sin dibujar botones duplicados', async () => {
+    const post = vi.spyOn(window, 'postMessage');
+    launch(); await flush();
+    expect(document.querySelector('#meeting button')).toBeNull();
+    expect(post).toHaveBeenCalledWith(expect.objectContaining({ type: 'recording', detail: 'Recording' }), origin);
+    command('set-view', 'screen');
+    command('set-view', 'camera', window, 'https://otro.test');
+    expect(document.getElementById('meeting')?.dataset.view).toBe('screen');
+    command('start-share'); await flush();
+    expect(sdk.stream.startShareScreen).toHaveBeenCalledOnce();
+  });
+  it('usa assets de la versión oficial en el protocolo nativo y conserva los locales bajo HTTP(S)', () => {
+    expect(videoAssetSource('soflia-zoom://meeting/index.html#prueba')).toBe('Global');
+    expect(videoAssetSource('file:///app/zoom-runtime/index.html')).toBe('Global');
+    expect(videoAssetSource('http://localhost:5173/packages/zoom-runtime/index.html')).toBe('http://localhost:5173/packages/zoom-runtime/lib');
+    expect(videoAssetSource('https://soflia.ai/zoom-runtime/index.html')).toBe('https://soflia.ai/zoom-runtime/lib');
+  });
   it('valida selección desde el padre sin capturar y aplica entrada al activar micrófono',async()=>{
     const post=vi.spyOn(window,'postMessage');launch();await flush();command('select-device',{kind:'microphone',id:'usb'});await flush();expect(sdk.stream.startAudio).not.toHaveBeenCalled();
     command('get-devices');await flush();expect(post.mock.calls.some(([message])=>message.type==='call-devices'&&message.detail.input==='usb')).toBe(true);
@@ -55,8 +96,8 @@ describe('ciclo de vida del adaptador Video SDK', () => {
   it('reconoce errores resueltos por el SDK y conserva apagada la cámara', async () => {
     const post = vi.spyOn(window, 'postMessage'); launch(); await flush();
     sdk.stream.startVideo.mockResolvedValue({ type: 'INSUFFICIENT_PRIVILEGES', reason: 'prueba' });
-    const camera = [...document.querySelectorAll('button')].find(button => button.textContent === 'Activar cámara')!;
-    camera.click(); await flush(); expect(camera.textContent).toBe('Activar cámara');
+    command('toggle-camera'); await flush();
+    expect(post).toHaveBeenCalledWith(expect.objectContaining({ type: 'media', detail: { mic: false, camera: false } }), origin);
     expect(post.mock.calls.some(([message]) => message.type === 'action-error')).toBe(true);
   });
   it('no emite connected cuando falla la inicialización', async () => {

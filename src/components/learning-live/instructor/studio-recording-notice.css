@@ -1,0 +1,149 @@
+.studio-dialog.studio-recording-notice {
+  --notice-padding: clamp(16px, 4vw, 26px);
+  width: min(560px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  border-radius: 18px;
+  overscroll-behavior: contain;
+  box-shadow: 0 24px 72px rgb(0 0 0 / 30%);
+}
+
+.studio-recording-notice > header {
+  gap: 12px;
+  margin: 0;
+  padding: var(--notice-padding) var(--notice-padding) 0;
+}
+
+.studio-recording-notice .studio-dialog-icon,
+.studio-recording-notice__detail-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-accent-val) 12%, var(--color-card-val));
+  color: var(--color-accent-val);
+}
+
+.studio-recording-notice h2 {
+  flex: 1;
+  font-size: clamp(17px, 4.6vw, 22px);
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.studio-recording-notice .studio-icon-button {
+  align-self: flex-start;
+  width: 34px;
+  height: 34px;
+  color: var(--color-text-secondary-val);
+}
+
+.studio-recording-notice__body {
+  padding: 14px var(--notice-padding) 20px;
+}
+
+.studio-recording-notice .studio-recording-notice__intro {
+  margin: 0 0 16px;
+  font-size: 14px;
+}
+
+.studio-recording-notice__details {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.studio-recording-notice__details li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--color-border-val);
+  border-radius: 12px;
+  background: var(--color-surface-2-val);
+}
+
+.studio-recording-notice__detail-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.studio-recording-notice__detail-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.studio-recording-notice__details h3 {
+  margin: 0 0 3px;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.studio-recording-notice__details p,
+.studio-recording-notice__footer p {
+  margin: 0;
+  color: var(--color-text-secondary-val);
+}
+
+.studio-recording-notice__footer {
+  padding: 15px var(--notice-padding) var(--notice-padding);
+  border-top: 1px solid var(--color-border-val);
+  background: color-mix(in srgb, var(--color-surface-2-val) 55%, var(--color-card-val));
+}
+
+.studio-recording-notice__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.studio-recording-notice .studio-recording-notice__actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: auto;
+  min-height: 42px;
+  margin: 0;
+  padding: 9px 15px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.studio-recording-notice__actions svg {
+  width: 16px;
+  height: 16px;
+}
+
+.studio-recording-notice .studio-recording-notice__cancel {
+  border: 1px solid var(--color-border-val);
+  background: var(--color-card-val);
+  color: var(--color-text-main);
+}
+
+.studio-recording-notice .studio-recording-notice__cancel:hover {
+  background: var(--color-surface-2-val);
+}
+
+.studio-recording-notice .studio-primary-button:hover {
+  filter: brightness(1.08);
+}
+
+.studio-recording-notice button:focus-visible {
+  outline: 2px solid var(--color-accent-val);
+  outline-offset: 2px;
+}
+
+@media (max-width: 420px) {
+  .studio-recording-notice .studio-recording-notice__actions button {
+    flex: 1 1 100%;
+  }
+}
