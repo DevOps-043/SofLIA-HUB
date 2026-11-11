@@ -224,22 +224,23 @@ ejecutando acciones a espaldas del usuario.
 
 | Nombre en la UI | Modelo | Modos de razonamiento |
 |---|---|---|
-| SofLIA | `gemini-3.8-flash` | Bajo / Medio / Alto |
-| SofLIA Max | `gpt-6.1-sol` | Bajo / Medio / Alto / Muy alto / Maximo |
-| SofLIA Pro | `gpt-5.6-luna` | Bajo / Medio / Alto / Muy alto / Maximo |
-| SofLIA Lite | `gemini-3.5-flash-lite` | Bajo / Medio / Alto |
+| SofLIA | `gpt-6-luna` | Bajo / Medio / Alto / Muy alto / Máximo |
+| SofLIA Max | `gpt-6.1-sol` | Bajo / Medio / Alto / Muy alto / Máximo |
+| SofLIA Pro | `gpt-6.1-terra` | Bajo / Medio / Alto / Muy alto / Máximo |
 
-SofLIA usa `gemini-3.8-flash` por defecto. El modelo elegido determina el
-proveedor del turno: SofLIA y Lite usan Google; Max y Pro usan OpenAI. La
-selección y el nivel se conservan por modelo en preferencias locales. El modo
+SofLIA usa `gpt-6-luna` por defecto. El chat envía el modelo elegido a OpenAI
+Responses y conserva la selección y el nivel en preferencias locales. Cada
+modelo parte de Medio y recuerda su propio nivel. La cuota de tres usos por
+mes aplica a Max, que recurre a SofLIA al agotarla. El modo
 “Rápido” no se expone; preferencias antiguas `minimal` o `none` se migran a
 `low`. Una solicitud que necesita Computer Use conserva el modelo y esfuerzo
 seleccionados como orquestador del turno. La herramienta `use_computer` delega
 solo la percepción y actuación al modelo OpenAI fijo de main, sin degradar
 ese actuador ni sustituir silenciosamente el proveedor conversacional.
 
-Los identificadores de Max y Pro provienen de
-`src/shared/soflia-runtime-model.ts` tanto en el catálogo como en el ruteo.
+Los identificadores del catálogo provienen de
+`src/shared/soflia-runtime-model.ts`. Los equipos en segundo plano conservan el
+modelo del encargo al ejecutarlo y al recuperar el historial.
 `useModelSelector` migra la selección anterior de Max (`gpt-5.6-terra`) a
 `gpt-6.1-sol` dentro del ámbito del usuario y conserva su razonamiento, sin
 sobrescribir una preferencia ya guardada para Sol ni reiniciar la cuota mensual.

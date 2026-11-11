@@ -1,7 +1,7 @@
 import { hasIndependentTeamWork, requestedTeamMode, selectTeam, teamRequestText, type TeamMode } from './agent-teams/policy';
-import { SOFLIA_DEFAULT_MODEL, SOFLIA_MAX_MODEL } from './soflia-runtime-model';
+import { SOFLIA_DEFAULT_MODEL, SOFLIA_MAX_MODEL, SOFLIA_PRO_MODEL } from './soflia-runtime-model';
 
-export const BACKGROUND_MODELS = [SOFLIA_MAX_MODEL, SOFLIA_DEFAULT_MODEL, 'gpt-5.6-luna'] as const;
+export const BACKGROUND_MODELS = [SOFLIA_MAX_MODEL, SOFLIA_DEFAULT_MODEL, SOFLIA_PRO_MODEL, 'gpt-5.6-luna'] as const;
 /** Compatibilidad de trabajos guardados con el proveedor retirado. */
 export function reconcileBackgroundModel(value: unknown): unknown {
   if (typeof value === 'string' && value.replace(/^models\//, '').startsWith('gemini-')) return SOFLIA_DEFAULT_MODEL;

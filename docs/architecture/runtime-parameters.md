@@ -265,7 +265,7 @@ solo entonces excluye un medio declarándolo.
 | datos de conversación Gemini | apertura 2 MiB, mensaje e historial 96 MiB cada uno, respuesta 16 MiB, JSON de hasta 60.000 nodos | `electron/gemini-conversation/contract.ts`, `electron/gemini-conversation/service.ts` |
 | reintentos por llamada mal formada (chat) | 2: reemitir, luego responder sin herramientas | `src/services/gemini-chat/agentic-loop.ts` |
 | modelo conversacional/CU | `gemini-3.8-flash`, sin degradación de modelo | `src/shared/soflia-runtime-model.ts`, `electron/desktop-agent/gemini-cu/model-registry.ts` |
-| selector conversacional | SofLIA: OpenAI `gpt-6-luna` (predeterminado); Max: OpenAI `gpt-6.1-sol` (3 usos/mes, fallback a SofLIA); elección y razonamiento persistidos por modelo, preferencias Gemini anteriores migradas a SofLIA | `src/hooks/model-selector-options.ts`, `src/hooks/useModelSelector.ts`, `src/services/model-routing.ts` |
+| selector conversacional | SofLIA (`gpt-6-luna`, predeterminado), SofLIA Max (`gpt-6.1-sol`, 3 usos/mes con fallback a SofLIA) y SofLIA Pro (`gpt-6.1-terra`). Preferencias persistidas por modelo, preferencias Gemini anteriores migradas a SofLIA | `src/hooks/model-selector-options.ts`, `src/hooks/useModelSelector.ts`, `src/services/model-routing.ts` |
 | razonamiento Gemini / OpenAI | `low/medium/high` / `low/medium/high/xhigh/max`; `minimal` y `none` heredados migran a `low` | `src/services/gemini-chat/model-config.ts`, `src/services/openai-chat/reasoning.ts` |
 | captura | 1024x768, active monitor, max edge 1568, min scale .5 | mismo archivo |
 | timing | action 300 ms, change 8 s/500 ms, observation 2 s, queue 60 s | mismo archivo |

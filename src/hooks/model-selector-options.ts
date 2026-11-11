@@ -1,4 +1,4 @@
-import { SOFLIA_DEFAULT_MODEL, SOFLIA_MAX_MODEL } from '../shared/soflia-runtime-model';
+import { SOFLIA_DEFAULT_MODEL, SOFLIA_MAX_MODEL, SOFLIA_PRO_MODEL } from '../shared/soflia-runtime-model';
 
 export interface ThinkingOption {
   id: string;
@@ -57,5 +57,14 @@ export const MODEL_OPTIONS: ModelOption[] = [
     defaultThinkingId: 'medium',
     thinkingOptions: THINKING_OPTIONS_OPENAI,
   },
-
+  {
+    id: SOFLIA_PRO_MODEL,
+    name: 'SofLIA Pro',
+    desc: 'Razonamiento visual y redacción con GPT‑6.1 Terra.',
+    icon: 'nodes',
+    provider: 'openai',
+    thinkingType: 'level',
+    defaultThinkingId: 'medium',
+    thinkingOptions: THINKING_OPTIONS_OPENAI,
+  },
 ];

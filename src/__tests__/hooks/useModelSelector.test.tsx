@@ -32,12 +32,12 @@ describe('useModelSelector', () => {
 
   it('recupera modelo y razonamiento después de remontar el selector', () => {
     const first = renderHook(() => useModelSelector());
-    act(() => first.result.current.handleModelChange('gpt-6-luna'));
+    act(() => first.result.current.handleModelChange('gpt-6.1-terra'));
     act(() => first.result.current.setThinkingMode('xhigh'));
     first.unmount();
 
     const second = renderHook(() => useModelSelector());
-    expect(second.result.current.preferredPrimaryModel).toBe('gpt-6-luna');
+    expect(second.result.current.preferredPrimaryModel).toBe('gpt-6.1-terra');
     expect(second.result.current.thinkingMode).toBe('xhigh');
   });
 
