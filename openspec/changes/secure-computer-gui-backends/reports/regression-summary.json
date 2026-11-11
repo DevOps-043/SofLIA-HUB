@@ -1,0 +1,14 @@
+{
+  "red": {
+    "failed": 5,
+    "passed": 0,
+    "sha256": "b8c107502cddba126783da208b5cbbe4fa629ab8266b2d2210b7dc259ff952e3"
+  },
+  "directed": {
+    "passed": 283,
+    "failed": 0,
+    "newCases": 69,
+    "sha256": "c3c9051c65b3a6d79e8d63d402e629980253f1e16d4fc9e52628d909b38dbb14"
+  },
+  "scope": "Dispatcher/servicio/backend/handler reales con puertos de procesos/capturas/OCR sustituidos; un thread Node inocuo real verifica exit. Canal GUI cerrado en preload, sin GUI/modelos/cuentas reales."
+}

@@ -1,0 +1,13 @@
+{
+  "stableSources": 3461,
+  "inventoryUnchanged": true,
+  "selected": {
+    "package-lock.json": "61e4c0b6dffcf8e7452562f33b246ff3aff94ebafb648d1e61dd6c7e8778b1b8",
+    "package.json": "7c975037bc04b423ac5f7f4c25a9415b038bf463e2ee42549b15c0cfbbaff0fa",
+    "scripts/quality/check-electron-stability.mjs": "9788d7415b171ef9a4d5ef27a6fcba23e9b5109ecbfae84430a253b96bbe5eed",
+    "scripts/quality/check-electron-stability.test.mjs": "5d9efc24d7ef1e6b404886b8afe6053284afd1719abbdb40a0c7982da8272af2",
+    "scripts/quality/run-gate.mjs": "8a47dde387c80a024c814df8a58dfe727aa404aac9e516c245870432ae16f816",
+    "test/manual/browser-native/zoom.cjs": "f3d2f753af750b943b13fcd065f04343ce4a79806ba58dfc4458b1b28729b942"
+  },
+  "sourceSnapshotSha256": "dbcffe134636acf566fb5e42a046867e49c4e4a0c8eb304d7ef5a5ea8c8da296"
+}

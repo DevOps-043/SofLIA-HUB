@@ -1,0 +1,49 @@
+{
+  "current": {
+    "files": 2593,
+    "lines": 58.35,
+    "statements": 57,
+    "functions": 53.28,
+    "branches": 50.85
+  },
+  "totals": {
+    "lines": {
+      "total": 61233,
+      "covered": 35731,
+      "skipped": 0,
+      "pct": 58.35
+    },
+    "statements": {
+      "total": 76935,
+      "covered": 43856,
+      "skipped": 0,
+      "pct": 57
+    },
+    "functions": {
+      "total": 16928,
+      "covered": 9020,
+      "skipped": 0,
+      "pct": 53.28
+    },
+    "branches": {
+      "total": 56111,
+      "covered": 28538,
+      "skipped": 0,
+      "pct": 50.85
+    },
+    "branchesTrue": {
+      "total": 0,
+      "covered": 0,
+      "skipped": 0,
+      "pct": 100
+    }
+  },
+  "thresholds": {
+    "lines": 56,
+    "statements": 55,
+    "functions": 51,
+    "branches": 49
+  },
+  "summarySha256": "e2c91aa50e4b874f1572f25a516e0fbfa9187c09f5b8c4ae9606c8616af65638",
+  "zeroStatementCoverage": 996
+}

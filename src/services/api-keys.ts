@@ -12,7 +12,6 @@ export {
   deleteUserApiKey,
   saveUserApiKey,
 } from './api-keys/mutations';
-export { validateApiKey } from './api-keys/validation';
 export {
   getApiKeyWithCache,
   invalidateApiKeyCache,

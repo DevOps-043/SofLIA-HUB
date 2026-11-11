@@ -1,0 +1,162 @@
+[
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\service-red.log",
+    "bytes": 2282,
+    "sha256": "bab0d3ce4732ba198df2b55acc126c63fe48dca8b7f575b7567da72c41aeae53"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\service-first.log",
+    "bytes": 638,
+    "sha256": "a84c90b796945c34c71cf832cb517c68dbe28a0e4d20383179c45c9f945752ef"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\tests-first.log",
+    "bytes": 630,
+    "sha256": "23699f2afba8af9b6a049dc45c806ac8bc4ccf325c28060311400e3a8a21225a"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\tests-second.log",
+    "bytes": 630,
+    "sha256": "ec2ae605921c88369d096951b83bb9b2b82053ff6fbe9e55e6f4c1864fe5893c"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\tests-preflight.log",
+    "bytes": 2119,
+    "sha256": "e6258c8aef29d65b85e17de10b877448afea01466120a88badf7e364498856f0"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\tests-preflight-final.log",
+    "bytes": 630,
+    "sha256": "404431c68471ef405d111b3eaf52455d6afc147246d38e504e8a0c4e07b79f18"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\tests-adversarial.log",
+    "bytes": 630,
+    "sha256": "58147ee0c6c717712dba3a758ecb4215a35b16e7d44019d2c5d5206646488059"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\tests-directed-final.log",
+    "bytes": 630,
+    "sha256": "b56dbadf9ddbe0064c6dd510b3ab6a63f0133bc2f1b665df5938519843b42297"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\ui-pause-final.log",
+    "bytes": 638,
+    "sha256": "91c56d810eb528e118a3ea2cf58268e65df14566387839956c440acac0166f66"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\typecheck-first.log",
+    "bytes": 288,
+    "sha256": "7904ceb51e3db2c98fa9ebf7d8231f0f9300035bb0329761fe56d3cbad9033aa"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\typecheck-final.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\lint-first.log",
+    "bytes": 145,
+    "sha256": "b9d2bde46360b67c5e5f0f136901dbb3042cbce25c63d78845065c5a146f3c4a"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\native-first.log",
+    "bytes": 1142,
+    "sha256": "5e75c20e583aa51d11f9117969951d58381226f7f723093d156681d70867cf32"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\native-second.log",
+    "bytes": 1367,
+    "sha256": "a369b6e612dca0473d9cc542c10d04789a35da6b438f1c1c9d54a486270b95da"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\native-third.log",
+    "bytes": 1367,
+    "sha256": "2b87a9dc5b6fdfd451024b35f728ea434c369968457df3c2c3e4575406a90b60"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\native-final.log",
+    "bytes": 1346,
+    "sha256": "10f898a77d3548f0950edbc389982521024e54e43b736219ffefd67d01873854"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\native-all-final.log",
+    "bytes": 10392,
+    "sha256": "c207f71d813e5cdf12c3bbee54cab066e722bf6d18f672fcd9c1bd372d93b3eb"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\policies-diagnostic.log",
+    "bytes": 2297,
+    "sha256": "cf6fceb464e5c3f0b1cc22b40112b0bc36de922b2485b6f7a02272256eb43d8d"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\native-all-repeat.log",
+    "bytes": 11748,
+    "sha256": "3c12d3586980e04848325db2bf4c2de95d98c81e3ec3e0cfe322275ef1c686d5"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\native-perception-final.log",
+    "bytes": 1117,
+    "sha256": "c6a690b2705be5e64099a8a11256d91dd066ce5e7fd7d2dd7c4581fd439f7bfa"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\gate-final.log",
+    "bytes": 121410,
+    "sha256": "5186933a9f879e54db06359cd148849559edd9389dd510c14eb7c01d5201dbe9"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\build-final.log",
+    "bytes": 38602,
+    "sha256": "67f144b0a6e5d4351b13955666d65f36e2b89e78db04918f83974c821d1cea78"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\before-policy-gate-final.log",
+    "bytes": 121462,
+    "sha256": "f336da23bf610b8d32fb031fe89710fa7c5d906916ecbaf38e5365af54ae1e46"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\before-policy-build-final.log",
+    "bytes": 38604,
+    "sha256": "ef80887b31b4256d39392adf7c4c7c011f85452248456c50e46272d3d0d8ca41"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\policy-red.log",
+    "bytes": 2260,
+    "sha256": "f6e85f3d38805be77c5ee31d18f8f36a28cc30f0a30b413526194d9c377a8d01"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\tests-policy-final.log",
+    "bytes": 630,
+    "sha256": "393dc567ad739c97650ecf24c92bfa710586ae9c0ed38d257136b56f221f2d74"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\native-perception-policy-final.log",
+    "bytes": 1192,
+    "sha256": "4a75dcdce32b280e7a50f910140a0eae55c58c8aadeb4d84c927d59c5e0816c2"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\native-all-policy-final.log",
+    "bytes": 11823,
+    "sha256": "89fa868ca75b5d5bab031b846eea3a56f0a670616ac2cb368cf647ab4534a647"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\docs-final.log",
+    "bytes": 139,
+    "sha256": "c17c52798de0cba268c34fc3c0f4d2c7b9ddad32e243cf63cc4b22e8ab0a2361"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\docs-system-final.log",
+    "bytes": 195,
+    "sha256": "09a1f1304aa8d90a493f7cea514ecb4fd12cbaabebbccc694b8d2a93ebdf4437"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\harness-final.log",
+    "bytes": 144,
+    "sha256": "916e65bfd3de6fbfa30c2fa5e9d816f138601dd577b5d8ebf17711b92b2aeebd"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-browser-perception-2026-10-24\\openspec-final.log",
+    "bytes": 56,
+    "sha256": "1b94c338b47ffb3f3d717064fe8293a5b159f9381a5e8cbd31f740b56815cc21"
+  }
+]

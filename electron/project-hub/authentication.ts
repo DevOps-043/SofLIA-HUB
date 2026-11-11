@@ -20,6 +20,7 @@ export class ProjectHubAuthentication {
   private epoch = 0;
   private cancellation = new AbortController();
   private exchangeSequence = 0;
+  private activeExchange: number | null = null;
   private flight: { epoch: number; promise: Promise<boolean> } | null = null;
   private lastFailure: Pick<ProjectHubResult, 'code' | 'error'> | null = null;
 
@@ -60,32 +61,39 @@ export class ProjectHubAuthentication {
       return { authenticated: true, workspaces: this.workspaces(lease), authError: this.lastFailure };
     } catch {
       try { lease?.assert(); } catch { return empty; }
-      return { ...empty, authError: lease ? this.lastFailure : null };
+      if (!lease) return empty;
+      if (this.activeExchange === this.exchangeSequence) {
+        return { ...empty, authError: { code: 'SOFIA_SESSION_PENDING', error: 'Project Hub está verificando la sesión SOFIA.' } };
+      }
+      return { ...empty, authError: this.lastFailure };
     } finally { lease?.dispose(); }
   }
 
-  async exchange(token: string): Promise<ProjectHubResult<{ workspaces: ProjectHubSession['workspaces'] }>> {
-    let lease: ProjectHubSessionLease | undefined;
-    const capturing = this.capture();
-    const sequence = ++this.exchangeSequence;
-    try { lease = await capturing; return await this.performExchange(token, lease, sequence); }
-    catch (error) { return projectHubFailure(error); }
-    finally { lease?.dispose(); }
+  exchange(token: string): Promise<ProjectHubResult<{ workspaces: ProjectHubSession['workspaces'] }>> {
+    return this.runExchange(token);
   }
 
   async retry(authorization?: ProjectHubOperationAuthorization): Promise<ProjectHubResult<{ workspaces: ProjectHubSession['workspaces'] }>> {
-    let lease: ProjectHubSessionLease | undefined;
     const token = this.sofiaToken;
-    if (!token || this.owner !== getAuthState().userId) {
+    if (!token || this.owner !== getAuthState().userId || this.activeExchange === this.exchangeSequence) {
       return projectHubFailure(new ProjectHubError('SOFIA_SESSION_PENDING', 'La sesión SOFIA todavía se está restaurando.'));
     }
+    return this.runExchange(token, authorization);
+  }
+
+  private async runExchange(token: string, authorization?: ProjectHubOperationAuthorization): Promise<ProjectHubResult<{ workspaces: ProjectHubSession['workspaces'] }>> {
+    let lease: ProjectHubSessionLease | undefined;
     const capturing = this.capture(authorization);
     const sequence = ++this.exchangeSequence;
+    this.activeExchange = sequence;
     try {
       lease = await capturing;
       return await this.performExchange(token, lease, sequence);
     } catch (error) { return projectHubFailure(error); }
-    finally { lease?.dispose(); }
+    finally {
+      if (this.activeExchange === sequence) this.activeExchange = null;
+      lease?.dispose();
+    }
   }
 
   async restore(): Promise<boolean> {

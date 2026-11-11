@@ -1,0 +1,45 @@
+{
+  "count": 3494,
+  "before": "eafaceaf9d531552e083dd508f13f7d233a40efcdbf1540e7f3d361d063d6d2d",
+  "after": "eafaceaf9d531552e083dd508f13f7d233a40efcdbf1540e7f3d361d063d6d2d",
+  "changed": [],
+  "copiedFilesMatching": 3474,
+  "compiledSources": [
+    {
+      "source": "electron/integrated-browser/recovery-file-publication.ts",
+      "sourceSha256": "a8b065538a32099c8cf9111d918532232d4ef7750543805a7b991edcc5c9d10e",
+      "compiledSha256": "c83251e8ab4b8797feee63d008c7b33f3e76f031b3f19551cf99dc6c02c362fd"
+    },
+    {
+      "source": "electron/integrated-browser/recovery-review-lifetime.ts",
+      "sourceSha256": "f7aefb216a8e6d255c08fbdfdba35ec628726ef04976393bcf1204837eda1694",
+      "compiledSha256": "626562d7c9db1fb6322788b4dc69944572c8dec27b24fca5af8278c183c0f89b"
+    },
+    {
+      "source": "electron/integrated-browser/policy-file-recovery.ts",
+      "sourceSha256": "58fab08265c63a230181293507a2cecae9d3f960c1ff25789328120c14bcae3e",
+      "compiledSha256": "35e257212c3214633e66f3f3b9ef4c3a3fae9269b61773dc78134d1788dba1be"
+    },
+    {
+      "source": "electron/integrated-browser/semantic-memory-recovery.ts",
+      "sourceSha256": "2a4e349adbaa2107e8a421b7863cb70be9327f85e0ae91b75f5b85401d007f5a",
+      "compiledSha256": "4166091ca38e2fe0cff8fdee89bc9261a426d5d0281568a7b6604c2a76f4e9b8"
+    },
+    {
+      "source": "electron/integrated-browser/sqlite-store-recovery.ts",
+      "sourceSha256": "640345928527cdb69c17f6dfcc8850d8ba9afb02c32d419e7c727e38cf71c75a",
+      "compiledSha256": "c2b61383f7e8263447125b14c3a68ac123a4504c092f5b52a59b916425c88955"
+    },
+    {
+      "source": "electron/integrated-browser/sync-state-recovery.ts",
+      "sourceSha256": "bc9bcd4b1349cf2e81036b766797041972818fb23a1b82839cf5ccc5a8e3f7e1",
+      "compiledSha256": "af154ae770800e825b1ed7b3bf2610c7df5de07ed4cca088efd173fd1020403e"
+    },
+    {
+      "source": "electron/integrated-browser/perception-state.ts",
+      "sourceSha256": "c54b989e848b639b27c80368a03cfe05bf846970f0f6282f798df973d0c1f422",
+      "compiledSha256": "e71fa9452a0edd6e27699be1a7c01bbc02bbe346fd15054bc2a9885c5e4df386"
+    }
+  ],
+  "head": "e166d250629e503cf12f69449fb6d66e569134c8"
+}

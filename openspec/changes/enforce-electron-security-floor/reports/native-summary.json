@@ -1,0 +1,232 @@
+{
+  "sandbox": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-browser-smoke-o6Tmrv",
+  "phases": [
+    {
+      "phase": "exercise",
+      "checks": 12,
+      "electron": "44.9.3",
+      "chromium": "152.0.7977.167",
+      "status": "passed",
+      "labels": [
+        "Navegación local con dos WebContentsView sandboxed en vista dividida",
+        "Búsqueda nativa devuelve dos coincidencias",
+        "Zoom y reset nativos; silencio independiente por pestaña",
+        "Chromium genera PDF real sin impresora ni diálogo",
+        "Gestor real completa dos descargas con colisión de nombre sin sobrescribir",
+        "Exportador real publica JSON saneado por enlace exclusivo y conserva un destino existente (HITL simulado)",
+        "Historial SQLite y búsqueda FTS en el Node incluido en Electron",
+        "Revisión de marcadores no escribe hasta commit y rechaza protocolos locales",
+        "Commit de metadata preserva identidad y respaldo en disco real",
+        "Una vista cambia de ventana y se reintegra sin perder su contenido",
+        "Sesión versionada y respaldo se guardan en disco real",
+        "before-quit real espera el guardado y will-quit consume una única aprobación"
+      ],
+      "limitations": []
+    },
+    {
+      "phase": "restore",
+      "checks": 4,
+      "electron": "44.9.3",
+      "chromium": "152.0.7977.167",
+      "status": "passed",
+      "labels": [
+        "Otro proceso recupera metadata de sesión desde respaldo tras corrupción controlada",
+        "Otro proceso recupera historial SQLite y su índice FTS",
+        "Otro proceso recupera los marcadores importados y actualizados",
+        "before-quit real espera el guardado y will-quit consume una única aprobación"
+      ],
+      "limitations": []
+    },
+    {
+      "phase": "lifecycle",
+      "checks": 8,
+      "electron": "44.9.3",
+      "chromium": "152.0.7977.167",
+      "status": "passed",
+      "labels": [
+        "presupuesto nativo conserva actividad protegida y aplica throttling a vistas reales",
+        "retirada nativa cierra la vista y conserva identidad y snapshot lógico",
+        "la pestaña lógica puede rematerializarse desde su snapshot local",
+        "beforeunload cancelado conserva ventana, cookie y marcadores",
+        "cancelar beforeunload reanuda el guardado real de sesión",
+        "will-quit mantiene el proceso vivo mientras termina la limpieza",
+        "checkpoint real confirma la sesión antes de destruir el perfil",
+        "salida final única después de borrar cookies y archivos temporales"
+      ],
+      "limitations": []
+    },
+    {
+      "phase": "vault",
+      "checks": 11,
+      "electron": "44.9.3",
+      "chromium": "152.0.7977.167",
+      "status": "passed",
+      "labels": [
+        "bitácora SQLite con DPAPI real, sin URL ni secreto en disco, reapertura y borrado verificados",
+        "migración v1 a v2 con metadata cifrada y clave protegida por DPAPI real",
+        "reapertura idempotente conserva identidad y contraseña",
+        "se rechazan ciphertext alterado y ámbito ajeno antes de devolver datos",
+        "principal ausente bloquea nuevas escrituras y la revisión no publica secretos ni restaura sola",
+        "recuperación exclusiva con DPAPI real conserva identidad, respaldo y contraseña sin activar sugerencias",
+        "principal dañado recuperado con copia original cifrada por DPAPI real y sin activar sugerencias",
+        "borrado retira credenciales del principal, respaldo y copia cifrada de recuperación",
+        "diario de sync protege variantes con DPAPI real y conserva revisión al reabrir",
+        "decisión manual permanece en el diario nativo hasta commit confirmado",
+        "DPAPI rechaza alteración y el diario impide copiar revisión entre perfiles"
+      ],
+      "limitations": []
+    },
+    {
+      "phase": "autosave",
+      "checks": 11,
+      "electron": "44.9.3",
+      "chromium": "152.0.7977.167",
+      "status": "passed",
+      "labels": [
+        "el puente de credenciales no existe en el mundo principal del sitio",
+        "click JavaScript y requestSubmit sin gesto no generan candidatos",
+        "gesto confiable de Chromium entrega sólo el formulario principal al puente privado",
+        "formulario con destino de otro origen no genera sugerencia",
+        "botón SPA con gesto confiable ofrece cuenta sin evento submit",
+        "controles sin form mantienen el origen del documento",
+        "el botón SPA sintético no genera candidatos",
+        "campos ambiguos sin formulario no generan candidatos",
+        "el observador reaparece en una navegación del sitio",
+        "el observador se recupera tras perder la sesión CDP sin duplicar candidatos",
+        "desactivar elimina listeners del documento actual y no captura nuevos envíos"
+      ],
+      "limitations": []
+    },
+    {
+      "phase": "zoom-startup",
+      "checks": 11,
+      "electron": "44.9.3",
+      "chromium": "152.0.7977.167",
+      "status": "passed",
+      "labels": [
+        "primera vista antes de cargar, factor 1",
+        "zoom aplicado después de cargar, factor 1",
+        "navegación lenta y restablecimiento, factor 1",
+        "renderer caído y recarga, factor 1",
+        "vista destruida ignorada, factor 1",
+        "primera vista antes de cargar, factor 2",
+        "zoom aplicado después de cargar, factor 2",
+        "navegación lenta y restablecimiento, factor 2",
+        "renderer caído y recarga, factor 2",
+        "vista destruida ignorada, factor 2",
+        "ventana anfitriona conservada sin desactivar GPU"
+      ],
+      "limitations": []
+    },
+    {
+      "phase": "zoom",
+      "checks": 15,
+      "electron": "44.9.3",
+      "chromium": "152.0.7977.167",
+      "status": "passed",
+      "labels": [
+        "viewport independiente a factor 2",
+        "la captura conserva la escala visible a factor 2",
+        "entrada nativa apunta al botón visible a factor 2",
+        "viewport independiente a factor 0.5",
+        "la captura conserva la escala visible a factor 0.5",
+        "entrada nativa apunta al botón visible a factor 0.5",
+        "viewport independiente a factor 1.5",
+        "la captura conserva la escala visible a factor 1.5",
+        "entrada nativa apunta al botón visible a factor 1.5",
+        "restablecer devuelve el viewport sin afectar la otra pestaña",
+        "navegación conserva zoom y sesión sin propagar a su vecina",
+        "redimensionado recalcula el viewport lógico",
+        "Ctrl+rueda emite zoom-changed sin zoom nativo duplicado",
+        "Ctrl+F pulsado en la página llega a main y se resuelve con la tabla compartida",
+        "impresión PDF disponible con zoom aislado"
+      ],
+      "limitations": []
+    },
+    {
+      "phase": "safety",
+      "checks": 12,
+      "electron": "44.9.3",
+      "status": "passed",
+      "labels": [
+        "Navegación permitida después de consultar el proveedor local.",
+        "Bloqueo remoto antes de enviar la solicitud al destino.",
+        "La redirección no evita la revisión de solicitudes.",
+        "Revisión de adjunto en cabeceras antes de will-download.",
+        "La descarga directa también pasa por la revisión remota antes de contactar el destino.",
+        "Marco secundario real bloqueado sin enviar contenido al destino.",
+        "Ventana hija con la sesión compartida conserva la revisión remota.",
+        "Certificado autofirmado real rechazado por la política del producto sin bypass TLS.",
+        "No se envían rutas, consultas ni fragmentos al proveedor.",
+        "Intersticial nativo aislado, sin scripts ni enlace para omitir el bloqueo.",
+        "La acción de página en blanco llega a main sin navegar ni exponer IPC.",
+        "El botón Cerrar llega a main y libera su webContents nativo sin navegación externa."
+      ],
+      "limitations": []
+    },
+    {
+      "phase": "passkeys",
+      "checks": 9,
+      "electron": "44.9.3",
+      "chromium": "152.0.7977.167",
+      "status": "passed",
+      "labels": [
+        "WebAuthn disponible en contexto seguro sin preload ni Node",
+        "consulta nativa de disponibilidad del proveedor sin abrir autenticación",
+        "selector real main devuelve sólo la cuenta elegida al callback nativo",
+        "cancelar selección no devuelve credencial",
+        "contexto obsoleto cancela y cada callback se resuelve una sola vez",
+        "creación WebAuthn residente en autenticador virtual, sin extraer material privado",
+        "autenticación WebAuthn devuelve aserción para el RP original",
+        "Chromium rechaza RP ajeno antes de autenticar",
+        "petición WebAuthn cancelada no se convierte en éxito"
+      ],
+      "limitations": []
+    },
+    {
+      "phase": "extensions",
+      "checks": 5,
+      "electron": "44.9.3",
+      "status": "passed",
+      "labels": [
+        "gestor real recompila manifiesto y valida su nueva huella al habilitar",
+        "Chromium inyecta sólo en dominio permitido y marco principal, no en otro host",
+        "un script dinámico persistente previo no se inyecta en el host retirado tras recarga",
+        "Chromium exige permiso de host también para scripting dinámico",
+        "retirar todos los sitios impide nuevas inyecciones después de recargar"
+      ],
+      "limitations": []
+    },
+    {
+      "phase": "policies",
+      "checks": 19,
+      "electron": "44.9.3",
+      "status": "passed",
+      "labels": [
+        "permissions: DPAPI protege la copia y rechaza alteración",
+        "permissions: reapertura restrictiva y original cifrado; reset de permisos limpia copias",
+        "privacy: DPAPI protege la copia y rechaza alteración",
+        "privacy: reapertura restrictiva y original cifrado",
+        "agent: DPAPI protege la copia y rechaza alteración",
+        "agent: reapertura restrictiva y original cifrado",
+        "atajos: recuperación y reapertura cifradas con DPAPI real, IDs nuevos sin ejecución",
+        "atajos: eliminar retira las copias protegidas del perfil de prueba",
+        "configuración sync: recuperación DPAPI y reapertura con transferencia desactivada, sin red",
+        "configuración sync: guardar pausa retira copias anteriores sin alterar claves o dispositivos",
+        "memoria SQLite: respaldo DPAPI, rechazo de alteración y reapertura vacía sin opt-in",
+        "memoria SQLite: original protegido; nueva escritura retira cuarentena sin tocar fuentes",
+        "history: DPAPI protege snapshot SQLite, rechaza alteración y recupera datos/índice",
+        "history: borrar invalida copias anteriores; otra recuperación no resucita datos",
+        "audit: DPAPI protege snapshot SQLite, rechaza alteración y recupera datos/índice",
+        "audit: borrar invalida copias anteriores; otra recuperación no resucita datos",
+        "sync: interrupción local deja marcador protegido y bloquea los tres stores",
+        "sync: rollback coordinado restaura bytes originales sin contactar al servidor",
+        "sync: recuperación DPAPI archiva originales, pausa categorías y retira decisiones sin alterar clave/dispositivo"
+      ],
+      "limitations": []
+    }
+  ],
+  "totalChecks": 117,
+  "externalAccountsUsed": false,
+  "installerCertified": false
+}

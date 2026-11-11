@@ -25,7 +25,7 @@ export function exposeMediaInputApi(bridge: PreloadBridge, ipc: SafeIpc): void {
       }
     },
 
-    upload: (input: { path: string; mimeType: string; apiKey: string }) =>
+    upload: (input: { path: string; mimeType: string }) =>
       safeInvoke('media-input:upload', input),
 
     status: (uploadId: string) => safeInvoke('media-input:status', { uploadId }),
@@ -33,7 +33,7 @@ export function exposeMediaInputApi(bridge: PreloadBridge, ipc: SafeIpc): void {
     cancel: (uploadId: string) => safeInvoke('media-input:cancel', { uploadId }),
 
     /** Libera el archivo remoto al terminar o cancelarse el turno que lo consumia. */
-    release: (uploadId: string, apiKey: string) =>
-      safeInvoke('media-input:release', { uploadId, apiKey }),
+    release: (uploadId: string) =>
+      safeInvoke('media-input:release', { uploadId }),
   });
 }

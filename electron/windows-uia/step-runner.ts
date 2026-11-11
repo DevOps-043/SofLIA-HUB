@@ -1,4 +1,5 @@
 import { executeAction } from './action-executor';
+import { assertBackendTaskActive, runBackendTaskStage } from '../desktop-agent/task-cancellation';
 import { collectSnapshot } from './snapshot';
 import { appendTrace, summarizeSnapshot } from './trace';
 import { verifyActionOutcome } from './verification';
@@ -11,6 +12,7 @@ export async function executeActionStep(
   snapshot: WindowsUIASnapshot,
   step: number,
   tracePath: string,
+  signal?: AbortSignal,
 ): Promise<{ success: boolean; errorMessage: string; verificationMessage: string; afterSnapshot: WindowsUIASnapshot | null }> {
   let success = false;
   let errorMessage = '';
@@ -18,15 +20,16 @@ export async function executeActionStep(
   let afterSnapshot: WindowsUIASnapshot | null = null;
 
   try {
-    await executeAction(service, action, snapshot);
-    afterSnapshot = await collectSnapshot(service);
+    await runBackendTaskStage(signal, () => executeAction(service, action, snapshot, signal));
+    afterSnapshot = await runBackendTaskStage(signal, () => collectSnapshot(service, signal));
     const verification = verifyActionOutcome(action, snapshot, afterSnapshot);
     success = verification.success;
     verificationMessage = verification.message;
     service.lastVerification = verification.message;
     if (!success) errorMessage = verification.message;
-  } catch (err: any) {
-    errorMessage = err.message || 'Error desconocido';
+  } catch (err: unknown) {
+    assertBackendTaskActive(signal);
+    errorMessage = err instanceof Error ? err.message : 'Error desconocido';
     verificationMessage = errorMessage;
     service.lastVerification = errorMessage;
   }

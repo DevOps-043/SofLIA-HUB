@@ -1,4 +1,5 @@
-import { ipcMain, screen as electronScreen } from 'electron';
+import { screen as electronScreen } from 'electron';
+import type { DesktopRegister } from './authorized-registration';
 import type { DesktopAgentService } from '../desktop-agent-service';
 import {
   buildCursorRoundtripMover,
@@ -22,20 +23,16 @@ function runPassiveCalibration(agentService: DesktopAgentService): Promise<Calib
   return runCoordinateSelfTest({ config: agentService.config });
 }
 
-export function registerDesktopAgentCalibrationHandlers(agentService: DesktopAgentService) {
-  ipcMain.handle('desktop-agent:run-calibration', async () => {
+export function registerDesktopAgentCalibrationHandlers(agentService: DesktopAgentService, register: DesktopRegister) {
+  register('run-calibration', async () => {
     // El round-trip toma el control del puntero: pelearselo a una tarea en
     // curso arruinaria la tarea y el diagnostico.
     if (agentService.activeTasks.size > 0) {
       return { success: false, error: 'Hay una tarea del agente en curso. La calibracion mueve el mouse: reintenta al terminar.' };
     }
-    try {
-      const report = await runCursorCalibration(agentService);
-      return { success: report.ok, report };
-    } catch (error) {
-      return { success: false, error: getErrorMessage(error) };
-    }
-  });
+    const report = await runCursorCalibration(agentService);
+    return { success: report.ok, report };
+  }, { effect: true });
 
   // Al cambiar la topologia (conectar/desconectar monitor, cambiar DPI) se
   // revalida el pipeline en segundo plano. Es deliberadamente PASIVO: este

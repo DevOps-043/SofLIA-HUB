@@ -1,0 +1,57 @@
+[
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-desktop-publications-2026-10-27\\build-final.log",
+    "bytes": 39567,
+    "sha256": "47a72759371adddc18173bd13644b8b16afab53553b4fde70b9220c0db89bbe2"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-desktop-publications-2026-10-27\\directed-final.log",
+    "bytes": 495,
+    "sha256": "88cad40924d7ddadd5d0f6472a163830a7fc82a4e7e87c7e37f1ac2341e841df"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-desktop-publications-2026-10-27\\directed-first.log",
+    "bytes": 495,
+    "sha256": "f31a86c854c12f58b807ed3c28f499a5dcb67200348e973389bbc0628621859f"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-desktop-publications-2026-10-27\\directed-second.log",
+    "bytes": 496,
+    "sha256": "9b96d04a02c9b0fa802bd382304254ece3b4dd556dde8f72b1bda263fc7f3fea"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-desktop-publications-2026-10-27\\gate-final.log",
+    "bytes": 166573,
+    "sha256": "eee06f9b5f5f0c71a160dbfe88ea5dda237a41a5ddc96f53a058e8f47c357c3e"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-desktop-publications-2026-10-27\\green-first.log",
+    "bytes": 492,
+    "sha256": "6fc22ce51043e729c5a0ea750ca83fa94ad6bddd3c78f10a337febe2544fcc0c"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-desktop-publications-2026-10-27\\red.log",
+    "bytes": 484,
+    "sha256": "bdf498a8f8a1bf4763781fa8b0a75d1c9742a4056c726fe286e2095108d79bc2"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-desktop-publications-2026-10-27\\typecheck-final.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-desktop-publications-2026-10-27\\typecheck-first.log",
+    "bytes": 358,
+    "sha256": "cc3f8229529b637b9103649f1cfff26d9b5c28d744d8c6d4422659d745898475"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-desktop-publications-2026-10-27\\typecheck-second.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-desktop-publications-2026-10-27\\typecheck-third.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  }
+]

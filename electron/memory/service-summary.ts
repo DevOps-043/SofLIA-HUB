@@ -1,5 +1,5 @@
 import { SUMMARIZE_THRESHOLD } from './constants';
-import { callGeminiMemorySummarizer, summarizeMemorySession } from './summary-runner';
+import { callOpenAIMemorySummarizer, summarizeMemorySession } from './summary-runner';
 import type { MemoryServiceConstructor, MemorySummaryApi } from './service-types';
 
 export function attachMemorySummary(Service: MemoryServiceConstructor): void {
@@ -50,7 +50,7 @@ export function attachMemorySummary(Service: MemoryServiceConstructor): void {
       }, 5000);
     },
     async processSummarizeQueue() {
-      if (this.isProcessingQueue || !this.apiKey || !this.db) return;
+      if (this.isProcessingQueue || !this.db) return;
       this.isProcessingQueue = true;
       try {
         for (const sessionKey of this.summarizeQueue) {
@@ -66,8 +66,8 @@ export function attachMemorySummary(Service: MemoryServiceConstructor): void {
     summarizeSession(sessionKey: string) {
       return summarizeMemorySession(this, sessionKey);
     },
-    callGeminiSummarize(conversationText: string) {
-      return callGeminiMemorySummarizer(this.apiKey, conversationText);
+    callOpenAISummarize(conversationText: string, signal?: AbortSignal) {
+      return callOpenAIMemorySummarizer(conversationText, signal);
     },
   } satisfies MemorySummaryApi & ThisType<any>);
 }

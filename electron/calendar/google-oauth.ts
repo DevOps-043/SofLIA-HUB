@@ -3,6 +3,7 @@ import { openOAuthWindow } from './oauth-window';
 import type { CalendarConnection, CalendarConnectionResult, CalendarServiceCore } from './types';
 import { calendarSession } from './session-context';
 import { CalendarStorageUnavailableError } from './credential-store';
+import { createOAuthProof, validOAuthCode } from './oauth-proof';
 
 const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/calendar.events',
@@ -49,27 +50,32 @@ const GOOGLE_SCOPES = [
 
 export async function connectGoogle(service: CalendarServiceCore, beforeSave: () => void = () => {}, userId = service.userId): Promise<CalendarConnectionResult> {
   if (!service.config.google?.clientId || !service.config.google?.clientSecret) {
-    return { success: false, error: 'Google OAuth credentials not configured. Set VITE_GOOGLE_OAUTH_CLIENT_ID and VITE_GOOGLE_OAUTH_CLIENT_SECRET in .env' };
+    return { success: false, error: 'Google OAuth no está configurado. Revisa VITE_GOOGLE_OAUTH_CLIENT_ID y VITE_GOOGLE_OAUTH_CLIENT_SECRET.' };
   }
 
   try {
+    const config = service.config.google;
     const context = calendarSession(service);
-    const assert = () => { context(); beforeSave(); if (userId !== service.userId) throw new Error('Propietario incorrecto.'); };
+    const assert = () => { context(); beforeSave(); if (userId !== service.userId || service.config.google !== config) throw new Error('El contexto de autorización cambió.'); };
     assert();
-    const { google } = await import('googleapis');
+    const { google, Auth } = await import('googleapis');
     assert();
     const oauth2Client = new google.auth.OAuth2(
-      service.config.google.clientId,
-      service.config.google.clientSecret,
+      config.clientId,
+      config.clientSecret,
       OAUTH_REDIRECT_URI,
     );
-    const authUrl = oauth2Client.generateAuthUrl({ access_type: 'offline', scope: GOOGLE_SCOPES, prompt: 'consent' });
-    const code = await openOAuthWindow(authUrl, 'Google Calendar');
+    const proof = createOAuthProof();
+    const authUrl = oauth2Client.generateAuthUrl({ access_type: 'offline', scope: GOOGLE_SCOPES, prompt: 'consent',
+      state: proof.state, code_challenge: proof.challenge, code_challenge_method: Auth.CodeChallengeMethod.S256 });
+    const code = await openOAuthWindow(authUrl, 'Google Calendar', { provider: 'google', clientId: config.clientId, proof, assertCurrent: assert });
     assert();
-    if (!code) return { success: false, error: 'OAuth flow cancelled' };
+    if (!code) return { success: false, error: 'La autorización fue cancelada o venció.' };
+    if (!validOAuthCode(code)) throw new Error('Código OAuth inválido.');
 
-    const { tokens } = await oauth2Client.getToken(code);
+    const { tokens } = await oauth2Client.getToken({ code, codeVerifier: proof.verifier });
     assert();
+    if (!tokens.access_token) throw new Error('No se recibió una autorización válida.');
     oauth2Client.setCredentials(tokens);
     const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
     const email = (await oauth2.userinfo.get()).data.email || '';

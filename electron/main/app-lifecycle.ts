@@ -23,7 +23,7 @@ interface LifecycleServices {
   calendarService: { dispose: () => void };
 }
 
-export function registerAppLifecycle(input: { services: LifecycleServices; state: MainRuntimeState; controls: LifecycleControls }): void {
+export function registerAppLifecycle(input: { services: LifecycleServices; state: MainRuntimeState; controls: LifecycleControls; stopRemoteNodes: () => void | Promise<void> }): void {
   const { services, state, controls } = input;
   const shutdown = new ShutdownGuard({
     prepare: () => services.integratedBrowserService.flushSessionForShutdown(),
@@ -152,6 +152,7 @@ export function registerAppLifecycle(input: { services: LifecycleServices; state
     stopAtShutdown('portapapeles', () => services.clipboardAssistant.stop());
     stopAtShutdown('detección de reuniones', () => services.meetingPassiveDetectionService.stopPolling());
     stopAtShutdown('calendario', () => services.calendarService.dispose());
+    stopAtShutdown('nodos remotos', input.stopRemoteNodes);
     stopAtShutdown('autorización de voz', () => state.localVoiceSession?.dispose());
     stopAtShutdown('autorización de documentos', () => state.pythonToolsIpc?.dispose());
     stopAtShutdown('contexto de escritorio', () => state.desktopContextIpc?.dispose());

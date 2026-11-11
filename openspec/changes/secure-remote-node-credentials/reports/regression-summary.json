@@ -1,0 +1,15 @@
+{
+  "red": {
+    "failed": 6,
+    "passed": 0,
+    "sha256": "9f45ff83b85a0ce73987895602c21636adff964fd330e336e0bd57eb00be4139"
+  },
+  "directed": {
+    "passed": 234,
+    "failed": 0,
+    "newCases": 52,
+    "sha256": "b9fbcd72865b2fa2c8059a3406dd632914b35abc643aa6e65ee331adc68eebad"
+  },
+  "scope": "Wrapper/preload/IPC/servicio/almacén y filesystem temporal reales; AES-GCM de prueba y puertos de HTTP, binding y diálogo sustituidos. Sin llavero nativo, GUI, sockets, cuentas ni acciones remotas reales.",
+  "strictMode": "reactStrictMode:true con dos llamadas verificadas; ensayo previo con wrapper no acreditaba doble activación."
+}

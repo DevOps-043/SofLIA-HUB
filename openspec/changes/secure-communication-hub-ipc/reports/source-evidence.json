@@ -1,0 +1,91 @@
+{
+  "count": 3628,
+  "before": "eb7bffe2356f508d1808007f8b6ab3d136bce06211e0233eb81d82aa50a167e6",
+  "after": "eb7bffe2356f508d1808007f8b6ab3d136bce06211e0233eb81d82aa50a167e6",
+  "changedDuringGate": [],
+  "copiedFilesMatching": 3608,
+  "deltaFromUnit47": [
+    {
+      "file": "electron/__tests__/communication-hub-principal-resolution.test.ts",
+      "previousSha256": "56ca475e377491c463d745afcc950bfc177e55ae3ceb324a7f1308359e6ad34e",
+      "currentSha256": "5a5d3c2b5a054393db0a50fff60d177038eb4f91f54f9f3ddc0bb1b79b04340d"
+    },
+    {
+      "file": "electron/__tests__/openai-runtime-contracts.test.ts",
+      "previousSha256": "cfdf10628aa7bdf849e6659db854f7875768af8201348b41225ea1d3c954fde5",
+      "currentSha256": "43dc12e555353003eba8a1c2d50ea2ab5b27716a094a78d4d417ce3c562a47fc"
+    },
+    {
+      "file": "electron/communication-hub-handlers.ts",
+      "previousSha256": "3b98a4e2c16daf8b8bf73d4ce0bdb337e7d46708736429bf2058c18d94634943",
+      "currentSha256": "c73aff9e6f3a4442e0ad4a6de6a13e1e2d6c512acb4c756cb022e5ff1ebeac64"
+    },
+    {
+      "file": "electron/communication-hub/service.ts",
+      "previousSha256": "fabd1c870c9c58474aaa2aa1886c60a360b10e0737d7207d3ae5fe8231586fe9",
+      "currentSha256": "d499f213cb831a5ecb2b82ff62c6a192da72b33ccd061dec90a649e3008c38d1"
+    },
+    {
+      "file": "electron/communication-hub/types.ts",
+      "previousSha256": "95e2e785faff785d49509830bb230ad84511c77c475bea8eee9ce227f7365c84",
+      "currentSha256": "25310757726eb4967e9ed8ea0a6b31345a024954fe77492214b8a60f8c209190"
+    },
+    {
+      "file": "electron/main/startup.ts",
+      "previousSha256": "ba0c40a19a351d457cebbc0e68047ce24d8c22d1451441490fdf3b962eb2a27e",
+      "currentSha256": "15151eb88350f4348020a1dc3fbba8b4c86e4239ecf40021232e9742b5ecee7a"
+    },
+    {
+      "file": "electron/preload/communication-apis.ts",
+      "previousSha256": "14e5397876cc3e68d1ad2b0601c0a16b2864d49b7f84e0bab01e9ecb8821c35b",
+      "currentSha256": "d8d69e2616a920f3c838ad4152ba4e1fc741bc40f4c98daf51851110d42e4b69"
+    },
+    {
+      "file": "src/services/communication-hub-service.ts",
+      "previousSha256": "dc77bcf360ab1c907eeb96af17d2591550bd06eed46011a0e0e403235b8db73f",
+      "currentSha256": "4b31ef99a74963c7fdf5356711379b4311a0316efc42f802e62e57bccd428bc3"
+    },
+    {
+      "file": "src/shared/bounded-json.ts",
+      "previousSha256": "91e014524340dcebbd4a77832641ecc8404c70c5a8c42e6125e61c1e949ed63e",
+      "currentSha256": "72d6a223e2c3bbd39cb9f807b0a70aaf1b8467e38733ca891641b0c23d1a7917"
+    },
+    {
+      "file": "src/shared/openai-runtime.ts",
+      "previousSha256": "d1ad7537f99b12824af3d30a586dcb3324f14d000cca201a856b18c02b87e0a4",
+      "currentSha256": "29a2d2c86882c595da3f128cebd4025397af052385dfda0828fdefbce4deb8b7"
+    },
+    {
+      "file": "electron/__tests__/communication-hub-contract.test.ts",
+      "previousSha256": null,
+      "currentSha256": "fe523a48adfe8837bf70f50801c55f49176c4accf7baf0b1c62a720274471ec1"
+    },
+    {
+      "file": "electron/__tests__/communication-hub-ipc.test.ts",
+      "previousSha256": null,
+      "currentSha256": "f5846bcf7002f0f10a5dfdd73bef201c5e112441e89588ae6839cfa0a6b5c9cc"
+    },
+    {
+      "file": "electron/__tests__/communication-hub-service-ipc.test.ts",
+      "previousSha256": null,
+      "currentSha256": "a30d3de34da8c91c7a65818472069a0c9c4b15a2fdadc2485d249481f6b866f0"
+    },
+    {
+      "file": "electron/communication-hub/ipc-contract.ts",
+      "previousSha256": null,
+      "currentSha256": "0c4fd7d83797766daefaca3f393d1c52de4518385dad2890c65886aad8ecb8f3"
+    },
+    {
+      "file": "electron/communication-hub/operation-context.ts",
+      "previousSha256": null,
+      "currentSha256": "44ba1631fe2e108d793c369bd9b4948ca29fa1137da6f46af0fca619f321f141"
+    },
+    {
+      "file": "src/shared/communication-hub-ipc.ts",
+      "previousSha256": null,
+      "currentSha256": "af8af61bb470fe93a11e0d7ae30671242776fe37431a09585d8e9569cd5f1082"
+    }
+  ],
+  "dependenciesAndPolicyUnchanged": true,
+  "groundingModelPolicyUnchanged": true
+}

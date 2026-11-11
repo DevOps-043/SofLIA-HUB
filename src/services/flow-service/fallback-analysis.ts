@@ -1,22 +1,22 @@
-import { FLOW_MODEL } from './constants';
-import { getGenAI } from './ai-client';
+import { observeFlowSession, type FlowSession } from './session';
+import { generateNativeFlow, NativeFlowRevokedError } from './native';
 import { inferIntentFromAction } from './intent-inference';
-import { buildFlowFallbackRequestParts } from './request-parts';
 import type { FlowAnalysisResult, FlowMode } from './types';
 
-async function generateDirectFallbackResponse(text: string, base64Image?: string): Promise<string> {
-  const ai = await getGenAI();
-  const model = ai.getGenerativeModel({ model: FLOW_MODEL });
-  const result = await model.generateContent(buildFlowFallbackRequestParts(text, base64Image));
-  return result.response.text().trim();
+async function generateDirectFallbackResponse(text: string, base64Image: string | undefined, scope: FlowSession): Promise<string> {
+  const native = await generateNativeFlow({ kind: 'fallback', text, ...(base64Image ? { image: base64Image } : {}) });
+  scope.assert();
+  return native.trim();
 }
 
-export async function buildFallbackAnalysis(transcript: string, base64Image?: string): Promise<FlowAnalysisResult> {
+export async function buildFallbackAnalysis(transcript: string, base64Image?: string, parentScope?: FlowSession): Promise<FlowAnalysisResult> {
+  const scope = parentScope ?? observeFlowSession();
+  try {
   const intent = inferIntentFromAction(null, transcript);
   const mode: FlowMode = intent === 'rewrite' || intent === 'email' ? 'draft' : 'answer';
 
   try {
-    const response = await generateDirectFallbackResponse(transcript, base64Image);
+    const response = await generateDirectFallbackResponse(transcript, base64Image, scope);
     if (response) {
       return {
         intent,
@@ -32,7 +32,9 @@ export async function buildFallbackAnalysis(transcript: string, base64Image?: st
       };
     }
   } catch (error) {
-    console.error('Flow fallback response error:', error);
+    if (error instanceof NativeFlowRevokedError) throw error;
+    scope.assert();
+    console.error('[Flow] No se pudo obtener una respuesta alternativa.');
   }
 
   return {
@@ -47,4 +49,5 @@ export async function buildFallbackAnalysis(transcript: string, base64Image?: st
     chatPrompt: transcript,
     action: null,
   };
+  } finally { if (!parentScope) scope.dispose(); }
 }

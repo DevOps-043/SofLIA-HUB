@@ -1,0 +1,24 @@
+{
+  "files": [
+    {
+      "file": "node_modules/exceljs/lib/xlsx/xform/sheet/cf-ext/cf-rule-ext-xform.js",
+      "sha256": "1f1f7fe272767e124f6805f08b0bf3665f675c0712990e38d1f230148d36e9dd"
+    },
+    {
+      "file": "node_modules/pptxgenjs/dist/pptxgen.cjs.js",
+      "sha256": "873d182a8e2e1c0b5e522ef146117936b96b9b2024667bd4c1de59e2b031d27a"
+    },
+    {
+      "file": "node_modules/pptxgenjs/dist/pptxgen.es.js",
+      "sha256": "05844c5625e2cda3b449eb967c2246dd57ca57341886a7c28eeebca263b29bd4"
+    }
+  ],
+  "excelUuidCalls": "v4 sin argumentos en CfRuleExtXform",
+  "pptxImageSizeImported": false,
+  "productExcelConsumers": [
+    "electron/artifact-viewer/read-preview.ts",
+    "electron/background-teams/artifacts.ts",
+    "electron/wa-executor/handlers/create-document/excel-document.ts"
+  ],
+  "browserBundlePatched": false
+}

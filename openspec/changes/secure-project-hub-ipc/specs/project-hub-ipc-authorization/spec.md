@@ -15,6 +15,11 @@ IPC MUST requerir sesión, ventana main registrada, WebContents/mainFrame exacto
 - **WHEN** llama un subframe, otra ventana o documento externo
 - **THEN** se deniega antes de consultar o modificar Project Hub
 
+#### Scenario: La barra lateral se monta antes de la verificación de SOFIA
+- **WHEN** la ventana principal autorizada consulta Proyectos mientras main aún verifica la sesión
+- **THEN** IPC responde `SOFIA_SESSION_PENDING` sin llamar al servicio y la barra lateral reintenta la lectura
+- **AND** si cambia la sesión durante una lectura, el resultado anterior se descarta y la carga vuelve a consultar el estado
+
 ### Requirement: Contrato de entrada acotado
 IPC MUST validar aridad, schemas estrictos del dominio y JSON acotado antes de confirmar/ejecutar. MUST capturar una copia independiente del payload aprobado y conservar los contratos válidos de los consumidores.
 

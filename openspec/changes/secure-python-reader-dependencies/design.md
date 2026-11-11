@@ -19,16 +19,28 @@ instalador/release, hardware o certificar ejecución en SO no disponibles.
 dependencias, advisories y hashes antes/después. pdfplumber 0.11.10 exige
 pdfminer.six 20260107, posterior al parche 20251230. Resolver lectores y closure
 en venv temporal con pip aislado/índice oficial/wheels; no tocar runtime real.
-- Fijar closure en requirements.lock con hashes de wheels admitidas en los cinco
-targets y directos en el entrypoint por referencia al lock. No incluir sdist.
+- Fijar closure en requirements.lock con hashes de wheels oficiales no retiradas
+y directos en el entrypoint por referencia al lock. No incluir sdist.
 Hashes vinculan bytes al índice consultado; no prueban inocuidad ni procedencia
 fuera de esa relación. Verificar disponibilidad/tags con descarga por plataforma.
+- Disponibilidad comprobada para cuatro targets. PyPI no ofrece cryptography
+50.0.2 para macOS Intel; no rebajar a una versión con avisos para completar la
+matriz. Ese target sigue pendiente y setup falla conservando el runtime previo.
+El usuario confirmó que no dispone de un entorno Intel. Preparar un workflow
+limitado a construir un candidato nativo con fuentes SHA256, Rust fijado y
+OpenSSL estático; pruebas/linkage/target y recibo antes de conservarlo. No se ha
+ejecutado ese job ni aprobado o publicado un candidato. El builder acepta sdist
+verificada sólo en CI; setup sigue admitiendo únicamente wheels del lock.
 - Pip activa require-hashes para todo el comando si encuentra hashes: instalar
 voz y lector en pasos separados dentro del mismo staging, lector con
 --require-hashes --only-binary=:all:. Validar pip check e imports completos y
 versiones exactas del lock antes de promocionar, conservando respaldo. Comprobar
 también resolución conjunta para detectar conflictos de dependencias compartidas.
-- Centralizar archivos del fingerprint (voz, entrypoint lector y lock) en helper
+- Actualizar también setuptools/wheel con avisos publicados; fijar su cierre
+bootstrap en python/bootstrap.lock con packaging y hashes. Comprobar versiones
+antes de los imports. Voz mantiene su política separada y se prueba instalada
+junto al lector; no se presenta como una auditoría completa de voz.
+- Centralizar archivos del fingerprint (voz, entrypoint lector, lock y bootstrap) en helper
 Node reutilizado por setup y smoke. Incluir bytes del lock; cambiar sólo éste
 debe invalidar caché. No promover staging fallido ni borrar runtime previo.
 - Política Python pequeña comprueba metadata de pdfminer.six antes de importar

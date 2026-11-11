@@ -1,0 +1,47 @@
+{
+  "sourcesBefore": [
+    {
+      "source": "package.json",
+      "previousSha256": "497634e40237c151f24a557f48e4c84c2430d63af98102d4962c16fddd5c0b3a",
+      "currentSha256": "bff2b0c7bf6e9d2afa1888c5dd843b4cc3c952ba4608a0780ee94191af5b5749"
+    },
+    {
+      "source": "vitest.config.ts",
+      "previousSha256": "dd5b8815f885c79538717370f78a76e61b1b1a8d097f4ab3e982f76f8d236902",
+      "currentSha256": "0f18154b02f18eec7b89a222d98ae3266e225cacddf903ae820f5545aef80711"
+    },
+    {
+      "source": "scripts/quality/run-gate.mjs",
+      "previousSha256": "8a47dde387c80a024c814df8a58dfe727aa404aac9e516c245870432ae16f816",
+      "currentSha256": "0d6625415b006d28285ca25cdad2d48185f8c8ffaa908c5984255d3e31cf4dd5"
+    },
+    {
+      "source": ".github/workflows/ci.yml",
+      "previousSha256": "c98eef3b5965f0384e90a3e049ffb3898b85f217f159e4f39e47e5cba1eaf449",
+      "currentSha256": "2508fc2fe6a7c2d5fc43c52fd9064e3d016127416a0d18c3ebbee35d85dc62fe"
+    },
+    {
+      "source": ".github/workflows/release.yml",
+      "previousSha256": "1f36046a2cf4001bcdabb9b10cc38e4b0495892dbbf13c5fe59d61bc04d9c1b5",
+      "currentSha256": "b0e3c2a7f006d3776e4522fc1b6094bfde897191a1b3a211ee0a597f9b7b61eb"
+    }
+  ],
+  "baseline": {
+    "passed": 6053,
+    "failed": 0,
+    "reportSha256": "9ba1f46d473c56130e3cd3ca2dfbbb33df51c0b0f3de186095af1f0b27b1f183",
+    "exit": {
+      "exitCode": 0,
+      "seconds": 262.6109099
+    }
+  },
+  "red": {
+    "mutableReferences": 18,
+    "scopeMismatchTestMocks": 3
+  },
+  "directed": {
+    "passed": 16,
+    "newToolingCases": 11,
+    "scope": "Políticas reales, fixtures negativos y consumidores Python; sin red/cuentas reales."
+  }
+}

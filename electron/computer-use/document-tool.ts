@@ -1,30 +1,17 @@
+import type { CreateWordDocumentOptions as CreateWordDocumentArgs } from '../../src/shared/computer-use';
 import { app, shell } from 'electron';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { createProfessionalDocument } from '../document-designer';
-import { documentDesignSchema, type DocumentDesignOptions } from '../../src/shared/document-design';
+import { documentDesignSchema } from '../../src/shared/document-design';
 import { prepareOrganizationDocument } from '../organization-branding/document-branding';
 
 const DEFAULT_DOCUMENT_TITLE = 'Documento SofLIA';
 const MAX_DOCUMENT_CONTENT_LENGTH = 250_000;
 const DOCX_EXTENSION = '.docx';
 
-interface CreateWordDocumentArgs {
-  title?: string;
-  subtitle?: string;
-  author?: string;
-  content?: string;
-  file_name?: string;
-  output_path?: string;
-  include_cover?: boolean;
-  design?: DocumentDesignOptions;
-  open_after_save?: boolean;
-  /** Graficas (data:image/png;base64,...) generadas en la conversacion; se anexan al final. */
-  chart_images?: string[];
-}
-
-export async function handleCreateWordDocument(args: CreateWordDocumentArgs = {}): Promise<Record<string, any>> {
+export async function handleCreateWordDocument(args: CreateWordDocumentArgs = {}): Promise<Record<string, unknown>> {
   const content = normalizeContent(args.content);
   if (!content) {
     return {

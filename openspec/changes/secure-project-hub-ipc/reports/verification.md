@@ -106,3 +106,14 @@ pruebas de esta unidad; conservar custodia y doce unidades previas. No hubo
 escrituras remotas ni migraciones que revertir, ni commits/publicación en esta
 entrega. Volver al handler anterior reabre fallos; no es mitigación de seguridad.
 Revisión independiente pendiente antes de archivar.
+
+## Carga de Proyectos durante el inicio de sesión
+
+La carga inicial de la barra lateral podía adelantarse a la publicación de la
+sesión en main. El rechazo genérico no activaba la recuperación de la lista.
+IPC distingue ahora la espera de sesión de un documento no autorizado y
+descarta resultados cuando cambia la identidad. La barra lateral programa un
+reintento por intento fallido recuperable, incluso si el aviso se repite.
+
+Pasaron 209 casos en cuatro suites dirigidas de Project Hub, su puente y la
+barra lateral. Los casos nuevos usan identidades y respuestas simuladas.

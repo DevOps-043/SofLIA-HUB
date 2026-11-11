@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import { createHash } from 'node:crypto';
 import { AgentHarness } from './service';
 import { EncryptedRunRepository, type StateCipher } from './repository';
-import { GeminiAgentProvider } from './gemini-provider';
+import { OpenAIAgentProvider } from './openai-provider';
 import { codexHome, CodexAgentProvider, verifyCodexExecutable, type CodexConfiguration } from '../codex-runtime';
 import type { AgentRuntimeState, AgentScope } from '../../src/shared/agent-runtime';
 import type { MeetingWorkflowService } from '../meetings/meeting-workflow-service';
@@ -15,7 +15,6 @@ interface RuntimeOptions {
   getUserId(): string | null;
   getMeetingOwnerId(): string | null;
   authorize(scope: AgentScope): Promise<void>;
-  geminiKey(): string | null;
   meetings: Pick<MeetingWorkflowService, 'createManualRun'>;
 }
 interface PrivateSettings { codex: CodexConfiguration | null; apiKey: string | null }
@@ -29,11 +28,7 @@ export class AgentRuntime {
       repository: new EncryptedRunRepository(path.join(options.root, 'runs'), options.cipher),
       authorize: scope => this.authorize(scope),
       provider: (id, scope) => {
-        if (id === 'gemini') {
-          const key = options.geminiKey();
-          if (!key) throw new Error('Configura Gemini en SofLIA antes de iniciar.');
-          return new GeminiAgentProvider(key);
-        }
+        if (id === 'openai') return new OpenAIAgentProvider();
         if (!this.settings.codex) throw new Error('Selecciona un ejecutable compatible de Codex.');
         return new CodexAgentProvider(this.settings.codex, codexHome(path.join(options.root, 'codex'), scope), this.settings.apiKey ?? undefined);
       },
@@ -92,7 +87,6 @@ export class AgentRuntime {
     return {
       scope: { ...scope },
       runs: this.harness.snapshot(), persistence: this.harness.persistence,
-      geminiAvailable: !!this.options.geminiKey(),
       codex: { configured: !!this.settings.codex && !!this.settings.apiKey, version: this.settings.codex?.version ?? null, home: this.settings.codex ? codexHome(path.join(this.options.root, 'codex'), scope) : null },
     };
   }

@@ -1,7 +1,12 @@
 import { hasIndependentTeamWork, requestedTeamMode, selectTeam, teamRequestText, type TeamMode } from './agent-teams/policy';
-import { SOFLIA_DEFAULT_MODEL, SOFLIA_LITE_MODEL, SOFLIA_MAX_MODEL, SOFLIA_RUNTIME_MODEL } from './soflia-runtime-model';
+import { SOFLIA_DEFAULT_MODEL, SOFLIA_MAX_MODEL, SOFLIA_PRO_MODEL } from './soflia-runtime-model';
 
-export const BACKGROUND_MODELS = [SOFLIA_RUNTIME_MODEL, SOFLIA_LITE_MODEL, SOFLIA_MAX_MODEL, SOFLIA_DEFAULT_MODEL, 'gpt-5.6-luna'] as const;
+export const BACKGROUND_MODELS = [SOFLIA_MAX_MODEL, SOFLIA_DEFAULT_MODEL, SOFLIA_PRO_MODEL, 'gpt-5.6-luna'] as const;
+/** Compatibilidad de trabajos guardados con el proveedor retirado. */
+export function reconcileBackgroundModel(value: unknown): unknown {
+  if (typeof value === 'string' && value.replace(/^models\//, '').startsWith('gemini-')) return SOFLIA_DEFAULT_MODEL;
+  return value;
+}
 export const BACKGROUND_LIMITS = { history: 30, admitted: 6, concurrentJobs: 1, workers: 2, rounds: 12, calls: 42, tools: 60, tokens: 160_000, timeoutMs: 600_000, sourceChars: 32_000, artifactBytes: 2_000_000, artifacts: 12 } as const;
 export type BackgroundStatus = 'queued' | 'running' | 'verifying' | 'paused' | 'completed' | 'failed' | 'cancelled' | 'interrupted';
 export type BackgroundScope = { userId: string; organizationId: string | null; dataUserId: string | null };

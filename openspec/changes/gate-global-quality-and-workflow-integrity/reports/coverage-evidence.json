@@ -1,0 +1,98 @@
+{
+  "baseline": {
+    "files": 2563,
+    "lines": 56.92,
+    "statements": 55.61,
+    "functions": 51.7,
+    "branches": 49.6,
+    "totals": {
+      "lines": {
+        "total": 60530,
+        "covered": 34457,
+        "skipped": 0,
+        "pct": 56.92
+      },
+      "statements": {
+        "total": 75609,
+        "covered": 42049,
+        "skipped": 0,
+        "pct": 55.61
+      },
+      "functions": {
+        "total": 16680,
+        "covered": 8624,
+        "skipped": 0,
+        "pct": 51.7
+      },
+      "branches": {
+        "total": 55378,
+        "covered": 27471,
+        "skipped": 0,
+        "pct": 49.6
+      }
+    },
+    "thresholds": {
+      "lines": 56,
+      "statements": 55,
+      "functions": 51,
+      "branches": 49
+    },
+    "zeroStatementCoverage": 1023,
+    "rawTestMocksExcluded": [
+      "C:\\Users\\fysg5\\Desktop\\SofLIA\\Pulse Hub\\SofLIA-HUB\\test\\mocks\\electron\\app-ipc.ts",
+      "C:\\Users\\fysg5\\Desktop\\SofLIA\\Pulse Hub\\SofLIA-HUB\\test\\mocks\\electron\\system-ui.ts",
+      "C:\\Users\\fysg5\\Desktop\\SofLIA\\Pulse Hub\\SofLIA-HUB\\test\\mocks\\electron\\windowing.ts"
+    ],
+    "reason": "El remapeo V8 añadió tres mocks fuera del include. Se excluyen como fixtures de prueba y excludeAfterRemap se integra para la medición final; ninguna fuente productiva se omite."
+  },
+  "current": {
+    "files": 2563,
+    "lines": 56.92,
+    "statements": 55.61,
+    "functions": 51.7,
+    "branches": 49.6
+  },
+  "totals": {
+    "lines": {
+      "total": 60530,
+      "covered": 34457,
+      "skipped": 0,
+      "pct": 56.92
+    },
+    "statements": {
+      "total": 75609,
+      "covered": 42049,
+      "skipped": 0,
+      "pct": 55.61
+    },
+    "functions": {
+      "total": 16680,
+      "covered": 8624,
+      "skipped": 0,
+      "pct": 51.7
+    },
+    "branches": {
+      "total": 55378,
+      "covered": 27471,
+      "skipped": 0,
+      "pct": 49.6
+    },
+    "branchesTrue": {
+      "total": 0,
+      "covered": 0,
+      "skipped": 0,
+      "pct": 100
+    }
+  },
+  "thresholds": {
+    "lines": 56,
+    "statements": 55,
+    "functions": 51,
+    "branches": 49
+  },
+  "zeroStatementCoverage": 1023,
+  "summarySha256": "3fab1a55ecfe0c0eb31076834913aa19a9d515191655e17f9adb52a8abb6e631",
+  "summaryPath": "C:\\Users\\fysg5\\Desktop\\SofLIA\\Pulse Hub\\SofLIA-HUB\\coverage\\coverage-summary.json",
+  "lcovSha256": "4e1d057ff4a1e4fcba356528e9d41c614ab08e62c7163fb93bc78d8f226387aa",
+  "scope": "Toda producción src/electron, inventario Git exacto; sólo tests/fixtures y declaraciones excluidos. Sin E2E/CI remoto."
+}

@@ -2,6 +2,8 @@
 
 Estado: implementado en `secure-python-document-boundary` y ampliado en
 `bound-python-document-parsing`; evidencia y revisiones pendientes en sus reportes.
+`secure-python-reader-dependencies` incorpora lock y barrera PDF; conserva
+pendiente el artefacto macOS Intel y su verificación nativa.
 
 <!-- evidence: electron/python-tools-handlers.ts -->
 <!-- evidence: electron/python-tools-service.ts -->
@@ -11,6 +13,9 @@ Estado: implementado en `secure-python-document-boundary` y ampliado en
 <!-- evidence: src/shared/python-tools.ts -->
 <!-- evidence: python/tools_sidecar/document_budget.py -->
 <!-- evidence: python/tools_sidecar/office_preflight.py -->
+<!-- evidence: python/tools_sidecar/reader_dependencies.py -->
+<!-- evidence: python/tools_sidecar/requirements.lock -->
+<!-- evidence: python/bootstrap.lock -->
 
 ## Selección, autorización y contrato
 
@@ -132,6 +137,32 @@ ausencia de vulnerabilidades en documentos admitidos.
 
 ## Verificación y recuperación
 
+El lector fija quince paquetes transitivos en `requirements.lock`, referenciado
+por `requirements.txt`, con SHA256 de wheels oficiales no retiradas. Setup
+instala bootstrap con su propio lock, voz por separado y después lector con
+`--require-hashes --only-binary=:all:`. Comprueba `pip check`, versiones exactas
+del lector/bootstrap e imports de ambos sidecars antes de promocionar staging;
+un fallo conserva el runtime previo. El fingerprint compartido con smoke incluye
+ambos entrypoints y los dos locks. Los hashes vinculan bytes al índice
+consultado; no certifican ausencia de vulnerabilidades.
+
+Antes de importar pdfplumber, la lectura PDF consulta metadata de pdfminer.six.
+Versiones anteriores a 20251230, ausentes o inverificables devuelven
+`DEPENDENCY_INCOMPATIBLE`. El lock usa 20260107, posterior a los parches de
+[CVE-2025-64512](https://github.com/pdfminer/pdfminer.six/security/advisories/GHSA-wf5f-4jwr-ppcp)
+y [CVE-2025-70559](https://github.com/pdfminer/pdfminer.six/security/advisories/GHSA-f83h-ghpp-7wcc).
+Esta comprobación de metadata no verifica criptográficamente una instalación
+manipulada; es una barrera contra runtimes antiguos.
+
+Hay descargas verificadas para Windows x64, macOS ARM64 y Linux x64/ARM64;
+sólo Windows se ha instalado y ejecutado localmente. PyPI no ofrece una wheel
+cryptography 50.0.2 para macOS Intel. Ese target sigue pendiente y setup rechaza
+su preparación antes de promocionar, sin rebajar la dependencia. El workflow
+`python-reader-native.yml` prepara construcción Intel con fuentes SHA256,
+OpenSSL estático, inspección de enlaces/target y formatos; conserva candidato,
+licencias y recibo para revisión. No se ha ejecutado ni incorporado un hash
+nativo al lock. No publica artefactos de distribución ni certifica voz.
+
 `npm run python-tools:smoke:native` usa Electron real con perfil temporal,
 preload sandbox, servicio y diálogos simulados, red bloqueada y datos ficticios.
 No certifica selección humana, parsers ni runtime distribuible. Las pruebas
@@ -139,12 +170,16 @@ Python usan el intérprete de QA identificado, XLSX/DOCX temporales y stdio real
 no requieren cuentas, documentos privados, micrófono ni modelos.
 
 Pruebas reproducibles sin pytest: ejecutar el intérprete elegido con
-`-B -X utf8 python/tools_sidecar/tests/run_tests.py`; son pruebas stdlib de recursos.
-Agregar `--formats` exige las dependencias del lector y ejecuta PDF, XLSX/XLSM,
+`-B -X utf8 python/tools_sidecar/tests/run_tests.py`; son pruebas stdlib de recursos,
+política de dependencias y guardas puras del builder. Agregar `--formats` exige
+las versiones exactas de lector/bootstrap y ejecuta PDF, XLSX/XLSM,
 PPTX, DOCX, privacidad y stdio con fixtures ficticios. El runner inhibe bytecode
 también en hijos. Falla si faltan dependencias, sin descargarlas ni omitir casos
-silenciosamente. Este comando es separado del gate Node actual; una ejecución
-QA con otras versiones no certifica el runtime distribuible fijado.
+silenciosamente. Los contratos stdlib forman parte de verify:pr mediante
+python-tools:test; formatos se ejecutan aparte con python-tools:test:formats
+y matriz CI configurada con los locks exactos. Una ejecución QA con otras
+versiones no certifica el runtime distribuible fijado; tampoco configurar CI
+demuestra haberlo ejecutado en otros SO.
 
 Al revertir, restaurar juntas las capas main/preload/renderer, consumidores y
 contratos de esta unidad. El rollback reabre las fronteras aquí descritas;

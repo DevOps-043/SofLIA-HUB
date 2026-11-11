@@ -14,6 +14,8 @@ const report = { status: 'running', electron: process.versions.electron, phase, 
 const check = text => { report.checks.push(text); console.log('[Smoke] OK: ' + text); };
 void app.whenReady().then(async () => {
   assert.equal(safeStorage.isEncryptionAvailable(), true);
+  require('./recovery-publication.cjs')({ sandbox, load, check });
+  await require('./policy-publication.cjs')({ sandbox, load, check });
   const origin = 'https://privado.example';
   for (const kind of ['permissions', 'privacy', 'agent']) {
     const file = path.join(sandbox, phase, kind + '.json');
@@ -134,8 +136,11 @@ void app.whenReady().then(async () => {
     assert.equal(JSON.parse(safeStorage.decryptString(archived)).scope, syncRoot);
   }
   check('sync: recuperación DPAPI archiva originales, pausa categorías y retira decisiones sin alterar clave/dispositivo');
+  await require('./recovery-lifetime.cjs')({ sandbox, load, check });
   report.status = 'passed'; await fsp.writeFile(path.join(sandbox, phase + '.json'), JSON.stringify(report, null, 2)); app.exit(0);
-}).catch(async () => {
+}).catch(async error => {
+  // Sólo datos ficticios del sandbox validado; conservar diagnóstico local sin imprimir contenido.
+  report.failure = { name: error instanceof Error ? error.name : 'Error', message: String(error?.message || 'Fallo de QA').slice(0, 240) };
   report.status = 'failed'; await fsp.writeFile(path.join(sandbox, phase + '.json'), JSON.stringify(report, null, 2));
   console.error('[Smoke] Falló recuperación de políticas; se omite contenido.'); app.exit(1);
 });

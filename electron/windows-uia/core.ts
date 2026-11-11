@@ -1,11 +1,9 @@
-import type { GoogleGenerativeAI } from '@google/generative-ai';
 import type { DesktopAgentService } from '../desktop-agent-service';
 import type { WindowsUIAQueueEntry, WindowsUIARunResult, WindowsUIAStatus, WindowsUIATaskOptions } from './types';
 
 export interface WindowsUIAServiceCore {
   desktopAgent: DesktopAgentService;
   apiKey: string;
-  genAI: GoogleGenerativeAI | null;
   status: WindowsUIAStatus;
   currentTask: string | null;
   currentStep: number;

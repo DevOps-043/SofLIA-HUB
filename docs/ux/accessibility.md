@@ -1,6 +1,6 @@
 # Accesibilidad
 
-Estado: vigente. Actualizado: 2026-10-22.
+Estado: vigente. Actualizado: 2026-10-25.
 
 <!-- evidence: src/components/ui -->
 <!-- evidence: src/index.css -->
@@ -9,6 +9,8 @@ Estado: vigente. Actualizado: 2026-10-22.
 <!-- evidence: src/components/browser/IntegratedBrowserPanel.tsx -->
 <!-- evidence: src/components/browser/BrowserDialog.tsx -->
 <!-- evidence: src/components/browser/BrowserManagementPanel.tsx -->
+<!-- evidence: src/components/confirm-action-modal/ConfirmActionModal.tsx -->
+<!-- evidence: src/adapters/desktop_ui/chat-ui/ChatModals.tsx -->
 
 ## Estado comprobable
 
@@ -61,6 +63,36 @@ Estado: vigente. Actualizado: 2026-10-22.
 
 Esto no constituye certificacion WCAG. No existe objetivo WCAG formal, prueba axe
 en CI ni auditoria de lector de pantalla versionada.
+
+## Confirmación de acciones del chat
+
+`ConfirmActionModal` usa `dialog.showModal()`, título asociado por instancia y
+modalidad nativa. Abre con foco en Cancelar; si desborda, enfoca el título para
+preservar el comienzo de la lectura. Escape comunica cancelación al dueño sin
+cerrar su estado por separado. El cierre devuelve foco al invocador conectado,
+también al desmontar. Los botones no envían formularios; el teclado conserva
+Tab nativo y detiene burbujeo hacia atajos del contenedor.
+
+El controlador asigna un `requestId` efímero por revisión y el componente renueva
+sus nodos al cambiarlo, incluso con texto idéntico. Así un gesto iniciado sobre
+la revisión anterior no aprueba la siguiente. Cambiar contenido o alternativas
+reinicia foco y scroll. `ChatModals` sólo delega al resolver capturado; el dueño
+decide qué solicitud retirar. Esta identidad renderer no autoriza, persiste ni
+viaja por IPC. La opción permanente conserva las guardas del servicio.
+
+La tarjeta admite desplazamiento, limita su altura al viewport y respeta
+movimiento reducido. Los fondos existentes de las tres acciones principales se
+oscurecieron para alcanzar 4.5:1 con texto blanco en reposo y hover. La medición
+local de CSS computado cubrió ambos temas; no certifica todo el producto.
+Referencias: patrón [APG de diálogo modal](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/)
+y [contraste mínimo WCAG](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html).
+
+El [reporte del cambio](../../openspec/changes/harden-action-confirmation-dialog/reports/verification.md)
+separa pruebas renderer de teclado/AX/zoom en Electron Windows con foco emulado.
+Las capturas gráficas defectuosas se descartaron como evidencia visual. Esa
+revisión, la ejecución del fixture nativo final simplificado y la revisión
+independiente siguen pendientes tras el rechazo de apertura del archivo local
+por la política del navegador. No se usó una ruta alternativa para eludirlo.
 
 ## Requisitos para cambios nuevos
 

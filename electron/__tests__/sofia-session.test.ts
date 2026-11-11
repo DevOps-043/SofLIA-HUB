@@ -11,16 +11,26 @@ const auth = vi.hoisted(() => ({
   refreshSession: vi.fn(),
   signOut: vi.fn(async () => ({ error: null })),
   onAuthStateChange: vi.fn(),
-  listener: null as null | ((event: string, session: { refresh_token?: string } | null) => void),
+  listener: null as null | ((event: string, session: { user: { id: string }; refresh_token?: string } | null) => void),
 }));
 
 const client = vi.hoisted(() => ({ auth }));
+const discard = vi.hoisted(() => vi.fn(async () => undefined));
+const discardHub = vi.hoisted(() => vi.fn(async () => undefined));
 
 vi.mock('../iris/clients', () => ({
   getSofiaClient: () => client,
   getSofiaCredentials: () => ({ url: 'https://sofia.supabase.co', key: 'anon' }),
+  discardSofiaClient: discard,
 }));
 
+vi.mock('../hub-db-client', () => ({ getHubDbClient: () => client, discardHubDbClient: discardHub }));
+vi.mock('../main/hub-session-store', () => ({
+  saveHubRefreshToken: store.save,
+  readHubRefreshToken: () => store.token,
+  clearHubRefreshToken: store.clear,
+  hasStoredHubSession: () => store.token !== null,
+}));
 vi.mock('../main/sofia-session-store', () => ({
   saveSofiaRefreshToken: store.save,
   readSofiaRefreshToken: () => store.token,
@@ -35,9 +45,10 @@ import {
   restoreSofiaSession,
   revokeSofiaSession,
 } from '../main/sofia-session';
+import { applyHubSession, getHubSessionUserId, resetHubSessionForTests, revokeHubSession } from '../main/hub-session';
 
 function session(userId: string, refreshToken = 'refresh-nuevo') {
-  return { user: { id: userId }, refresh_token: refreshToken };
+  return { user: { id: userId }, refresh_token: refreshToken, access_token: 'acceso-verificado' };
 }
 
 describe('sesion SOFIA del proceso main', () => {
@@ -45,6 +56,7 @@ describe('sesion SOFIA del proceso main', () => {
     store.token = null;
     vi.clearAllMocks();
     resetSofiaSessionForTests();
+    resetHubSessionForTests();
     auth.onAuthStateChange.mockImplementation((listener) => {
       auth.listener = listener;
       return { data: { subscription: { unsubscribe: vi.fn() } } };
@@ -59,7 +71,7 @@ describe('sesion SOFIA del proceso main', () => {
       'user-1',
     );
 
-    expect(resultado).toEqual({ status: 'aplicada', userId: 'user-1' });
+    expect(resultado).toEqual({ status: 'aplicada', userId: 'user-1', accessToken: 'acceso-verificado' });
     expect(getSofiaSessionUserId()).toBe('user-1');
     expect(store.save).toHaveBeenCalledWith('refresh-nuevo');
   });
@@ -71,7 +83,8 @@ describe('sesion SOFIA del proceso main', () => {
     );
 
     expect(resultado).toEqual({ status: 'rechazada', userId: null });
-    expect(auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    expect(discard).toHaveBeenCalledOnce();
+    expect(auth.signOut).not.toHaveBeenCalled();
     expect(store.clear).toHaveBeenCalled();
   });
 
@@ -84,6 +97,14 @@ describe('sesion SOFIA del proceso main', () => {
     expect(resultado).toEqual({ status: 'sin-sesion', userId: null });
     expect(auth.setSession).not.toHaveBeenCalled();
     expect(store.save).not.toHaveBeenCalled();
+  });
+
+  it('identifica la sesión revocada por Supabase sin devolver credenciales', async () => {
+    auth.setSession.mockResolvedValueOnce({
+      data: { session: null }, error: { name: 'AuthSessionMissingError', status: 400 },
+    });
+    const result = await applySofiaSession({ accessToken: 'acceso', refreshToken: 'renovación' }, 'user-1');
+    expect(result).toEqual({ status: 'rechazada', userId: null, revoked: true });
   });
 
   it('restaura desde el refresh token antes de los servicios', async () => {
@@ -120,6 +141,20 @@ describe('sesion SOFIA del proceso main', () => {
 
     expect(getSofiaSessionUserId()).toBeNull();
     expect(store.clear).toHaveBeenCalled();
-    expect(auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    expect(discard).toHaveBeenCalledOnce();
+    expect(auth.signOut).not.toHaveBeenCalled();
+  });
+
+  it('descarta la copia Lia sin revocar la sesión compartida ni aceptar una aplicación tardía', async () => {
+    let finish!: (value: { data: { session: ReturnType<typeof session> }; error: null }) => void;
+    auth.setSession.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const applying = applyHubSession({ accessToken: 'acceso-ficticio', refreshToken: 'refresh-ficticio' }, 'user-1');
+    await revokeHubSession();
+    finish({ data: { session: session('user-1') }, error: null });
+    expect(await applying).toBe('sin-sesion');
+    expect(getHubSessionUserId()).toBeNull();
+    expect(discardHub).toHaveBeenCalledOnce();
+    expect(store.save).not.toHaveBeenCalled();
+    expect(auth.signOut).not.toHaveBeenCalled();
   });
 });

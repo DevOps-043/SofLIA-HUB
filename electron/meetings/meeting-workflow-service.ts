@@ -1,4 +1,4 @@
-﻿import crypto from 'node:crypto';
+import crypto from 'node:crypto';
 import { getTeamMembersDetailed } from '../iris-data-main';
 import { MeetingAIService } from './meeting-ai-service';
 import { MeetingAssigneeService } from './meeting-assignee-service';
@@ -42,8 +42,6 @@ export class MeetingWorkflowService {
   ) {}
 
   async init(): Promise<void> { this.store.init(); }
-
-  setApiKey(apiKey: string | null): void { this.aiService.setApiKey(apiKey); }
 
   async createManualRun(input: CreateManualMeetingRunInput, executionGuard?: () => void): Promise<CreateMeetingRunResult> {
     executionGuard?.();

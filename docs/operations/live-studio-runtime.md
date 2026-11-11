@@ -1,18 +1,47 @@
 # Operación del estudio síncrono
 
-El cambio `migrate-zoom-video-sdk` añade Video SDK junto al Meeting histórico. La guía canónica de activación del servidor vive en `SofLIA-Learning/docs/live-video-sdk.md`; la migración coordinada es `20261019120000_live_video_sdk.sql`. No se activó el proveedor ni se modificaron secretos o producción. El Hub selecciona el SDK mediante el grant autorizado y empaqueta los recursos multimedia locales. Video ofrece controles en español, nueve cámaras visibles y pantalla compartida; requiere conectar audio para escuchar. Los requisitos siguientes corresponden a las aulas Meeting.
+El cambio `migrate-zoom-video-sdk` añade Video SDK junto al Meeting histórico. La guía canónica de activación del servidor vive en `SofLIA-Learning/docs/live-video-sdk.md`; la migración coordinada es `20261019120000_live_video_sdk.sql`. El proveedor está activado en Learning y el ensayo del 10 de noviembre verificó conexión desde Hub, grabación sintética e importación privada mediante GitHub Actions. El Hub selecciona el SDK mediante el grant autorizado y empaqueta los recursos multimedia locales. Video ofrece controles en español, nueve cámaras visibles y pantalla compartida; requiere conectar audio para escuchar. Los requisitos siguientes corresponden a las aulas Meeting.
 
 <!-- evidence: packages/zoom-runtime/video-runtime.ts -->
 <!-- evidence: config/vite/zoom-video-assets.mts -->
 
-Estado: preparación local, pendiente de publicación y prueba real. Actualizado: 2026-10-13.
+En el iframe nativo `soflia-zoom://`, Video SDK usa `Global` para cargar los
+recursos multimedia HTTPS de la misma versión del paquete instalado. Video SDK
+2.6 solo admite rutas HTTP(S) propias; una ruta con el esquema nativo activa su
+fallback legado y puede dejar el ingreso pendiente por incompatibilidad. Las
+pruebas web HTTP(S) conservan los assets locales. La CSP del iframe permite las
+conexiones a `https://zoom.us` y `https://zoom.com`, además de sus subdominios:
+el SDK consulta `https://zoom.us/wc/lsdk` durante su inicialización. Referencias:
+[assets del cliente](https://marketplacefront.zoom.us/sdk/custom/web/modules/ZoomVideo.VideoClient.html)
+y [CSP de Video SDK](https://developers.zoom.us/docs/video-sdk/web/browser-support/).
+Ejecutar `npm run zoom:build:prepared` tras preparar las dependencias y antes de
+probar el aula en desarrollo; `npm run dev` no genera `dist/zoom-runtime`.
+
+En Video SDK, la barra inferior del instructor controla micrófono, cámara,
+pantalla y salida del aula. El monitor de «Tu transmisión» muestra la cámara
+dentro de la escena y, en vista combinada con contenido preparado, la superpone.
+Cambiar de vista conserva la conexión. El encabezado indica el estado de
+grabación confirmado por el SDK.
+
+Si el inicio automático no confirma grabación a los siete segundos, el anfitrión
+intenta iniciarla mediante Video SDK cuando el grant la requiere y Zoom confirma
+su capacidad. Ocho segundos después se comprueba el resultado. La ausencia de
+confirmación conserva el aviso de error; no se muestra una grabación supuesta.
+
+Estado: backend publicado y ensayo del instructor con medios sintéticos aprobado;
+integración visual aplicada al Hub de desarrollo. Actualizado: 2026-11-10. Evidencia
+en [monitor integrado](../../openspec/changes/migrate-zoom-video-sdk/reports/instructor-monitor-2026-11-10.md).
 
 <!-- evidence: electron/main/zoom-protocol.ts -->
 <!-- evidence: packages/zoom-runtime/package-lock.json -->
 <!-- evidence: scripts/quality/smoke-zoom-runtime.mjs -->
 <!-- evidence: openspec/changes/implement-live-studio-runtime/tasks.md -->
 
-El backend vive en el repositorio SofLIA-Learning, rama `codex/live-studio-runtime`. Su migración es `supabase/migrations/20261012193000_live_studio_runtime.sql`; API, dominio, assets y firma están en `apps/web/src/features/live/studio*.ts` y `live-studio*.ts`. El checkout de esta sesión está en `C:/Users/FerSG/Desktop/Soflia/SofLIA-Learning/SofLIA-Learning`. No se aplicó SQL remoto ni se publicó Learning.
+El backend vive en el repositorio SofLIA-Learning. La migración inicial del estudio
+es `supabase/migrations/20261012193000_live_studio_runtime.sql`; API, dominio,
+assets y firma están en `apps/web/src/features/live/studio*.ts` y `live-studio*.ts`.
+La activación actual de Video SDK y el importador está publicada en `main` de
+Learning. Los pasos siguientes conservan la preparación y diagnóstico de Meeting.
 
 ## Prueba local de ambos paneles
 
@@ -33,6 +62,34 @@ Un 404 con «Sesión no encontrada» procede del handler y revoca el aula/grant 
 No se requieren credenciales SDK por instructor mientras las reuniones pertenezcan a la cuenta Zoom maestra. La firma con rol anfitrión requiere ZAK; una cuenta sin permiso/licencia de webinar no adquiere esa licencia al configurar el SDK. Referencia oficial: [autenticación Meeting SDK](https://developers.zoom.us/docs/meeting-sdk/auth/).
 
 ## Diagnóstico del aviso de configuración audiovisual
+
+Al pulsar **Conectar sesión**, el Hub distingue un fallo de comunicación, una
+respuesta que no pudo validar, un fallo al comprobar la identidad y el
+vencimiento del plazo de 25 segundos. Para estos fallos y las respuestas 5xx,
+el proceso main registra `learning-studio` con la fase y, si está disponible,
+el estado HTTP. El registro no incluye el cuerpo de la respuesta ni credenciales.
+
+El registro de Learning «Live dependency failure» indica un rechazo controlado
+de una dependencia. El `503` por sí solo no identifica cuál. Para el ingreso
+audiovisual, Hub traduce motivos conocidos del cuerpo HTTP en instrucciones
+seguras sobre grabación, cuenta anfitriona o disponibilidad de los datos del
+estudio. Si Learning devuelve un motivo desconocido, se mantiene el aviso genérico.
+
+En **Conectar sesión**, Hub muestra el aviso de grabación automática al
+instructor. El aviso explica qué contenido puede grabarse, que el archivo se
+mantiene privado y quién puede ver la repetición si se publica en Learning.
+**Aceptar y conectar** envía la versión vigente del aviso en la
+petición autenticada. **Cancelar** cierra el aviso sin solicitar acceso
+audiovisual. Cada intento requiere una aceptación nueva.
+
+Publicar el Hub con el aviso antes de actualizar Learning. El Hub envía la
+aceptación por cabecera y conserva el JSON que aceptan las versiones anteriores.
+En versiones anteriores de Learning, el control administrativo puede seguir
+bloqueando el ingreso. Learning actualizado exige la aceptación para emitir el
+acceso de anfitrión y mantiene la autorización y las comprobaciones técnicas.
+En Meeting, la aceptación sustituye la aprobación global para este ingreso. Las
+aulas Video conservan su aprobación de cuenta porque pueden empezar al entrar
+el primer participante.
 
 El mensaje «Falta configurar Meeting SDK en Learning» es una respuesta del
 servidor a la operación `zoom` de `POST /api/auth/live/studio`. Hub no lo genera
@@ -68,34 +125,113 @@ completar su configuración administrativa; no se declara corregido el ingreso.
 
 `live_studio_purge`, invocado por el job existente de retención, limpia ledger después de siete días y estado de sesiones cerradas al superar la retención de organización (30 días por defecto). El job reclama hasta 100 archivos por ejecución, borra bytes mediante Storage API y confirma su ledger. Archivos retirados o subidas sin publicar tienen 24 horas de gracia; material de sesiones cerradas sigue la retención de organización. El bloqueo de sesión y el estado purging impiden publicar un archivo reclamado. Si Storage falla se conserva la reclamación para reintento. Programar y verificar el job en staging antes del rollout general.
 
-Quedan por implementar publicación automática desde Engine y correlación/traslado
-de salas audiovisuales. La salida continua permite transiciones y pantallas del
-curso sobre una pista; no incluye mezcla de audio ni cámara de la llamada en el
-programa. La UI identifica salas académicas y medios locales. SofLIA automática
-permanece deshabilitada.
+Engine permite entregar láminas y prácticas aprobadas a una sesión programada de Learning mediante el endpoint firmado. Video SDK sincroniza salas académicas y audiovisuales por identidad firmada. La salida continua incorpora audio opcional de videos, cámara local y rótulo; no extrae la cámara ni el audio interno de la llamada. La activación requiere versiones compatibles y piloto. SofLIA automática en el grupo permanece deshabilitada; la tutora individual conserva política y consentimiento.
 
-## Uso de transiciones y programa
-1. Prepara escenas o usa Espera, Inicio del curso, Receso y Cierre del curso.
-   Nueva escena permite personalizar una pantalla de curso y su reloj opcional.
-2. Con una escena seleccionada, pulsa Preparar salida continua. Esto no inicia
-   la llamada. Si compartías una pantalla directamente, detenla primero.
-3. Entra a la llamada y pulsa su control oficial Compartir. Recibe la salida
-   continua del curso. Los paneles y chats del Hub no forman parte de esa fuente.
-4. Selecciona la siguiente escena, elige corte/fundido/barrido y duración, y pulsa
-   Pasar a salida. La pista compartida se conserva; el monitor muestra el programa.
-   Para mostrar una imagen o pantalla entre escenas, elige Imagen o pantalla y
-   selecciona Contenido intermedio del banco. Añadir visual permite importar una
-   imagen local (PNG/JPG/WebP/GIF/AVIF, hasta 25 MB), vincular una pantalla o crear
-   una lámina; queda elegida automáticamente. Configura el intervalo de 0,5 a
-   10 segundos y prepara un destino diferente antes de pulsar Pasar a salida.
-   Para dejar la imagen o pantalla en espera sin límite, selecciónala en el banco
-   y pásala con corte, fundido o barrido. Cambia el contenido intermedio antes de
-   quitar su escena; no se permiten videos como intermedio.
-5. Un receso no silencia audio ni apaga cámara. El reloj permanece en cero hasta
-   cambiar manualmente. Cerrar salida detiene compartir y permite volver al modo
-   directo; para cambiar un vínculo de pantalla hay que cerrar la salida primero.
+## Uso de escenas y salida
+### Aula del participante
+Los separadores entre paneles permiten cambiar el ancho del chat y repartir la
+altura entre transmisión y actividades. Arrastra la línea del medio o enfócala
+con Tab y usa las flechas; Home/End llevan a sus límites. Doble clic o Enter
+restauran la distribución inicial. Escape cancela un arrastre en curso. El ajuste
+no desconecta la transmisión ni cierra actividades, y se conserva durante la
+apertura del aula. Al reducir la ventana se acota al espacio disponible. En la
+vista móvil se conserva la navegación Clase/Conversaciones y el ajuste de altura;
+el separador de ancho se oculta al mostrar un solo panel.
 
-La preparación es local al estudio y no persiste al salir. No se publica nada
+El ingreso no activa micrófono ni cámara. El participante conecta desde el icono
+sobre el video, visible al pasar el cursor o enfocar sus controles con el teclado.
+En equipos táctiles los iconos permanecen accesibles. No hay botón de ingreso en
+el encabezado ni franja fija bajo la transmisión. La barra de participación queda
+superpuesta sobre actividades: su asa permite arrastrar o contraer con un clic;
+con foco en el asa, las flechas la mueven y Escape la contrae. Contraer no apaga
+dispositivos ni abandona la llamada. La posición se limita al área de clase, se
+ajusta al redimensionar y se conserva solo mientras el aula sigue abierta.
+El margen final desplazable
+permite llegar a los botones inferiores. Si el SDK no permite un control, debe utilizar los controles
+oficiales indicados por el aviso. CC depende de la configuración real de Zoom;
+el botón no habilita transcripción para toda la sesión ni crea una grabación.
+Fullscreen requiere una acción del usuario y puede ser rechazado por su entorno.
+
+Durante una llamada Video SDK, Configurar audio muestra dispositivos reportados
+por Zoom y permite cambiar micrófono, salida y cámara. Si la fuente está apagada,
+la selección se aplicará al activarla; no solicita captura por seleccionar una
+opción. Si el equipo se retira o Zoom rechaza el cambio se conserva la selección
+anterior. Meeting mantiene la configuración oficial; antes de entrar se conserva
+la prueba local de dispositivos.
+
+El chat muestra «Chat en vivo» solo después del evento de suscripción. Ante una
+desconexión, Reconectar chat recupera estado, suscripción y presencia. Reintentar
+la primera carga usa el mismo flujo. Los mensajes solo desaparecen del editor
+tras confirmación y si no se ha escrito un nuevo borrador durante el envío.
+
+En Moderar chat, el instructor ajusta «Espera entre mensajes de participantes» y
+pulsa Aplicar: 0 desactiva la espera y 300 es el máximo en segundos. El alumno ve
+la cuenta regresiva sin perder el borrador. La regla es por usuario y sesión,
+incluye preguntas y solicitud de palabra enviada como mensaje, y no limita al
+instructor. Cambiar sala, recargar o salir del historial no borra la marca.
+
+Las reacciones usan un comando propio, seis emojis permitidos, un segundo entre
+reacciones y cinco segundos en pantalla. Respetan Permitir reacciones y bloqueo
+de acceso; el modo lectura del chat no las deshabilita. No incrementan mensajes
+ni estadísticas. Los eventos solo se proyectan a la sala actual del observador.
+
+Este cambio requiere la migración Learning
+`20261024180000_live_studio_participation.sql`, preparada y probada localmente.
+No se aplicó en remoto. Publicar migración y API de Learning antes del Hub nuevo.
+El nuevo HTTP negocia por cabecera `X-Soflia-Studio-Participation: 1`, sin añadir
+campos al JSON de la API anterior; sin negociación Learning quita
+los campos nuevos para conservar los esquemas estrictos de Hub anteriores. Los
+estados antiguos se leen con valores iniciales. El servidor verifica y fecha la
+cadencia bajo el mismo bloqueo/CAS de sesión y devuelve 429 sin reintento automático.
+El ledger de participación se poda tras cinco minutos al procesar comandos;
+no se incluye el ledger ajeno en snapshots, tampoco para instructores.
+
+Actividades abre una zona de trabajo dentro del aula; conserva borradores ante
+fallos y recupera la entrega guardada al regresar. Materiales abre los enlaces
+firmados disponibles. Salas muestra solo asignaciones propias y el principal;
+el cambio académico aún no mueve el audio/video. La solicitud de palabra se comunica como mensaje confirmado. Las reacciones son eventos separados, se muestran cinco segundos sobre el video y no aparecen en el chat.
+
+Soflia individual requiere IA habilitada y consentimiento vigente en Learning,
+además de IA configurada en Hub. Un error de política no envía el contenido al
+proveedor. No hay activación automática de Soflia en el grupo.
+
+La fixture localhost:4321 ahora incluye escena, práctica, quiz, sala y mensaje
+ficticios identificados como ejemplos. Permite ejercitar chat por SSE, entregas,
+quiz y presencia entre las dos identidades; no configura Zoom ni autoriza IA.
+El ejemplo arranca con cinco segundos entre mensajes para revisar la cuenta
+regresiva; el instructor puede cambiarlo desde Moderar chat.
+Con esa fixture encendida, `node test/manual/live-studio-runtime/smoke.mjs`
+comprueba SSE, chat bidireccional, deduplicación, moderación, sala asignada,
+entrega, quiz y lectura de un material subido. Restaura moderación/quiz y retira
+el material; mensajes, respuestas y entrega de prueba permanecen hasta reiniciar
+el servidor. Solo acepta el destino fijo localhost:4321 y no usa credenciales.
+
+### Producción del instructor
+El instructor puede arrastrar las divisiones laterales para ampliar chat,
+transmisión o actividades, y la división sobre Escenas para repartir su altura
+con la vista previa. Se aplican los mismos controles de teclado y restauración.
+Son preferencias visuales locales en memoria; no cambian la composición enviada
+al grupo ni reinician cámara, audio, iframe o programa continuo.
+
+1. Añade contenido con + en el dock Escenas. Nueva escena conserva láminas,
+   archivos, fuentes autorizadas y pantallas del curso con reloj opcional.
+2. Selecciona una fila y pulsa Activar salida junto a los modos de vista previa.
+   No inicia la llamada ni comparte sin consentimiento. Si compartías una fuente
+   directa, detén esa captura primero.
+3. Entra a la llamada y pulsa su control oficial Compartir para emitir la salida
+   continua. Chats y paneles del Hub no forman parte de esa fuente.
+4. Con la salida activa, pulsa otra escena: cambia directamente mediante corte
+   y conserva la pista compartida. Si la fuente falla permanece la anterior.
+5. Cerrar salida vuelve a la vista local. No silencia el micrófono ni apaga la
+   cámara. El vínculo de pantalla se puede cambiar después de cerrar la salida.
+
+El estudio usa un único monitor y un dock compacto de Escenas a todo el ancho. Los controles de medios están en la barra inferior. La
+lista de cuatro escenas queda visible a 1280×720; listas más largas se desplazan
+dentro de su dock. No se muestran controles de transiciones, segundo monitor ni
+avisos de pantalla preparada. Los modos pantalla/cámara/combinada son locales;
+se deshabilitan cuando el monitor muestra el programa continuo.
+
+La preparación local se recupera por usuario y sesión desde IndexedDB; permisos de pantalla y URLs firmadas no se persisten. No se publica nada
 en Learning por seleccionar una pantalla. `node scripts/quality/smoke-studio-program.mjs`
 comprueba composición, transporte local, captura del programa, pista estable y
 aislamiento sin credenciales ni una reunión real. El ensayo de dos cuentas sigue
@@ -106,3 +242,24 @@ El tipo de dato limita 500 presencias; no hay evidencia de carga para esa capaci
 Rollback operativo: volver al Hub anterior y retirar la ruta studio del despliegue Learning, conservando tablas/bucket para recuperación. No ejecutar DROP ni purgar Storage como rollback. Para volver a activar, restaurar endpoint y cliente compatibles con la misma versión de contrato.
 
 La autorización humana es necesaria antes de aplicar migración remota o modificar permisos/secretos de producción. Ningún archivo local `.env` ni secreto se modificó en esta fase.
+
+
+## Entrada con API anterior de Learning
+El envío de participation_version dentro del cuerpo fue una regresión: las APIs
+anteriores usan un esquema estricto y rechazan campos desconocidos antes de cargar
+el aula. Hub ahora conserva organization_slug/session_id/operation en el JSON y
+negocia solo mediante la cabecera X-Soflia-Studio-Participation. La API anterior
+ignora la cabecera y conserva el acceso normal. Learning nuevo confirma capacidad
+en el snapshot; sin ella no se ofrecen los comandos de participación nuevos.
+No se cambian validaciones de identidad o membresía ni se reintenta un 403 con
+otro formato o rol. Este arreglo del Hub no requiere desplegar el backend nuevo
+para volver a entrar al aula anterior. Reiniciar la aplicación si su proceso main
+no está observando cambios; solo recargar el renderer no actualiza el HTTP main.
+
+## Continuación coordinada del 3 de noviembre de 2026
+
+Aplicar también la migración revisada 20261103120000_live_studio_participation.sql de Learning, después de las de estudio/Video. Publicar su endpoint interno firmado de preparación antes de habilitar la entrega de Engine. Usar los sincronizadores de ambos consumidores con LEARNING_CHECKOUT y --check. El contrato conserva negociación legacy de participación. No se aplicó SQL remoto en esta continuación.
+
+En la salida activa, Añadir cámara al programa solicita una captura local; Quitar cámara la libera. Rótulo en pantalla modifica solo el canvas. Activar audio de videos prepara una pista aislada para Video SDK: hacerlo antes de pulsar Compartir. Al cambiar escena se conserva esa pista y al silenciar el programa su ganancia queda en cero. No se solicita audio del sistema ni se agregan permisos IPC.
+
+Los controles de transición históricos fueron retirados de la interfaz compacta: la selección de escena realiza un corte y conserva la salida continua. No es necesario restaurar esa interfaz para usar composición.

@@ -1,7 +1,7 @@
 import { ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
 import { z } from 'zod';
 import { getProjectHubApiService, type ProjectHubApiService, type ProjectHubOperationAuthorization } from './project-hub';
-import { nativeConfirmation, trustedAppCaller } from './ipc/caller-authorization';
+import { AppCallerSessionError, nativeConfirmation, trustedAppCaller } from './ipc/caller-authorization';
 import { projectHubInputs, projectHubSnapshot } from '../src/shared/project-hub';
 import { projectHubMutationReview, projectHubReviewTarget } from './project-hub/ipc-review';
 import { createLogger } from './utils/logger';
@@ -9,12 +9,16 @@ import { withCorrelation } from './utils/correlation';
 import { registerProjectHubUploadHandlers } from './project-hub/upload-handlers';
 import { registerProjectHubDownloadHandlers } from './project-hub/download-handlers';
 import { ProjectFileOperations } from './project-hub/file-operations';
+import { registerProjectCreationHandlers } from './project-hub/creation-handlers';
+import type { CalendarService } from './calendar-service';
+import { isExplicitBrowserBookmark } from './project-hub/browser-bookmark';
 
 const log = createLogger('project-hub-ipc');
 
 export function registerProjectHubHandlers(
   service: ProjectHubApiService = getProjectHubApiService(),
   getWindow?: () => BrowserWindow | null,
+  calendar?: CalendarService,
 ): void {
   const windows = () => [getWindow?.() ?? null];
   const confirm = nativeConfirmation('Confirmar cambio en Project Hub');
@@ -32,7 +36,8 @@ export function registerProjectHubHandlers(
           input = schema.parse(empty ? undefined : projectHubSnapshot(args[0]));
         } catch { return { success: false, code: 'INVALID_PAYLOAD', error: 'Solicitud Project Hub inválida o excesiva.' }; }
         const authorization: ProjectHubOperationAuthorization = { userId: caller.userId, assertCurrent: caller.assert, signal: caller.signal };
-        if (label) {
+        const explicitBookmark = channel === 'project-hub:add-evidence' && isExplicitBrowserBookmark(input);
+        if (label && !explicitBookmark) {
           const target = await projectHubReviewTarget(service, input, authorization); caller.assert();
           const detail = projectHubMutationReview(label, caller.userId, input, target);
           if (!await confirm(caller.parent, detail, caller.assert, caller.signal)) {
@@ -47,9 +52,16 @@ export function registerProjectHubHandlers(
           return { ...result, uncertain: true, recoveryRequired: true };
         }
         return result;
-      } catch {
+      } catch (error) {
+        if (!label && error instanceof AppCallerSessionError) {
+          return { success: false, code: error.code, error: error.code === 'SOFIA_SESSION_PENDING'
+            ? 'Esperando la verificación de la sesión SOFIA.'
+            : 'La sesión cambió mientras se consultaba Project Hub.' };
+        }
         log.warn({ channel }, 'Solicitud Project Hub rechazada o sin resultado verificable.');
-        return { success: false, code: 'IPC_DENIED', error: 'No se pudo completar la operación. Revisa la sesión y la confirmación.',
+        return { success: false, code: 'IPC_DENIED', error: label
+          ? 'No se pudo completar la operación. Revisa la sesión y la confirmación.'
+          : 'No se pudo consultar Project Hub desde esta ventana.',
           ...(invoked && label ? { uncertain: true, recoveryRequired: true } : {}) };
       } finally { caller?.dispose(); }
     }));
@@ -102,4 +114,5 @@ export function registerProjectHubHandlers(
   const files = new ProjectFileOperations();
   registerProjectHubUploadHandlers(service, windows, confirm, files);
   registerProjectHubDownloadHandlers(service, windows, confirm, files);
+  registerProjectCreationHandlers(service, windows, calendar);
 }

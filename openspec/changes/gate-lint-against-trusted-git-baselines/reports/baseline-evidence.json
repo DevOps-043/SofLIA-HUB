@@ -1,0 +1,30 @@
+{
+  "reproduction": {
+    "root": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-lint-gate-2026-10-24\\baseline-reproduction-A7JnLg",
+    "base": "785b50c49f02575179d292c1ff51fe46401b2387",
+    "committed": {
+      "status": 0,
+      "stdout": "Lint incremental: 1 archivos revisados sin deuda nueva.\n",
+      "stderr": ""
+    },
+    "untrackedJavaScript": {
+      "status": 0,
+      "stdout": "Lint incremental: no hay archivos TypeScript modificados.\n",
+      "stderr": ""
+    }
+  },
+  "initialCLISuite": {
+    "passed": 5,
+    "failed": 13
+  },
+  "nestedConfig": {
+    "before": "Falso verde con export default [] anidado",
+    "after": "Rechazo bajo configuración canónica"
+  },
+  "directedSuite": {
+    "passed": 26,
+    "failed": 0,
+    "skipped": 0
+  },
+  "globalTechnicalDebtRecalculated": false
+}

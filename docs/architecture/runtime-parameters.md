@@ -1,9 +1,11 @@
 # Parametros runtime
 
-Estado: vigente. Actualizado: 2026-10-22.
+Estado: vigente. Actualizado: 2026-10-30.
 
 Inventario de defaults y topes con impacto operativo. Los overrides guardados en
 `userData` pueden cambiar el valor efectivo de un host.
+
+El chat flotante contextual lee al enviar: 12000 caracteres de texto renderer, recorrido de hasta 8000 nodos de texto, sin campos editables, panel ni regiones privadas. Navegador: 8000 ms por preparación, 16000 caracteres de DOM y hasta 60 nombres/refs de controles (200 caracteres por nombre), una captura de imagen de hasta 8 MiB si está disponible. No añade polling. El dock mide 460 px como máximo de ancho y se adapta al contenedor; vacío muestra sólo cabecera y compositor, con respuestas ocupa hasta 520 px o 70vh. El selector abierto sin historial ocupa hasta 360 px. En el navegador acota su altura para conservar un área web operable de al menos 120 px. Fuentes: `src/services/floating-chat-context.ts`, `src/components/browser/BrowserFloatingWorkspace.tsx` y [diseño](../../openspec/changes/floating-soflia-chat/design.md).
 
 <!-- evidence: electron/desktop-agent/agent-config.ts -->
 <!-- evidence: electron/memory/constants.ts -->
@@ -57,6 +59,27 @@ evidencia medida en el host de referencia.
 
 ## Aplicacion e IPC
 
+### Communication Hub
+
+Los límites del contrato IPC son fijos, definidos en
+[COMMUNICATION_IPC_LIMITS](../../src/shared/communication-hub-ipc.ts); no son
+preferencias guardadas en userData.
+
+| Parámetro | Tope |
+| --- | ---: |
+| Solicitud / respuesta JSON | 128 / 256 KiB |
+| Texto de mensaje | 16384 caracteres |
+| Listas e inventario publicado | 100 entradas |
+| Operaciones pendientes físicas | 8 |
+| Señal deadline de operación | 180 segundos |
+| Aprobación nativa | 120 segundos |
+| Polling Telegram configurable | 2000–60000 ms |
+| Límite diario configurable de política | 1–10000 |
+
+La señal se entrega al SDK y se revalida antes/después de las esperas. Una
+dependencia que nunca concluye puede mantener una plaza; el timeout no fabrica
+terminación física. [Autoridad y límites](../security/security-and-privacy.md#communication-hub).
+
 El chat ejecuta hasta diez tandas de herramientas, o veinte con workspace,
 seguidas de una respuesta final sin herramientas. El cierre no aumenta el
 presupuesto de efectos y no ejecuta llamadas adicionales. Las aprobaciones
@@ -79,6 +102,9 @@ del coordinador ni constituyen un límite monetario. Ver
 | notas de release | 8000 caracteres | `src/components/update-notes/SafeReleaseNotes.tsx` |
 | updater polling | 4 h | `electron/updater/constants.ts` |
 | espera del guardado de sesión antes de salir/instalar | 5000 ms por espera; timeout ofrece reintentar/cancelar/salir sin guardar, nunca concede salida por sí solo | `electron/main/shutdown-guard.ts` |
+| espera de publicación de auth antes del estado de proyectos | 10.000 ms; devuelve sesión pendiente al agotarse, sin ampliar permisos | `src/services/auth-state.ts` |
+| recuperación automática de proyectos | 3 reintentos, tras 300 / 1000 / 3000 ms desde el fallo anterior; manual reinicia el presupuesto | `src/components/sidebar/UnifiedProjectsSection.tsx` |
+| recuperación inicial de conversaciones | 2 intentos tras 500 / 2000 ms, sin solapamiento; después conserva reintento manual | `src/app/ChatUnavailableState.tsx` |
 
 ## Navegador integrado
 
@@ -187,7 +213,8 @@ solo entonces excluye un medio declarándolo.
 | adjuntos de medio por turno | máximo 4; duración combinada máxima 600 s | `src/shared/multimodal-input.ts` |
 | umbral de subida remota | > 15 MB se sube por Files API; por debajo viaja incrustado; las imágenes siempre incrustadas | `src/shared/multimodal-input.ts`, `src/services/media-attachments.ts` |
 | tope de subida al proveedor | 2 GB | `src/shared/multimodal-input.ts` |
-| espera de procesamiento del archivo | sondeo cada 1.500 ms, límite 120.000 ms | `electron/media-input/service.ts` |
+| subidas físicas simultáneas | máximo 4 por instancia main; sesión revocada conserva plazas hasta terminar I/O | `electron/media-input/service.ts` |
+| espera de procesamiento del archivo | sondeo cada 1.500 ms, plazo 120.000 ms comprobado entre llamadas; no interrumpe I/O pendiente del SDK | mismo archivo |
 | retención del archivo remoto | 48 h (o `expirationTime` del proveedor); referencia caducada no se reutiliza | mismo archivo |
 | escucha ambiental | máximo 60 s; WAV mono 16 kHz; sin persistencia en disco | `src/shared/multimodal-input.ts`, `src/services/ambient-audio-service.ts` |
 | interruptores de reversión | `VITE_MULTIMODAL_BROWSER_VISION`, `VITE_MULTIMODAL_MEDIA_ATTACHMENTS`, `VITE_MULTIMODAL_AMBIENT_AUDIO`; activas salvo valor `false` | `src/shared/multimodal-input.ts` |
@@ -234,9 +261,11 @@ solo entonces excluye un medio declarándolo.
 |---|---|---|
 | pasos | `maxSteps=120`, `defaultStepBudget=60`, mínimo integrado `90`, `maxTotalSteps=500` | `electron/desktop-agent/agent-config.ts`, `electron/desktop-agent/task-budget.ts` |
 | recuperación de cierre prematuro CU | máximo 2 por loop; cada recuperación consume un paso del presupuesto original y exige `canContinue: true` del verificador | `electron/desktop-agent/gemini-cu/loop.ts`, `electron/desktop-agent/gemini-cu/client.ts` |
+| conversación Gemini en main | 4 turnos y 4 llamadas físicas, 40 s por llamada, 20 min de inactividad y 64 intentos por turno | `src/shared/native-gemini-conversation.ts` |
+| datos de conversación Gemini | apertura 2 MiB, mensaje e historial 96 MiB cada uno, respuesta 16 MiB, JSON de hasta 60.000 nodos | `electron/gemini-conversation/contract.ts`, `electron/gemini-conversation/service.ts` |
 | reintentos por llamada mal formada (chat) | 2: reemitir, luego responder sin herramientas | `src/services/gemini-chat/agentic-loop.ts` |
 | modelo conversacional/CU | `gemini-3.8-flash`, sin degradación de modelo | `src/shared/soflia-runtime-model.ts`, `electron/desktop-agent/gemini-cu/model-registry.ts` |
-| selector conversacional | SofLIA: OpenAI `gpt-6-luna` (predeterminado); Max: OpenAI `gpt-6.1-sol` (3 usos/mes, fallback a SofLIA); Pro: Google `gemini-3.8-flash`; elección y razonamiento persistidos por modelo | `src/hooks/model-selector-options.ts`, `src/hooks/useModelSelector.ts`, `src/services/model-routing.ts` |
+| selector conversacional | SofLIA (`gpt-6-luna`, predeterminado), SofLIA Max (`gpt-6.1-sol`, 3 usos/mes con fallback a SofLIA) y SofLIA Pro (`gpt-6.1-terra`). Preferencias persistidas por modelo, preferencias Gemini anteriores migradas a SofLIA | `src/hooks/model-selector-options.ts`, `src/hooks/useModelSelector.ts`, `src/services/model-routing.ts` |
 | razonamiento Gemini / OpenAI | `low/medium/high` / `low/medium/high/xhigh/max`; `minimal` y `none` heredados migran a `low` | `src/services/gemini-chat/model-config.ts`, `src/services/openai-chat/reasoning.ts` |
 | captura | 1024x768, active monitor, max edge 1568, min scale .5 | mismo archivo |
 | timing | action 300 ms, change 8 s/500 ms, observation 2 s, queue 60 s | mismo archivo |
@@ -589,3 +618,56 @@ Rechaza DTD/ZIP64/multidisco y coordenadas/spans excesivos. El constructor aplic
 las cuotas del DTO durante conversión y tras redacción, contando UTF-16. Fuentes:
 `python/tools_sidecar/office_preflight.py` y `document_budget.py`. Son presupuestos
 de admisión/trabajo; permanecen estructuras de terceros y riesgos del SO.
+
+## Nodos remotos: IPC y transporte saliente
+
+Entradas IPC hasta 128 KiB UTF-8, dos argumentos y objetos planos de hasta 16
+propiedades; rechazar getters, símbolos y estructuras anidadas antes del schema.
+ID de nodo hasta 48 caracteres, sesión hasta 256, nombre hasta 160, token hasta
+4096, ruta/URL hasta 4096, comando/tarea hasta 20000 y max_steps entero 1–1000.
+Puertos enteros 1–65535; interfaces IP/hostname válidas. URLs HTTP(S) sin
+credenciales/query/fragmento; la red privada es parte intencional del
+emparejamiento revisado, sin promesa de aislamiento SSRF global.
+
+Aprobación nativa hasta 120 s y un diálogo pendiente, reutilizando la guarda
+común. HTTP saliente hasta 60 s; la ruta síncrona de tarea de escritorio admite
+hasta 15 minutos. Respuesta hasta 20 MiB, incluyendo lectura
+incremental aunque Content-Length falte o mienta; sin redirecciones ni retries.
+La configuración invalida revisiones/señales; salud/metadata no cambia autoridad.
+Estos límites no acreditan seguridad completa del nodo.
+Fuentes: `src/shared/remote-node-input.ts`, `electron/remote-node/http-response.ts`,
+`node-client.ts`, `operation-context.ts`, `service.ts` y `host-server.ts`.
+
+La [custodia de nodos](../security/remote-node-custody.md) admite archivos de
+hasta 4 MiB, 256 nodos por propietario y hasta 4096 registros preservados del
+legado. Host nuevo apagado, archivo cifrado versionado y sin fallback plano.
+HTTP entrante: cuerpo hasta 128 KiB y lectura 15 s, headers/request 10/15 s,
+keepalive 1 s, ocho conexiones, 32 headers y 32 peticiones por socket.
+Fuentes: `electron/remote-node/state-contract.ts`, `host-utils.ts`, `host-server.ts`.
+
+## Investigación con fuentes
+
+Solicitud hasta 320000 bytes UTF-8, JSON de hasta 12 niveles/20000 nodos,
+1000 elementos por array y 200 claves por objeto. Clave hasta 512 caracteres
+ASCII visibles (mínimo 20 en main), modelo hasta 128. Herramientas cerradas
+google_search/url_context y code_execution según política local existente.
+Plazo 150 s por intento, respuesta hasta 8 MiB, sin redirects, cuatro transportes
+físicos por proceso y uno por emisor nativo; sin cola ni liberación prematura
+al abandonar la espera. Intentos alternativos de proveedor pueden prolongar
+el turno; no hay un plazo global acreditado. Fuente y límites:
+[generación con fuentes](../security/grounded-generation.md).
+
+## Autorización OAuth del calendario
+
+Listener IPv4 127.0.0.1:8234, GET /callback; URI registrada localhost, Host
+localhost o 127.0.0.1 con puerto exacto. Intento hasta 300 s desde listening,
+bind hasta 5 s, headers/request hasta 5 s, keepalive 1 s; inspección de conexiones
+cada segundo. Hasta 4 conexiones, 32 headers y 10 peticiones por socket; headers
+HTTP hasta 8192 bytes. URL entrante/saliente hasta 16384 caracteres y callback
+hasta 32 parámetros; el límite del parser HTTP también puede rechazar antes.
+State/verificador/desafío de 43 caracteres base64url; código ASCII visible de
+1–8192 caracteres, sin URL ni controles; client_id de 1–4096. El resultado espera
+al cierre del listener y la fachada destruye la ventana. Son límites locales,
+no garantías duras del SO ni plazo global del proveedor. Fuentes:
+`electron/calendar/oauth-proof.ts`, `oauth-receiver.ts` y `oauth-window.ts`.
+[Contrato OAuth](../security/calendar-oauth.md).

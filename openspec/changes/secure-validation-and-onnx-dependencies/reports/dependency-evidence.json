@@ -1,0 +1,109 @@
+{
+  "changes": [
+    {
+      "path": "node_modules/adm-zip",
+      "before": "0.5.18",
+      "after": "0.6.1",
+      "hook": false,
+      "resolved": "https://registry.npmjs.org/adm-zip/-/adm-zip-0.6.1.tgz",
+      "installed": "0.6.1",
+      "integrity": "sha512-Xwrja8nx9e5o2N1my4DsKCeKpdrnACyr1wtbPxBDgGzKzKyE9kRtBFA8mWldI+RVlD7CBZNWY/wQ2+ydwOR6kQ=="
+    },
+    {
+      "path": "node_modules/onnxruntime-common",
+      "before": "1.27.0",
+      "after": "1.30.0",
+      "hook": false,
+      "resolved": "https://registry.npmjs.org/onnxruntime-common/-/onnxruntime-common-1.30.0.tgz",
+      "installed": "1.30.0",
+      "integrity": "sha512-7fdVWjAID1dVhH/G8qK3APARunV4VkBFoCQAP7qp4Wkab0mrorvmc+sqiT+mKXOzDqdjN5j+/Z9nb4gzNPWcyA=="
+    },
+    {
+      "path": "node_modules/onnxruntime-node",
+      "before": "1.27.0",
+      "after": "1.30.0",
+      "hook": true,
+      "resolved": "https://registry.npmjs.org/onnxruntime-node/-/onnxruntime-node-1.30.0.tgz",
+      "installed": "1.30.0",
+      "integrity": "sha512-twhs1C2C/BFkz1yc5OY0KIU2GUq6DURO7hD4bx5Q2Qy3nAMJwRXW8xU3NVczE29VA9lolLOYepoD8fjTGOfIqw=="
+    },
+    {
+      "path": "node_modules/zod",
+      "before": "4.4.3",
+      "after": "4.6.7",
+      "hook": false,
+      "resolved": "https://registry.npmjs.org/zod/-/zod-4.6.7.tgz",
+      "installed": "4.6.7",
+      "integrity": "sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg=="
+    }
+  ],
+  "audits": {
+    "all": {
+      "before": {
+        "info": 0,
+        "low": 0,
+        "moderate": 8,
+        "high": 10,
+        "critical": 0,
+        "total": 18
+      },
+      "after": {
+        "info": 0,
+        "low": 0,
+        "moderate": 8,
+        "high": 8,
+        "critical": 0,
+        "total": 16
+      },
+      "removed": [
+        "adm-zip",
+        "onnxruntime-node"
+      ],
+      "added": [],
+      "remainingZodNodes": [
+        "node_modules/@jimp/plugin-resize/node_modules/zod",
+        "node_modules/@jimp/types/node_modules/zod"
+      ]
+    },
+    "-prod": {
+      "before": {
+        "info": 0,
+        "low": 0,
+        "moderate": 8,
+        "high": 10,
+        "critical": 0,
+        "total": 18
+      },
+      "after": {
+        "info": 0,
+        "low": 0,
+        "moderate": 8,
+        "high": 8,
+        "critical": 0,
+        "total": 16
+      },
+      "removed": [
+        "adm-zip",
+        "onnxruntime-node"
+      ],
+      "added": [],
+      "remainingZodNodes": [
+        "node_modules/@jimp/plugin-resize/node_modules/zod",
+        "node_modules/@jimp/types/node_modules/zod"
+      ]
+    }
+  },
+  "baseline": {
+    "zod": "4.4.3",
+    "onnx": "1.27.0",
+    "oversized": {
+      "length": 1000,
+      "success": false,
+      "childVisits": 1000,
+      "issues": 1
+    },
+    "onnxLoaded": true
+  },
+  "hooksExecuted": false,
+  "cudaDownloaded": false
+}

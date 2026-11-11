@@ -3,6 +3,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { InstructorStudio } from '../../components/learning-live/instructor/InstructorStudio';
 import { StudioClock } from '../../components/learning-live/instructor/StudioClock';
 import type { StudioExamples } from '../../components/learning-live/instructor/studio-types';
+import { StudioMediaContext, type StudioMediaRuntime } from '../../components/learning-live/instructor/StudioMediaContext';
 
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
@@ -16,6 +17,42 @@ const examples: StudioExamples = { participants: 10, resources: [], messages: [
 const openStudio = () => render(<InstructorStudio examples={examples} onBack={vi.fn()} onClose={vi.fn()} />);
 
 describe('diseño del estudio del instructor', () => {
+  it('integra la cámara y el estado de grabación sin remontar la llamada al cambiar de vista', () => {
+    const toggleZoomCamera = vi.fn();
+    const setCallView = vi.fn();
+    const media = {
+      programAudioAvailable: true, zoomConnected: true, zoomCamera: true,
+      zoomStage: <iframe title="Sesión audiovisual integrada" />,
+      callVisual: { cameras: true, remoteShare: false },
+      callControls: { camera: true, captions: false, captionsEnabled: false },
+      recordingStatus: 'Recording', toggleZoomCamera, setCallView,
+    } as unknown as StudioMediaRuntime;
+    const scene = { id: 'qa', kind: 'slide' as const, name: 'Lámina de prueba', title: 'Contenido preparado', description: '' };
+    render(<StudioMediaContext.Provider value={media}><InstructorStudio examples={{ ...examples, scenes: [scene] }} onBack={vi.fn()} onClose={vi.fn()} /></StudioMediaContext.Provider>);
+    const monitor = screen.getByRole('region', { name: 'Escenario seleccionado' });
+    const frame = within(monitor).getByTitle('Sesión audiovisual integrada');
+    expect(frame).toBeVisible();
+    expect(frame.parentElement).toHaveClass('is-overlay');
+    expect(within(monitor).getByText('Contenido preparado')).toBeVisible();
+    expect(screen.getByText('Grabación en curso')).toBeInTheDocument();
+    expect(document.querySelector('.studio-zoom-stage')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Ver solo pantalla' }));
+    expect(frame).not.toBeVisible();
+    expect(setCallView).toHaveBeenLastCalledWith('screen');
+    fireEvent.click(screen.getByRole('button', { name: 'Ver solo cámara' }));
+    expect(within(monitor).getByTitle('Sesión audiovisual integrada')).toBe(frame);
+    expect(frame).toBeVisible();
+    expect(frame.parentElement).not.toHaveClass('is-overlay');
+    fireEvent.click(screen.getByRole('button', { name: 'Apagar cámara' }));
+    expect(toggleZoomCamera).toHaveBeenCalledOnce();
+  });
+  it('ajusta ambos laterales y escenas sin perder mensaje ni lienzo',()=>{
+    openStudio();const canvas=screen.getByLabelText('Monitor de salida del curso');
+    fireEvent.change(screen.getByRole('textbox',{name:'Tu mensaje como instructor'}),{target:{value:'Preparando explicación'}});
+    const left=screen.getByRole('separator',{name:'Cambiar ancho del chat del instructor'}),right=screen.getByRole('separator',{name:'Cambiar ancho de actividades del instructor'}),scenes=screen.getByRole('separator',{name:'Cambiar altura de escenas y vista previa'});
+    fireEvent.keyDown(left,{key:'ArrowRight'});expect(left).toHaveAttribute('aria-valuenow','326');fireEvent.keyDown(right,{key:'ArrowLeft'});expect(right).toHaveAttribute('aria-valuenow','326');fireEvent.keyDown(scenes,{key:'ArrowUp'});expect(scenes).toHaveAttribute('aria-valuenow','160');
+    expect(screen.getByLabelText('Monitor de salida del curso')).toBe(canvas);expect(screen.getByRole('textbox',{name:'Tu mensaje como instructor'})).toHaveValue('Preparando explicación');
+  });
   it('restringe participantes por comando y conserva el envío del instructor con insignia', () => {
     openStudio();
     const message = screen.getByRole('textbox', { name: 'Tu mensaje como instructor' });

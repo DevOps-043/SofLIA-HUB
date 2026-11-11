@@ -1,9 +1,6 @@
 // Prepara Python privado sin tocar Python del sistema ni borrar el runtime anterior.
 const fs = require('node:fs');
-const https = require('node:https');
 const path = require('node:path');
-const { pipeline } = require('node:stream/promises');
-const { Transform } = require('node:stream');
 const { execFileSync } = require('node:child_process');
 const {
   PYTHON_VERSION, RELEASE, archiveSpec, sha256File, requirementsFingerprint, pythonExecutable,
@@ -13,31 +10,9 @@ const {
 const ROOT = path.resolve(__dirname, '..');
 const RUNTIME = path.join(ROOT, 'python-runtime');
 
-async function download(url, destination, redirects = 0) {
-  if (redirects > 5 || new URL(url).protocol !== 'https:') throw new Error('Redirección Python no permitida.');
-  const response = await new Promise((resolve, reject) => {
-    const request = https.get(url, resolve);
-    request.setTimeout(60000, () => request.destroy(new Error('Descarga Python sin respuesta.')));
-    request.on('error', reject);
-  });
-  if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-    response.resume();
-    return download(new URL(response.headers.location, url).href, destination, redirects + 1);
-  }
-  if (response.statusCode !== 200) {
-    response.resume();
-    throw new Error(`Descarga Python: HTTP ${response.statusCode}.`);
-  }
-  let received = 0;
-  const quota = new Transform({ transform(chunk, _encoding, done) {
-    received += chunk.length;
-    done(received > 512 * 1024 * 1024 ? new Error('El archivo Python supera 512 MiB.') : null, chunk);
-  } });
-  await pipeline(response, quota, fs.createWriteStream(destination, { flags: 'wx' }), { signal: AbortSignal.timeout(15 * 60 * 1000) });
-}
-
 async function main() {
   if (process.argv.slice(2).some(arg => arg !== '--force')) throw new Error('Uso: node scripts/setup-python-runtime.js [--force]');
+  const { download } = await import('./python-runtime-download.mjs');
   const spec = archiveSpec(process.platform, process.arch, process.env);
   const requirements = ['python/requirements.txt', 'python/tools_sidecar/requirements.txt'].map(file => path.join(ROOT, file));
     const requirementsSha256 = requirementsFingerprint(ROOT);

@@ -15,12 +15,13 @@ app.commandLine.appendSwitch('disable-component-update');
 const report = { status: 'running', electron: process.versions.electron, chromium: process.versions.chrome, phase, checks: [], limitations: [], metrics: [] };
 let server, window;
 const wait = () => new Promise(resolve => setTimeout(resolve, 200));
-const { applyBrowserTabZoom, browserDomPoint } = require(path.join(sandbox, 'compiled', 'integrated-browser', 'tab-zoom.js'));
+const { applyBrowserTabZoom, browserDomPoint, supportsIsolatedBrowserZoom } = require(path.join(sandbox, 'compiled', 'integrated-browser', 'tab-zoom.js'));
 const check = label => { report.checks.push(label); console.log('[Smoke] OK: ' + label); };
 void app.whenReady().then(async () => {
   server = http.createServer((_request, response) => {
     response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    response.end('<!doctype html><meta charset=utf-8><style>body{margin:0}button{position:absolute;left:40px;top:40px;width:100px;height:40px;background:red}</style><button onclick="window.clicks=(window.clicks||0)+1">Prueba</button>');
+    // Rectángulo de color determinista: el borde del control nativo no mide zoom.
+    response.end('<!doctype html><meta charset=utf-8><style>body{margin:0}button{position:absolute;left:40px;top:40px;width:100px;height:40px;background:red;border:0;padding:0}</style><button onclick="window.clicks=(window.clicks||0)+1">Prueba</button>');
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const origin = 'http://127.0.0.1:' + server.address().port;
@@ -33,6 +34,8 @@ void app.whenReady().then(async () => {
     await views[index].webContents.loadURL(origin + '/' + index);
   }
   const first = views[0].webContents, second = views[1].webContents;
+  assert.equal(supportsIsolatedBrowserZoom(first), true, 'El runtime Electron 44 debe ofrecer zoom aislado.');
+  report.zoomMode = 'isolated';
   // Crear superficie de composición sin una ventana visible ni tomar el foco.
   window.showInactive(); await wait();
   const metrics = contents => contents.executeJavaScript('({width:innerWidth,height:innerHeight,dpr:devicePixelRatio,scale:visualViewport.scale,clicks:window.clicks||0})');
@@ -43,7 +46,7 @@ void app.whenReady().then(async () => {
     const current = await metrics(first); report.metrics.push({ factor, ...current });
     assert.ok(Math.abs(current.width - Math.round(480 / factor)) <= 1);
     assert.deepEqual(await metrics(second), baseline);
-    assert.equal(first.getZoomFactor(), 1); assert.equal(second.getZoomFactor(), 1);
+    assert.equal(first.getZoomFactor(), factor); assert.equal(second.getZoomFactor(), 1);
     check('viewport independiente a factor ' + factor);
     let capture;
     for (let attempt = 0; attempt < 30 && !capture; attempt++) {
@@ -89,7 +92,7 @@ void app.whenReady().then(async () => {
   first.focus();
   first.sendInputEvent({ type: 'mouseWheel', x: 200, y: 200, deltaX: 0, deltaY: 120, wheelTicksX: 0, wheelTicksY: 1, canScroll: true, modifiers: ['control'] });
   assert.equal(await Promise.race([wheel, timeout()]), 'in');
-  await wait(); assert.equal(first.getZoomFactor(), 1);
+  await wait(); assert.equal(first.getZoomFactor(), 2);
   check('Ctrl+rueda emite zoom-changed sin zoom nativo duplicado');
   const { resolveBrowserShortcut } = require(path.join(sandbox, 'src', 'shared', 'browser-keyboard-shortcuts.js'));
   const keyed = new Promise(resolve => first.on('before-input-event', (event, input) => {
@@ -102,7 +105,7 @@ void app.whenReady().then(async () => {
   assert.equal(await Promise.race([keyed, timeout()]), 'find');
   check('Ctrl+F pulsado en la página llega a main y se resuelve con la tabla compartida');
   const pdf = await first.printToPDF({ printBackground: true }); assert.equal(pdf.subarray(0, 5).toString(), '%PDF-');
-  check('impresión PDF disponible con zoom emulado');
+  check('impresión PDF disponible con zoom aislado');
   report.scope = 'Verificación focalizada; no smoke del producto completo ni accesibilidad con lector de pantalla.';
   report.status = 'passed'; window.destroy(); server.close();
   fs.writeFileSync(path.join(sandbox, 'zoom.json'), JSON.stringify(report, null, 2)); app.exit(0);

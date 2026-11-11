@@ -1,3 +1,4 @@
+import { withDesktopTaskPublication, bindDesktopTaskPublication, canPublishDesktopTask } from './task-publications';
 import { registerBackendEventForwarding } from './backend-event-forwarding';
 import { resolveLegacyDesktopStatus } from './legacy-status';
 import { executeParallelDesktopTasks } from './parallel-task-runner';
@@ -44,7 +45,6 @@ export function attachDesktopAgentTasks(Service: DesktopAgentServiceConstructor)
       });
     },
     executeParallelTasks(tasks) {
-      if (!this.apiKey) throw new Error('API key de Gemini no configurada.');
       return executeParallelDesktopTasks(tasks, (task, options) => this.executeTask(task, options));
     },
     getActiveTasks() {
@@ -67,6 +67,7 @@ export function attachDesktopAgentTasks(Service: DesktopAgentServiceConstructor)
     registerExternalBackendEventForwarding(source) {
       registerBackendEventForwarding({
         source,
+        canPublish: () => canPublishDesktopTask(this),
         emit: (eventName, payload) => { this.emit(eventName, payload); },
         markTaskStarted: (payload) => {
           this.status = 'executing';
@@ -85,8 +86,7 @@ export function attachDesktopAgentTasks(Service: DesktopAgentServiceConstructor)
     },
     executeTaskDetailed(task, options) {
       if (this.visualGuidance?.isPracticing?.()) throw new Error('Finaliza la práctica guiada antes de iniciar Computer Use.');
-      return executeDesktopAgentTaskEntrypoint(task, options, {
-        apiKey: this.apiKey,
+      return withDesktopTaskPublication(this, task, options?.signal, signal => executeDesktopAgentTaskEntrypoint(task, { ...options, signal }, {
         browserWeb: this.browserWeb,
         windowsUIA: this.windowsUIA,
         platformCapabilities: this.platformCapabilities,
@@ -94,13 +94,13 @@ export function attachDesktopAgentTasks(Service: DesktopAgentServiceConstructor)
         activeTasks: this.activeTasks,
         taskQueue: this.taskQueue,
         emit: (eventName, payload) => { this.emit(eventName, payload); },
-        executeTaskInternal: (nextTask, nextOptions) => this.executeTaskInternal(nextTask, nextOptions),
+        executeTaskInternal: bindDesktopTaskPublication(this, (nextTask: string, nextOptions?: DesktopTaskExecutionOptions) => this.executeTaskInternal(nextTask, nextOptions)),
         runDesktopFallbackFromUIA: (fallbackTask, fallbackOptions, runResult) =>
           this.runDesktopFallbackFromUIA(fallbackTask, fallbackOptions, runResult),
         computerUseBrowserEnabled: computerUseBrowserHabilitado(this.config),
         runComputerUseBrowser: (cuTask, cuOptions) => runComputerUseBrowserTask(this, cuTask, cuOptions),
         integratedBrowserAvailable: Boolean(this.integratedBrowser),
-      });
+      }));
     },
     async executeTaskInternal(task, options) {
       // Cerebro Computer Use (Gemini) para desktop, con fallback al loop legacy.

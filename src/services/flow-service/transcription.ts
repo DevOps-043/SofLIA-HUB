@@ -1,7 +1,7 @@
-import { FLOW_TRANSCRIPTION_MODEL } from './constants';
-import { getGenAI } from './ai-client';
+import { FLOW_MAX_AUDIO_BYTES } from '../../shared/native-flow';
+import { observeFlowSession } from './session';
+import { generateNativeFlow } from './native';
 import { asString, parseJsonPayload } from './normalizers';
-import { FLOW_TRANSCRIPTION_PROMPT } from '../../prompts/flow';
 
 function readBlobAsBase64(audioBlob: Blob): Promise<string> {
   return new Promise<string>((resolve, reject) => {
@@ -16,27 +16,17 @@ function readBlobAsBase64(audioBlob: Blob): Promise<string> {
 }
 
 export async function transcribeAudio(audioBlob: Blob): Promise<string> {
+  if (audioBlob.size > FLOW_MAX_AUDIO_BYTES) throw new Error('El audio excede el tamaño permitido de 12 MiB. Graba un fragmento más corto.');
+  const scope = observeFlowSession();
   try {
-    const ai = await getGenAI();
-    const model = ai.getGenerativeModel({
-      model: FLOW_TRANSCRIPTION_MODEL,
-      generationConfig: { responseMimeType: 'application/json' },
-    });
     const base64Data = await readBlobAsBase64(audioBlob);
-    const result = await model.generateContent([
-      { text: FLOW_TRANSCRIPTION_PROMPT },
-      {
-        inlineData: {
-          data: base64Data,
-          mimeType: audioBlob.type || 'audio/webm',
-        },
-      },
-    ]);
-
-    const parsed = parseJsonPayload<{ transcript?: unknown }>(result.response.text().trim());
-    return asString(parsed.transcript);
+    scope.assert();
+    const native = await generateNativeFlow({ kind: 'transcription', audio: base64Data, mimeType: audioBlob.type || 'audio/webm' });
+    scope.assert();
+    return asString(parseJsonPayload<{ transcript?: unknown }>(native.trim()).transcript);
   } catch (error) {
-    console.error('Flow transcription error:', error);
+    scope.assert();
+    console.error('[Flow] No se pudo transcribir el audio.');
     throw error;
-  }
+  } finally { scope.dispose(); }
 }

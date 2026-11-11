@@ -1,0 +1,11 @@
+- [x] Unificar archivos y selector de Drive con vista previa acotada.
+- [x] Guardar páginas desde el navegador eligiendo proyecto y listarlas.
+- [x] Corregir preparación del espacio de chats y retorno junto al modelo.
+- [x] Retirar acciones superiores, probar permisos/errores y documentar evidencia visual.
+- [x] Usar automáticamente el proyecto activo al guardar desde el navegador y corregir los roles ausentes del listado directo.
+- [x] Retirar la confirmación técnica del marcador explícito y diagnosticar el rechazo de almacenamiento con metadatos remotos.
+- [x] Corregir autenticación de IRIS y políticas del almacenamiento tras autorización explícita del cambio remoto y su transición de consumidores.
+- [x] Indicar el guardado confirmado con el icono iluminado, sin mensaje visible de éxito, y cerrar el selector al guardar.
+- [ ] Comprobar el guardado desde la interfaz con sesión iniciada; el retorno de Learning quedó pendiente y la automatización del navegador se detuvo por no poder verificar la URL.
+- [x] Corregir durante la consolidación el reenvío desde el selector tras un guardado incierto y cubrir incertidumbre, revisión y error de transporte.
+- [x] Conservar la solicitud de firma histórica del SDK sin enviar credenciales de Learning a Storage ni habilitar otros buckets o rutas.

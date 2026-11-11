@@ -1,6 +1,4 @@
-import { MODELS } from '../../../config';
-import { getGenAI } from '../../gemini-chat/client';
-import { withGeminiTimeout } from '../../gemini-chat/resilience';
+import { generateAssistantText } from '../../openai-chat/generate-text';
 import type { ChatMessage } from '../types';
 
 const FALLBACK_TITLE = 'Nueva conversacion';
@@ -90,23 +88,14 @@ export async function generateTitleWithModel(messages: ChatMessage[]): Promise<s
   if (!firstUserMessage) return FALLBACK_TITLE;
 
   try {
-    const ai = await getGenAI();
-    const model = ai.getGenerativeModel({
-      model: MODELS.FALLBACK,
-      generationConfig: {
-        maxOutputTokens: 24,
-        temperature: 0.25,
-      },
+    const text = await generateAssistantText({
+        prompt: buildModelTitlePrompt(messages),
+      maxOutputTokens: 512,
+      timeout: { label: 'Título de conversación', ms: 8000 },
     });
-    const prompt = buildModelTitlePrompt(messages);
-    const result = await withGeminiTimeout(
-      'Gemini chat title',
-      () => model.generateContent(prompt),
-      8000,
-    );
-    return sanitizeModelTitle(result.response.text(), firstUserMessage.text);
-  } catch (error) {
-    console.warn('[chat-title] No se pudo generar titulo con modelo, usando fallback local:', error);
+    return sanitizeModelTitle(text, firstUserMessage.text);
+  } catch {
+    console.warn('[Títulos] Se utilizó un título local tras fallar el modelo.');
     return generateTitle(messages);
   }
 }

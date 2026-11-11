@@ -52,8 +52,8 @@ function buildSofiaClient(usersResult: QueryResult, membershipsByUserId: Record<
 
 function buildService(masterNumber = ''): CommunicationHubService {
   return new CommunicationHubService({
-    waService: { getStatus: () => ({ masterNumber, allowedNumbers: [] }) },
-    telegramService: { getStatus: async () => ({}) },
+    waService: { getStatus: () => ({ masterNumber, allowedNumbers: [] }), connect: async () => {}, disconnect: async () => {}, saveApiKey: async () => {}, sendText: async () => {}, getConversationHistory: async () => [] },
+    telegramService: { getStatus: async () => ({}), updateConfig: async () => ({}), sendMessage: async () => ({}) },
   });
 }
 

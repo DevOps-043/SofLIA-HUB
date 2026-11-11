@@ -49,6 +49,7 @@ def download(url: str, file: Path, expected: str) -> None:
 def extract_source(file: Path, destination: Path, prefix: str) -> Path:
     with tarfile.open(file, "r:gz") as archive:
         members = []
+        names = set()
         total = 0
         for member in archive:
             total += member.size
@@ -57,6 +58,9 @@ def extract_source(file: Path, destination: Path, prefix: str) -> Path:
             name = PurePosixPath(member.name)
             if name.is_absolute() or ".." in name.parts or not name.parts or name.parts[0] != prefix or not (member.isfile() or member.isdir()):
                 raise RuntimeError("Fuente con ruta o tipo no permitido.")
+            if name in names:
+                raise RuntimeError("Fuente con ruta duplicada.")
+            names.add(name)
             members.append(member)
         destination.mkdir()
         archive.extractall(destination, members=members, filter="data")

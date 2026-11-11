@@ -1,7 +1,8 @@
+import { captureSessionOperation } from './ai-provider/session-operation';
 import { EventEmitter } from 'node:events';
 import cron, { type ScheduledTask } from 'node-cron';
 import type { WhatsAppService } from './whatsapp-service';
-import { generateBriefingSummary } from './daily-briefing/gemini';
+import { generateBriefingSummary } from './daily-briefing/summary';
 import { collectDailyBriefingSystemData } from './daily-briefing/system-data';
 import { sendDailyBriefingWhatsApp } from './daily-briefing/whatsapp';
 import type { DailyBriefingConfig, DailyBriefingStatus } from './daily-briefing/types';
@@ -27,7 +28,7 @@ export class DailyBriefingService extends EventEmitter {
 
   async start(): Promise<void> {
     this.task?.stop();
-    if (!this.config.enabled || !this.config.ownerNumber || !this.config.apiKey) {
+    if (!this.config.enabled || !this.config.ownerNumber) {
       console.log('[DailyBriefing] Servicio deshabilitado o falta configuracion basica.');
       return;
     }
@@ -66,17 +67,20 @@ export class DailyBriefingService extends EventEmitter {
   }
 
   async runNow(): Promise<void> {
-    if (!this.config.apiKey || !this.config.ownerNumber) {
-      throw new Error('Falta configuracion requerida (apiKey o ownerNumber) para ejecutar el briefing.');
+    if (!this.config.ownerNumber) {
+      throw new Error('Falta configuracion requerida (destinatario) para ejecutar el briefing.');
     }
     await this.runBriefing();
   }
 
   private async runBriefing(): Promise<void> {
+    let operation: ReturnType<typeof captureSessionOperation> | undefined;
     try {
+      operation = captureSessionOperation();
       this.lastRun = new Date();
       const systemData = collectDailyBriefingSystemData();
-      const summary = await generateBriefingSummary(this.config.apiKey, systemData);
+      const summary = await generateBriefingSummary(systemData, operation.signal);
+      operation.assert();
       const sent = await sendDailyBriefingWhatsApp(this.waService, this.config.ownerNumber, summary);
 
       this.emit('briefing-sent', sent
@@ -85,6 +89,6 @@ export class DailyBriefingService extends EventEmitter {
     } catch (err: any) {
       console.error('[DailyBriefing] Error general en la ejecucion del briefing diario:', err.message);
       this.emit('briefing-error', err);
-    }
+    } finally { operation?.dispose(); }
   }
 }

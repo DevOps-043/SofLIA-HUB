@@ -1,0 +1,171 @@
+{
+  "count": 3594,
+  "before": "18d19df06ca5926361a975addd5087b50e8336706a385b2ff9d68609208d0734",
+  "after": "18d19df06ca5926361a975addd5087b50e8336706a385b2ff9d68609208d0734",
+  "changedDuringGate": [],
+  "copiedFilesMatching": 3574,
+  "deltaFromUnit43": [
+    {
+      "file": "electron/__tests__/desktop-agent-handlers.fixture.ts",
+      "previousSha256": "726a07594097f39e48aa4c47c9b0b98cfc9cfb9892803a771fc2a64fd77e2c7c",
+      "currentSha256": "bad525d1e667bc6bdaf619525676ba2774af26ca01ac90874d1d7c6b18675dd8"
+    },
+    {
+      "file": "electron/__tests__/desktop-agent-handlers.test.ts",
+      "previousSha256": "b0c77d67593bbe0e8cef5174c523741791ef2bebaf1f70927411f357e3f3c862",
+      "currentSha256": "9408f4f75a8fbdf9fba3013cf4312f5d51fbdbb3c437afd5845a1aa7fde67ebd"
+    },
+    {
+      "file": "electron/__tests__/desktop-agent-service/config-suite.ts",
+      "previousSha256": "01106f2e33e72c036f3ca19faccc44880d4582796caec8c1e141d40aeece5ddb",
+      "currentSha256": "662771df67358c858cef4c3ee17c2f72bf197e4d919469907eb12e2060bc8586"
+    },
+    {
+      "file": "electron/__tests__/desktop-agent-service/fixture.ts",
+      "previousSha256": "72697ed921cfec1cc3006970a0ea4339b12ca7a63e58222cf843e7b7ac686663",
+      "currentSha256": "19a858af6b63a77fdb8e30c334e778a908b1201abc0d860f24b0ec66e4fd176f"
+    },
+    {
+      "file": "electron/desktop-agent-handlers.ts",
+      "previousSha256": "0cd433848cc95797e24a6fa9971221bda708a8865979fa9dbf6b40d10ac9ccc9",
+      "currentSha256": "c7c24906c16bada0f5b487ef1e18675179f898402cedf3bfc96fb46a4b3d5a18"
+    },
+    {
+      "file": "electron/desktop-agent-handlers/calibration-handlers.ts",
+      "previousSha256": "61224f7372e96678662a433092b09911f4a0921238f3482564128ab230eb46c9",
+      "currentSha256": "41b3ef190616eb962a9fa21e24da4bcdedcfdc3c2022c3e24c3b018c20888c1c"
+    },
+    {
+      "file": "electron/desktop-agent-handlers/observation-handlers.ts",
+      "previousSha256": "e5a705554767f0f75e3b7c57f5109ba10105b7cdaeeef68a90f47195481acf96",
+      "currentSha256": "35aa1c325218037d2603be41a1156358bbc6cb66659fe608bdf89cc0d075c021"
+    },
+    {
+      "file": "electron/desktop-agent-handlers/primitive-handlers.ts",
+      "previousSha256": "ec223b2d72e480a10297d41017e45d7cf205fe14d64e75774828a40d9ba49295",
+      "currentSha256": "a8ad4d3244b391263bf58596c33343acbcf5ddd9875430083ca1713e4e5cd95c"
+    },
+    {
+      "file": "electron/desktop-agent-handlers/status-handlers.ts",
+      "previousSha256": "c09a18f51fd820d93d9a654c2984010b6ad4e3eb495cb17058b8ce24c22f4d49",
+      "currentSha256": "09ff6a52b4ae311428437ac7991f2656759cdcb996a1777f0827f204b9d1c6ab"
+    },
+    {
+      "file": "electron/desktop-agent-handlers/task-handlers.ts",
+      "previousSha256": "cc4e3e0bd075c5ab23f5769695e5ae1b641c239f9cba0c5f135dc173c0c6cb4e",
+      "currentSha256": "f155724fee842dabbe54a04781060f37f6005427715331963be5e786ef1f87ca"
+    },
+    {
+      "file": "electron/desktop-agent-handlers/window-handlers.ts",
+      "previousSha256": "0a6245467a7df7ccf940bea787119b5db33ba4b3b75014f3c44e1baed720f51c",
+      "currentSha256": "4af863caa9f2b9b0895a1e153c5756b8b09c3ac103406e3336c71c3173f911bb"
+    },
+    {
+      "file": "electron/desktop-agent/agent-config.ts",
+      "previousSha256": "2f13453f0df84f925901e85feb14d7079ae8d55049895f49f9ac5e69ba6bf591",
+      "currentSha256": "957f1eab6822985c7705b0aa0d662ad50e0b7539650baba812716dd97c4197c9"
+    },
+    {
+      "file": "electron/desktop-agent/keyboard-controls.ts",
+      "previousSha256": "c0566830fe9c60cdd2bdc7f56e0b5f22a200f6b1f408036e50063675026555b1",
+      "currentSha256": "0b4198caa38f4debd45923bbc5ed421bbc173fb2a055c84d56d54447cc385263"
+    },
+    {
+      "file": "electron/desktop-agent/observation-api.ts",
+      "previousSha256": "13f563137de6a693a9b53f43dcbc3c3903713663cb9561771dea1dfe89683de5",
+      "currentSha256": "3f072d743dce377abc72224bcc12c8d9baf1e7486dd6cb83dc3227f50f4ffed2"
+    },
+    {
+      "file": "electron/desktop-agent/observation-control.ts",
+      "previousSha256": "d791bc4b25624e3ceb272791981046e0a163ae3faacc4857b36c3c872e83c062",
+      "currentSha256": "d535d8288aa99a05a02c572d42e6b4e3153e0866e146cc704523b4e508afb2ba"
+    },
+    {
+      "file": "electron/desktop-agent/observation-runtime.ts",
+      "previousSha256": "2274b3ba32db1946b72557b20f10ea5f8d08a1687f885e4b8b5750854d29bd7b",
+      "currentSha256": "a0efa31cbe8143729f4529aa140e56d6aa948de07978d23b2bcab968f1254f49"
+    },
+    {
+      "file": "electron/desktop-agent/service-lifecycle.ts",
+      "previousSha256": "24ffca3155c9ff6130be1fb35db8233a4d8a6416d546b0085e3646b93fe52cc4",
+      "currentSha256": "00af8412942ddaa6410d27ad456d00350033873c7ba08e868fa08dbf5235e7fe"
+    },
+    {
+      "file": "electron/desktop-agent/service-observation.ts",
+      "previousSha256": "2f13d5f2c970473855312ae6991dd0752b9c4ee97857ebbba424ad01d2de9e5a",
+      "currentSha256": "e5290ec1fddb23b0fd9302b8c60bab755956808c19bc645ae1e20af0d2a3bab4"
+    },
+    {
+      "file": "electron/desktop-agent/windows-hotkey.ts",
+      "previousSha256": "72bfd4f9394b3631a7a91b31aa9d47b37fb55d29f3bf1be62102cfecea98fc4e",
+      "currentSha256": "164f9280e18a91e562ee4af7bc3eaa010781fd9e0149fc2a9a0fb57dc298a3c4"
+    },
+    {
+      "file": "electron/main/startup.ts",
+      "previousSha256": "bcc1fd211931068c7902d731a55cf2e0f690ed2ba41afdb963f6398c3d07198b",
+      "currentSha256": "489b15a39521ac8259263131537424bd7ebec3c193caa0d27529594c9f838844"
+    },
+    {
+      "file": "electron/preload/desktop-apis.ts",
+      "previousSha256": "ae9c00f9c4a50caf9d2a24577c98c9f68a568801fef7212ebc62eed3102953f2",
+      "currentSha256": "a96e979f56e2cb5182bc72f97f12ca1c702aa4e536719791de77cd99e117cc39"
+    },
+    {
+      "file": "src/__tests__/services/computer-use-confirmation.test.ts",
+      "previousSha256": "57a8d612d53c7e463a34554ae610d3192da0f60b6827a0416c74239b9708ccb6",
+      "currentSha256": "fc870191bd5038328a4cb198feb8735f2cb8802be2a21122bcd43a59dc6d675e"
+    },
+    {
+      "file": "src/services/computer-use/confirmation.ts",
+      "previousSha256": "da961b42442d0f3ffd2eeecbf5fb81c5cb29691a5309f31875919fe65daf4656",
+      "currentSha256": "722324da7b7a6456ed5d27ff1deaf5105a4a7a9e342a2f9034ffa3d4c9552136"
+    },
+    {
+      "file": "src/shared/desktop-agent.ts",
+      "previousSha256": "0945c94a7d7620431c2ed9db27d1614067e1e18761ae5ba30cceb6e3a730ea32",
+      "currentSha256": "58dfea1aded29dff26910dd6d7e1f1a3b2789901f5bcf0c4635afcd13d0022d6"
+    },
+    {
+      "file": "electron/__tests__/desktop-ipc-authority.test.ts",
+      "previousSha256": null,
+      "currentSha256": "cc6cbfec1cffb1c9397f50c969bf6f874642e12680575db55100ac6ca5b8d673"
+    },
+    {
+      "file": "electron/__tests__/desktop-ipc-contracts.test.ts",
+      "previousSha256": null,
+      "currentSha256": "2d2ff0c8f19a912cff3ed89ee3abb0526f94cef3d01ab943dfcef6a5e6cc250d"
+    },
+    {
+      "file": "electron/__tests__/desktop-keyboard-security.test.ts",
+      "previousSha256": null,
+      "currentSha256": "cd0af06144c6941ec426666fbe6815004947b1993e15ade5f466fb5de3bc3752"
+    },
+    {
+      "file": "electron/__tests__/desktop-native-config.test.ts",
+      "previousSha256": null,
+      "currentSha256": "ec772d80ce3a5e4a57ed8352e3e39c6d08c22bb0bb4710343cfef0106ce8e762"
+    },
+    {
+      "file": "electron/__tests__/desktop-observation-lease.test.ts",
+      "previousSha256": null,
+      "currentSha256": "212db92fe326a2b95ed3f95976b864fe918d8254fa1a54c93207f4f096c9a69f"
+    },
+    {
+      "file": "electron/desktop-agent-handlers/authorized-registration.ts",
+      "previousSha256": null,
+      "currentSha256": "856f0a8410eb990a9feaf0baf2ec323ee2ec5a9cbbb0249779916efcc20d5c32"
+    },
+    {
+      "file": "src/shared/desktop-input.ts",
+      "previousSha256": null,
+      "currentSha256": "31dddd52ee01e5d8a61af23afdf8edc5846ae69c62adac86d1f7140163a48cbd"
+    },
+    {
+      "file": "src/shared/desktop-keys.ts",
+      "previousSha256": null,
+      "currentSha256": "ac1a3c5551b30e6b531e741bfdc863f410b31e1b005cf3009364adfe36e1ee3a"
+    }
+  ],
+  "dependenciesAndPolicyUnchanged": true,
+  "groundingModelPolicyUnchanged": true
+}

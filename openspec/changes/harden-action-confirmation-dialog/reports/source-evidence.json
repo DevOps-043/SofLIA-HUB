@@ -1,0 +1,80 @@
+{
+  "count": 3500,
+  "before": "85f9e77b95cffeeec6bd43af41a689a230609b06e3221438fb33645fbdb8cea6",
+  "after": "85f9e77b95cffeeec6bd43af41a689a230609b06e3221438fb33645fbdb8cea6",
+  "changedDuringGate": [],
+  "copiedFilesMatching": 3480,
+  "deltaFromUnit29": [
+    {
+      "file": "scripts/quality/smoke-select-dropdown.mjs",
+      "previousSha256": "1e4bcbc4d3555bb4f5d458b1565af8bfd97532d8ec46a21bf4336ad66f519cde",
+      "currentSha256": "ff686498bef557e7c7c9ef0bd6ecdda26795a7849e3a0f05d5b2e1a53493612f"
+    },
+    {
+      "file": "src/__tests__/components/confirm-action-modal.test.tsx",
+      "previousSha256": "837aa6a0d11152943812afd780f5df840b79e54231ea6892b4a2278125982abf",
+      "currentSha256": "37a03a3da144f78d72ad4f6daa6114f6955ccdfb0474b9acbdb439fa75f44138"
+    },
+    {
+      "file": "src/adapters/desktop_ui/chat-ui/ChatModals.tsx",
+      "previousSha256": "2228e1ce3eb4737d03731da317d2a0fafbfcf82eeaf7d3ea0e2fc632871eeb0a",
+      "currentSha256": "b6cd30c329927d7fa00640f2b7683b9a7e4d37da4c2c43c3fef101b66802c299"
+    },
+    {
+      "file": "src/adapters/desktop_ui/chat-ui/types.ts",
+      "previousSha256": "ec69654b3b2a5ca3a5626776f453165b8b9a122144be2c2e173a041d26336e5b",
+      "currentSha256": "9bcc4a6cd457c68ed3cf517aeb7901e20b85808710d16fc98e319fe7ceb5e609"
+    },
+    {
+      "file": "src/adapters/desktop_ui/chat-ui/useChatUIController.ts",
+      "previousSha256": "2237a05c5d44c26ba69dbb43c3b6365ace07fdd50d51ef1b571e1dab216d3f93",
+      "currentSha256": "95eb075dc072655232b4b561b7bdc3b5713bad4340c419dd57709817f1a0ca48"
+    },
+    {
+      "file": "src/components/confirm-action-modal/ConfirmActionModal.tsx",
+      "previousSha256": "8b327aaf4ba1454053fb61fac81a8391330472e0e70bf89a1fdeb8efe339d3f4",
+      "currentSha256": "59bcfc6ed9f48195a99f479cd09bef944f37b14a730a7c8bc50ae32c3668cf3a"
+    },
+    {
+      "file": "src/components/confirm-action-modal/action-tone.ts",
+      "previousSha256": "30d287339d01260f5a0d30856b1c7a81ceb6ecbb4def31802814ead3982b48a0",
+      "currentSha256": "16ac62ecc9df3a112b959585db44aaeb5d4da60dfbd0c70be7adf05dd5a367e4"
+    },
+    {
+      "file": "src/components/confirm-action-modal/types.ts",
+      "previousSha256": "0df690b46a98c3fa97affb9272cadafb04fc1814d92e0f5fd82f593514a3791a",
+      "currentSha256": "c37d6358f224c1cfc40e18bb9039b590506dd308316dfe263ff21052fd55d51c"
+    },
+    {
+      "file": "scripts/quality/renderer-fixture-smoke.mjs",
+      "previousSha256": null,
+      "currentSha256": "0b8fd0324c286bd41bda764f78e32edc5a42a57b4067750e33c8fab163ec74c2"
+    },
+    {
+      "file": "scripts/quality/smoke-confirmation-dialog.mjs",
+      "previousSha256": null,
+      "currentSha256": "7bc215e8ad911dcb9629da848ba759157ded6e7de4d17c4fd8c7fcaaab341710"
+    },
+    {
+      "file": "src/__tests__/components/chat-modal-confirmation-owner.test.tsx",
+      "previousSha256": null,
+      "currentSha256": "17577f5b63fb55854e0c958d6b62d569550027df6eb63f006af1260f09d031d9"
+    },
+    {
+      "file": "test/manual/confirmation-dialog/fixture.tsx",
+      "previousSha256": null,
+      "currentSha256": "2c2d12f0effc65a3a95c51192c9be707026e718fbbb65dd06ee496252139da3e"
+    },
+    {
+      "file": "test/manual/confirmation-dialog/index.html",
+      "previousSha256": null,
+      "currentSha256": "43717f2b3bf6f6ecbdf2d4a3deddc30609ac84dc22c3b7700ea8ba91969b96e3"
+    },
+    {
+      "file": "test/manual/confirmation-dialog/main.cjs",
+      "previousSha256": null,
+      "currentSha256": "6ed2e18f28de7fb8d8de92ee043de52955e167f5b0090c9fa16c9a5a041e17ea"
+    }
+  ],
+  "head": "e166d250629e503cf12f69449fb6d66e569134c8"
+}

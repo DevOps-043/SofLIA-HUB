@@ -1,14 +1,68 @@
 # Project Hub unificado
 
-Estado: implementación local detrás de configuración; activación y despliegue por entorno no acreditados integralmente. Actualizado: 2026-10-22.
+Estado: acceso directo a IRIS desde Electron main; validación con cuentas reales pendiente. Actualizado: 2026-10-24.
+
+IRIS verifica ahora el ámbito de la sesión desde las bases antes de aplicar RLS: main envía la sesión vigente de Learning exclusivamente a la Data API de IRIS y el hook privado consulta el RPC de lectura propia de Learning. La identidad y el rol no se aceptan desde UUIDs, metadatos o espejos del cliente. El contrato, orden de despliegue, compatibilidad y límites están en el [diseño del cambio](../../openspec/changes/unify-project-resources-and-chats/design.md). Las ocho tablas de autoridades y almacenamiento tienen políticas de organización/proyecto; el contenido de archivos sigue en su proveedor o equipo. No se usa el servidor web de Project Hub. Las pruebas remotas están registradas en el [reporte de corrección](../../openspec/changes/unify-project-resources-and-chats/reports/project-storage-database-fix.md).
 
 ## Límites de dominio
 
 Project Hub/IRIS es la fuente de verdad de proyectos nuevos, tareas, miembros, evidencia compartida y analítica. Lia conserva carpetas de chats, conversaciones, transcripciones completas, minutas y decisiones de aprobación. Solo cruzan hacia IRIS resúmenes aprobados, hashes, referencias y extractos breves.
 
-Las carpetas existentes aparecen como **Carpetas heredadas** y no se migran. Crear desde la sección **Proyectos** usa la API v1 y registra en el outbox la creación idempotente de la carpeta colaborativa Lia.
+Las carpetas existentes aparecen como **Carpetas heredadas** y no se migran. La sección **Proyectos** usa los clientes Supabase existentes desde main, sin contactar al servidor web de Project Hub ni canjear su sesión. El registro se crea directamente en IRIS y su propietario forma parte de esa misma escritura.
 
-## Flujo de autenticación
+## Creación contextual y ubicación
+
+Nuevo proyecto abre un `dialog` en la ventana principal mediante portal al body. El formulario no muestra organización ni workspace. La asignación interna sigue resolviendo el workspace por `workspaces.sofia_org_id`, comprobando primero la sesión y membresía activa en Learning y el contexto de organización de main; la lista continúa aislada por organización. Si falla, la creación queda bloqueada; no se infiere la relación por nombre o posición.
+
+Elegir carpeta y Añadir carpeta abren `dialog.showOpenDialog` con la ventana principal como padre y `openDirectory/createDirectory`. Electron presenta el selector nativo de Windows, macOS o Linux; se retiró el explorador local construido con React. Cancelar conserva el borrador y la selección anterior. Main convierte el resultado en una selección opaca, vigente durante quince minutos, y revalida propietario, ruta canónica e identidad del directorio. El renderer no puede mandar rutas arbitrarias para crear proyectos.
+
+Las ubicaciones nuevas son Local, Google Drive y OneDrive. Local crea una subcarpeta exclusiva y el manifiesto `.soflia/project.json`. Google Drive reutiliza la cuenta Google vinculada; OneDrive utiliza la misma cuenta Microsoft, con permiso delegado de archivos separado del calendario. Ambos permiten elegir carpeta y crean la subcarpeta directamente mediante la API del proveedor. Las selecciones remotas también son opacas y quedan vinculadas a usuario, cuenta y proveedor. Hasta diez carpetas locales adicionales quedan vinculadas sin copiar, indexar ni publicar contenido.
+
+Archivos del proyecto consulta su ubicación y guarda allí la selección nativa, con revisión de destino y formatos/límites existentes de hasta diez archivos y 20 MiB por archivo. Local publica una copia exclusiva tras staging; Google usa Drive v3 y OneDrive sesiones de subida con conflicto `fail`. Los bytes no pasan por Storage de Soflia ni por el renderer. Las referencias de evidencia y los archivos históricos mantienen su dominio; el botón de subida heredado se retiró de la vista formal. La etiqueta antigua `cloud` se puede leer para identificar configuraciones previas, pero no sirve como destino nuevo ni se reasigna silenciosamente a una cuenta.
+
+La ubicación y los recibos permanecen cifrados por usuario/proyecto en `project-locations`, bajo userData. La autorización de OneDrive usa MSAL público, PKCE, state, validación de cuenta y caché cifrada separada; no sustituye las credenciales del calendario. Un resultado incierto no se reenvía ni borra carpetas como compensación. No hay transacción entre disco, proveedor y base de datos, ni conciliación automática. El manifiesto no concede permisos.
+
+Los canales son `resolve-organization`, `select-folder`, `cloud-accounts`, `authorize-cloud`, `cloud-folders`, `create-cloud-folder`, `create-configured`, `get-location`, `location-files`, `upload-location-files`, `cancel-location-upload`, `cloud-files`, `link-cloud-file` y `preview-location-file` bajo `project-hub`. Exigen ventana principal, sesión y payload cerrado. Las autorizaciones y los selectores sólo se abren tras la acción humana. La superficie web nativa se oculta temporalmente ante el diálogo. El registro de negocio sigue en Project Hub/IRIS; esta elección configura dónde viven los archivos, no elimina la base de datos de tareas, miembros o proyectos.
+
+Sin cuenta vinculada, Drive y OneDrive quedan deshabilitados con «Inicia sesión para continuar»; durante la consulta también se bloquean. Sus logotipos oficiales se distribuyen como recursos locales, con origen documentado en `public/brands/README.md`. El selector remoto permite crear una carpeta mediante una selección opaca del padre y una acción humana explícita; no repite la escritura ante un resultado incierto. El selector local conserva la opción nativa de nueva carpeta.
+
+La creación guarda `team_id: null` si no se indica equipo y valida cualquier equipo explícito dentro del mismo workspace. No depende de `TEAM_REQUIRED` ni de un despliegue del servidor web. Después de un rechazo confirmado de negocio, un reintento local explícito puede reutilizar la misma operación y carpeta preparada, comprobando destino, organización y manifiesto intacto; una operación incierta sigue bloqueada.
+
+## Conexión directa vigente
+
+### Tablero y lista de tareas
+
+El panel abre en Tablero, con las fases Backlog, Pendientes, Por hacer, En curso, En revisión, Completadas y Canceladas, tarjetas de responsable/dificultad/fecha y contadores de las tareas cargadas. Cada fase conserva los estados reales del equipo, sus IDs y nombres; los estados personalizados adicionales también permanecen visibles. Pendientes se distingue por nombre y puede compartir el tipo persistido `todo` con Por hacer. Lista usa las mismas tareas y filtros; cambiar de vista no reinicia la consulta. Una fase sin configuración se presenta vacía sin creación ni destino de arrastre; nunca se envían IDs artificiales a la base. El menú lateral usa iconos propios con siluetas diferenciadas y cada fase tiene un indicador SVG específico, con los tokens de tema existentes.
+
+La barra compacta filtra búsqueda, estado, responsable, dificultad y ciclo. Actualizar recarga tanto las tareas como las opciones; limpiar retira todos los filtros. La búsqueda espera 200 ms y cada consulta queda asociada a una clave de proyecto/filtros, para descartar respuestas antiguas. La paginación mantiene el alcance y los filtros y señala que los recuentos parciales corresponden a tareas cargadas.
+
+El tablero ocupa el alto restante de la sección y contiene su propio desplazamiento. La barra horizontal mide 16 px, usa contraste del tema y queda en el borde inferior del tablero, incluso con pocas tareas; en ventanas pequeñas el contenedor mantiene desplazamiento interno y no ensancha el documento.
+
+La dificultad usa `estimate_points`: sin estimar para nulo, baja hasta dos puntos, media mayor de dos y hasta cinco, alta mayor de cinco. El editor selecciona dos, cinco u ocho puntos y conserva valores existentes si no cambia esa selección. `priority_id` permanece separado y se conserva al editar; no se renombra ni se usa para simular dificultad. El filtro compartido `difficulty` se valida en el canal existente y la consulta directa lo aplica antes de paginar; no requiere tablas, columnas ni canales nuevos.
+
+Crear desde una columna precarga su estado. El arrastre sólo está habilitado para quien puede escribir y envía `status_id` junto con `expected_updated_at`, conservando la confirmación main. No actualiza visualmente el estado antes de confirmar la escritura; cancelar o un resultado incierto conserva la ubicación anterior y no reenvía la mutación. Por teclado se abre el detalle y se cambia su selector Estado. Un lector mantiene acceso al detalle sin acciones de escritura.
+
+Implementación y evidencia en [el cambio de tablero](../../openspec/changes/redesign-task-board/proposal.md).
+
+### Sesión y acceso a datos
+
+`getProjectHubApiService()` conserva su nombre por compatibilidad de los canales y consumidores; su instancia de producción utiliza `DirectProjectBackend`. Las rutas del adaptador son identificadores internos, sin solicitudes HTTP a Project Hub. `auth:set-state` verifica la sesión SOFIA y ya no inicia su canje web. `npm run dev` inicia la aplicación directamente sin comprobar ni levantar ese servidor.
+
+Antes de consultar IRIS, main exige la identidad SOFIA verificada, selección de organización vigente y `organization_users.status=active`. Comprueba `organizations.is_active`, resuelve `workspaces.sofia_org_id` y verifica su membresía activa. Si falta un espejo de organización, perfil o membresía, lo sincroniza desde los datos comprobados de Learning mediante los clientes existentes; no reactiva un espacio o membresía deshabilitados ni sustituye un rol IRIS existente.
+
+Cada operación limita el workspace al contexto activo y comprueba acceso al proyecto por administración del espacio, propiedad o membresía activa. El listado devuelve `role` y `membership.project_role` efectivos con la misma precedencia que el detalle, usando la consulta de membresías ya necesaria para acotar acceso, sin consultar cada proyecto por separado. Las mutaciones mantienen la confirmación existente y sus roles de escritura/administración. A/B/A y cambios de organización invalidan el resultado, incluidos los cambios durante una espera. No hay fallback al servidor web. Las lecturas llevan límites y paginación; no se inventan totales cuando no cabe calcularlos completos.
+
+La propiedad del proyecto se registra en `created_by_user_id`; las lecturas la presentan como integrante propietario sin exigir una segunda inserción. Los colaboradores adicionales se guardan en `pm_project_members`. Tareas, hitos, documentos, miembros y referencias usan las tablas existentes; tareas siguen necesitando equipo/estados. Una operación compuesta puede dejar un efecto parcial y devuelve `uncertain/recoveryRequired`, sin compensar con borrados ni reenviar automáticamente. La importación de reuniones usa únicamente el RPC transaccional existente: si los permisos de la base no lo permiten, informa el error y no usa una clave de servicio ni cambia grants.
+
+Los archivos nuevos permanecen en equipo/Drive/OneDrive. Las descargas históricas consultan metadatos y solicitan una URL firmada directamente a Storage, con las validaciones de contenido/destino existentes. El transporte permite únicamente la ruta de firma del bucket `project-files` en el origen IRIS configurado, conserva la autorización de IRIS y retira las cabeceras de Learning; no sigue redirecciones ni amplía las políticas del servidor. La subida heredada a Storage no se activa en esta instancia.
+
+Este cambio no modifica políticas RLS, grants ni secretos. La autorización de main cubre estos canales; no corrige los accesos heredados ni demuestra aislamiento global de la base. La [auditoría IRIS](../reports/iris-access-2026-10-22.md) conserva sus hallazgos y requiere una remediación separada. La disponibilidad del esquema y permisos desplegados se valida por respuesta de la base, sin ejecutar migraciones automáticamente.
+
+Implementación y criterios en [el cambio de creación](../../openspec/changes/redesign-project-creation/proposal.md).
+
+## Autenticación web anterior (referencia histórica)
+
+Las secciones de autenticación HTTP y custodia siguientes describen el adaptador anterior, conservado para compatibilidad y pruebas de contrato con un endpoint explícito. No describen la instancia de producción directa del Hub.
 
 1. El renderer restaura o inicia la sesión SOFIA.
 2. `auth:set-state` entrega los tokens SOFIA a main para verificar su sesión; el access token se usa también en el canje Project Hub.
@@ -46,6 +100,8 @@ registra pruebas de disco, concurrencia, HTTP local y DPAPI. La custodia no
 certifica la autorización/RLS ni la API desplegada.
 
 ## Autorización IPC
+
+La validación de caller y payload sigue vigente. Las menciones al canje y roles del servidor web en esta sección corresponden a la etapa anterior; la autorización directa vigente se describe arriba.
 
 Los 23 canales existentes sólo aceptan el marco principal no separado de la
 ventana main registrada, objeto WebContents exacto, documento de la aplicación
@@ -88,6 +144,8 @@ de diálogos nativos, un instalador ni seguridad integral de todos los IPC.
 La superficie v1 no entrega tokens Project Hub al renderer y está en `electron/project-hub/`, `electron/project-hub-handlers.ts`, `electron/preload/project-hub-api.ts` y `src/services/project-hub-api.ts`. Subsisten accesos directos heredados en `src/services/iris-data/` y `electron/iris/`; no quedan protegidos por el canje v1. La [inspección de permisos efectivos](../reports/iris-access-2026-10-22.md) confirma que requieren transición autorizada y rollout de servidor antes de retirar sus permisos. El contrato v1 local no expone borrado de proyectos.
 
 ## Subida nativa de archivos
+
+Este es el protocolo heredado de evidencia. La vista formal de archivos utiliza ahora la ubicación local, Drive u OneDrive descrita arriba; no expone este botón de carga como destino de los proyectos nuevos. El contrato se conserva para compatibilidad con consumidores anteriores y no se migran ni eliminan archivos históricos en esta corrección.
 
 `project-hub:upload-files` recibe sólo workspaceId/projectId/operationId UUID;
 `cancel-upload` sólo operationId. Sustituyen create-upload-intent/complete-upload
@@ -167,9 +225,15 @@ y evidencia en la [unidad de descarga](../../openspec/changes/secure-project-hub
 
 La vista formal abre un apartado en la superficie principal con el lateral flotante del Hub. Sus secciones verticales son Resumen, Tareas, Archivos, Páginas web, Chats del proyecto, Hitos, Ciclos, Equipos, Métricas y Actividad; no usa tabs para navegar el proyecto. El panel consume tareas completas, evidencia, documentos vinculados, hitos, equipo principal, ciclos del equipo y analítica. Sus estados de error distinguen falta de datos de ausencia de recursos. Los estados sin sesión, API caída y reintento son explícitos. Archivos, Drive, enlaces e investigaciones del navegador se anexan como evidencia; las colecciones son versiones inmutables. La composición y tipografía se documentan en [frontend](frontend.md).
 
-El lateral ofrece Nuevo chat y navegador dentro del contexto del proyecto. La compatibilidad de conversaciones lee el vínculo existente de Lia y exige una carpeta accesible; si no existe tabla/vínculo, muestra el límite y bloquea creación sin convertirla en un chat global. No crea carpetas como efecto de abrir el panel ni aplica automáticamente la migración histórica.
+El encabezado del proyecto no muestra las acciones globales Añadir colaborador/Añadir tarea. Cada sección mantiene sus acciones propias.
 
-Guardar pestañas requiere selección humana. La captura reutiliza la extracción DOM del navegador integrado, limita cada texto a 50 KB y la API vuelve a sanear URLs. No se guardan cookies, credenciales, formularios ni screenshots.
+Archivos reúne ubicación del usuario, `pm_project_documents` y evidencias históricas en una cuadrícula, con una búsqueda local sobre las páginas cargadas y paginación explícita. Una fuente fallida no oculta las otras. Vincular Drive y Añadir archivo comparten la barra superior; el selector Drive obtiene el nombre y enlace del proveedor y conserva permisos de sólo lectura para explorar. Las selecciones opacas están ligadas al usuario/cuenta y caducan; al vincular se revalida el archivo y se confirma la referencia, sin copiarlo. El visor local admite PDF, PNG/JPEG/WebP y texto plano hasta 8 MiB: main valida raíz, archivo regular, ausencia de symlinks, identidad del handle y tamaño; renderer dibuja imágenes/PDF y escapa texto. Otros formatos informan la limitación. Los archivos de proveedores abren su visor en el navegador integrado; las cargas históricas conservan detalle y descarga compatibles.
+
+Páginas web lista enlaces y colecciones anteriores, sin buscador de archivos ni formulario manual de URL. Al abrir el navegador dentro de un proyecto verificado, su destino (organización, workspace, proyecto, nombre y capacidad de escritura) viaja desde el contexto del proyecto por AppWorkspace, BrowserWorkspaceLayout e IntegratedBrowserPanel. El control Guardar página en «nombre» usa ese destino directamente: no abre un selector ni vuelve a listar proyectos. Guardar un marcador sólo con título/URL saneada usa la acción explícita del botón, sin confirmación nativa adicional, manteniendo validación y acceso en main; un resultado incierto no se reenvía y cambios de actor, organización o proyecto retiran los acuses anteriores. Fuera de un proyecto, el botón conserva el diálogo para elegir uno editable de la organización activa. El listado informa roles efectivos para evitar descartar proyectos propios por un rol ausente. El guardado registra título/URL mediante evidencia, sin texto, cookies, credenciales ni sesión; URLs se sanean antes de persistir. El visor nativo se retira temporalmente mientras el diálogo está abierto. Las colecciones anteriores mantienen su contenido de sólo lectura en el detalle.
+
+El lateral ofrece Nuevo chat y navegador dentro del contexto del proyecto. El resolver conserva el vínculo federado de Lia y comprueba carpeta/organización y permisos. Sin tabla/vínculo federado consulta una carpeta personal con ID determinista por usuario, organización, workspace y proyecto usando `folders`, con la sesión Lia y RLS existentes. Abrir el panel sólo consulta; Nuevo chat verifica el proyecto y crea esa carpeta si falta, sin caché de éxito ficticio ni escritura en `project_chat_bindings`. Fallos de conexión se muestran y permiten Actualizar chats; no crean otra carpeta. No se infiere identidad por nombre, no se conceden shares y no se aplica migración histórica. Los colaboradores no reciben automáticamente los chats personales del propietario. Abrir una conversación reutiliza el chat principal y su flecha junto al modelo regresa al listado. Cambios de ámbito cancelan la preparación y descartan respuestas anteriores.
+
+Implementación y evidencia en [recursos y chats](../../openspec/changes/unify-project-resources-and-chats/proposal.md).
 
 ## Reuniones y HITL
 
@@ -190,7 +254,7 @@ La función Lia `project-hub-outbox` exige `PROJECT_HUB_OUTBOX_HMAC_SECRET`. Pro
 
 La implementación reutiliza fuente, iconos, Sidebar y controles del Hub. Cada mutación recorre servicio main, handler con caller vigente y confirmación nativa, preload con allowlist y wrapper tipado. Los formularios y detalles se abren dentro del proyecto.
 
-- Tareas: creación, edición, archivo lógico, estado, prioridad global (`task_priorities.level`), responsable activo del proyecto/espacio, vencimiento, estimaciones, ciclo del equipo, subtareas sin ciclos y etiquetas del equipo. El detalle incluye comentarios de texto, documentos e historial. La transacción vuelve a comprobar referencias y revisión.
+- Tareas: creación y edición en ventana modal con detalles y planificación, archivo lógico, estado, prioridad global (`task_priorities.level`), responsable activo del proyecto/espacio, inicio (`started_at`), vencimiento, estimaciones, ciclo del equipo, subtareas sin ciclos y etiquetas del equipo. El selector comparte las siete fases del tablero y conserva estados personalizados. Una fase ausente sólo se materializa durante la escritura confirmada si el actor administra el equipo o workspace; consultar opciones no escribe. `status_stage` es una solicitud de resolución, mientras `status_id` sigue siendo el identificador persistido. Los recursos por URL se clasifican como foto, documento, página web o chat del equipo en `external_links`; no se copian archivos ni se conceden accesos. Los campos opcionales viajan por los canales createTask/updateTask existentes. El inicio se captura como fecha y se serializa a medianoche UTC; editar sin cambiarlo conserva su hora original. Se validan fechas combinadas, URLs HTTP(S) sin credenciales y un máximo de 50 recursos; parámetros sensibles se retiran antes de guardar. Referencias heredadas desconocidas se conservan sin sobrescribirlas. El detalle incluye comentarios de texto, documentos e historial. Evidencia y límites en [editor de tareas](../../openspec/changes/redesign-task-editor/proposal.md).
 - Archivos: se conserva la transferencia nativa verificada. Las etiquetas/resúmenes comparan título y resumen originales antes de editar; retirar evidencia archiva su referencia. `pm_project_documents` y `task_issue_documents` se gestionan por separado. Desvincular elimina únicamente la asociación autorizada, nunca el objeto del proveedor. Se sanea la URL y no se infiere su ACL desde el rol del proyecto.
 - Hitos: `pm_milestones` usa nombre, descripción, fecha objetivo, estado, fecha completada y orden. Cancelar conserva la fila. El orden no es un porcentaje y no existe una relación tarea-hito en el esquema actual.
 - Equipos: `pm_projects.team_id` es el equipo principal. Su pertenencia no concede automáticamente acceso al proyecto. El roster privado exige acceso propio al equipo; sus administradores y los del workspace administran integrantes. El propietario queda protegido. Crear un equipo es atómico con propietario y estados iniciales. Cambiar el equipo de un proyecto con tareas requiere una migración específica y se rechaza con conflicto.

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { taskDifficulty } from './task-difficulty';
 
 const uuid = z.string().uuid();
 const target = z.object({ workspaceId: uuid, projectId: uuid }).strict();
@@ -16,6 +17,7 @@ export const projectTaskFilters = projectPage.extend({
   statusId: uuid.optional(),
   assigneeId: uuid.optional(),
   priorityId: uuid.optional(),
+  difficulty: taskDifficulty.optional(),
   cycleId: uuid.optional(),
 });
 export const milestoneFields = z

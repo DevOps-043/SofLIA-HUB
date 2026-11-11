@@ -1,9 +1,9 @@
-import type { GoogleGenerativeAI } from '@google/generative-ai';
+import type { DesktopInference } from './inference';
 import type { ActionHistoryEntry, HistorySummary } from '../desktop-agent-types';
 import { buildHistorySummaryPrompt } from './planning-prompts';
 
 interface SummarizeDesktopHistoryInput {
-  ai: GoogleGenerativeAI;
+  ai: DesktopInference;
   modelName: string;
   actionHistory: ActionHistoryEntry[];
   currentStep: number;
@@ -11,7 +11,7 @@ interface SummarizeDesktopHistoryInput {
 }
 
 export async function summarizeDesktopHistory(input: SummarizeDesktopHistoryInput): Promise<void> {
-  const { ai, modelName, actionHistory, currentStep, historySummaries } = input;
+  const { ai, actionHistory, currentStep, historySummaries } = input;
   const fromStep = historySummaries.length > 0
     ? historySummaries[historySummaries.length - 1].toStep + 1
     : 0;
@@ -23,9 +23,7 @@ export async function summarizeDesktopHistory(input: SummarizeDesktopHistoryInpu
 
   const historyPrompt = buildHistorySummaryPrompt(stepsToSummarize, fromStep, toStep);
   try {
-    const model = ai.getGenerativeModel({ model: modelName });
-    const result = await model.generateContent(historyPrompt);
-    const summary = result.response.text().trim();
+    const summary = (await ai(historyPrompt)).trim();
     historySummaries.push({ fromStep, toStep, summary });
     console.log(`[DesktopAgent] Resumen pasos ${fromStep + 1}-${toStep + 1}: ${summary.slice(0, 100)}...`);
   } catch (error: unknown) {

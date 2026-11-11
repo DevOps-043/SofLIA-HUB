@@ -2,10 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { StudioProgramRenderer, createMediaProgramSource, createTextProgramSource, type ProgramSource } from '../../../services/studio-program-renderer';
 import { connectProgramOutput } from '../../../services/studio-output';
 import { studioCapture } from '../../../services/studio-capture';
-import { transitionSchema, type StudioTransition } from '../../../shared/studio-program';
 import type { StudioPreparedScene } from './studio-types';
 
-export function useStudioProgram(scenes: StudioPreparedScene[] = []) {
+export function useStudioProgram(onAudio?:(stream:MediaStream|null)=>void,sharing=false) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const bindCanvas = useCallback((element: HTMLCanvasElement | null) => { canvas.current = element; }, []);
   const renderer = useRef<StudioProgramRenderer | null>(null);
@@ -15,9 +14,13 @@ export function useStudioProgram(scenes: StudioPreparedScene[] = []) {
   const [pending, setPending] = useState(false), [error, setError] = useState('');
   const [state, setState] = useState<'idle' | 'preparing' | 'ready'>('idle');
   const [programScene, setProgramScene] = useState<StudioPreparedScene | null>(null);
-  const [transition, setTransition] = useState<StudioTransition>({ effect: 'fade', durationMs: 500 });
+  const [cameraOverlay,setCameraOverlay]=useState(false),[cameraPending,setCameraPending]=useState(false),[audioEnabled,setAudioEnabled]=useState(false),[label,setLabel]=useState('');
+  const audioCallback=useRef(onAudio);audioCallback.current=onAudio;
+  const cameraGeneration=useRef(0),cameraBusy=useRef(false);
+  const pendingCamera=useRef<{stream:MediaStream;abort:AbortController}|null>(null);
   const fail = () => { if (alive.current) setError('No se pudo componer la salida. Revisa la fuente antes de continuar.'); };
   function invalidate() { epoch.current++; }
+  function invalidateCamera(){cameraGeneration.current++;pendingCamera.current?.abort.abort();pendingCamera.current?.stream.getTracks().forEach(track=>track.stop());pendingCamera.current=null;}
   useEffect(() => {
     alive.current = true;
     if (canvas.current) renderer.current = new StudioProgramRenderer(canvas.current, fail);
@@ -26,12 +29,13 @@ export function useStudioProgram(scenes: StudioPreparedScene[] = []) {
       if (notice.state === 'ready') setState('ready');
       else { reset(false); if (notice.state === 'error') setError('La salida se interrumpió. Vuelve a prepararla antes de compartir.'); }
     });
-    return () => { alive.current = false; invalidate(); preparation.current?.abort(); preparation.current = null; off?.(); connection.current?.(); connection.current = null; void window.studioOutput?.close(); renderer.current?.close(); renderer.current = null; };
+    return () => { alive.current = false;invalidateCamera();audioCallback.current?.(null); invalidate(); preparation.current?.abort(); preparation.current = null; off?.(); connection.current?.(); connection.current = null; void window.studioOutput?.close(); renderer.current?.close(); renderer.current = null; };
     // El ciclo de vida es el del estudio, no el de cada render o escena seleccionada.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   function reset(close = true) {
     epoch.current++; busy.current = false;
+    invalidateCamera();cameraBusy.current=false;setCameraPending(false);setCameraOverlay(false);setAudioEnabled(false);setLabel('');audioCallback.current?.(null);
     preparation.current?.abort(); preparation.current = null;
     connection.current?.(close); connection.current = null;
     renderer.current?.close(); renderer.current = canvas.current ? new StudioProgramRenderer(canvas.current, fail) : null;
@@ -55,18 +59,12 @@ export function useStudioProgram(scenes: StudioPreparedScene[] = []) {
     busy.current = true; setPending(true); setError('');
     const generation = epoch.current, compositor = renderer.current;
     const controller = new AbortController(); preparation.current = controller;
-    let next: ProgramSource | null = null, bridge: ProgramSource | null = null;
+    let next: ProgramSource | null = null;
     const current = () => alive.current && generation === epoch.current && renderer.current === compositor;
     try {
-      const reducedMotion = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-      const effect = prepare || reducedMotion && transition.effect !== 'visual' ? { effect: 'cut' as const, durationMs: 100 } : transitionSchema.parse(transition, { jitless: true });
-      const intermediate = effect.effect === 'visual' ? scenes.find((entry) => entry.id === transition.sceneId && entry.kind !== 'video') : null;
-      if (effect.effect === 'visual' && (!intermediate || intermediate.id === scene.id)) throw new Error('Elige una imagen o pantalla intermedia distinta de la escena de destino.');
       next = await source(scene, current, controller.signal);
       if (!current()) { next.close(); return; }
-      if (intermediate) bridge = await source(intermediate, current, controller.signal);
-      if (!current()) { next.close(); bridge?.close(); return; }
-      const change = compositor.take(next, effect, bridge ?? undefined, reducedMotion); next = null; bridge = null;
+      const change = compositor.take(next, { effect: 'cut', durationMs: 100 }); next = null;
       await change;
       if (!current()) return;
       setProgramScene(scene);
@@ -76,10 +74,36 @@ export function useStudioProgram(scenes: StudioPreparedScene[] = []) {
         if (!current()) { close(); return; }
         connection.current = close;
       }
+      return true;
     } catch (cause) {
-      next?.close(); bridge?.close();
+      next?.close();
       if (current()) { if (prepare) reset(); setError(cause instanceof Error ? cause.message : 'No se pudo preparar la escena.'); }
     } finally { if (preparation.current === controller) preparation.current = null; if (current()) { busy.current = false; setPending(false); } }
   }
-  return { bindCanvas, state, pending, error, programScene, transition, setTransition, take, stop: () => reset() };
+  async function toggleCamera(){
+    if(cameraBusy.current||!renderer.current||state==='idle')return;
+    if(cameraOverlay){cameraGeneration.current++;renderer.current.setOverlay(null);setCameraOverlay(false);return;}
+    cameraBusy.current=true;setCameraPending(true);setError('');
+    const generation=++cameraGeneration.current,compositor=renderer.current;
+    let source:ProgramSource|null=null;
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:640},height:{ideal:360}},audio:false});
+      if(!alive.current||generation!==cameraGeneration.current){stream.getTracks().forEach(track=>track.stop());return;}
+      const abort=new AbortController();pendingCamera.current={stream,abort};
+      source=await createMediaProgramSource({id:'program-camera',name:'Cámara',kind:'screen',title:'',description:''},stream,abort.signal);
+      if(!alive.current||generation!==cameraGeneration.current){source.close();return;}
+      pendingCamera.current=null;compositor.setOverlay(source);source=null;setCameraOverlay(true);
+    }catch{source?.close();if(alive.current&&generation===cameraGeneration.current)setError('No se pudo añadir la cámara al programa. Revisa sus permisos o si el dispositivo está ocupado.');}
+    finally{if(generation===cameraGeneration.current){pendingCamera.current=null;cameraBusy.current=false;setCameraPending(false);}}
+  }
+  async function toggleAudio(){
+    const compositor=renderer.current,generation=epoch.current;if(!compositor||state==='idle'||sharing)return;
+    try{
+      const stream=await compositor.setAudioEnabled(!audioEnabled);
+      if(!alive.current||generation!==epoch.current)return;
+      setAudioEnabled(!audioEnabled);audioCallback.current?.(stream);
+    }catch{if(alive.current)setError('No se pudo preparar el audio del programa.');}
+  }
+  function updateLabel(text:string){setLabel(text);renderer.current?.setLabel(text);}
+  return { bindCanvas, state, pending, error, programScene, take, cameraOverlay,cameraPending,audioEnabled,label,toggleCamera,toggleAudio,updateLabel, stop: () => reset() };
 }

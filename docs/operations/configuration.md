@@ -1,6 +1,6 @@
 # Configuracion, secretos y estado local
 
-Estado: vigente. Actualizado: 2026-10-22.
+Estado: vigente. Actualizado: 2026-10-24.
 
 No se leen ni documentan valores de `.env`. Esta pagina registra solo nombres,
 consumidores y comportamiento cuando faltan.
@@ -10,6 +10,13 @@ consumidores y comportamiento cuando faltan.
 <!-- evidence: electron/main/environment.ts -->
 
 ## Variables de build/runtime
+
+SOFLIA_TEST_PYTHON pertenece sólo a herramientas de desarrollo/pruebas: ruta
+absoluta al intérprete 3.12.x. No es secreto, configuración runtime del producto
+ni variable Vite. Se configura por proceso; CI la emite tras verificar su
+standalone. Sin ella se busca python en Windows/python3 en otros SO; un
+override incorrecto falla sin probar otro intérprete. Ver
+[pruebas y preparación](development-and-devops.md).
 
 El envío Gmail no agrega variables. Las cuotas de destinatarios/adjuntos y los
 estados de cancelación o envío incierto están en el [contrato de envío](../architecture/ipc-and-integrations.md#envío-gmail).
@@ -46,6 +53,13 @@ a solicitarlo. No se debe activar retry automático sobre esa respuesta.
 | `SOFLIA_BROWSER_SOM` | Set-of-Marks del navegador para Computer Use | ausente o distinta de `1`, la captura llega limpia y el modelo estima píxeles. Con `1` se dibujan cajas numeradas sobre los controles que ya devuelve `read_browser_dom`. Es opt-in a propósito: permite medir con el mismo binario si las marcas reducen pasos y clics fallidos. Ante cualquier fallo del dibujado se entrega la captura limpia, y quitar la variable es el rollback | no secreta |
 | `VITE_DEV_SERVER_URL` | bootstrap dev | usa renderer build si falta | no secreta, gestionada por Vite |
 | `VITE_PUBLIC` | paths de recursos | calculada por main | no configurar manualmente |
+
+Vite publica las variables del renderer mediante definiciones individuales de
+`import.meta.env.VITE_…`. Sustituir el objeto completo puede dejar SOFIA sin
+configuración en desarrollo y en el build. Las claves de inferencia se excluyen
+de esa publicación. Reinicia Vite después de cambiar la configuración local.
+Una aplicación instalada usa los valores de su compilación. Si se generó con
+valores ausentes, vuelve a compilarla con la configuración correcta.
 
 `ELEVENLABS_OUTPUT_FORMAT` define el transporte que el reproductor decodifica;
 no habilita una descarga de archivo. El modo lectura no expone canal ni botón de
@@ -282,6 +296,16 @@ no se promete rollback ni se repite automáticamente. Ver
 [contrato y recuperación](../security/local-voice-authorization.md).
 `npm run voice:smoke:native` verifica IPC aislado con servicios y diálogos
 simulados, sin abrir dispositivos ni instalar modelos.
+
+## Emparejamiento de nodos remotos
+
+La configuración se restaura cifrada por usuario autenticado y el host nuevo
+empieza apagado. En **Equipos conectados**, revisa el aviso de migración, copia
+el token de este equipo desde su campo de contraseña y registra el equipo en
+el otro extremo. No reutilices credenciales huérfanas asignándolas a otra cuenta.
+Activa el host sólo después de revisar el diálogo nativo. Si falta el llavero
+seguro, habilítalo y vuelve a iniciar sesión; no hay fallback plano.
+Preservación del legado y recuperación: [custodia de nodos](../security/remote-node-custody.md).
 
 ## Privacidad documental
 

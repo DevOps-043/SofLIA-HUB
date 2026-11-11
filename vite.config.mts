@@ -5,7 +5,7 @@ import react from "@vitejs/plugin-react";
 import pkg from "./package.json" with { type: "json" };
 import { createElectronExternals, onElectronRollupWarning } from "./config/vite/electron-build.mjs";
 import { startElectronDevProcess } from "./config/vite/dev-electron-process.mjs";
-import { createMainProcessEnvDefines } from "./config/vite/env-defines.mjs";
+import { createMainProcessEnvDefines, createPublicEnvDefines, createPreloadEnvDefines } from "./config/vite/env-defines.mjs";
 import { zoomVideoAssets } from './config/vite/zoom-video-assets.mjs';
 
 const OPTIMIZE_DEP_EXCLUDES = [
@@ -25,13 +25,12 @@ export default defineConfig(({ mode }) => {
   // renderer/preload.
   const elevenLabsEnv = loadEnv(mode, process.cwd(), "ELEVENLABS_");
   const mainProcessEnvDefines = createMainProcessEnvDefines({ ...env, ...elevenLabsEnv });
-  const preloadEnvDefines = createMainProcessEnvDefines(env);
+  const preloadEnvDefines = createPreloadEnvDefines(env);
 
   return {
-    // El renderer conserva un unico prefijo publico: VITE_. Las variables
-    // main-only de ElevenLabs se cargan por separado arriba y nunca pasan por
-    // `envPrefix`, import.meta.env ni el bundle preload.
-    envPrefix: "VITE_",
+    // Publicación explícita: OpenAI sólo se incrusta en main, nunca en renderer/preload.
+    envPrefix: [],
+    define: createPublicEnvDefines(env),
     server: {
       // La vista previa se ejecuta en un iframe sandbox sin same-origin. En
       // desarrollo su origen es opaco (`null`). Los modulos de Vite tambien

@@ -3,12 +3,19 @@ import { ChatModals } from './chat-ui/ChatModals';
 import { MessagesViewport } from './chat-ui/MessagesViewport';
 import type { ChatUIProps } from './chat-ui/types';
 import { useChatUIController } from './chat-ui/useChatUIController';
+import { createPortal } from 'react-dom';
+import type { ReactNode } from 'react';
+
+function ChatModalHost({ children, floating, open }: { children: ReactNode; floating?: boolean; open: boolean }) {
+  return floating ? createPortal(<div data-soflia-floating="true" data-native-browser-overlay={open ? 'true' : undefined}>{children}</div>, document.body) : children;
+}
 
 export const ChatUI = (props: ChatUIProps) => {
   const controller = useChatUIController(props);
+  const modalOpen = !!controller.state.confirmation.modal || controller.state.skillModals.editorOpen || controller.state.skillModals.libraryOpen || !!controller.state.images.zoomed;
 
   return (
-    <div className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background dark:bg-background-dark">
+    <div data-floating-has-messages={props.floating && controller.props.messages.length > 0 ? 'true' : undefined} className={`relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${props.floating ? 'soflia-floating-chat-ui' : 'h-full bg-background dark:bg-background-dark'}`}>
       <MessagesViewport controller={controller} />
       <ChatInputArea controller={controller} />
       <input
@@ -20,7 +27,7 @@ export const ChatUI = (props: ChatUIProps) => {
         disabled={!controller.props.canSendMessages}
         onChange={controller.files.handleImageUpload}
       />
-      <ChatModals controller={controller} />
+      <ChatModalHost floating={props.floating} open={modalOpen}><ChatModals controller={controller} /></ChatModalHost>
     </div>
   );
 };

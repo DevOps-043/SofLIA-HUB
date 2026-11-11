@@ -1,30 +1,18 @@
 import { vi } from 'vitest';
 
 const modelMocks = vi.hoisted(() => {
-  const mockGenerateContent = vi.fn();
   const mockSendMessage = vi.fn();
 
   return {
-    mockGenerateContent,
     mockSendMessage,
     // El agentic loop crea la sesion con `chats.create` de @google/genai.
     mockChatsCreate: vi.fn().mockReturnValue({ sendMessage: mockSendMessage }),
-    mockGetGenerativeModel: vi.fn().mockReturnValue({ generateContent: mockGenerateContent }),
   };
 });
 
 vi.mock('@google/genai', () => ({
   GoogleGenAI: vi.fn().mockImplementation(function () {
     return { chats: { create: modelMocks.mockChatsCreate } };
-  }),
-}));
-
-// El SDK legado sigue en uso para los consumidores de un solo disparo del
-// agente (transcripcion de audio, presentaciones); se mockea para que ninguna
-// prueba construya el cliente real.
-vi.mock('@google/generative-ai', () => ({
-  GoogleGenerativeAI: vi.fn().mockImplementation(function () {
-    return { getGenerativeModel: modelMocks.mockGetGenerativeModel };
   }),
 }));
 
@@ -49,5 +37,5 @@ export function mockTextResponse(text: string) {
 }
 
 // Las pruebas del bucle aíslan el transporte; openai-session tiene pruebas propias.
-vi.mock('../../wa-agent/openai-client', () => ({ getWhatsAppOpenAIClient: vi.fn(async () => ({})) }));
+vi.mock('../../ai-provider/session-client', () => ({ getSessionOpenAIClient: vi.fn(async () => ({})) }));
 vi.mock('../../wa-agent/openai-session', () => ({ createWhatsAppOpenAISession: (input: { instructions: string; history: unknown[]; tools: unknown[] }) => modelMocks.mockChatsCreate({ model: 'gpt-6-luna', config: { systemInstruction: input.instructions, tools: input.tools }, history: input.history }) }));

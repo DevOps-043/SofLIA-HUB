@@ -1,9 +1,12 @@
 import type { ProjectHubEnvelope, ProjectHubRequestOptions } from './types';
 import { setTimeout as delay } from 'node:timers/promises';
+import { createLogger } from '../utils/logger';
 import { MAX_PROJECT_HUB_BODY_BYTES, MAX_PROJECT_HUB_RESPONSE_BYTES, PROJECT_HUB_TIMEOUT_MS,
   PROJECT_HUB_READ_RETRIES, PROJECT_HUB_RETRY_BACKOFF_MS, ProjectHubError, projectHubHttpError } from './session-contract';
 
 export interface ProjectHubTransportContext { accessToken?: string; signal: AbortSignal; assert(): void }
+
+const log = createLogger('project-hub-transporte');
 
 export function normalizeProjectHubEndpoint(value: string): string {
   try {
@@ -43,7 +46,12 @@ export class ProjectHubTransport {
         context.assert();
         const response = await fetch(`${this.baseUrl}${route}`, { method, headers, body, signal, redirect: 'error' });
         context.assert();
-        if (!response.ok) throw projectHubHttpError(response.status);
+        if (!response.ok) {
+          if (response.status >= 500 && route === '/api/v1/auth/sofia/exchange') {
+            log.warn({ requestId: correlation, status: response.status }, 'El servidor Project Hub falló durante el canje SOFIA.');
+          }
+          throw await this.httpError(response, context);
+        }
         const payload = await this.envelope<T>(response, context); context.assert();
         return payload;
       } catch (error) {
@@ -59,6 +67,29 @@ export class ProjectHubTransport {
         throw new ProjectHubError('UNAVAILABLE', 'Project Hub no está disponible.');
       } finally { clearTimeout(timer); timeout.abort(); }
     }
+  }
+
+  private async httpError(response: Response, context: ProjectHubTransportContext): Promise<ProjectHubError> {
+    let reason: string | undefined;
+    // Sólo se reconoce un código contractual. Nunca se muestra el mensaje ni los detalles remotos.
+    if (response.status === 422 && response.headers.get('content-type')?.includes('application/json') && response.body) {
+      const reader = response.body.getReader(); const chunks: Uint8Array[] = []; let size = 0;
+      try {
+        while (true) {
+          const chunk = await reader.read(); context.assert();
+          if (chunk.done) break;
+          size += chunk.value.byteLength;
+          if (size > 16_384) { await reader.cancel(); break; }
+          chunks.push(chunk.value);
+        }
+        if (size <= 16_384) {
+          const payload: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks)));
+          if (payload && typeof payload === 'object' && 'error' in payload && payload.error && typeof payload.error === 'object' && 'code' in payload.error && payload.error.code === 'TEAM_REQUIRED') reason = 'TEAM_REQUIRED';
+        }
+      } catch { context.assert(); }
+      finally { reader.releaseLock(); }
+    }
+    context.assert(); return projectHubHttpError(response.status, reason);
   }
 
   private body(value: unknown): string | undefined {

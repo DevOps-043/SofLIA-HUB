@@ -8,7 +8,7 @@ import { BROWSER_HOME_TITLE, BROWSER_HOME_URL } from '../../src/shared/browser-h
 import { CuContextChangedError } from '../desktop-agent/gemini-cu/execution-guard';
 import { setAuthState } from '../main/auth-state';
 import { BrowserCredentialUnlock } from '../integrated-browser/credential-unlock';
-import { app, BaseWindow, BrowserWindow, WebContentsView, dialog, session, systemPreferences } from 'electron';
+import { app, BaseWindow, BrowserWindow, WebContentsView, dialog, session, systemPreferences, type WebContents } from 'electron';
 import { IntegratedBrowserService, type BrowserCredentialVault } from '../integrated-browser';
 import { BrowserSitePermissionStore } from '../integrated-browser/site-permissions';
 import { BrowserAgentPolicyStore } from '../integrated-browser/agent-policy-store';
@@ -2992,11 +2992,159 @@ describe('IntegratedBrowserService', () => {
     service.detachWindow();
   });
 
+  it('reactivar percepción no reutiliza ni publica el frame pendiente del ciclo pausado', async () => {
+    const service = new IntegratedBrowserService();
+    service.attachWindow(new BrowserWindow());
+    await service.open('https://captura.example');
+    service.setViewport({ x: 0, y: 0, width: 1200, height: 800 });
+    const contents = browserViewHarness.instances[0].webContents;
+    const image = await (contents as unknown as Pick<WebContents, 'capturePage'>).capturePage();
+    const releases: Array<(value: typeof image) => void> = [];
+    contents.capturePage.mockClear();
+    contents.capturePage.mockImplementation(() => new Promise(resolve => { releases.push(resolve); }));
+    const first = service.setObservationEnabled(true);
+    let second: ReturnType<typeof service.setObservationEnabled> | undefined;
+    try {
+      await vi.waitFor(() => expect(releases).toHaveLength(1));
+      await service.setObservationEnabled(false);
+      second = service.setObservationEnabled(true);
+      // El frame físico anterior sigue en curso; reactivar no abre otro simultáneo.
+      await Promise.resolve();
+      expect(releases).toHaveLength(1);
+      releases[0](image);
+      await first;
+      expect(service.getObservationStatus().lastCapturedAt).toBeNull();
+      await vi.waitFor(() => expect(releases).toHaveLength(2));
+      expect(service.getObservationStatus().capturing).toBe(true);
+      releases[1](image);
+      await second;
+      expect(service.getObservationStatus()).toMatchObject({ capturing: false, lastError: null, lastCapturedAt: expect.any(String) });
+    } finally {
+      await service.setObservationEnabled(false);
+      for (const release of releases) release(image);
+      await Promise.all([first, second]);
+      service.detachWindow();
+    }
+  });
+
+  it.each(['frame', 'error'] as const)('pausar y reactivar revoca una captura explícita pendiente: %s', async outcome => {
+    const service = new IntegratedBrowserService();
+    service.attachWindow(new BrowserWindow());
+    await service.open('https://captura.example');
+    service.setViewport({ x: 0, y: 0, width: 1200, height: 800 });
+    const contents = browserViewHarness.instances[0].webContents;
+    const image = await (contents as unknown as Pick<WebContents, 'capturePage'>).capturePage();
+    let release!: (value: typeof image) => void;
+    contents.capturePage.mockImplementationOnce(() => new Promise((resolve, reject) => {
+      release = value => outcome === 'frame' ? resolve(value) : reject(new Error('Error del ciclo revocado'));
+    }));
+    const pending = service.captureExplicitFrame();
+    const rejected = expect(pending).rejects.toThrow(/contexto|cambió|cambio/i);
+    try {
+      await vi.waitFor(() => expect(release).toBeTypeOf('function'));
+      await service.setObservationEnabled(false);
+      await service.setObservationEnabled(true);
+      release(image); await rejected;
+    } finally {
+      release?.(image); await pending.catch(() => undefined); service.detachWindow();
+    }
+  });
+
+  it('pausa/reactivación durante política no inicia DOM para la solicitud anterior', async () => {
+    vi.stubEnv('BROWSER_AGENT_GOVERNANCE_ENABLED', 'true');
+    const evaluation = vi.spyOn(BrowserAgentPolicyStore.prototype, 'evaluate').mockResolvedValue('allow');
+    const collect = vi.spyOn(pageObservation, 'collectIntegratedBrowserDom');
+    const service = new IntegratedBrowserService();
+    let release!: (decision: 'allow') => void;
+    let pending: ReturnType<typeof service.getObservation> | undefined;
+    try {
+      service.attachWindow(new BrowserWindow()); await service.open('https://captura.example');
+      service.setViewport({ x: 0, y: 0, width: 1200, height: 800 });
+      evaluation.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
+      collect.mockClear(); pending = service.getObservation(true);
+      await vi.waitFor(() => expect(release).toBeTypeOf('function'));
+      await service.setObservationEnabled(false); await service.setObservationEnabled(true);
+      release('allow'); expect((await pending).observation).toBeNull();
+      expect(collect).not.toHaveBeenCalled();
+    } finally {
+      release?.('allow'); await pending; service.detachWindow();
+      evaluation.mockRestore(); collect.mockRestore(); vi.unstubAllEnvs();
+    }
+  });
+
+  it('pausa/reactivación durante sensibilidad no inicia el frame de la solicitud anterior', async () => {
+    vi.stubEnv('BROWSER_AGENT_GOVERNANCE_ENABLED', 'true');
+    const evaluation = vi.spyOn(BrowserAgentPolicyStore.prototype, 'evaluate').mockResolvedValue('allow');
+    const service = new IntegratedBrowserService();
+    let release!: (reason: null) => void;
+    let pending: ReturnType<typeof service.setObservationEnabled> | undefined;
+    try {
+      service.attachWindow(new BrowserWindow()); await service.open('https://captura.example');
+      service.setViewport({ x: 0, y: 0, width: 1200, height: 800 });
+      const contents = browserViewHarness.instances[0].webContents;
+      contents.capturePage.mockClear();
+      vi.mocked(inspectBrowserSensitivePage).mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
+      pending = service.setObservationEnabled(true);
+      await vi.waitFor(() => expect(release).toBeTypeOf('function'));
+      await service.setObservationEnabled(false); await service.setObservationEnabled(true);
+      expect(contents.capturePage).toHaveBeenCalledTimes(1);
+      release(null); await pending;
+      expect(contents.capturePage).toHaveBeenCalledTimes(1);
+    } finally {
+      release?.(null); await pending; service.detachWindow();
+      vi.mocked(inspectBrowserSensitivePage).mockResolvedValue(null);
+      evaluation.mockRestore(); vi.unstubAllEnvs();
+    }
+  });
+
+  it('cambiar política mientras espera un frame pasivo impide publicarlo', async () => {
+    vi.stubEnv('BROWSER_AGENT_GOVERNANCE_ENABLED', 'true');
+    const evaluation = vi.spyOn(BrowserAgentPolicyStore.prototype, 'evaluate').mockResolvedValue('allow');
+    const save = vi.spyOn(BrowserAgentPolicyStore.prototype, 'set').mockResolvedValue({ origin: 'https://captura.example',
+      mode: 'balanced', decision: 'block', managed: false, updatedAt: new Date().toISOString() });
+    const service = new IntegratedBrowserService();
+    let release!: (image: Awaited<ReturnType<WebContents['capturePage']>>) => void;
+    let image: Awaited<ReturnType<WebContents['capturePage']>> | undefined;
+    let pending: ReturnType<typeof service.setObservationEnabled> | undefined;
+    try {
+      service.attachWindow(new BrowserWindow()); await service.open('https://captura.example');
+      service.setViewport({ x: 0, y: 0, width: 1200, height: 800 });
+      const contents = browserViewHarness.instances[0].webContents;
+      image = await (contents as unknown as Pick<WebContents, 'capturePage'>).capturePage();
+      contents.capturePage.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
+      pending = service.setObservationEnabled(true);
+      await vi.waitFor(() => expect(release).toBeTypeOf('function'));
+      await service.setAgentPolicy({ origin: 'https://captura.example', mode: 'balanced', decision: 'block' });
+      evaluation.mockResolvedValue('block'); release(image); await pending;
+      expect(service.getObservationStatus().lastCapturedAt).toBeNull();
+    } finally {
+      await service.setObservationEnabled(false);
+      // Resolver un frame ficticio al limpiar, incluso si falla una aserción previa.
+      if (image) release?.(image);
+      await pending; service.detachWindow(); evaluation.mockRestore(); save.mockRestore(); vi.unstubAllEnvs();
+    }
+  });
+
+  it('cerrar la pestaña retira también metadata y caché de su percepción', async () => {
+    const service = new IntegratedBrowserService();
+    service.attachWindow(new BrowserWindow()); await service.open('https://captura.example');
+    service.setViewport({ x: 0, y: 0, width: 1200, height: 800 });
+    try {
+      await service.setObservationEnabled(true);
+      expect(service.getObservationStatus().lastCapturedAt).not.toBeNull();
+      await service.closeTab(service.getState().activeTabId);
+      expect(service.getObservationStatus().lastCapturedAt).toBeNull();
+    } finally { service.detachWindow(); }
+  });
+
   it('la pausa impide nuevas capturas explícitas y lectura de reproductor', async () => {
     const service = new IntegratedBrowserService();
     service.attachWindow(new BrowserWindow());
     await service.open('https://captura.example');
+    service.setViewport({ x: 0, y: 0, width: 1200, height: 800 });
     await service.setObservationEnabled(false);
+    await expect(service.captureVisiblePage()).rejects.toThrow('pausada');
+    await expect(service.captureVisibleBackdrop()).resolves.toMatchObject({ screenshot: expect.any(String) });
     await expect(service.captureExplicitFrame()).rejects.toThrow('pausada');
     await expect(service.getPlayerState()).rejects.toThrow('pausada');
     const abort = new AbortController(); abort.abort();

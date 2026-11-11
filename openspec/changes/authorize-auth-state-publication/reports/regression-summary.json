@@ -1,0 +1,1569 @@
+{
+  "sourcesBefore": [
+    {
+      "source": "electron/auth-state-handlers.ts",
+      "previousSha256": "47599c475942e1c7a88f4f4ecf1ba227a62f8997c1fb675cbb1659fb5999ad44",
+      "currentSha256": "41590288cefdf5a7bdafab6226eb1f868b4fc102c22253162b26d9ee9e283141"
+    },
+    {
+      "source": "electron/main/bootstrap.ts",
+      "previousSha256": "2411ca1579b390195f692507e4ebe57e03a850af4fe289069ed3dff07b07fecd",
+      "currentSha256": "4107834f082f5c49de60f2c88074d19354aa866b52bdc5457757ced429d8b81c"
+    },
+    {
+      "source": "electron/ipc/caller-authorization.ts",
+      "previousSha256": "76b064460b75a7b42580e3180e8b23c0607645fea43ffb312dff04b2fc3c5cc0",
+      "currentSha256": "b0cc32fe3e060303eae6a1f2f803bb37bf60f4c73bcca829244e1dbebc47209b"
+    },
+    {
+      "source": "electron/preload/auth-apis.ts",
+      "previousSha256": "f276a9680b1ce3985976e3448ff3df17c9baa28b08d9352a9115e4ce7e2452be",
+      "currentSha256": "a34473e184b6a352c8990eca5844fde76670fb4e8119a22935b34ea3dbc366ca"
+    },
+    {
+      "source": "src/services/auth-state.ts",
+      "previousSha256": "1f19f5a5fc8157d83339ac52d2f8beba4f4e65017c0dd8c618611ad663bb5b86",
+      "currentSha256": "6eb8deafbc57a86acd40d422e0cb9bea64e3082b2ffd121762edb4f4f975911d"
+    },
+    {
+      "source": "electron/__tests__/auth-state-contract.test.ts",
+      "previousSha256": "360c041b35f4b8eabd1af61c6344b52bf49ac3506baf796d7dca9bc4f2320808",
+      "currentSha256": "8ad8d7cf02ce3625e714624a9aba23f47b4c55e8b1a3ac55be90161aa72ae3f2"
+    }
+  ],
+  "red": {
+    "failed": 31,
+    "passed": 13,
+    "originalCases": 12,
+    "newPassingCases": 1,
+    "reportSha256": "4ad126760dc0604310e574750708b28e493e64cb1017a80ee34ec68b2c3de1d6"
+  },
+  "fixtureTypeCorrection": "Promise<void> del mock de cierre corregida a Promise<undefined>; sin cambio de contrato de producción.",
+  "directed": {
+    "passed": 363,
+    "failed": 0,
+    "files": [
+      {
+        "file": "electron/__tests__/auth-gate.test.ts",
+        "cases": 11,
+        "checks": [
+          {
+            "name": "estado de auth del proceso main AUTHGATE-001: arranca negado por defecto",
+            "status": "passed"
+          },
+          {
+            "name": "estado de auth del proceso main AUTHGATE-002: publicar una sesion habilita el acceso",
+            "status": "passed"
+          },
+          {
+            "name": "estado de auth del proceso main AUTHGATE-003: no conserva userId cuando no hay sesion",
+            "status": "passed"
+          },
+          {
+            "name": "estado de auth del proceso main AUTHGATE-004: notifica a los suscriptores solo cuando el estado cambia",
+            "status": "passed"
+          },
+          {
+            "name": "guard de funciones protegidas AUTHGATE-005: deniega sin sesion y devuelve auth_required sin efectos",
+            "status": "passed"
+          },
+          {
+            "name": "guard de funciones protegidas AUTHGATE-006: permite con sesion valida",
+            "status": "passed"
+          },
+          {
+            "name": "guard de funciones protegidas AUTHGATE-007: revoca el acceso al cerrar sesion",
+            "status": "passed"
+          },
+          {
+            "name": "guard de funciones protegidas AUTHGATE-008: la bandera de reversion restablece el comportamiento previo",
+            "status": "passed"
+          },
+          {
+            "name": "autoconexion de WhatsApp ligada a la sesion AUTHGATE-009: al iniciar sesion reintenta la autoconexion con la API key guardada",
+            "status": "passed"
+          },
+          {
+            "name": "autoconexion de WhatsApp ligada a la sesion AUTHGATE-010: al cerrar sesion desconecta WhatsApp",
+            "status": "passed"
+          },
+          {
+            "name": "autoconexion de WhatsApp ligada a la sesion AUTHGATE-011: respeta shouldAutoConnect=false y no conecta",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "electron/__tests__/auth-state-contract.test.ts",
+        "cases": 60,
+        "checks": [
+          {
+            "name": "contrato del canal de estado de sesion publica selección privada, rechaza identificadores inválidos y la retira al salir",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion una publicación antigua no restablece la selección después del logout",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion deniega fuente de escritura sin revelar identidad ni causar efectos: orbe",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion deniega fuente de escritura sin revelar identidad ni causar efectos: ajeno",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion deniega fuente de escritura sin revelar identidad ni causar efectos: subframe",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion deniega fuente de escritura sin revelar identidad ni causar efectos: sin-marco",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion deniega fuente de escritura sin revelar identidad ni causar efectos: remoto",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion deniega fuente de escritura sin revelar identidad ni causar efectos: destruido",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion deniega fuente de escritura sin revelar identidad ni causar efectos: retirado",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion sólo Hub y Orbe principales leen, sin exigir sesión previa",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion rechaza límites/tipos antes de servicios y conserva estado: caso 0",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion rechaza límites/tipos antes de servicios y conserva estado: caso 1",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion rechaza límites/tipos antes de servicios y conserva estado: caso 2",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion rechaza límites/tipos antes de servicios y conserva estado: caso 3",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion rechaza límites/tipos antes de servicios y conserva estado: caso 4",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion rechaza límites/tipos antes de servicios y conserva estado: caso 5",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion rechaza límites/tipos antes de servicios y conserva estado: caso 6",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion rechaza límites/tipos antes de servicios y conserva estado: caso 7",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion rechaza límites/tipos antes de servicios y conserva estado: caso 8",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion rechaza límites/tipos antes de servicios y conserva estado: caso 9",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion rechaza límites/tipos antes de servicios y conserva estado: caso 10",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion rechaza límites/tipos antes de servicios y conserva estado: caso 11",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion rechaza límites/tipos antes de servicios y conserva estado: caso 12",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion invalida la publicación durante SOFIA: navegacion",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion invalida la publicación durante SOFIA: navegacion-detalle",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion invalida la publicación durante SOFIA: retorno",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion invalida la publicación durante SOFIA: in-page",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion invalida la publicación durante SOFIA: caida",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion invalida la publicación durante SOFIA: destruccion",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion invalida la publicación durante SOFIA: ventana",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion invalida la publicación durante SOFIA: marco",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion invalida la publicación durante SOFIA: documento",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion no aplica selección organizacional antes de verificar identidad",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion controla errores de servicios y no registra el error libre ni credenciales",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion rechaza payload no estructurado: caso 0",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion rechaza payload no estructurado: caso 1",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion rechaza payload no estructurado: caso 2",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion rechaza payload no estructurado: caso 3",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion rechaza payload no estructurado: caso 4",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion rechaza payload no estructurado: caso 5",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion autoriza antes de leer cualquier campo del payload",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion rechaza argumentos extra y no pierde la publicación activa por intentos inválidos",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion resuelve los getters vivos aunque no hubiera ventana al registrar",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion acepta límites exactos y normaliza cierre sin volver a aplicar credenciales",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion no devuelve éxito ni identidad tras navegación durante lia",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion no devuelve éxito ni identidad tras navegación durante canje",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion no devuelve éxito ni identidad tras navegación durante cierre",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion no revoca una sesión posterior tras fallo tardío de SOFIA",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion el canje fallido sólo genera un diagnóstico estático",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion recorre wrapper, preload seguro, handler y servicios sin ampliar la allowlist",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion aplica la sesion cuando el renderer publica tokens",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion verifica la sesion SOFIA antes de habilitar el estado protegido",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion NUNCA devuelve la credencial: ni al publicar ni al consultar",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion cerrar sesion revoca la credencial",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion canjea el token SOFIA sin devolverlo al renderer",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion un payload sin tokens SOFIA sigue siendo valido pero no habilita el gate",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion rechaza una identidad SOFIA que no coincide con el usuario declarado",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion conserva compatibilidad en instalaciones sin SOFIA configurado",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion un payload invalido no cambia el estado",
+            "status": "passed"
+          },
+          {
+            "name": "contrato del canal de estado de sesion rechaza identidad vacia y pares de tokens incompletos",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "electron/__tests__/calendar-ipc.test.ts",
+        "cases": 27,
+        "checks": [
+          {
+            "name": "Frontera IPC del calendario rechaza una conexión cuyo dueño no coincide con el actor",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC del calendario entrega fechas ISO y conexiones sin credenciales",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC del calendario rechaza contexto inválido antes del servicio: sesion",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC del calendario rechaza contexto inválido antes del servicio: emisor",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC del calendario rechaza contexto inválido antes del servicio: subframe",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC del calendario rechaza contexto inválido antes del servicio: ventana",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC del calendario rechaza contexto inválido antes del servicio: origen",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC del calendario autoriza el marco principal de la orbe registrada",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC del calendario rechaza entradas inválidas antes de mostrar confirmación",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC del calendario rechaza entradas inválidas antes de mostrar confirmación",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC del calendario rechaza entradas inválidas antes de mostrar confirmación",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC del calendario rechaza entradas inválidas antes de mostrar confirmación",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC del calendario rechaza entradas inválidas antes de mostrar confirmación",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC del calendario rechaza entradas inválidas antes de mostrar confirmación",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC del calendario confirma datos exactos y convierte fechas al contrato del servicio",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC del calendario cancelar no produce efectos",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC del calendario invalida aceptación tras cambio de contexto: sesion",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC del calendario invalida aceptación tras cambio de contexto: reautenticacion",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC del calendario invalida aceptación tras cambio de contexto: navegacion",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC del calendario invalida aceptación tras cambio de contexto: conexion",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC del calendario invalida aceptación tras cambio de contexto: ventana",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC del calendario invalida aceptación tras cambio de contexto: marco",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC del calendario no ejecuta aceptación vencida ni permite otro diálogo mientras el nativo siga abierto",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC del calendario sanea errores de conexión y del servicio",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC del calendario explica la ausencia de custodia segura sin propagar el error interno",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC del calendario proyecta eventos sin reenviar conexión, errores ni tokens, y calla sin sesión",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC del calendario rechaza argumentos extras y actualizaciones con un solo extremo de intervalo",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "electron/__tests__/gmail-mailbox-ipc.test.ts",
+        "cases": 42,
+        "checks": [
+          {
+            "name": "Nueve canales del buzón Gmail deniega frame ajeno: gmail:get-messages",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail deniega frame ajeno: gmail:get-message",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail deniega frame ajeno: gmail:get-labels",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail deniega frame ajeno: gmail:modify-labels",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail deniega frame ajeno: gmail:trash",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail deniega frame ajeno: gmail:create-label",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail deniega frame ajeno: gmail:delete-label",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail deniega frame ajeno: gmail:batch-modify-by-label",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail deniega frame ajeno: gmail:empty-and-delete-all-labels",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail rechaza payload antes del servicio: gmail:get-messages 0",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail rechaza payload antes del servicio: gmail:get-messages 1",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail rechaza payload antes del servicio: gmail:get-message 2",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail rechaza payload antes del servicio: gmail:get-labels 3",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail rechaza payload antes del servicio: gmail:modify-labels 4",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail rechaza payload antes del servicio: gmail:trash 5",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail rechaza payload antes del servicio: gmail:create-label 6",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail rechaza payload antes del servicio: gmail:delete-label 7",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail rechaza payload antes del servicio: gmail:batch-modify-by-label 8",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail rechaza payload antes del servicio: gmail:empty-and-delete-all-labels 9",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail confirma cuenta y alcance en main: gmail:modify-labels",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail confirma cuenta y alcance en main: gmail:trash",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail confirma cuenta y alcance en main: gmail:create-label",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail confirma cuenta y alcance en main: gmail:delete-label",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail confirma cuenta y alcance en main: gmail:batch-modify-by-label",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail confirma cuenta y alcance en main: gmail:empty-and-delete-all-labels",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail cancelar no ejecuta efectos: gmail:modify-labels",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail cancelar no ejecuta efectos: gmail:trash",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail cancelar no ejecuta efectos: gmail:create-label",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail cancelar no ejecuta efectos: gmail:delete-label",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail cancelar no ejecuta efectos: gmail:batch-modify-by-label",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail cancelar no ejecuta efectos: gmail:empty-and-delete-all-labels",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail deniega contexto inválido: sesión",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail deniega contexto inválido: origen",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail deniega contexto inválido: ventana",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail deniega contexto inválido: cuenta",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail invalida aprobación después de A/B/A",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail invalida aprobación después de navegación",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail invalida aprobación después de conexión",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail las lecturas no exigen aprobación ni mutan",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail el contenido de una lectura tardía no vuelve a la sesión nueva",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail la invalidación después de un lote conserva el conteo y omite nombres de la cuenta anterior",
+            "status": "passed"
+          },
+          {
+            "name": "Nueve canales del buzón Gmail preload transporta opciones y resultado parcial completos, sin canales nuevos",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "electron/__tests__/gmail-plan-ipc.test.ts",
+        "cases": 22,
+        "checks": [
+          {
+            "name": "Tres canales de planes Gmail rechaza un frame ajeno antes del cliente: gmail:preview-organization",
+            "status": "passed"
+          },
+          {
+            "name": "Tres canales de planes Gmail rechaza un frame ajeno antes del cliente: gmail:apply-organization-plan",
+            "status": "passed"
+          },
+          {
+            "name": "Tres canales de planes Gmail rechaza un frame ajeno antes del cliente: gmail:undo-organization-plan",
+            "status": "passed"
+          },
+          {
+            "name": "Tres canales de planes Gmail rechaza contexto sesión ajeno",
+            "status": "passed"
+          },
+          {
+            "name": "Tres canales de planes Gmail rechaza contexto origen ajeno",
+            "status": "passed"
+          },
+          {
+            "name": "Tres canales de planes Gmail rechaza contexto ventana ajeno",
+            "status": "passed"
+          },
+          {
+            "name": "Tres canales de planes Gmail rechaza contexto dueño ajeno",
+            "status": "passed"
+          },
+          {
+            "name": "Tres canales de planes Gmail rechaza argumentos sin declararlos inciertos: 0",
+            "status": "passed"
+          },
+          {
+            "name": "Tres canales de planes Gmail rechaza argumentos sin declararlos inciertos: 1",
+            "status": "passed"
+          },
+          {
+            "name": "Tres canales de planes Gmail rechaza argumentos sin declararlos inciertos: 2",
+            "status": "passed"
+          },
+          {
+            "name": "Tres canales de planes Gmail rechaza argumentos sin declararlos inciertos: 3",
+            "status": "passed"
+          },
+          {
+            "name": "Tres canales de planes Gmail rechaza argumentos sin declararlos inciertos: 4",
+            "status": "passed"
+          },
+          {
+            "name": "Tres canales de planes Gmail rechaza argumentos sin declararlos inciertos: 5",
+            "status": "passed"
+          },
+          {
+            "name": "Tres canales de planes Gmail confirma cuenta y plan exactos antes de aplicar o revertir",
+            "status": "passed"
+          },
+          {
+            "name": "Tres canales de planes Gmail preview no muta Gmail ni requiere confirmación destructiva",
+            "status": "passed"
+          },
+          {
+            "name": "Tres canales de planes Gmail cancelar aplicar conserva el preview sin efectos",
+            "status": "passed"
+          },
+          {
+            "name": "Tres canales de planes Gmail invalida la aceptación tras A/B/A",
+            "status": "passed"
+          },
+          {
+            "name": "Tres canales de planes Gmail invalida la aceptación tras navegación",
+            "status": "passed"
+          },
+          {
+            "name": "Tres canales de planes Gmail invalida la aceptación tras conexión",
+            "status": "passed"
+          },
+          {
+            "name": "Tres canales de planes Gmail una aceptación vencida no ejecuta el plan",
+            "status": "passed"
+          },
+          {
+            "name": "Tres canales de planes Gmail preload conserva argumentos y el resultado parcial",
+            "status": "passed"
+          },
+          {
+            "name": "Tres canales de planes Gmail navegar aborta el diálogo pendiente y no espera una respuesta tardía para detener el plan",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "electron/__tests__/local-voice-authorization.test.ts",
+        "cases": 47,
+        "checks": [
+          {
+            "name": "Autorización integrada de voz local un fallo devuelto por dictado retira el hijo y el grant",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local un fallo devuelto por prueba retira el hijo y el grant",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local si Orbe pierde visibilidad durante activación se retira la captura ya invocada",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local un destinatario rechazado no conserva listeners de su contexto",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local stop-speaking antiguo en vuelo no retira el destinatario que lo reemplazó",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local terminar conversación antigua en vuelo conserva el dictado nuevo",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local restaurar enabled pide autorización nueva y cancelarla conserva inactividad",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local el resumen aprobado es una copia independiente del payload original",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local una voz antigua que termina después no retira el consumidor nuevo",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local Orbe puede cancelar el dictado antes de que termine la aprobación",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local deniega voice:get-status sin sesión antes de consultar servicios",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local deniega voice:set-config sin sesión antes de consultar servicios",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local deniega voice:start sin sesión antes de consultar servicios",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local deniega voice:stop sin sesión antes de consultar servicios",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local deniega voice:install-model sin sesión antes de consultar servicios",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local deniega voice:install-tts-voice sin sesión antes de consultar servicios",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local deniega voice:list-tts-voices sin sesión antes de consultar servicios",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local deniega voice:list-mic-devices sin sesión antes de consultar servicios",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local deniega voice:test-mic sin sesión antes de consultar servicios",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local deniega caller subframe",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local deniega caller origen",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local deniega caller ventana",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local rechaza payload de voice:install-model antes de aprobación",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local rechaza payload de voice:install-tts-voice antes de aprobación",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local rechaza payload de voice:test-mic antes de aprobación",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local rechaza payload de voice:test-mic antes de aprobación",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local rechaza payload de voice:set-config antes de aprobación",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local rechaza payload de voice:set-config antes de aprobación",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local rechaza payload de voice:set-config antes de aprobación",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local rechaza payload de voice:set-config antes de aprobación",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local rechaza payload de voice:set-config antes de aprobación",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local rechaza payload de voice:set-config antes de aprobación",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local rechaza payload de voice:set-config antes de aprobación",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local rechaza payload de voice:set-config antes de aprobación",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local rechaza payload de voice:set-config antes de aprobación",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local rechaza payload de voice:set-config antes de aprobación",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local proyecta estado y configuración sin rutas ni error libre",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local cancelar no concede captura y conserva la preferencia",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local aprobar habilita la configuración de sesión y no repite diálogo para dictado",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local detener no espera una aprobación pendiente ni permite su respuesta tardía",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local no instala tras invalidar sesión durante aprobación",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local no instala tras invalidar navegación durante aprobación",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local una instalación iniciada devuelve incertidumbre al perder contexto, sin repetir",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local A/B/A revoca el grant y deniega comandos nativos",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local probe usa aprobación temporal y nunca concede dictado",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local audio sólo llega al consumidor propietario y el reemplazado no corta al nuevo",
+            "status": "passed"
+          },
+          {
+            "name": "Autorización integrada de voz local dictado rechaza ventana principal y Orbe oculta",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "electron/__tests__/preload.test.ts",
+        "cases": 54,
+        "checks": [
+          {
+            "name": "Preload IPC Security Layer transporta solo la opción de espera y conserva el payload previo al omitirla",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-001: null passes through",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-002: undefined passes through",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-003: string primitive passes through",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-004: number primitive passes through",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-005: boolean primitive passes through",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-013: empty object passes",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-014: empty array passes",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-006: function payload throws Security Violation",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-007: object with nested values sanitized",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-008: object prototype stripped via spread",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-009/SEC-015: arrays recursively sanitize mixed safe values",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-010/SEC-011: nested function payloads throw",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-012: deeply nested safe object passes",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-033/SEC-034: strips prototype keys and rejects excessive depth",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer permite órdenes de voz cerradas, no ejecución arbitraria",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer permite supervisión cerrada, no primitivas de ejecución",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer permite gestionar atajos, no ejecutarlos mediante canales inventados",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-016: allowed channel passes without error",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-017: unauthorized channel throws error",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-018: empty string channel throws",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-020: random string channel throws",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-019: all computer:* channels pass",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-019b: federated sign-in channels are allowed",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-021: has 150+ channels total",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-022 to SEC-025: required namespaces are present",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-030 to SEC-032: updater, memory and passive-skills namespaces are present",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-032b: el Hub de Flujos ya no expone ningun canal",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-035: el navegador integrado expone solo su contrato allowlisted",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-036: el espacio de trabajo de skills expone solo su contrato allowlisted",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-037: las presentaciones exponen vista, exportacion y branding",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer recuperación de políticas sólo transporta categoría y recibo",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer catálogo usa únicamente el canal allowlisted de revisión",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer transporta voz y memoria sólo por sus operaciones cerradas",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer restricción de extensiones usa sólo id y sitios en el canal autorizado",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer transporta supervisión por el canal autorizado",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer atajos expone una operación cerrada, sin ejecución automática",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer transporta el recibo del documento por la lectura allowlisted y conserva llamadas legacy",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer sync expone dispositivos y control cerrado, no tokens, claves, SQL ni escritura de envelopes",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer sólo expone la preferencia de sugerencias, no el puente privado ni la aprobación",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer transporta el origen revisado al guardar sin exponer el commit ni el secreto anterior",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer exporta diagnóstico por el único canal cerrado sin exponer datos ni aprobación",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer importar marcadores usa un único canal sin exponer confirmación ni rutas",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer la bitácora expone sólo la petición cerrada, nunca el registro runtime",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer recuperar marcadores no expone archivos ni confirmación al renderer",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer recuperar contraseñas no expone secretos, archivos ni confirmación al renderer",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer importar historial usa un único canal sin exponer rutas ni datos",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer cambiar perfil transporta sólo el tipo cerrado",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer la instalación espera el resultado del único canal allowlisted, sin exponer control de cierre",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer expone retención y reapertura mediante canales acotados, conservando la llamada sin argumento",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-026: CSP policy in source blocks unsafe-eval",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-027: CSP allows WebSocket connections",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-028: contextIsolation check present in source",
+            "status": "passed"
+          },
+          {
+            "name": "Preload IPC Security Layer SEC-029: contextBridge.exposeInMainWorld called in source",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "electron/__tests__/project-hub-caller-context.test.ts",
+        "cases": 46,
+        "checks": [
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'listProjects' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'createProject' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'getProject' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'updateProject' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'listTasks' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'createTask' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'updateTask' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'listMembers' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'addMember' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'updateMember' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'removeMember' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'listEvidence' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'getEvidence' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'addEvidence' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'getAnalytics' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'createBrowserCollection' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'importMeeting' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'getTaskOptions' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'archiveTask' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'listMilestones' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'createMilestone' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'updateMilestone' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'cancelMilestone' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'getProjectTeam' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'assignProjectTeam' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'createProjectTeam' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'updateProjectTeam' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'addTeamMember' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'updateTeamMember' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'removeTeamMember' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'listDocuments' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'createDocument' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'updateDocument' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'removeDocument' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'updateEvidence' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'archiveEvidence' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'getTaskDetail' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'addTaskComment' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'listTaskDocuments' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'createTaskDocument' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'updateTaskDocument' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'removeTaskDocument' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload no envía 'createTaskLabel' después de cancelar caller durante captura",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload un caller con usuario distinto no inicia restore ni red",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload retry-auth cancelado no hace canje ni afecta al estado vigente",
+            "status": "passed"
+          },
+          {
+            "name": "Contexto explícito en todos los métodos Project Hub con payload libera al caller cancelado sin esperar un load de custodia pendiente",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "electron/__tests__/python-tools-ipc.test.ts",
+        "cases": 21,
+        "checks": [
+          {
+            "name": "Frontera IPC documental Python niega pytools:status sin sesión antes de efectos",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC documental Python niega pytools:get-privacy-config sin sesión antes de efectos",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC documental Python niega pytools:set-privacy-config sin sesión antes de efectos",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC documental Python niega pytools:redact-text sin sesión antes de efectos",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC documental Python niega pytools:parse-document sin sesión antes de efectos",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC documental Python niega subframe antes del selector",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC documental Python niega origen antes del selector",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC documental Python niega ventana antes del selector",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC documental Python rechaza entrada de pytools:parse-document sin coerciones",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC documental Python rechaza entrada de pytools:redact-text sin coerciones",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC documental Python rechaza entrada de pytools:redact-text sin coerciones",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC documental Python rechaza entrada de pytools:set-privacy-config sin coerciones",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC documental Python rechaza entrada de pytools:set-privacy-config sin coerciones",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC documental Python rechaza entrada de pytools:set-privacy-config sin coerciones",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC documental Python rechaza entrada de pytools:status sin coerciones",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC documental Python lee la copia del selector y conserva el original sin rutas en la respuesta",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC documental Python cancelar selector no invoca parser",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC documental Python A/B/A libera al caller pero no abre otro selector hasta cerrar el pendiente",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC documental Python no entrega documento si cambia política durante parser",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC documental Python desactivar exige confirmación y cancelarla no escribe",
+            "status": "passed"
+          },
+          {
+            "name": "Frontera IPC documental Python preload y safeIpc conservan cinco operaciones sin ruta renderer",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "electron/__tests__/renderer-source.test.ts",
+        "cases": 16,
+        "checks": [
+          {
+            "name": "Lease nativa de fuente renderer no exige sesión y libera exactamente sus listeners de forma idempotente",
+            "status": "passed"
+          },
+          {
+            "name": "Lease nativa de fuente renderer navegación de subframe no invalida el principal: legacy",
+            "status": "passed"
+          },
+          {
+            "name": "Lease nativa de fuente renderer navegación de subframe no invalida el principal: detalle",
+            "status": "passed"
+          },
+          {
+            "name": "Lease nativa de fuente renderer navegación de subframe no invalida el principal: in-page",
+            "status": "passed"
+          },
+          {
+            "name": "Lease nativa de fuente renderer invalida fuente y no recupera una lease antigua: in-page-legacy",
+            "status": "passed"
+          },
+          {
+            "name": "Lease nativa de fuente renderer invalida fuente y no recupera una lease antigua: sin-detalle",
+            "status": "passed"
+          },
+          {
+            "name": "Lease nativa de fuente renderer invalida fuente y no recupera una lease antigua: detached",
+            "status": "passed"
+          },
+          {
+            "name": "Lease nativa de fuente renderer invalida fuente y no recupera una lease antigua: reemplazo",
+            "status": "passed"
+          },
+          {
+            "name": "Lease nativa de fuente renderer el documento propio admite query/hash pero rechaza rutas, hosts y credenciales ajenas",
+            "status": "passed"
+          },
+          {
+            "name": "Composición con identidad autenticada la extracción no permite usar consumidores autenticados sin sesión",
+            "status": "passed"
+          },
+          {
+            "name": "Composición con identidad autenticada invalida identidad por otra y conserva cancelación",
+            "status": "passed"
+          },
+          {
+            "name": "Composición con identidad autenticada invalida identidad por salida y conserva cancelación",
+            "status": "passed"
+          },
+          {
+            "name": "Composición con identidad autenticada invalida identidad por ABA y conserva cancelación",
+            "status": "passed"
+          },
+          {
+            "name": "Composición con identidad autenticada invalida identidad por navegacion y conserva cancelación",
+            "status": "passed"
+          },
+          {
+            "name": "Composición con identidad autenticada main usa la ventana registrada y mantiene comprobación de identidad",
+            "status": "passed"
+          },
+          {
+            "name": "Composición con identidad autenticada un subframe con el mismo URL no adquiere autorización",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/__tests__/contexts/auth-intent-ownership.test.tsx",
+        "cases": 17,
+        "checks": [
+          {
+            "name": "Ownership integrado de intenciones Auth un login pendiente no restaura identidad después de pedir cierre",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth cierra estado y publica revocación antes de esperar logout o lectura de token",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth ordena mutaciones SDK y sólo acepta el acceso más reciente",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth acepta SIGNED_IN del propio login sin disparar dos recuperaciones",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth un reintento del directorio no publica contexto después del cierre",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth cancelar SSO mientras se crea la solicitud impide abrir navegador",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth cancelar SSO tras reclamar el retorno impide completar identidad",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth el finally de un retorno SSO anterior no termina la solicitud nueva",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth un SIGNED_OUT del logout físico anterior no cancela el login en espera",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth un cierre externo revoca el login activo y no acepta su resultado tardío",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth rechaza un resultado de login incompatible con el último sujeto SDK observado",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth una publicación positiva pendiente no reemplaza la revocación",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth un error tardío de publicación o retry se maneja sin exponer detalles",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth desmontar durante login impide publicar y comenzar recuperación",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth StrictMode restaura con la activación vigente y descarta la anterior",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth desmontar SSO durante creación no abre navegador ni conserva retorno",
+            "status": "passed"
+          },
+          {
+            "name": "Ownership integrado de intenciones Auth el renderer orbe nunca publica acceso o revocación",
+            "status": "passed"
+          }
+        ]
+      }
+    ],
+    "newCases": 64,
+    "jsonSha256": "e9c7d55bf09745714c812ef6a2e5c774e4d738b67414effdf48ca761e00c3d30"
+  },
+  "scope": "Puertos nativos/IPC y proveedores SDK sustituidos. Recorrido real de wrapper, preload, safeIpc/allowlist, handler y servicios mock. Sin GUI, red o cuentas reales."
+}

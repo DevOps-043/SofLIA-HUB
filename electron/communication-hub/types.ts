@@ -1,7 +1,8 @@
+import type { CommunicationHubActor, CommunicationProvider, CommunicationScope, CommunicationMessage, CommunicationScheduledMessage } from '../../src/shared/communication-hub-ipc';
 import type { TelegramConfigUpdates } from '../telegram/types';
 
-export type ChannelProvider = 'whatsapp' | 'telegram';
-export type ChannelScope = 'personal' | 'organization';
+export type ChannelProvider = CommunicationProvider;
+export type ChannelScope = CommunicationScope;
 export type ChannelRole = 'owner' | 'admin' | 'member';
 
 export type ChannelCapability =
@@ -58,10 +59,7 @@ export interface ResolvedChannelPrincipal {
   capabilities: ChannelCapability[];
 }
 
-export interface ChannelActorInput {
-  userId?: string | null;
-  organizationId?: string | null;
-}
+export type ChannelActorInput = CommunicationHubActor;
 
 export interface ChannelPolicy {
   organizationId: string;
@@ -139,18 +137,9 @@ export interface ChannelScheduledMessage {
   metadata?: Record<string, unknown>;
 }
 
-export interface ChannelMessageRequest {
-  provider: ChannelProvider;
-  scope: ChannelScope;
-  recipient: string;
-  text: string;
-  actor?: ChannelActorInput;
-  metadata?: Record<string, unknown>;
-}
+export type ChannelMessageRequest = CommunicationMessage;
 
-export interface ChannelScheduleRequest extends ChannelMessageRequest {
-  scheduledAt: string;
-}
+export type ChannelScheduleRequest = CommunicationScheduledMessage;
 
 export interface ChannelToolAuthorizationRequest {
   provider: ChannelProvider;

@@ -9,6 +9,9 @@ export {
   queueMessageSnapshot,
 } from './pending-state/queue';
 export {
+  isCurrentConversationDelete,
+  isCurrentConversationUpsert,
+  isCurrentMessageSnapshot,
   clearPendingConversationDelete,
   clearPendingConversationUpsert,
   clearPendingMessageSnapshot,

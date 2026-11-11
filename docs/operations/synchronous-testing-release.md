@@ -1,0 +1,62 @@
+# Entrega del aula síncrona para pruebas
+
+Actualizado el 2026-11-07. Learning y Engine están disponibles en QA. El instalador configurado de Hub está publicado como prerelease de Windows.
+
+## Código y orden de publicación
+
+La rama coordinada es codex/complete-synchronous-system en SofLIA-HUB, SofLIA-Learning y courseforge. Publicar primero Learning compatible con participación negociada y el endpoint interno de preparación; después Engine y Hub. Evitar un pool mixto de backends Learning antiguos/nuevos tras la primera escritura que amplíe el estado de estudio. Las ramas están destinadas a revisión y pruebas; no mover main ni reemplazar un despliegue productivo automáticamente.
+
+Ramas publicadas: [Hub](https://github.com/DevOps-043/SofLIA-HUB/tree/codex/complete-synchronous-system), [Learning](https://github.com/DevOps-043/SofLIA-Learning/tree/codex/complete-synchronous-system) y [Engine](https://github.com/DevOps-043/courseforge/tree/codex/complete-synchronous-system). La publicación Git se confirmó mediante push; la existencia de un despliegue o PR no se deduce de ella.
+
+Learning usa su netlify.toml y scripts/netlify-build.sh. Engine usa netlify.toml con captura del origen inmutable del despliegue antes del build, para que los jobs internos correspondan a la misma versión. No sustituir ese comando por next build directo en Netlify. La instalación Desktop necesita el paquete generado desde la misma rama Hub.
+
+Learning QA quedó publicado desde 5ffa4092 y abrió su panel autenticado. Engine tiene un override de rama que apunta al Learning QA. La comprobación de entrega de una sesión autorizada forma parte del piloto. [Learning QA](https://codex-complete-synchronous-system--soflia-learning.netlify.app) · [Deploy de Learning](https://app.netlify.com/projects/soflia-learning/deploys/6aed311b87cd372cd48e585c).
+
+Engine QA quedó publicado desde c88078d4 con el refuerzo de permisos de staging. Ambas portadas devolvieron HTTP 200 y Learning devolvió 401 ante una consulta anónima al catálogo en vivo. [Engine QA](https://codex-complete-synchronous-system--soflia-coursegen.netlify.app) · [Deploy de Engine](https://app.netlify.com/projects/soflia-coursegen/deploys/6aef49cb63a3e86c72c0eceb).
+
+## Instalador Windows de QA
+
+Descargar **0.9.9-sync.20261107** desde la prerelease pública. La compilación de efb38855 verificó el ASAR con la configuración pública de autenticación y el origen de Learning QA, además de la versión y la estructura del instalador Windows x64. [Prerelease de Hub](https://github.com/DevOps-043/PulseHub-SofLIA-releases/releases/tag/v0.9.9-sync.20261107) · [Ejecución de CI](https://github.com/DevOps-043/SofLIA-HUB/actions/runs/42389034063).
+
+El ZIP de Actions contenía solo el ejecutable. La publicación verificó ese ZIP y regeneró el manifiesto y el checksum con los mismos bytes del instalador. El archivo publicado pesa 597897290 bytes y su SHA-256 es `b15caa1082c7d7df0d08f700174d5f99985f6319f08fb7c1568c18f3759299bd`. El digest de GitHub Releases coincide con los dos archivos adjuntos. [Publicación](https://github.com/DevOps-043/SofLIA-HUB/actions/runs/42390817097) · [Manifiesto](https://github.com/DevOps-043/PulseHub-SofLIA-releases/releases/download/v0.9.9-sync.20261107/testing-package.json).
+
+El paquete local 0.9.9-sync.20261105 se construyó sin los orígenes públicos de autenticación. Reservarlo para evidencia estructural.
+
+El primer intento remoto detectó que el chequeo de tipos se ejecutaba antes de instalar el SDK de Zoom en un checkout limpio. El script pretypecheck prepara el SDK con su lockfile y build:app reutiliza esa instalación al generar el bundle de Zoom. [Diagnóstico de CI](https://github.com/DevOps-043/SofLIA-HUB/actions/runs/42387466449).
+
+Evidencia local 0.9.9-sync.20261105 de Hub 5a0e75d2. Archivo release/synchronous-qa-20261105-r2/Soflia-Hub-Windows-0.9.9-sync.20261105-Setup.exe, 597809249 bytes y SHA-256 a3cdd61d81407b8cb92fe124fa5246ac0709368328cbcb53e358792f66cdb187.
+
+La verificación estructural cubrió cabecera PE, versión, ASAR, 43 dependencias, entradas de la aplicación, contexto de reuniones, Python y sidecars. [Manifiesto local](../../openspec/changes/complete-synchronous-system/reports/windows-testing-package.json).
+
+## Base y configuración
+
+Learning principal mrqnnmuckznvukjvfkly ya recibió Video SDK y participación con versiones remotas 20261103184110 y 20261103184120. Engine emsjctbdevufloxntjll recibió su migración de autoría por ejecución manual del usuario; el postflight aportado confirmó tablas, permisos, trigger y políticas. La consulta posterior del historial no devolvió filas: ejecutar la reparación revisada del repositorio Engine y conservar la fila final antes de db push. No repetir CREATE TABLE ni ejecutar todas las migraciones históricas.
+
+La reparación acotada de Engine está en openspec/changes/complete-live-preparation-delivery/reports/engine-migration-history-repair.sql. Ejecutarla en SQL Editor del proyecto Engine y comprobar que devuelve version=20261026160000 y name=synchronous_course_delivery. Sus precondiciones se detienen ante permisos o estructura incompatibles; únicamente registra el historial de la migración ya aplicada.
+
+Engine requiere SYNCHRONOUS_COURSES_ENABLED=true para mostrar el flujo; habilita todas las organizaciones manteniendo los permisos por curso. SOFLIA_API_URL y SOFLIA_API_KEY pertenecen al servidor Engine; Learning verifica su COURSEFORGE_API_KEY. La igualdad/validez de estas credenciales debe comprobarse en el entorno administrado sin imprimir valores. Una variable presente no acredita conectividad ni permisos académicos.
+
+Mantener Meeting por defecto hasta aprobar la prueba de Video. La configuración Video, privacidad de grabación, capacidad contratada y worker persistente siguen los documentos operativos de Learning docs/live-video-sdk.md y docs/live-recordings.md. El worker no se sustituye por una función efímera. No aprobar privacidad, cuotas, consumo ni acceso mediante valores de prueba.
+
+## Recorrido mínimo del equipo
+
+Instalar el candidato en un equipo o usuario de QA con Hub cerrado. Usa la identidad de instalación y el perfil habituales de Hub; no crea una instalación paralela aislada. El paquete de pruebas se construye sin feed de actualización para conservar su versión durante la evaluación. Volver a una versión distribuida requiere reinstalar el paquete estable.
+
+| Paso | Actor | Resultado a comprobar |
+| --- | --- | --- |
+| Preparación | Revisor Engine | Curso síncrono/híbrido con materiales aprobados; destino pertenece a su organización y curso. |
+| Entrega | Instructor autorizado | Learning confirma la revisión; Hub muestra láminas/consignas sin respuestas ni notas privadas. |
+| Compatibilidad | Cliente anterior y actual | Lectura compatible; evitar servidores antiguos después de ampliar el estado. |
+| Participación | Alumno asignado | Chat, pregunta y reacción; cadencia devuelve espera, duplicado no publica dos veces. |
+| Aislamiento | Otra organización y permiso retirado | Acceso y entrega rechazados sin sobrescribir preparación. |
+| Programa | Instructor | Escena, vídeo y audio, cámara explícita, rótulo; cancelación libera captura; reapertura recupera medios propios. |
+| Salas Video | Instructor y alumnos | Asignación por identidad firmada, visita y reconexión sin confundir estado académico con traslado audiovisual. |
+| Archivo | Operación | Grabación cloud, recuperación con Hub cerrado, transferencia privada y reproducción autorizada. |
+
+Registrar URL real del despliegue, SHA desplegado, versión del Hub, escenario, resultado esperado/observado e ID de error seguro. No adjuntar tokens, contraseñas, URLs firmadas ni datos personales de alumnos. Para pruebas iniciales usar cuentas y cursos de QA previamente autorizados.
+
+## Recuperación y límites
+
+Retirar operaciones nuevas de forma coordinada, conservar tablas, revisiones, archivos y worker necesario para aulas/grabaciones pendientes. El rollback de una función no transforma JSON ampliado a legacy. Volver al proveedor Meeting solo afecta nuevas aulas; no borrar las credenciales de las Video existentes.
+
+Las regresiones locales no certifican micrófono/cámara físicos, cuenta Zoom, simultaneidad, facturación ni captura cloud. La aceptación del piloto requiere registrar esos resultados. Publicar una rama en GitHub no publica por sí mismo un sitio o instalador.

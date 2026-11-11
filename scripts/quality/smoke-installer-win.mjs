@@ -103,6 +103,7 @@ async function main() {
     const require = createRequire(import.meta.url);
     const asar = require('@electron/asar');
     const packed = new Set(asar.listPackage(path.join(sandbox, `release/${version}/win-unpacked/resources/app.asar`)).map(file => file.replaceAll('\\', '/')));
+    assert.ok(![...packed].some(file => /\/(?:AGENTS|SKILL)\.md$/i.test(file)), 'El ASAR contiene instrucciones para agentes de desarrollo.');
     const { dependencies } = JSON.parse(fs.readFileSync(path.join(sandbox, 'package.json'), 'utf8'));
     for (const name of [...Object.keys(dependencies), 'graceful-fs', 'lodash.defaults']) {
       assert.ok(packed.has(`/node_modules/${name}/package.json`), `Dependencia ausente del ASAR: ${name}`);

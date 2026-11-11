@@ -1,3 +1,5 @@
+import type { WhatsAppApi } from '../../src/shared/legacy-communication';
+import type { CommunicationHubApi } from '../../src/shared/communication-hub-ipc';
 import type {
   PreloadBridge,
   SafeIpc,
@@ -5,42 +7,44 @@ import type {
 
 export function exposeWhatsAppApi(bridge: PreloadBridge, ipc: SafeIpc): void {
   const { safeInvoke, safeOn, safeRemoveAllListeners } = ipc;
-  bridge.exposeInMainWorld('whatsApp', {
+  const api: WhatsAppApi = {
     connect: () => safeInvoke('whatsapp:connect'),
     disconnect: () => safeInvoke('whatsapp:disconnect'),
     getStatus: () => safeInvoke('whatsapp:get-status'),
-    getConversationHistory: (filters?: any) => safeInvoke('whatsapp:get-conversation-history', filters),
-    getConversationHistoryStats: (actor?: any) => safeInvoke('whatsapp:get-conversation-history-stats', actor),
-    setAllowedNumbers: (numbers: string[], actor?: any) => safeInvoke('whatsapp:set-allowed-numbers', numbers, actor),
-    setAccessConfig: (config: any) => safeInvoke('whatsapp:set-access-config', config),
-    setGroupConfig: (config: any) => safeInvoke('whatsapp:set-group-config', config),
-    setPersonalization: (update: any) => safeInvoke('whatsapp:set-personalization', update),
+    getConversationHistory: (filters) => safeInvoke('whatsapp:get-conversation-history', filters ? { ...filters, since: filters.since instanceof Date ? filters.since.getTime() : filters.since, until: filters.until instanceof Date ? filters.until.getTime() : filters.until } : undefined),
+    getConversationHistoryStats: (actor) => safeInvoke('whatsapp:get-conversation-history-stats', actor),
+    setAllowedNumbers: (numbers, actor) => safeInvoke('whatsapp:set-allowed-numbers', numbers, actor),
+    setAccessConfig: (config) => safeInvoke('whatsapp:set-access-config', config),
+    setGroupConfig: (config) => safeInvoke('whatsapp:set-group-config', config),
+    setPersonalization: (update) => safeInvoke('whatsapp:set-personalization', update),
     setApiKey: (apiKey: string) => safeInvoke('whatsapp:set-api-key', apiKey),
     onQR: (cb: (qr: string) => void) => safeOn('whatsapp:qr', cb),
-    onStatusChange: (cb: (status: any) => void) => safeOn('whatsapp:status', cb),
+    onStatusChange: (cb) => safeOn('whatsapp:status', cb),
     removeListeners: () => {
       safeRemoveAllListeners('whatsapp:qr');
       safeRemoveAllListeners('whatsapp:status');
     },
-  });
+  };
+  bridge.exposeInMainWorld('whatsApp', api);
 }
 
 export function exposeCommunicationHubApi(bridge: PreloadBridge, ipc: SafeIpc): void {
   const { safeInvoke } = ipc;
-  bridge.exposeInMainWorld('communicationHub', {
-    getCapabilities: (actor?: any) => safeInvoke('channels:get-capabilities', actor),
-    getPersonalStatus: (actor?: any) => safeInvoke('channels:get-personal-status', actor),
-    updatePersonalPreferences: (actor: any, updates: any) =>
+  const api: CommunicationHubApi = {
+    getCapabilities: (actor) => safeInvoke('channels:get-capabilities', actor),
+    getPersonalStatus: (actor) => safeInvoke('channels:get-personal-status', actor),
+    updatePersonalPreferences: (actor, updates) =>
       safeInvoke('channels:update-personal-preferences', actor, updates),
-    getOrgStatus: (actor?: any) => safeInvoke('channels:get-org-status', actor),
-    updateOrgConnection: (actor: any, update: any) =>
+    getOrgStatus: (actor) => safeInvoke('channels:get-org-status', actor),
+    updateOrgConnection: (actor, update) =>
       safeInvoke('channels:update-org-connection', actor, update),
-    updatePolicy: (actor: any, updates: any) => safeInvoke('channels:update-policy', actor, updates),
-    listIdentities: (actor?: any) => safeInvoke('channels:list-identities', actor),
-    listHistory: (actor?: any) => safeInvoke('channels:list-history', actor),
-    sendMessage: (request: any) => safeInvoke('channels:send-message', request),
-    scheduleMessage: (request: any) => safeInvoke('channels:schedule-message', request),
-  });
+    updatePolicy: (actor, updates) => safeInvoke('channels:update-policy', actor, updates),
+    listIdentities: (actor) => safeInvoke('channels:list-identities', actor),
+    listHistory: (actor) => safeInvoke('channels:list-history', actor),
+    sendMessage: (request) => safeInvoke('channels:send-message', request),
+    scheduleMessage: (request) => safeInvoke('channels:schedule-message', request),
+  };
+  bridge.exposeInMainWorld('communicationHub', api);
 }
 
 export function exposeMonitoringApi(bridge: PreloadBridge, ipc: SafeIpc): void {

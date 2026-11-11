@@ -1,10 +1,121 @@
 # IPC e integraciones externas
 
-Estado: vigente. Actualizado: 2026-10-22.
+Estado: vigente. Actualizado: 2026-10-30.
+
+Los diez contratos channels de Communication Hub derivan actor y selección de
+organización en main: los hints del renderer sólo pueden coincidir. Servicio,
+handler, preload y wrapper comparten contrato; SOFIA verifica rol/membresía antes
+de actuar y después de una aprobación crítica. Fuente, sesión o revisión de
+organización revocadas impiden los efectos y respuestas posteriores.
+[Alcance y límites](../security/security-and-privacy.md#communication-hub).
 
 <!-- evidence: electron/preload/channels.ts -->
 <!-- evidence: electron/preload/safe-ipc.ts -->
 <!-- evidence: electron/main/service-ipc.ts -->
+
+## Contratos de automatización
+
+OpenAI Responses cruza `ai:openai-open/start/pull/cancel`: servicio/handler main,
+allowlist/preload y wrapper tipado. Chat y análisis en equipo usan ese puerto sin
+SDK HTTP ni clave OpenAI en renderer. El scope comprueba ventana, documento,
+identidad main y sujeto Lia nativo, con revocación A/B/A/navegación. Los IDs no
+conceden autoridad por sí mismos. No admite URL/headers/endpoints arbitrarios ni
+ejecución de herramientas locales en main; el dispatcher/HITL actual se conserva.
+Detalles de [credenciales y límites](../security/security-and-privacy.md#inferencia-openai-nativa).
+
+Los [23 canales Desktop Agent](../security/desktop-agent-ipc.md) validan fuente,
+sesión y tuplas cerradas. Efectos requieren revisión nativa; lecturas/controles
+conservan plazas independientes. Preload declara nativeActionReview y los
+wrappers mantienen contratos sin AbortSignal serializado. Señales main protegen
+tareas y observación. Las publicaciones/respuestas de tareas conservan lease de
+identidad originaria y memoria valida procedencia privada main; historiales/cachés
+globales siguen pendientes de aislamiento.
+Los backends web/UIA revalidan señal entre decisiones y llamadas controladas,
+incluidas acciones compuestas y fallbacks; la limpieza libera cola aunque falle
+inicio/finalización. [Alcance y límites](../security/desktop-agent-ipc.md#cancelación-de-etapas-web-y-uia).
+
+Los 33 canales de herramientas Computer Use y su confirmación informativa exigen
+fuente Hub/Orbe y revisión de identidad main, con tuplas validadas y efectos
+revisados en main. nativeActionReview evita doble diálogo renderer en las
+herramientas locales cubiertas. [Contrato, cuotas y límites](../security/computer-use-ipc.md).
+
+El [backend GUI heredado](../security/computer-gui-backends.md) recibe lease de
+main durante capturas/OCR/procesos, sin abrir computer:use-computer en preload.
+Sus backends tienen programas fijos, datos separados y cierre acotado; no
+sustituyen los controladores ni la autorización de Desktop Agent.
+
+Las APIs Computer Use, Desktop Agent y Remote Node comparten DTO puros en
+[computer-use.ts](../../src/shared/computer-use.ts),
+[desktop-agent.ts](../../src/shared/desktop-agent.ts) y
+[remote-node.ts](../../src/shared/remote-node.ts). Preload y Window usan esas
+firmas; main reutiliza los DTO y mantiene reexports compatibles. Las opciones
+IPC de tarea excluyen AbortSignal; la ejecución interna conserva su señal.
+Las respuestas extensibles son objetos de campos unknown, que requieren
+comprobación antes de utilizarlos. No se agregan canales ni dependencias.
+
+El cliente de nodos rechaza JSON no objeto antes de actualizar metadata y sólo
+reemplaza capacidades por listas de strings, conservando capacidades futuras.
+Texto no JSON conserva el sobre raw heredado. El wrapper de capturas comprueba
+success e image/error antes de devolverlos; conserva campos adicionales válidos.
+
+Las herramientas conversacionales de estado/configuración/listado/registro
+proyectan host y registros mediante
+[remote-node-public.ts](../../src/shared/remote-node-public.ts): retiran el campo
+token y añaden token_configured sin mutar los originales. Se aplica tanto en
+main/WhatsApp como en renderer. La API manual de ajustes conserva credenciales
+para el emparejamiento. Esta proyección no sanea secretos reflejados en textos
+o payloads arbitrarios de terceros.
+
+Los 13 canales Remote Node exigen sesión main, ventana Hub/Orbe registrada,
+marco principal y documento propio mediante la guarda IPC común. Los
+[schemas compartidos](../../src/shared/remote-node-input.ts) rechazan campos
+extra, entradas fuera de cuota, getters y destinos HTTP(S) con credenciales,
+query o fragmento. Renderer proyecta y valida los mismos campos antes del puente.
+
+Configurar host, registrar/eliminar nodos, abrir aplicaciones, ejecutar comandos
+o tareas, terminar procesos y capturar pantalla piden confirmación nativa con
+cancelar predeterminado. Se revisan operación, destino y argumentos sin mostrar
+el token de emparejamiento. Una revisión interna de configuración impide
+reutilizar autorización tras cambiar host, registro, destino o token. Cambios
+de sesión/navegación/ventana invalidan esperas incluso A/B/A. No hay canales de
+autoridad nuevos ni aprobación transferible desde renderer.
+
+El cliente HTTP tiene plazo de 60 s para consultas/acciones breves y 15 minutos
+para tareas de escritorio que esperan finalización, respuesta máxima 20 MiB por bytes reales y
+redirecciones rechazadas. Cancelar libera la lectura y evita metadata tardía.
+Errores HTTP/transporte usan mensajes fijos. Después de admitir una operación
+con posibles efectos, un fallo devuelve incertidumbre sin reintento; actualizar
+host conserva su DTO exitoso y rechaza fallos con mensaje fijo que indica si
+puede haberse aplicado. Cancelación no revierte un efecto remoto ya enviado.
+
+El servidor aplica cambios de interfaz aunque el puerto siga igual; la
+reconciliación se serializa hacia la última configuración. La
+[custodia de nodos](../security/remote-node-custody.md) cifra perfiles por
+propietario, preserva el legado sin reasignar huérfanos y liga servicio/host a
+sesión main. Cada mutación espera persistencia antes de publicar; la revisión
+de configuración es asíncrona. El panel informa migración y retira cachés de
+otra identidad. Permanecen pendientes guardas de otras APIs, roles/RLS remotos
+y endurecer la autoridad de emparejamiento del host; no hay garantía global.
+
+## Conversación Gemini
+
+`ai:gemini-conversation` admite abrir, enviar y cerrar un turno desde Hub u Orbe.
+El wrapper envía modelo, contexto, opciones declarativas y partes de mensaje.
+Main resuelve la clave, conserva historial curado por el SDK y confirma vigencia
+antes de incorporar cada respuesta. Los consumidores de chat, especialistas,
+acciones de investigación y utilidades de texto comparten este puente. El
+renderer continúa despachando las herramientas mediante sus contratos vigentes.
+El navegador independiente conserva su SDK. Ver [parámetros](runtime-parameters.md).
+
+## Generación IA con fuentes
+
+La [generación con fuentes](../security/grounded-generation.md) mantiene capas
+servicio/handler/preload/wrapper y autorización común Hub/Orbe. Agrega cancelación
+por trabajo/emisor y límites HTTP. Main resuelve la credencial dentro de la cuota
+y los rechazos del puente cierran el intento Electron. Conserva búsqueda, URL y code_execution bajo
+la política local existente, sin exponer shell/herramientas de desarrollo.
+El navegador independiente mantiene transporte explícito. Claves, cuotas,
+errores seguros y alcance de verificación en el contrato canónico enlazado.
 
 ## Calendario
 
@@ -224,7 +335,7 @@ aprobación fabricada del renderer. El servicio comprueba capacidad, política,
 perfil y control humano; el borrado pregunta en main. Responde con biblioteca
 versionada, cancelación o error saneado. No existe IPC de ejecución de atajos.
 
-La allowlist actual contiene 521 canales derivados de cinco arrays: 84, 52, 61, 159, 165. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
+La allowlist actual contiene 543 canales derivados de cinco arrays: 84, 52, 61, 160, 186. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 
 | Namespace | Canales | Proposito |
@@ -244,7 +355,7 @@ el catalogo y su validador deben actualizarse juntos.
 | `skill-workspace` | 14 | espacio de trabajo de Skills: crear, estado, leer, escribir, editar, borrar, guardar y descargar imagenes, abrir carpeta, progreso y URL de vista previa |
 | `presentation`, `presentation-view` | 5 | vista a pantalla completa, exportacion a HTML autocontenido y preparacion de la identidad de marca |
 | `project-hub` | 23 | proyectos, tareas y seguimiento |
-| otros | 68 | voice, updater, automation, drive, pytools, telegram, gchat, app, auth, background-host, root, AI y learning-live |
+| otros | 72 | voice, updater, automation, drive, pytools, telegram, gchat, app, auth, background-host, root, AI y learning-live |
 
 ### Recorrido obligatorio
 
@@ -836,30 +947,22 @@ quedaron dentro de `assets/`.
 | Supabase Lia | renderer + main por dominio | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | diagnostico/degradado Lia |
 | Supabase SOFIA | renderer auth/org | `VITE_SOFIA_SUPABASE_*` | bloquea auth principal si no configura |
 | SSO SofLIA Learning | navegador del sistema + deep link `soflia://auth/callback` | `VITE_LEARNING_BASE_URL`, `VITE_LEARNING_SSO_ENABLED` | entrada no se ofrece con el interruptor apagado; el inicio por contrasena no depende de ella |
-| Project Hub/IRIS | API REST desde Electron main | `PROJECT_HUB_API_URL` | UI degradada con reintento; carpetas heredadas intactas |
+| Project Hub/IRIS | Conexión Supabase directa desde Electron main | Clientes IRIS/SOFIA existentes y sesión Learning | Error controlado sin fallback web; carpetas heredadas intactas |
 | Google OAuth/APIs | Calendar auth compartido | `VITE_GOOGLE_OAUTH_CLIENT_ID/SECRET` | conexion por usuario, refresh y desconexion |
 | Microsoft Calendar | MSAL/Graph | `VITE_MICROSOFT_CLIENT_ID` | conexion separada por provider |
 | ElevenLabs | REST binario y `with-timestamps` desde main | `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`; default `eleven_turbo_v2_5`, formato opcional | Orbe conserva texto sin voz; lector visual disponible; errores saneados de permiso, cuota o timeout |
-
-En desarrollo, `npm run dev` ejecuta `scripts/dev-with-project-hub.mjs`: comprueba
-`PROJECT_HUB_API_URL` (por defecto `https://sofliahub.netlify.app`). Para trabajar
-contra la API local se define explícitamente `PROJECT_HUB_API_URL=http://127.0.0.1:3000`;
-si no responde, el script inicia automáticamente el workspace hermano antes de
-Vite/Electron. La ruta puede sobrescribirse con `PROJECT_HUB_DEV_ROOT`. Una URL
-remota nunca provoca el arranque de procesos locales.
-
-Los instaladores reciben el endpoint público mediante
-`VITE_PROJECT_HUB_API_URL` durante el build. `PROJECT_HUB_API_URL` puede
-sobrescribirlo en runtime para diagnóstico o despliegues administrados. Como
-compatibilidad con instaladores construidos por pipelines anteriores, se usa
-`https://sofliahub.netlify.app`. Localhost requiere una sobrescritura explícita
-con `PROJECT_HUB_API_URL`.
 | WhatsApp | Baileys WebSocket | QR + config en `userData` | reconnect/status; allowlists |
 | Telegram | Bot API | config cifrada/estado local del servicio | test de conexion y status |
 | SMTP | Nodemailer | configurado via handlers computer | confirmacion de envio y error seguro |
 | GitHub Releases | electron-updater/Actions | repo publico de releases + token solo CI | check/download/install por estado |
 | Home Assistant | toolset dinamico builtin | URL/token provistos al instalar | doctor, contrato, timeout y HITL write |
 | Nodos remotos | servicio propio de host/node | config en `userData` | status/test y capability de canal |
+
+En desarrollo, `npm run dev` inicia `dev:app` directamente, sin comprobar ni arrancar un servidor de Project Hub. La instancia de producción utiliza `DirectProjectBackend` y los clientes IRIS/SOFIA existentes. No canjea tokens con el servidor web ni depende de `PROJECT_HUB_API_URL`.
+
+Main incorpora la sesión vigente de Learning y el ámbito organizativo sólo a las peticiones REST del origen IRIS configurado. El verificador privado de IRIS consulta una función SECURITY INVOKER de Learning y aplica RLS de organización/proyecto usando su respuesta; no confía en el actor o rol de las cabeceras. Se conserva el contrato IPC y no se publica esta credencial al renderer. El [diseño del almacenamiento](../../openspec/changes/unify-project-resources-and-chats/design.md) delimita despliegue, transición y recuperación.
+
+El transporte HTTP anterior queda disponible para pruebas de contrato y consumidores que construyan explícitamente ese adaptador con un endpoint. No es el backend de los canales de proyectos de producción. Los detalles de autorización directa, sincronización de espejos y límites están en [Project Hub unificado](project-hub-unified.md).
 
 ## Protocolo `soflia://` e inicio federado
 
@@ -906,6 +1009,32 @@ selección privada. No cambia la salida de `auth:get-state` ni concede acceso:
 el generador comprueba sesión SOFIA y membresía activa. Los documentos en
 preparación se invalidan si cambia esa selección. El contrato y la recuperación
 de logo/paleta se mantienen en [Diseño de documentos](generated-documents.md).
+
+El publicador renderer conserva ese contrato y excluye al Orbe. Una revocación
+intencional publica no autenticado sin esperar getSession, incluso con otra
+lectura pendiente; el arranque sin intención conserva su espera inicial. Una
+publicación positiva revalida señal y sujeto SDK antes de enviar. El handler
+conserva su revisión asíncrona para descartar publicaciones superadas; esto no
+coordina SDK de otras ventanas ni sustituye autenticación/RLS del servidor.
+
+Main aplica también el rol de ventana: sólo el Hub registrado publica por
+`auth:set-state`; Hub y Orbe registrados leen por `auth:get-state`. La
+[lease de fuente](../../electron/ipc/renderer-source.ts) exige webContents y
+marco principal exactos, documento propio y ventana aún registrada, sin exigir
+sesión previa al bootstrap. La guarda autenticada de otros servicios compone
+esa fuente con la identidad vigente. Navegación principal, incluso dentro de
+la página, caída o destrucción invalidan la lease; se comprueba de nuevo tras
+cada espera y se liberan los listeners al finalizar.
+
+El [DTO compartido](../../src/shared/auth-state.ts) separa publicación de
+snapshot; el [parser main](../../electron/ipc/auth-state-contract.ts) acepta
+sólo siete campos, IDs de hasta 128 unidades UTF-16 y cada token opaco de hasta
+65536, sin controles y en pares completos o ausentes. Un origen rechazado no
+recibe identidad; un payload inválido de origen autorizado conserva estado.
+Errores y canjes rechazados tienen diagnósticos estáticos. La organización se
+aplica al publicar el estado verificado. Una llamada SDK ya admitida puede
+completar efectos internos: esta barrera evita etapas posteriores, sin afirmar
+rollback ni atomicidad de toda la sesión main. [Evidencia](../../openspec/changes/authorize-auth-state-publication/reports/verification.md).
 
 
 - Variables `VITE_` quedan incrustadas por Vite incluso para main; no deben
@@ -1052,3 +1181,34 @@ No hay canales nuevos. Persistencia, cuotas y consumidores protegidos en
 <!-- evidence: src/shared/project-management.ts -->
 
 La gestión de proyectos añade operaciones de dominio para tareas, comentarios, etiquetas, documentos, hitos y equipos. Reutilizan el registro con caller vigente, revisión humana y sesión capturada; las lecturas no amplían permisos ni exponen transporte genérico. Sus rutas y validaciones se definen en el contrato compartido y el servicio main.
+
+
+### Administración física de WhatsApp y Telegram
+
+Los handlers heredados comparten el control de concurrencia y autorización del
+Hub. Las operaciones del dispositivo requieren sesión y organización vigentes
+y rol owner/admin; las mutaciones requieren confirmación nativa y revalidación.
+Las suscripciones de QR y estado sólo publican a ventanas autorizadas y vuelven
+a verificar el rol antes de cada envío. Los transportes e historiales siguen
+siendo físicos y compartidos: esta barrera no acredita propiedad ni aislamiento
+por organización. El detalle y las verificaciones pendientes están en
+[el cambio activo](../../openspec/changes/secure-legacy-communication-ipc/design.md).
+
+
+### Generación nativa de imágenes OpenAI
+
+`ai:image-generation` recibe un prompt limitado mediante preload y resuelve la
+credencial OpenAI en main con la sesión Lia vinculada al publicador. El modelo y
+el endpoint son fijos; el renderer no proporciona credenciales. Se mantienen la
+revocación por sesión, documento y ventana, cuatro plazas físicas, deadline,
+validación de salida y límites de tamaño. La distribución es sólo de escritorio.
+Ver [retirada del proveedor anterior](../../openspec/changes/retire-google-ai-provider/design.md).
+
+### Inferencia nativa de Flow
+
+`ai:flow-inference` ejecuta análisis y fallback mediante Responses y transcripción
+mediante Audio de OpenAI, con prompts y modelos fijos y payload limitado. La
+credencial permanece en main. La autorización se revoca al cambiar la sesión o
+ventana y el renderer detiene reintentos al recibir una revocación. La plaza
+física permanece ocupada hasta que termina el proveedor. Requiere Electron;
+no hay fallback con una clave expuesta en una aplicación web independiente.

@@ -1,6 +1,6 @@
 import type { ChatMessage } from '../../../services/chat-service';
 
-export type OptimizerTarget = 'chatgpt' | 'claude' | 'gemini';
+export type OptimizerTarget = 'chatgpt' | 'claude';
 
 export type ProcessMessageHandler = (
   text: string,
@@ -10,6 +10,7 @@ export type ProcessMessageHandler = (
 ) => Promise<void>;
 
 export interface ConfirmationModalState {
+  requestId: number;
   toolName: string;
   description: string;
   allowAlways?: boolean;
@@ -17,6 +18,9 @@ export interface ConfirmationModalState {
 }
 
 export interface ChatUIProps {
+  floating?: boolean;
+  readVisibleContext?: import('../../../services/floating-chat-context').FloatingContextReader;
+  onBackToProject?: () => void;
   compact?: boolean;
   /** Conversacion activa; asocia el espacio de trabajo de una Skill a ella. */
   conversationId?: string | null;

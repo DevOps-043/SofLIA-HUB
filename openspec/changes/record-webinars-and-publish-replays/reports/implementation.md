@@ -276,3 +276,39 @@ siguen siendo barreras independientes de la firma SDK y estos dos permisos.
 El servidor conserva el token OAuth en memoria hasta su vencimiento; los scopes
 nuevos corresponden al siguiente token emitido por Zoom. No se extrajo un token
 ni se afirmó haber probado GET /users/{host}/token o una llamada real del SDK.
+
+## Aviso de grabación antes del ingreso desde Hub · 2026-11-09
+
+Hub exige una aceptación explícita por intento al instructor y Learning valida
+la versión en la petición autenticada antes de emitir el acceso. Para Meeting,
+esa aceptación sustituye la aprobación global en este ingreso. Continúan las
+verificaciones de la cuenta anfitriona, grabación automática y acceso. Video
+conserva el control de activación, dado que puede iniciarse con el primer
+participante. La aceptación se limita a la petición de ingreso.
+
+- Hub aprobó 63 pruebas dirigidas de estudio, participantes, transporte y preload.
+  `npm run verify:pr` aprobó 7419 pruebas y omitió 5.
+- Learning aprobó 48 pruebas dirigidas. En el recorrido ampliado, 155 pruebas
+  pasaron y la suite de transferencia quedó sin ejecutar por la dependencia
+  local `@aws-sdk/client-s3` ausente. La misma suite falla por esa dependencia
+  en la rama base.
+- Los chequeos de tipos generales de Learning siguen fallando. La comparación
+  con la base no detectó nuevas ubicaciones de diagnóstico ni errores en
+  archivos modificados.
+- Se probó cancelar sin emitir petición, aceptar con la versión vigente, rechazar
+  versiones ausentes o anteriores y conservar la verificación posterior del rol.
+- El sincronizador confirmó el contrato entre los dos worktrees. La prueba de
+  ingreso real queda pendiente del despliegue coordinado.
+
+## Rediseño del aviso en el estudio
+
+- El panel separa la captura automática, el contenido que puede grabarse y el
+  acceso a la repetición. Las acciones explican cuándo se solicita acceso audiovisual.
+- Se revisó el panel en el Hub de desarrollo. **Cancelar** cerró el aviso y el
+  estudio volvió a mostrar **Conectar sesión**. Se volvió a abrir el aviso sin
+  iniciar una conexión real.
+- Las suites `LearningWorkspace`, `InstructorStudio` y `ParticipantStudio`
+  aprobaron 35 pruebas. `npm run docs:check` y la validación estricta del cambio
+  OpenSpec aprobaron.
+- `npm run verify:pr` completó la compuerta con 7419 pruebas aprobadas, 5 omitidas
+  y cobertura verificada sobre 2709 fuentes productivas.

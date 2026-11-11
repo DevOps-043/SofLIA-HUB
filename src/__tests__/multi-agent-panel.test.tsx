@@ -4,13 +4,13 @@ import { MultiAgentPanel } from '../components/meetings/MultiAgentPanel';
 import { agentResult } from '../services/agent-runtime';
 import type { AgentRun, AgentRuntimeBridge, AgentRuntimeState } from '../shared/agent-runtime';
 const run: AgentRun = {
-  id: 'run1', title: 'Reunión', source: 'Fuente privada', provider: 'gemini',
+  id: 'run1', title: 'Reunión', source: 'Fuente privada', provider: 'openai',
   scope: { userId: 'a', organizationId: null }, status: 'review',
   createdAt: '', updatedAt: '', digest: 'a'.repeat(64), approvalExpiresAt: Date.now() + 60_000,
   error: null, meetingRunId: null, parentRunId: null,
   steps: [{ role: 'coordinador', status: 'completed', output: 'Borrador para revisar', inputTokens: 5, outputTokens: 5, toolCalls: 2 }],
 };
-const state: AgentRuntimeState = { scope: run.scope, runs: [run], persistence: 'encrypted', geminiAvailable: true, codex: { configured: false, version: null, home: null } };
+const state: AgentRuntimeState = { scope: run.scope, runs: [run], persistence: 'encrypted', codex: { configured: false, version: null, home: null } };
 describe('Panel multiagente', () => {
   beforeEach(() => {
     window.agentRuntime = {

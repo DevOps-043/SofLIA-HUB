@@ -1,6 +1,6 @@
 # Plataforma del navegador integrado
 
-Estado: vigente. Actualizado: 2026-10-22.
+Estado: vigente. Actualizado: 2026-10-25.
 
 El navegador de Soflia Hub es una superficie de trabajo Electron basada en
 `WebContentsView`; no pretende sustituir un navegador Chromium completo ni
@@ -61,6 +61,36 @@ La protección no identifica formularios arbitrarios ni acredita ahorro de RAM
 o CPU. El [cambio y sus criterios](../../openspec/changes/isolate-browser-resource-policy/specs/browser-resource-lifecycle/spec.md)
 incluyen regresiones del servicio, pruebas de timer y un smoke de vistas reales
 con actividad simulada; no equivale a una sesión multimedia completa.
+
+## Ciclo de vida de percepción
+
+[BrowserPerceptionState](../../electron/integrated-browser/perception-state.ts)
+concentra cachés, trabajos en curso, secuencia, errores y timer efímeros. El
+servicio conserva captura/DOM, selección de pestaña y guardas de sitio/sensibilidad.
+Pausa/reactivación, cierre y cambios de sesión invalidan el ciclo anterior;
+también se comprueban contents, documento/carga, perfil y revisiones visual,
+de política y de control tras
+esperas. Una URL que vuelve a ser igual no restituye una autorización previa.
+
+Cada tipo de trabajo del módulo mantiene un slot físico hasta terminar. Sólo el
+destino/ciclo vigente comparte resultado; otra solicitud espera y produce de
+nuevo. Los resultados/errores revocados no publican caché ni limpian trabajo
+posterior. La API nativa capturePage no se cancela físicamente: una captura sin
+resolver puede retrasar la siguiente de ese tipo. Cerrar una pestaña retira su
+token/cache; reset de sesión limpia todos los tokens, sin persistir contenido.
+Cambiar la política del agente invalida percepción antes de esperar su guardado.
+
+El timer sigue dirigido por eventos, con las cadencias existentes y sin polling
+DOM. Se verifica vigencia también entre disparo y microtask. Los frames explícitos
+y lectura de reproductor fijan el ciclo antes de autorizar/esperar; conservan
+su ruta y límites propios. El respaldo local de UI sigue disponible sin
+convertirse en percepción del agente. No se agregan canales ni permisos.
+
+Smoke focalizado: `npm run browser:smoke:native -- --perception-only --electron
+RUTA_ABSOLUTA`. Usa módulos de estado/DOM productivos y Electron con página
+local ficticia; no ejecuta el servicio completo ni certifica todas sus políticas.
+La integración del servicio y los rechazos de autorización/sensibilidad se
+verifican por separado. [Contrato y evidencia](../../openspec/changes/isolate-browser-perception-lifecycle/reports/verification.md).
 
 ## Capacidades implementadas
 
@@ -488,13 +518,15 @@ conectados.
 
 ## Runtime y release
 
-`package.json` fija Electron `44.5.1`, versión estable publicada. La compuerta
+`package.json` fija Electron `44.9.3`, versión estable publicada. La compuerta
 `npm run runtime:stable` rechaza versiones prerelease salvo una excepción
-versionada que incluya vencimiento, riesgo y rollback. `verify:release` ejecuta
-esta comprobación antes del empaquetado. La compuerta exige coincidencia entre
+versionada que incluya vencimiento, riesgo y rollback. Rechaza además los rangos
+afectados de GHSA-jr5w-w6x2-84p9, incluso con excepción beta. `verify:pr` ejecuta
+esta comprobación; `verify:release` la conserva antes del empaquetado. Exige coincidencia entre
 manifiesto, lockfile, paquete instalado y versión emitida por el ejecutable.
-La corrección de Huddle alinea manifiesto, lockfile, paquete y ejecutable con
-44.5.1; la instalación beta previa se conservó fuera del repositorio como
+La corrección inicial de Huddle alineó manifiesto, lockfile, paquete y ejecutable con
+44.5.1; esa fotografía histórica fue seguida por la actualización de seguridad
+44.9.3. La instalación beta previa se conservó fuera del repositorio como
 recuperación. La compatibilidad del portapapeles admite retorno síncrono
 o asíncrono. El instalador y el smoke completo del producto permanecen en 9.5.
 
@@ -635,6 +667,39 @@ La proyección retira concesiones: permisos denegados siguen denegados, los
 demás requieren preguntar; privacidad estricta sin excepciones; agente estricto
 con nueva autorización, conservando bloqueos y políticas administradas bloqueadas.
 La recuperación no modifica la política empresarial ni claves/dispositivos sync.
+
+Los cuatro motores de recuperación (políticas, SQLite, memoria semántica y
+estado sync) comparten [vigencia de revisión](../../electron/integrated-browser/recovery-review-lifetime.ts).
+El plazo vence al alcanzar cinco minutos monotónicos o de avance civil, y no
+revive si se corrige el reloj. Atrasar la hora no amplía el intervalo. Consumo
+único y vigencia son comprobaciones distintas: tras consumir, se revalida actor,
+plazo y archivos después de cola/I/O/proyección y antes de nuevos efectos.
+No se cancela ni revierte un syscall ya iniciado dentro del plazo. Si sync
+vence después de publicar su marcador, conserva bloqueo y exige otra revisión
+para recuperar/revertir. No cambia otros permisos temporales del navegador.
+
+La publicación asíncrona de políticas reintenta rename EPERM/EBUSY sólo en
+Windows: cinco intentos y esperas de 20/40/80/160 ms, con guardas aplicables y
+bytes esperados revalidados antes de cada intento. No elimina el destino para
+forzar el reemplazo, ni reintenta link exclusivo, otros errores o plataformas.
+Un bloqueo persistente devuelve fallo con principal anterior intacto. Un temporal
+o cuarentena que no se creó no se elimina; políticas y SQLite comprueban publicación
+efectiva de la cuarentena antes de limpiarla. Si falla limpiar uno propio se conserva el resultado
+de la operación y se avisa sin imprimir rutas. Los residuos no se purgan
+automáticamente. [Contrato y evidencia](../../openspec/changes/bound-browser-recovery-review-lifetime/reports/verification.md).
+
+Memoria semántica, historial/auditoría SQLite y estado sync comparten publicación
+síncrona en [recovery-file-publication](../../electron/integrated-browser/recovery-file-publication.ts).
+Mantiene temporal exclusivo, fsync, cierre previo y guarda antes de rename/link.
+Si falla escritura/sincronización y también cierre o limpieza, conserva el primer
+error; si sólo falla cierre, no publica. Los avisos son estáticos, sin rutas ni
+contenido. No reintenta un descriptor de estado incierto ni incorpora backoff
+bloqueante. La limpieza auxiliar tolerante no se usa en borrados deliberados.
+Si fallan retirar el marcador sync y limpiar su archivo compensatorio, mantiene
+el primer error y el bloqueo; otra revisión válida puede revertir. El residuo
+protegido ocupa su cuota, sin purga automática. Lecturas, proyecciones y copias
+auxiliares conservan ciclos propios; este módulo no garantiza durabilidad ante
+apagado ni bloqueo multiproceso. [Verificación y límites](../../openspec/changes/unify-guarded-recovery-file-publication/reports/verification.md).
 
 Si hay principal dañado se conserva cifrado en `.damaged-UUID.bin`, máximo cinco
 copias sin purga automática. Se conserva también el respaldo revisado. Guardados

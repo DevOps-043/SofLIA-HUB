@@ -6,7 +6,11 @@ on:
     paths:
       - .github/workflows/python-reader-native.yml
       - scripts/quality/build-reader-wheel.py
+      - scripts/quality/prepare-test-python.mjs
+      - scripts/python-runtime-support.cjs
+      - scripts/python-runtime-download.mjs
       - python/tools_sidecar/**
+      - python/bootstrap.lock
       - test/python-native-build.lock
 
 permissions:
@@ -27,17 +31,21 @@ jobs:
             /python/bootstrap.lock
             /test/python-native-build.lock
             /scripts/quality/build-reader-wheel.py
-      - name: Configurar el Python fijado
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+            /scripts/quality/prepare-test-python.mjs
+            /scripts/python-runtime-support.cjs
+            /scripts/python-runtime-download.mjs
+      - name: Configurar Node para preparar el intérprete
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          python-version: 3.12.11
-          architecture: x64
+          node-version: 24
+      - name: Preparar el mismo Python fijado del producto
+        run: node scripts/quality/prepare-test-python.mjs --github-actions
       - name: Configurar Rust fijado
         run: rustup toolchain install 1.99.1 --profile minimal
       - name: Construir y verificar el candidato sin publicarlo
         env:
           PYTHONDONTWRITEBYTECODE: '1'
-        run: python -I -B -X utf8 scripts/quality/build-reader-wheel.py --output "$RUNNER_TEMP/reader-candidate"
+        run: '"$SOFLIA_TEST_PYTHON" -I -B -X utf8 scripts/quality/build-reader-wheel.py --output "$RUNNER_TEMP/reader-candidate"'
       - name: Conservar candidato y recibo para revisión
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

@@ -1,10 +1,11 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import { isSofiaConfigured } from '../../lib/sofia-client';
 import { sofiaAuth } from '../../services/sofia-auth';
-import { isOrbWindowRenderer, publishAuthState } from '../../services/auth-state';
 import { setUserPreferenceScope } from '../../services/user-scope';
 import { useAuthLifecycle } from './useAuthLifecycle';
 import { useAuthState } from './useAuthState';
+import { useAuthOperations } from './useAuthOperations';
+import { useAuthPublication } from './useAuthPublication';
 import { useLiaSession } from './useLiaSession';
 import { useSofiaContextRetry } from './useSofiaContextRetry';
 import { useSofiaResolver } from './useSofiaResolver';
@@ -16,17 +17,20 @@ import type { AuthContextType } from './types';
 
 export function useAuthProviderModel(): AuthContextType {
   const state = useAuthState();
+  const operations = useAuthOperations(state.revokeSession);
+  const ownerSignal = operations.capture();
   const usingSofia = isSofiaConfigured();
   const dataUserId = usingSofia ? state.session?.user?.id ?? null : state.session?.user?.id ?? state.user?.id ?? null;
-  const signOut = useSignOut(usingSofia, state.clearSessionState);
+  const signOut = useSignOut({ usingSofia, operations, setLoading: state.setLoading });
   const resolveSofiaContext = useSofiaResolver();
   const lia = useLiaSession(state);
   const ensureLiaSession = lia.ensureLiaSession;
-  const signInWithSofia = useSofiaSignIn({ ...state, ensureLiaSession, signOut });
-  const learningSso = useLearningSso({ ...state, ensureLiaSession, signOut });
+  const signInWithSofia = useSofiaSignIn({ ...state, operations, ensureLiaSession, signOut });
+  const learningSso = useLearningSso({ ...state, operations, ensureLiaSession, signOut });
   const selection = useSofiaSelection(state);
   const retrySofiaContext = useSofiaContextRetry({
     issue: state.sofiaContextIssue,
+    operations,
     usingSofia,
     userId: state.user?.id ?? null,
     resolveSofiaContext,
@@ -39,63 +43,47 @@ export function useAuthProviderModel(): AuthContextType {
   // necesita el token de SOFIA; sin el responde `not_authenticated` y el
   // reintento manual nunca podia recuperarse.
   const retryConversations = useCallback(async () => {
-    const sofiaSession = usingSofia ? await sofiaAuth.getSession() : null;
-    const [liaSession] = await Promise.all([
-      ensureLiaSession(state.user?.email, sofiaSession?.access_token ?? null),
-      state.sofiaContextIssue ? retrySofiaContext() : Promise.resolve(true),
-    ]);
-    return Boolean(liaSession);
-  }, [ensureLiaSession, retrySofiaContext, state.sofiaContextIssue, state.user?.email, usingSofia]);
+    if (!operations.isCurrent(ownerSignal) || !operations.canRestore() || !state.user) return false;
+    try {
+      const sofiaSession = usingSofia ? await sofiaAuth.getSession() : null;
+      if (!operations.isCurrent(ownerSignal)) return false;
+      if (usingSofia && !operations.matchesSubject(ownerSignal, sofiaSession?.user?.id ?? null)) {
+        operations.cancel(ownerSignal);
+        return false;
+      }
+      const [liaSession] = await Promise.all([
+        operations.enqueue(ownerSignal, () => ensureLiaSession(
+          usingSofia ? sofiaSession?.user.email : state.user?.email, sofiaSession?.access_token ?? null, ownerSignal)),
+        state.sofiaContextIssue ? retrySofiaContext() : Promise.resolve(true),
+      ]);
+      return operations.isCurrent(ownerSignal) && Boolean(liaSession);
+    } catch {
+      if (operations.isCurrent(ownerSignal)) console.warn('[autenticacion] no se pudo reintentar conversaciones');
+      return false;
+    }
+  }, [operations, ownerSignal, ensureLiaSession, retrySofiaContext, state.sofiaContextIssue, state.user, usingSofia]);
+
+  const ensureLifecycleLia = useCallback((email?: string | null, token?: string | null, signal?: AbortSignal) => {
+    const scope = operations.capture();
+    return operations.enqueue(scope, () => ensureLiaSession(email, token, signal ?? scope));
+  }, [operations, ensureLiaSession]);
 
   useAuthLifecycle({
     ...state,
+    operations,
     usingSofia,
     signOut,
     resolveSofiaContext,
-    ensureLiaSession,
+    ensureLiaSession: ensureLifecycleLia,
   });
 
-  // El proceso main niega por defecto las funciones sensibles (orbe, deteccion
-  // de reuniones) hasta conocer que hay sesion. Se publica en cada cambio de
-  // usuario: login, cierre de sesion y restauracion al arrancar.
   const authenticatedUserId = state.user?.id ?? null;
-  const organizationId = state.sofiaContext?.currentOrganization?.id ?? null;
-  const authLoading = state.loading;
-  const accessToken = state.session?.access_token ?? null;
-  const refreshToken = state.session?.refresh_token ?? null;
-
-  // Las preferencias locales (favoritos y ajustes del navegador, modelo elegido,
-  // perfil personal) se acotan al usuario activo. Se fija durante el render, no
-  // en un efecto: las vistas hijas leen `localStorage` en su primer render y no
-  // deben poder ver las preferencias de la sesion anterior ni por un instante.
+  // Las preferencias se acotan durante render porque las vistas hijas las leen
+  // al montarse. No son evidencia de autenticación.
   setUserPreferenceScope(authenticatedUserId);
-  useEffect(() => {
-    // Solo la ventana principal publica: la orbe es consumidora del gate.
-    if (isOrbWindowRenderer()) return;
-    // Mientras se restaura la sesion no se publica: un `false` transitorio
-    // revocaria el acceso y cerraria la orbe recien abierta.
-    if (authLoading) return;
-    let cancelled = false;
-    void (async () => {
-      const sofiaSession = usingSofia ? await sofiaAuth.getSession() : null;
-      if (cancelled) return;
-      await publishAuthState({
-        authenticated: Boolean(authenticatedUserId),
-        userId: authenticatedUserId,
-        organizationId,
-        accessToken: accessToken ?? null,
-        refreshToken: refreshToken ?? null,
-        // Este token solo se canjea en main; nunca se persiste ni vuelve al renderer.
-        sofiaAccessToken: sofiaSession?.access_token ?? null,
-        // Main custodia únicamente el refresh token cifrado para que WhatsApp
-        // conserve identidad SOFIA después de cerrar la ventana o reiniciar.
-        sofiaRefreshToken: sofiaSession?.refresh_token ?? null,
-      });
-    })();
-    return () => { cancelled = true; };
-    // Los tokens entran en las dependencias para republicar cuando la sesión se
-    // renueva: si no, el main se quedaría con el token viejo hasta reiniciar.
-  }, [accessToken, authLoading, authenticatedUserId, organizationId, refreshToken, usingSofia]);
+  useAuthPublication({ operations, ownerSignal, usingSofia, revocation: state.revocation,
+    loading: state.loading, userId: authenticatedUserId,
+    organizationId: state.sofiaContext?.currentOrganization?.id ?? null, session: state.session, sofiaSession: state.sofiaSession });
 
   return {
     session: state.session,

@@ -1,32 +1,7 @@
-import { ipcMain } from 'electron';
 import type { DesktopAgentService } from '../desktop-agent-service';
-import { getErrorMessage } from './errors';
-
-export function registerDesktopAgentWindowHandlers(agentService: DesktopAgentService) {
-  ipcMain.handle('desktop-agent:focus-window', async (_, title: string) => {
-    try {
-      const found = await agentService.focusWindow(title);
-      return { success: true, found };
-    } catch (error) {
-      return { success: false, error: getErrorMessage(error) };
-    }
-  });
-
-  ipcMain.handle('desktop-agent:list-windows', async () => {
-    try {
-      const windows = await agentService.listWindows();
-      return { success: true, windows };
-    } catch (error) {
-      return { success: false, error: getErrorMessage(error) };
-    }
-  });
-
-  ipcMain.handle('desktop-agent:take-screenshot', async (_, fullRes?: boolean) => {
-    try {
-      const base64 = await agentService.takeScreenshot(fullRes);
-      return { success: true, data: base64 };
-    } catch (error) {
-      return { success: false, error: getErrorMessage(error) };
-    }
-  });
+import type { DesktopRegister } from './authorized-registration';
+export function registerDesktopAgentWindowHandlers(service: DesktopAgentService, register: DesktopRegister) {
+  register('focus-window', async (_ctx, title) => ({ success: true, found: await service.focusWindow(title) }), { effect: true });
+  register('list-windows', async () => ({ success: true, windows: await service.listWindows() }));
+  register('take-screenshot', async (_ctx, fullRes) => ({ success: true, data: await service.takeScreenshot(fullRes) }));
 }

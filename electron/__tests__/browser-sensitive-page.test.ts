@@ -16,12 +16,16 @@ describe('sonda local de formularios sensibles', () => {
   it('comparte el presupuesto entre documento y shadow DOM', () => {
     const f = page('<section id="host"></section>' + '<i></i>'.repeat(200));
     try {
+      // Este caso mide el presupuesto de nodos, sin coste de layout de JSDOM.
+      vi.spyOn(f.dom.window, 'getComputedStyle').mockReturnValue({ display: 'block', visibility: 'visible' } as CSSStyleDeclaration);
       f.dom.window.document.getElementById('host')!.attachShadow({ mode: 'open' }).innerHTML = '<i></i>'.repeat(3900);
       expect(f.inspect()).toEqual({ reason: 'uninspectable' });
     } finally { f.dom.window.close(); }
   });
   it.each([
     ['<input type="password" value="NO-TRANSMITIR">', 'secret'],
+    ['<input type="password" style="display:none">', null],
+    ['<input type="password" style="visibility:hidden">', null],
     ['<input autocomplete="cc-number" value="FICTICIO">', 'payment'],
     ['<input autocomplete="street-address">', 'identity'],
     ['<h1>Historial médico</h1>', 'medical'],

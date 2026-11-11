@@ -29,7 +29,6 @@ export async function createPresentationDocument(
     outputPath: filePath,
     customTheme,
     includeImages: args.includeImages,
-    genAI: args.ctx.getGenAI(),
   });
 
   return { filePath, slideCount: slides.length };

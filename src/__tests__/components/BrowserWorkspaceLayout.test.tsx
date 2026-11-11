@@ -1,10 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserWorkspaceLayout } from '../../components/browser/BrowserWorkspaceLayout';
 import { orbService } from '../../services/orb-service';
 import { scopedPreferenceKey } from '../../services/user-scope';
-import { SOFLIA_RUNTIME_MODEL } from '../../shared/soflia-runtime-model';
 import { AgentActivityContext, type AgentActivityPanelState } from '../../components/agents/agent-activity-context';
 
 vi.mock('../../services/orb-service', () => ({
@@ -17,10 +16,12 @@ vi.mock('../../components/browser/IntegratedBrowserPanel', () => ({
     viewportInsets?: { left: number; right: number };
     onToggleMaximize?: () => void;
     onContentTopChange?: (offset: number) => void;
+    projectTarget?: { projectId: string; name: string };
   }) => (
     <div>
       <span>{props.maximized ? 'Navegador completo' : 'Navegador con panel'}</span>
       <span data-testid="viewport-insets">{`${props.viewportInsets?.left ?? 0}:${props.viewportInsets?.right ?? 0}`}</span>
+      {props.projectTarget && <span data-testid="browser-project-context">{props.projectTarget.projectId}:{props.projectTarget.name}</span>}
       <button onClick={props.onToggleMaximize}>Alternar chat</button>
       <button onClick={() => props.onContentTopChange?.(120)}>Reportar inicio de pagina</button>
     </div>
@@ -28,6 +29,32 @@ vi.mock('../../components/browser/IntegratedBrowserPanel', () => ({
 }));
 
 describe('BrowserWorkspaceLayout', () => {
+  it('el modo flotante abre desde el icono sin activar el orbe ni desplegar el panel lateral', async () => {
+    render(<BrowserWorkspaceLayout floating chat={<textarea aria-label="Escribe a Soflia" />} conversations={[]} currentConversationId={null} onClose={vi.fn()} onNewChat={vi.fn(async()=>{})} onSelectConversation={vi.fn(async()=>{})} />);
+    expect(screen.getByTestId('browser-floating-workspace')).toBeInTheDocument();
+    expect(screen.queryByRole('separator')).toBeNull();
+    expect(screen.queryByRole('textbox')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir chat flotante con Soflia' }));
+    expect(await screen.findByRole('textbox')).toBeVisible();
+    expect(orbService.show).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Minimizar chat flotante' }));
+    await waitFor(() => expect(screen.queryByRole('textbox')).toBeNull());
+  });
+  it('el modo compacto conserva el acceso a nuevo chat y conversaciones existentes', async () => {
+    const create = vi.fn(async()=>{}), select=vi.fn(async()=>{});
+    render(<BrowserWorkspaceLayout floating chat={<textarea aria-label="Compositor" />} conversations={[{id:'a',title:'Chat del proyecto',updated_at:''}]} currentConversationId={null} onClose={vi.fn()} onNewChat={create} onSelectConversation={select}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Abrir chat flotante con Soflia'}));
+    await screen.findByRole('textbox');
+    fireEvent.click(screen.getByRole('button',{name:'Nuevo chat'}));
+    await waitFor(()=>expect(create).toHaveBeenCalledOnce());
+    fireEvent.click(screen.getByRole('button',{name:'Abrir conversaciones'}));
+    fireEvent.click(screen.getByRole('button',{name:/Chat del proyecto/}));
+    await waitFor(()=>expect(select).toHaveBeenCalledWith('a'));
+  });
+  it('transmite el proyecto actual al navegador sin depender de la conversación elegida', () => {
+    render(<BrowserWorkspaceLayout projectTarget={{ workspaceId: 'w', projectId: 'p', organizationId: 'org', name: 'Proyecto activo', canWrite: true }} chat={<div>Chat</div>} conversations={[]} currentConversationId={null} onClose={vi.fn()} onNewChat={vi.fn(async () => {})} onSelectConversation={vi.fn(async () => {})} />);
+    expect(screen.getByTestId('browser-project-context')).toHaveTextContent('p:Proyecto activo');
+  });
   const conversations = [
     { id: 'chat-1', title: 'Resumen del repositorio', updated_at: '2026-08-05T10:00:00.000Z' },
     { id: 'chat-2', title: 'Planeación trimestral', updated_at: '2026-08-04T10:00:00.000Z' },
@@ -83,19 +110,22 @@ describe('BrowserWorkspaceLayout', () => {
     renderLayout();
 
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar modelo y razonamiento' }));
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /SofLIA Pro/ }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /SofLIA Max/ }));
 
-    expect(localStorage.getItem(scopedPreferenceKey('soflia:selected-model'))).toBe(SOFLIA_RUNTIME_MODEL);
-    expect(screen.getByRole('button', { name: 'Cambiar modelo y razonamiento' })).toHaveTextContent('SofLIA Pro');
+    expect(localStorage.getItem(scopedPreferenceKey('soflia:selected-model'))).toBe('gpt-6.1-sol');
+    expect(screen.getByRole('button', { name: 'Cambiar modelo y razonamiento' })).toHaveTextContent('SofLIA Max');
   });
 
-  it('activa Max con un clic real después de Pro y conserva Sol al reabrir el menú', async () => {
+  it('permite alternar entre Pro y Max y conserva la última selección', async () => {
     const user = userEvent.setup();
     renderLayout();
     const selector = screen.getByRole('button', { name: 'Cambiar modelo y razonamiento' });
     await user.click(selector);
     await user.click(screen.getByRole('menuitemradio', { name: /SofLIA Pro/ }));
+    expect(selector).toHaveTextContent('SofLIA Pro');
+    expect(localStorage.getItem(scopedPreferenceKey('soflia:selected-model'))).toBe('gpt-6.1-terra');
     await user.click(selector);
+    expect(screen.getByRole('menuitemradio', { name: /SofLIA Pro/ })).toHaveAttribute('aria-checked', 'true');
     await user.click(screen.getByRole('menuitemradio', { name: /SofLIA Max/ }));
     expect(selector).toHaveTextContent('SofLIA Max');
     expect(localStorage.getItem(scopedPreferenceKey('soflia:selected-model'))).toBe('gpt-6.1-sol');

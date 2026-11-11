@@ -8,12 +8,14 @@
     "email": "devops@soflia.ai"
   },
   "scripts": {
-    "dev": "node scripts/dev-with-project-hub.mjs",
+    "installer:live-qa": "node scripts/quality/build-live-qa.mjs",
+    "dev": "npm run dev:app",
     "dev:app": "vite --config vite.config.mts",
     "dev:clean": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-clean.ps1",
     "dev:fresh": "npm run dev:clean && npm run dev",
+    "pretypecheck": "npm run zoom:install",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
-    "build:app": "npm run typecheck && vite build --config vite.config.mts && npm run presentation:build && npm run audiovisual:build && npm run zoom:build",
+    "build:app": "npm run typecheck && vite build --config vite.config.mts && npm run presentation:build && npm run audiovisual:build && npm run zoom:build:prepared",
     "build": "npm run build:app && node scripts/generate-bitmaps.js && node scripts/setup-python-runtime.js && electron-builder && node scripts/build-installer-shell.mjs",
     "build:win": "npm run build:app && node scripts/generate-bitmaps.js && node scripts/setup-python-runtime.js && electron-builder --win && node scripts/build-installer-shell.mjs",
     "build:mac": "npm run build:app && node scripts/generate-bitmaps.js && node scripts/setup-python-runtime.js && electron-builder --mac",
@@ -37,10 +39,15 @@
     "browser:smoke:native": "node scripts/quality/smoke-browser-native.mjs",
     "app:smoke:build": "node scripts/quality/smoke-app-build.mjs",
     "calendar:smoke:native": "node scripts/quality/smoke-calendar-custody.mjs",
+    "calendar:oauth:smoke:native": "node scripts/quality/smoke-calendar-oauth.mjs",
+    "validation:smoke:native": "node scripts/quality/smoke-validation-onnx.mjs",
+    "document-export:smoke:native": "node scripts/quality/smoke-document-export.mjs",
     "project-hub:smoke:native": "node scripts/quality/smoke-project-ipc.mjs",
     "python:smoke:connection": "node scripts/quality/smoke-python-connection.mjs",
     "voice:smoke:native": "node scripts/quality/smoke-voice-ipc.mjs",
     "python-tools:smoke:native": "node scripts/quality/smoke-python-tools-ipc.mjs",
+    "python-tools:test": "node scripts/quality/python-tools-test.mjs",
+    "python-tools:test:formats": "node scripts/quality/python-tools-test.mjs --formats",
     "installer:smoke:win": "node scripts/quality/smoke-installer-win.mjs",
     "installer:preview": "node scripts/build-installer-shell.mjs --preview",
     "installer:shell:build": "node scripts/build-installer-shell.mjs",
@@ -51,9 +58,10 @@
     "python:install-vosk-model": "node scripts/install-vosk-model.js",
     "test": "vitest run",
     "test:fast": "vitest run",
-    "test:quality": "node --test scripts/quality/*.test.mjs",
+    "test:quality": "node --test --test-concurrency=1 scripts/quality/*.test.mjs",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "vitest run --coverage.enabled && node scripts/quality/check-coverage.mjs",
+    "ci:integrity": "node scripts/quality/workflow-integrity.mjs",
     "benchmark:resources": "node scripts/performance/run-resource-benchmark.mjs",
     "test:main": "vitest run --project main",
     "test:renderer": "vitest run --project renderer",
@@ -62,13 +70,13 @@
     "production:smoke": "node scripts/run-production-smoke.mjs",
     "audiovisual:build": "vite build --config vite.audiovisual.config.mts",
     "zoom:install": "npm ci --prefix packages/zoom-runtime --ignore-scripts",
-    "zoom:build": "npm run zoom:install && tsc -p packages/zoom-runtime/tsconfig.json && vite build --config vite.zoom.config.mts",
+    "zoom:build": "npm run zoom:install && npm run zoom:build:prepared",
+    "zoom:build:prepared": "tsc -p packages/zoom-runtime/tsconfig.json && vite build --config vite.zoom.config.mts",
     "select:smoke:native": "node scripts/quality/smoke-select-dropdown.mjs"
   },
   "dependencies": {
-    "@azure/msal-node": "^5.0.4",
+    "@azure/msal-node": "7.1.1",
     "@google/genai": "^2.15.0",
-    "@google/generative-ai": "^0.24.1",
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "@nut-tree-fork/nut-js": "^4.2.6",
     "@react-three/drei": "^10.7.8",
@@ -83,7 +91,7 @@
     "docx": "^9.7.1",
     "dotenv": "^17.3.1",
     "electron-updater": "^6.8.3",
-    "exceljs": "^4.4.0",
+    "exceljs": "4.4.0",
     "framer-motion": "^13.0.0",
     "googleapis": "^174.0.1",
     "highlight.js": "11.11.1",
@@ -91,22 +99,22 @@
     "meyda": "^5.6.3",
     "node-cron": "^4.6.0",
     "nodemailer": "10.2.1",
-    "onnxruntime-node": "^1.27.0",
+    "onnxruntime-node": "1.30.0",
     "openai": "^7.3.0",
     "pdfjs-dist": "6.4.299",
     "pino": "^10.3.1",
     "playwright-core": "^1.58.2",
-    "pptxgenjs": "^4.0.1",
+    "pptxgenjs": "4.0.1",
     "qrcode": "^1.5.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "recharts": "^3.10.1",
     "sharp": "0.35.5",
-    "systeminformation": "^5.31.6",
+    "systeminformation": "^5.33.19",
     "tesseract.js": "^7.0.0",
     "three": "^0.185.1",
     "tldts": "7.4.10",
-    "zod": "^4.4.3"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.3",
@@ -123,7 +131,7 @@
     "@vitejs/plugin-react": "^6.0.5",
     "@vitest/coverage-v8": "4.1.12",
     "autoprefixer": "^10.4.24",
-    "electron": "44.5.1",
+    "electron": "44.9.3",
     "electron-builder": "^26.8.1",
     "eslint": "^10.8.0",
     "eslint-plugin-react-hooks": "^7.1.1",
@@ -133,19 +141,33 @@
     "jsdom": "^30.0.1",
     "msw": "^2.12.14",
     "png-to-ico": "^3.0.1",
+    "semver": "7.8.5",
     "tailwindcss": "^4.1.18",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.66.0",
     "vite": "8.2.4",
     "vite-plugin-electron": "^1.1.1",
     "vite-plugin-electron-renderer": "^1.0.0",
-    "vitest": "4.1.12"
+    "vitest": "4.1.12",
+    "yaml": "2.9.0"
   },
   "overrides": {
+    "@jimp/plugin-scale@0.22.12": {
+      "@jimp/plugin-resize": "0.22.12"
+    },
+    "@jimp/plugin-shadow@0.22.12": {
+      "@jimp/plugin-resize": "0.22.12",
+      "@jimp/plugin-blur": "0.22.12"
+    },
     "protobufjs": "^7.5.6",
     "tar": "^7.5.20",
-    "node-abi": "^4.33.0"
+    "node-abi": "^4.33.0",
+    "exceljs@4.4.0": {
+      "uuid": "11.1.1"
+    },
+    "pptxgenjs@4.0.1": {
+      "image-size": "2.0.4"
+    }
   },
   "main": "dist-electron/main.js"
 }
-

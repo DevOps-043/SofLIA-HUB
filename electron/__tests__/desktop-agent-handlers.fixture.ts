@@ -1,6 +1,7 @@
 import { vi } from 'vitest';
 import { DEFAULT_CONFIG } from '../desktop-agent-types';
 import type { DesktopTaskOutcome } from '../desktop-agent/task-outcome';
+import type { DesktopTaskExecutionOptions } from '../desktop-agent/types';
 
 export const expectedDesktopAgentChannels = [
   'desktop-agent:execute-task',
@@ -29,14 +30,15 @@ export const expectedDesktopAgentChannels = [
 
 export function createMockDesktopAgentService() {
   return {
-    executeTask: vi.fn(async () => 'Task completed'),
-    executeTaskDetailed: vi.fn(async (): Promise<DesktopTaskOutcome> => ({
+    activeTasks: new Map(),
+    executeTask: vi.fn(async (_task: string, _options?: DesktopTaskExecutionOptions) => { void _task; void _options; return 'Task completed'; }),
+    executeTaskDetailed: vi.fn(async (_task: string, _options?: DesktopTaskExecutionOptions): Promise<DesktopTaskOutcome> => { void _task; void _options; return ({
       taskId: 'agent-test',
       estado: 'completada',
       mensaje: 'Task completed',
       pasosEjecutados: 1,
       duracionMs: 10,
-    })),
+    }); }),
     executeParallelTasks: vi.fn(async () => []),
     getActiveTasks: vi.fn(() => []),
     abort: vi.fn(),
@@ -54,7 +56,7 @@ export function createMockDesktopAgentService() {
     })),
     getConfig: vi.fn(() => ({ ...DEFAULT_CONFIG })),
     setConfig: vi.fn(),
-    startObservation: vi.fn(async () => {}),
+    startObservation: vi.fn(async (_objective: string, _rules?: string, _signal?: AbortSignal) => { void _objective; void _rules; void _signal; }),
     stopObservation: vi.fn(),
     mouseClick: vi.fn(async () => {}),
     mouseDoubleClick: vi.fn(async () => {}),

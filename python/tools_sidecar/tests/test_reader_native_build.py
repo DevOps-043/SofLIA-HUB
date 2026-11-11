@@ -46,6 +46,17 @@ class NativeBuilderGuardTests(unittest.TestCase):
         self.assertEqual(updated.replace(" " + chr(92) + "\n    --hash=sha256:" + digest, ""), original)
         self.assertEqual((ROOT / "python/tools_sidecar/requirements.lock").read_text(encoding="utf-8"), original)
 
+    def test_tar_con_ruta_duplicada_no_se_extrae(self):
+        with tempfile.TemporaryDirectory(prefix="soflia-native-test-") as folder:
+            archive = Path(folder) / "source.tar.gz"
+            with tarfile.open(archive, "w:gz") as output:
+                for _ in range(2):
+                    output.addfile(tarfile.TarInfo("fuente/archivo"))
+            destination = Path(folder) / "extraction"
+            with self.assertRaisesRegex(RuntimeError, "duplicada"):
+                builder.extract_source(archive, destination, "fuente")
+            self.assertFalse(destination.exists())
+
     def test_enlace_openssl_externo_se_rechaza(self):
         self.assertEqual(builder.inspect_linkage("extension.so:\n /usr/lib/libSystem.B.dylib (version 1)"), ["/usr/lib/libSystem.B.dylib"])
         with self.assertRaises(RuntimeError):

@@ -1,29 +1,26 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ gemini: vi.fn(), openai: vi.fn(), tokens: vi.fn() }));
-vi.mock('../../services/gemini-chat/client', () => ({ getGenAiClient: async () => ({ models: { generateContent: mocks.gemini } }) }));
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+const mocks = vi.hoisted(() => ({ openai: vi.fn(), tokens: vi.fn() }));
 vi.mock('../../services/openai-chat/client', () => ({ getOpenAI: async () => ({ responses: { create: mocks.openai } }) }));
 vi.mock('../../services/model-quota', () => ({ SOFLIA_MAX_MODEL_ID: 'gpt-6-sol', recordSofliaMaxTokens: mocks.tokens }));
 import { prepareChatTeam } from '../../services/gemini-chat/agent-team';
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.gemini.mockResolvedValue({ text: 'Aporte Gemini' });
   mocks.openai.mockResolvedValue({ output_text: 'Aporte OpenAI', usage: { total_tokens: 30 } });
 });
 describe('Equipos en chat y páginas', () => {
-  it('conserva modelo Gemini y usa solo el texto suministrado sin herramientas', async () => {
+  it('migra el modelo retirado a OpenAI y usa solo el texto suministrado sin herramientas', async () => {
     const onToolCall = vi.fn();
     const result = await prepareChatTeam({ message: 'Revisa esta página', source: '[P1:F1] Texto autorizado', modelId: 'gemini-3.8-flash', options: { browserSourceMode: 'attached-fragments', onToolCall } });
-    expect(mocks.gemini).toHaveBeenCalledTimes(2);
-    for (const [request] of mocks.gemini.mock.calls) {
-      expect(request.model).toBe('gemini-3.8-flash');
-      expect(request.contents).toContain('[P1:F1]');
-      expect(request.config).not.toHaveProperty('tools');
-      expect(request.config.abortSignal).toBeInstanceOf(AbortSignal);
-      expect(request.config.thinkingConfig.thinkingLevel).toBe('LOW');
+    expect(mocks.openai).toHaveBeenCalledTimes(2);
+    for (const [request] of mocks.openai.mock.calls) {
+      expect(request.model).toBe('gpt-6-luna');
+      expect(request.input).toContain('[P1:F1]');
+      expect(request).not.toHaveProperty('tools');
+      expect(mocks.openai.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
+      expect(request.reasoning.effort).toBe('low');
     }
-    expect(mocks.openai).not.toHaveBeenCalled();
-    expect(result.context).toContain('Aporte Gemini');
+    expect(result.context).toContain('Aporte OpenAI');
     expect(onToolCall.mock.calls[onToolCall.mock.calls.length - 1]?.[0].result).toContain('completed');
   });
   it('usa el modelo OpenAI elegido sin búsquedas y registra consumo de Max', async () => {
@@ -38,10 +35,10 @@ describe('Equipos en chat y páginas', () => {
     for (const message of ['Hola', 'modo directo: Crea un informe']) {
       expect((await prepareChatTeam({ message, source: '', modelId: 'gpt-6-sol' })).context).toBe('');
     }
-    expect(mocks.gemini).not.toHaveBeenCalled(); expect(mocks.openai).not.toHaveBeenCalled();
+    expect(mocks.openai).not.toHaveBeenCalled();
   });
   it('falla sin contaminar el contexto y permite continuar al coordinador', async () => {
-    mocks.gemini.mockRejectedValue(new Error('detalle privado'));
+    mocks.openai.mockRejectedValue(new Error('detalle privado'));
     const result = await prepareChatTeam({ message: 'Crea un informe', source: '', modelId: 'gemini-3.8-flash' });
     expect(result.context).toBe('');
     expect(result.instruction).toContain('"aportesCompletos":0');
@@ -55,10 +52,10 @@ describe('Equipos en chat y páginas', () => {
         { role: 'model', text: 'Una mordida, otra mirada' },
       ],
     });
-    const calls = modelId.startsWith('gpt') ? mocks.openai.mock.calls : mocks.gemini.mock.calls;
+    const calls = mocks.openai.mock.calls;
     expect(calls).toHaveLength(2);
     for (const [request] of calls) {
-      const payload = JSON.parse(request.input ?? request.contents);
+      const payload = JSON.parse(request.input);
       expect(payload.datosNoConfiables).toContain('Rethink & Delight');
       expect(payload.datosNoConfiables).toContain('HISTORIAL_RECIENTE_NO_CONFIABLE');
     }
@@ -71,7 +68,7 @@ describe('Equipos en chat y páginas', () => {
       ...Array.from({ length: 5 }, () => ({ role: 'user' as const, text: 'Contexto reciente' })),
       { role: 'model', text: 'x'.repeat(9_000) },
     ] });
-    const source = JSON.parse(mocks.gemini.mock.calls[0][0].contents).datosNoConfiables;
+    const source = JSON.parse(mocks.openai.mock.calls[0][0].input).datosNoConfiables;
     expect(source).not.toContain('Mensaje antiguo omitido');
     const history = JSON.parse(source.split('HISTORIAL_RECIENTE_NO_CONFIABLE\n')[1].split('\nFIN_')[0]);
     expect(history.truncado).toBe(true);
@@ -79,15 +76,15 @@ describe('Equipos en chat y páginas', () => {
     expect(source).toContain('Contexto reciente');
     expect(history.mensajes.map((entry: { text: string }) => entry.text).join('').length).toBeLessThanOrEqual(8_000);
     const next = await prepareChatTeam({ message: 'usa los multiagentes', source: 'Otro chat', modelId: 'gemini-3.8-flash' });
-    expect(mocks.gemini.mock.calls[2][0].contents).not.toContain('Contexto reciente');
-    expect(next.context).toContain('Aporte Gemini');
+    expect(mocks.openai.mock.calls[2][0].input).not.toContain('Contexto reciente');
+    expect(next.context).toContain('Aporte OpenAI');
   });
   it('conserva el encargo reciente aunque la fuente actual ocupe todo el presupuesto', async () => {
     await prepareChatTeam({ message: 'usa los multiagentes', source: 's'.repeat(24_000), modelId: 'gemini-3.8-flash', conversationHistory: [
       { role: 'user', text: 'Activación breve para Rethink & Delight' },
       { role: 'model', text: 'Una propuesta larga'.repeat(1000) },
     ] });
-    const source = JSON.parse(mocks.gemini.mock.calls[0][0].contents).datosNoConfiables;
+    const source = JSON.parse(mocks.openai.mock.calls[0][0].input).datosNoConfiables;
     expect(source.length).toBeLessThanOrEqual(24_000);
     expect(source).toContain('FUENTE_ACTUAL_TRUNCADA');
     expect(source).toContain('Rethink & Delight');
@@ -97,7 +94,7 @@ describe('Equipos en chat y páginas', () => {
     await prepareChatTeam({ message: 'usa los multiagentes', source: 's'.repeat(24_000), modelId: 'gemini-3.8-flash', conversationHistory: [
       { role: 'user', text: 'Encargo original' }, { role: 'model', text: '\u0000'.repeat(8_000) },
     ] });
-    const source = JSON.parse(mocks.gemini.mock.calls[0][0].contents).datosNoConfiables;
+    const source = JSON.parse(mocks.openai.mock.calls[0][0].input).datosNoConfiables;
     expect(source.length).toBeLessThanOrEqual(24_000);
     expect(source).toContain('Encargo original');
     expect(source).toContain('FIN_HISTORIAL_RECIENTE_NO_CONFIABLE');
@@ -113,3 +110,7 @@ describe('Equipos en chat y páginas', () => {
     } finally { Reflect.deleteProperty(window, 'agentActivity'); }
   });
 });
+
+let originalIpc: Window['ipcRenderer'];
+beforeEach(() => { originalIpc = window.ipcRenderer; Reflect.set(window, 'ipcRenderer', undefined); });
+afterEach(() => { Reflect.set(window, 'ipcRenderer', originalIpc); });

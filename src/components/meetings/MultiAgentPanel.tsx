@@ -11,7 +11,7 @@ export function MultiAgentPanel(props: {
   userId: string; organizationId: string | null; title: string; source: string; onPublished(): void;
 }) {
   const [state, setState] = useState<AgentRuntimeState | null>(null);
-  const [provider, setProvider] = useState<AgentProviderId>('gemini');
+  const [provider, setProvider] = useState<AgentProviderId>('openai');
   const [apiKey, setApiKey] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -93,9 +93,9 @@ export function MultiAgentPanel(props: {
     {state?.persistence === 'volatile' && <p role="status" className="text-sm">Sin cifrado disponible: el historial solo se conserva durante esta sesión.</p>}
     <div className="flex flex-wrap items-center gap-3">
       <label>Proveedor <select aria-label="Proveedor del equipo" value={provider} onChange={event => setProvider(event.target.value as AgentProviderId)} disabled={busy || active} className="bg-transparent border rounded p-1">
-        <option value="gemini">Gemini</option><option value="codex">Codex</option>
+        <option value="openai">OpenAI</option><option value="codex">Codex</option>
       </select></label>
-      <button disabled={!state || busy || active || props.source.trim().length < 10 || !props.title.trim() || (provider === 'gemini' ? !state.geminiAvailable : !state.codex.configured)}
+      <button disabled={!state || busy || active || props.source.trim().length < 10 || !props.title.trim() || (provider === 'codex' && !state.codex.configured)}
         onClick={() => void act(async isCurrent => {
           const next = await agentResult(agentRuntimeBridge().start({ title: props.title, source: props.source, provider }));
           if (isCurrent()) { setSelected(next.id); setConfirmed(false); }
@@ -112,7 +112,6 @@ export function MultiAgentPanel(props: {
       })}>Guardar clave</button>
       <button disabled={!state || busy || active} onClick={() => void act(() => agentResult(agentRuntimeBridge().setCodexKey({ apiKey: '' })))}>Retirar clave</button>
     </details>}
-    {state && !state.geminiAvailable && provider === 'gemini' && <p className="text-sm">Configura la clave Gemini en los ajustes de SofLIA.</p>}
     {!!state?.runs.length && <label className="block text-sm">Historial <select aria-label="Historial de análisis" value={run?.id ?? ''} className="bg-transparent border rounded p-1 max-w-full" onChange={event => { setSelected(event.target.value); setConfirmed(false); }}>
       {state.runs.map(item => <option key={item.id} value={item.id}>{item.title} — {statusLabels[item.status]}</option>)}
     </select></label>}

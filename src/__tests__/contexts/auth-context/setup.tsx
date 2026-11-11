@@ -24,7 +24,8 @@ export function createSofiaSignInPayload() {
   return {
     success: true,
     user: { id: 'sofia-user-1', email: 'test@soflia.com', user_metadata: { first_name: 'Test' } },
-    session: { access_token: 'token' },
+    session: { access_token: 'token', refresh_token: 'refresh-ficticio', token_type: 'bearer', expires_in: 3600,
+      user: { id: 'sofia-user-1', email: 'test@soflia.com', app_metadata: {}, user_metadata: {}, aud: 'authenticated', created_at: '' } },
     sofiaProfile: {
       id: 'sofia-user-1',
       email: 'test@soflia.com',

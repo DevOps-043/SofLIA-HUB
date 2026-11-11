@@ -1,0 +1,65 @@
+{
+  "directory": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-validation-onnx-2026-10-24",
+  "logs": [
+    {
+      "file": "baseline.json",
+      "sha256": "7fe6a1b69c4cc04f2a371acf277348b396380943a0202423d4cc8fe45e825357"
+    },
+    {
+      "file": "zod-red.log",
+      "sha256": "1efd42b89d0633fc3f4de84eef338c488b14ea58e3b26272cea58c59491d8e11"
+    },
+    {
+      "file": "consumers-before.log",
+      "sha256": "0a53e83aefce077195cdf169d9495c4eed22d7def072569d561cd3f15e0d3325"
+    },
+    {
+      "file": "consumers-after.log",
+      "sha256": "005c6fdc8566a10545c4d5c96bee9a033bd514d67c0a38ccd139b20393f7c261"
+    },
+    {
+      "file": "types-first.log",
+      "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+    },
+    {
+      "file": "native-first.log",
+      "sha256": "79c200b4a8b10da82d0a842a7d16fa84a2d4a7761be50f3900d23b8eac0e1946"
+    },
+    {
+      "file": "native-second.log",
+      "sha256": "cc254af87868064b6c4254768d98a8d64db9b260da5d0f63eb4fc256cdda28c2"
+    },
+    {
+      "file": "native-third.log",
+      "sha256": "12472676fd7de598faa02196ddfa51471260fa958402a3999bd68671a6757a34"
+    },
+    {
+      "file": "native-final.log",
+      "sha256": "e9066d0e446d5d7a4c55788cf25742da49f4c585d73e4d0acdbd43824f6acbed"
+    },
+    {
+      "file": "gate-final.log",
+      "sha256": "1df9c80e2b37e65d676ce380f8c1ebf0da3b60fe079f5e304ce8be32d5b0d0a6"
+    },
+    {
+      "file": "build-final.log",
+      "sha256": "947dfd4fd3db2146dfe67820d7c1593266f1416ee2b0b942cf9d4f3d41010107"
+    },
+    {
+      "file": "npm-audit-before.json",
+      "sha256": "5a6cbab2478e316602f0ae9db0136c94e6cdc86c99e0d47ae2b2bcc34aec5c37"
+    },
+    {
+      "file": "npm-audit-after.json",
+      "sha256": "23f9575ce6cc0d10a8f6fa7d6768d8ee3a09c32ac063c7415541202b41a807f3"
+    },
+    {
+      "file": "npm-audit-prod-before.json",
+      "sha256": "5a6cbab2478e316602f0ae9db0136c94e6cdc86c99e0d47ae2b2bcc34aec5c37"
+    },
+    {
+      "file": "npm-audit-prod-after.json",
+      "sha256": "23f9575ce6cc0d10a8f6fa7d6768d8ee3a09c32ac063c7415541202b41a807f3"
+    }
+  ]
+}

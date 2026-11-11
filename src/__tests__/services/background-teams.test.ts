@@ -3,9 +3,11 @@ import { backgroundTeamsService } from '../../services/background-teams';
 import { sendMessageStream } from '../../services/gemini-chat/send-message-stream';
 import { wantsBackgroundTeam } from '../../shared/background-teams';
 import type { BackgroundTeamsBridge } from '../../shared/background-teams';
+import type { NativeGeminiConversationApi } from '../../shared/native-gemini-conversation';
+import { collectStreamText } from '../../services/gemini-chat/streams';
 vi.mock('../../services/model-routing', () => ({ resolveRoutedModel: () => ({ modelId: 'gemini-3.8-flash' }) }));
 vi.mock('../../services/gemini-chat/client', () => ({ getGenAiClient: vi.fn(() => { throw new Error('No debe usar el modelo del renderer para este trabajo.'); }) }));
-afterEach(() => { delete window.backgroundTeams; vi.restoreAllMocks(); });
+afterEach(() => { delete window.backgroundTeams; delete window.geminiConversation; vi.restoreAllMocks(); });
 it('admite un trabajo y termina el turno sin esperar a los agentes', async () => {
   const context = vi.fn(async () => ({ success: true, data: { scope: { userId: 'actor', organizationId: null }, jobs: [], persistence: 'encrypted' } }));
   const start = vi.fn(async () => ({ success: true, data: { id: 'equipo-real', status: 'running' } }));
@@ -77,7 +79,17 @@ it.each([
   'Observa Codex en el escritorio y prepara tres alternativas para enviarlas a Google Chat en el navegador.',
 ])('no delega antes de recoger evidencia de la superficie visible: %s', async task => {
   const start = vi.fn(); window.backgroundTeams = { start } as unknown as BackgroundTeamsBridge;
-  // El flujo supervisado llega al proveedor de este fixture; no debe iniciar un equipo.
-  await expect(sendMessageStream(task, [], { model: 'gemini-3.8-flash', backgroundRequest: { task, messageId: '4bc25420-46e1-4a93-9886-faf34152758a', conversationId: 'visible', organizationId: null } })).rejects.toThrow('No debe usar el modelo del renderer');
+  const request = vi.fn<NativeGeminiConversationApi['request']>(async input => {
+    if (input.operation === 'open') return { success: true, turnId: '11111111-1111-1111-1111-111111111111' };
+    if (input.operation === 'close') return { success: true, closed: true };
+    return { success: true, response: {
+      text: 'Turno supervisado', candidates: [{ content: { parts: [{ text: 'Turno supervisado' }] } }],
+    } };
+  });
+  window.geminiConversation = { request };
+  const result = await sendMessageStream(task, [], { model: 'gemini-3.8-flash', backgroundRequest: { task, messageId: '4bc25420-46e1-4a93-9886-faf34152758a', conversationId: 'visible', organizationId: null } });
+  expect(await collectStreamText(result.stream)).toContain('Turno supervisado');
+  expect(result.backgroundJobId).toBeUndefined();
   expect(start).not.toHaveBeenCalled();
+  expect(request).toHaveBeenCalledWith(expect.objectContaining({ operation: 'send' }));
 });

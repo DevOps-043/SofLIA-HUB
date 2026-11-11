@@ -1,15 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const sdk = vi.hoisted(() => ({
-  client: { init: vi.fn(), join: vi.fn(), leave: vi.fn(), on: vi.fn(), getMediaStream: vi.fn(), getAllUser: vi.fn(), getCurrentUserInfo: vi.fn(), getRecordingClient: vi.fn() },
-  stream: { startAudio: vi.fn(), muteAudio: vi.fn(), unmuteAudio: vi.fn(), startVideo: vi.fn(), stopVideo: vi.fn(), startShareScreen: vi.fn(), stopShareScreen: vi.fn(), isStartShareScreenWithVideoElement: vi.fn() },
+  client: { init: vi.fn(), join: vi.fn(), leave: vi.fn(), on: vi.fn(), getMediaStream: vi.fn(), getAllUser: vi.fn(), getCurrentUserInfo: vi.fn(), getRecordingClient: vi.fn(), getLiveTranscriptionClient: vi.fn() },
+  transcription: { startLiveTranscription: vi.fn(), getLiveTranscriptionStatus: vi.fn() },
+  stream: { startAudio: vi.fn(), muteAudio: vi.fn(), unmuteAudio: vi.fn(), startVideo: vi.fn(), stopVideo: vi.fn(), startShareScreen: vi.fn(), stopShareScreen: vi.fn(), isStartShareScreenWithVideoElement: vi.fn(),getMicList:vi.fn(),getSpeakerList:vi.fn(),getCameraList:vi.fn(),getActiveMicrophone:vi.fn(),getActiveSpeaker:vi.fn(),getActiveCamera:vi.fn(),switchMicrophone:vi.fn(),switchSpeaker:vi.fn(),switchCamera:vi.fn() },
   destroy: vi.fn(),
 }));
 vi.mock('../../../packages/zoom-runtime/video-client', () => ({ ZoomVideo: { createClient: () => sdk.client, destroyClient: sdk.destroy }, VideoQuality: { Video_360P: 2 } }));
-import { start } from '../../../packages/zoom-runtime/video-runtime';
+import { start, videoAssetSource } from '../../../packages/zoom-runtime/video-runtime';
 const origin = location.origin;
 const flush = async () => { for (let index = 0; index < 20; index++) await Promise.resolve(); };
 function launch() {
-  start(new MessageEvent('message', { origin, source: window, data: { detail: { provider: 'zoom-video', sessionName: 'aula', token: 'jwt', userName: 'Ana', password: '123456', recording_required: true } } }));
+  start(new MessageEvent('message', { origin, source: window, data: { presentation: 'instructor', detail: { provider: 'zoom-video', sessionName: 'aula', token: 'jwt', userName: 'Ana', password: '123456', recording_required: true } } }));
 }
 function command(type: string, detail?: unknown, source: MessageEventSource | null = window, from = origin) {
   window.dispatchEvent(new MessageEvent('message', { source, origin: from, data: { source: 'soflia-studio', nonce: 'video-prueba', type, detail } }));
@@ -22,12 +23,63 @@ beforeEach(() => {
   sdk.client.getMediaStream.mockReturnValue(sdk.stream); sdk.client.getAllUser.mockReturnValue([]);
   sdk.client.getCurrentUserInfo.mockReturnValue({ muted: true, bVideoOn: false });
   sdk.client.getRecordingClient.mockReturnValue({ getCloudRecordingStatus: () => 'Recording' });
+  sdk.client.getLiveTranscriptionClient.mockReturnValue(sdk.transcription);
+  sdk.transcription.getLiveTranscriptionStatus.mockReturnValue({isLiveTranscriptionEnabled:true,isHostDisableCaptions:false});
+  sdk.transcription.startLiveTranscription.mockResolvedValue('');
   sdk.stream.startAudio.mockResolvedValue(''); sdk.stream.startVideo.mockResolvedValue('');
   sdk.stream.isStartShareScreenWithVideoElement.mockReturnValue(true);
+  sdk.stream.getMicList.mockReturnValue([{deviceId:'usb',label:'USB'}]);sdk.stream.getSpeakerList.mockReturnValue([]);sdk.stream.getCameraList.mockReturnValue([]);sdk.stream.getActiveMicrophone.mockReturnValue('usb');sdk.stream.getActiveSpeaker.mockReturnValue('default');
   sdk.destroy.mockResolvedValue(undefined);
 });
 afterEach(async () => { command('leave'); await flush(); vi.useRealTimers(); });
 describe('ciclo de vida del adaptador Video SDK', () => {
+  it('respeta una pausa existente sin reiniciar la grabación automáticamente', async () => {
+    const recording = { getCloudRecordingStatus: vi.fn(() => 'Paused'), canStartRecording: vi.fn(() => true), startCloudRecording: vi.fn() };
+    sdk.client.getRecordingClient.mockReturnValue(recording);
+    sdk.client.getCurrentUserInfo.mockReturnValue({ muted: true, bVideoOn: false, isHost: true });
+    launch(); await flush();
+    await vi.advanceTimersByTimeAsync(7000);
+    expect(recording.startCloudRecording).not.toHaveBeenCalled();
+  });
+  it('inicia la grabación requerida solo como anfitrión con capacidad confirmada', async () => {
+    const recording = { getCloudRecordingStatus: vi.fn(() => 'Stopped'), canStartRecording: vi.fn(() => true), startCloudRecording: vi.fn(async () => '') };
+    sdk.client.getRecordingClient.mockReturnValue(recording);
+    sdk.client.getCurrentUserInfo.mockReturnValue({ muted: true, bVideoOn: false, isHost: true });
+    launch(); await flush();
+    await vi.advanceTimersByTimeAsync(7000);
+    expect(recording.startCloudRecording).toHaveBeenCalledOnce();
+  });
+  it('conserva la autorización del proveedor al intentar recuperar la grabación', async () => {
+    const recording = { getCloudRecordingStatus: vi.fn(() => 'Stopped'), canStartRecording: vi.fn(() => true), startCloudRecording: vi.fn() };
+    sdk.client.getRecordingClient.mockReturnValue(recording);
+    sdk.client.getCurrentUserInfo.mockReturnValue({ muted: true, bVideoOn: false, isHost: false });
+    launch(); await flush();
+    await vi.advanceTimersByTimeAsync(7000);
+    expect(recording.startCloudRecording).not.toHaveBeenCalled();
+  });
+  it('publica el estado real de grabación y recibe los controles sin dibujar botones duplicados', async () => {
+    const post = vi.spyOn(window, 'postMessage');
+    launch(); await flush();
+    expect(document.querySelector('#meeting button')).toBeNull();
+    expect(post).toHaveBeenCalledWith(expect.objectContaining({ type: 'recording', detail: 'Recording' }), origin);
+    command('set-view', 'screen');
+    command('set-view', 'camera', window, 'https://otro.test');
+    expect(document.getElementById('meeting')?.dataset.view).toBe('screen');
+    command('start-share'); await flush();
+    expect(sdk.stream.startShareScreen).toHaveBeenCalledOnce();
+  });
+  it('usa assets de la versión oficial en el protocolo nativo y conserva los locales bajo HTTP(S)', () => {
+    expect(videoAssetSource('soflia-zoom://meeting/index.html#prueba')).toBe('Global');
+    expect(videoAssetSource('file:///app/zoom-runtime/index.html')).toBe('Global');
+    expect(videoAssetSource('http://localhost:5173/packages/zoom-runtime/index.html')).toBe('http://localhost:5173/packages/zoom-runtime/lib');
+    expect(videoAssetSource('https://soflia.ai/zoom-runtime/index.html')).toBe('https://soflia.ai/zoom-runtime/lib');
+  });
+  it('valida selección desde el padre sin capturar y aplica entrada al activar micrófono',async()=>{
+    const post=vi.spyOn(window,'postMessage');launch();await flush();command('select-device',{kind:'microphone',id:'usb'});await flush();expect(sdk.stream.startAudio).not.toHaveBeenCalled();
+    command('get-devices');await flush();expect(post.mock.calls.some(([message])=>message.type==='call-devices'&&message.detail.input==='usb')).toBe(true);
+    command('toggle-mic');await flush();expect(sdk.stream.startAudio).toHaveBeenCalledWith({microphoneId:'usb'});
+    command('select-device',{kind:'microphone',id:'retirado'});await flush();expect(sdk.stream.switchMicrophone).not.toHaveBeenCalled();expect(post.mock.calls.some(([message])=>message.type==='action-error')).toBe(true);
+  });
   it('espera una unión pendiente antes de liberar el cliente, sin informar conexión tras salir', async () => {
     let resolve!: () => void;
     sdk.client.join.mockReturnValue(new Promise<void>(done => { resolve = done; }));
@@ -44,13 +96,27 @@ describe('ciclo de vida del adaptador Video SDK', () => {
   it('reconoce errores resueltos por el SDK y conserva apagada la cámara', async () => {
     const post = vi.spyOn(window, 'postMessage'); launch(); await flush();
     sdk.stream.startVideo.mockResolvedValue({ type: 'INSUFFICIENT_PRIVILEGES', reason: 'prueba' });
-    const camera = [...document.querySelectorAll('button')].find(button => button.textContent === 'Activar cámara')!;
-    camera.click(); await flush(); expect(camera.textContent).toBe('Activar cámara');
+    command('toggle-camera'); await flush();
+    expect(post).toHaveBeenCalledWith(expect.objectContaining({ type: 'media', detail: { mic: false, camera: false } }), origin);
     expect(post.mock.calls.some(([message]) => message.type === 'action-error')).toBe(true);
   });
   it('no emite connected cuando falla la inicialización', async () => {
     sdk.client.init.mockResolvedValue({ type: 'INVALID_OPERATION' }); const post = vi.spyOn(window, 'postMessage');
     launch(); await flush(); expect(sdk.client.join).not.toHaveBeenCalled(); expect(sdk.destroy).toHaveBeenCalledOnce();
     expect(post.mock.calls.some(([message]) => message.type === 'error')).toBe(true);
+  });
+  it('acepta micrófono/cámara desde el padre y captions solo tras confirmar disponibilidad',async()=>{
+    const post=vi.spyOn(window,'postMessage');launch();await flush();
+    command('toggle-mic');command('toggle-camera');await flush();
+    expect(sdk.stream.startAudio).toHaveBeenCalledOnce();expect(sdk.stream.startVideo).toHaveBeenCalledOnce();
+    command('captions',true);await flush();expect(sdk.transcription.startLiveTranscription).toHaveBeenCalledOnce();
+    const onCaption=sdk.client.on.mock.calls.find(([name])=>name==='caption-message')![1];
+    onCaption({text:'Texto real',displayName:'Docente'});expect(post).toHaveBeenCalledWith(expect.objectContaining({type:'caption',detail:{text:'Texto real',speaker:'Docente'}}),origin);
+    command('captions',false);await flush();post.mockClear();onCaption({text:'Oculto',displayName:'Docente'});expect(post.mock.calls.some(([message])=>message.type==='caption')).toBe(false);
+  });
+  it('deniega captions restringidos por el anfitrión y no ejecuta comandos de otro origen',async()=>{
+    const post=vi.spyOn(window,'postMessage');launch();await flush();sdk.transcription.getLiveTranscriptionStatus.mockReturnValue({isLiveTranscriptionEnabled:true,isHostDisableCaptions:true});
+    command('toggle-camera',undefined,window,'https://otro.test');command('captions',true);await flush();
+    expect(sdk.stream.startVideo).not.toHaveBeenCalled();expect(sdk.transcription.startLiveTranscription).not.toHaveBeenCalled();expect(post.mock.calls.some(([message])=>message.type==='action-error')).toBe(true);
   });
 });

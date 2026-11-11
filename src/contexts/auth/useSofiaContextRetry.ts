@@ -1,16 +1,18 @@
 import { useCallback, useEffect } from 'react';
 import type { SofiaContext } from '../../services/sofia-auth';
 import type { SofiaContextIssue, SofiaContextResolution } from './types';
+import type { AuthOperations } from './auth-operations';
 
 // El ultimo retraso se repite indefinidamente: la app no deja de intentarlo,
 // pero tampoco martillea a SOFIA cuando la caida es larga.
 const RETRY_DELAYS_MS = [5_000, 15_000, 30_000, 60_000];
 
 type SofiaContextRetryDeps = {
+  operations: AuthOperations;
   issue: SofiaContextIssue | null;
   usingSofia: boolean;
   userId: string | null;
-  resolveSofiaContext: (sofiaUserId: string) => Promise<SofiaContextResolution>;
+  resolveSofiaContext: (sofiaUserId: string, signal?: AbortSignal) => Promise<SofiaContextResolution>;
   setSofiaContext: (value: SofiaContext | null) => void;
   setSofiaContextIssue: (value: SofiaContextIssue | null) => void;
 };
@@ -26,19 +28,25 @@ type SofiaContextRetryDeps = {
  * reintentar no puede recuperar nada.
  */
 export function useSofiaContextRetry(deps: SofiaContextRetryDeps): () => Promise<boolean> {
-  const { issue, usingSofia, userId, resolveSofiaContext, setSofiaContext, setSofiaContextIssue } = deps;
+  const { operations, issue, usingSofia, userId, resolveSofiaContext, setSofiaContext, setSofiaContextIssue } = deps;
+  const ownerSignal = operations.capture();
   const autoRetryEnabled = issue?.retryable === true;
 
   const retrySofiaContext = useCallback(async (): Promise<boolean> => {
-    if (!usingSofia || !userId) return false;
-    const resolution = await resolveSofiaContext(userId);
+    if (!usingSofia || !userId || !operations.canRestore() || !operations.isCurrent(ownerSignal)) return false;
+    let resolution: SofiaContextResolution;
+    try { resolution = await resolveSofiaContext(userId, ownerSignal); } catch {
+      if (operations.isCurrent(ownerSignal)) console.warn('[autenticacion] no se pudo reintentar el directorio');
+      return false;
+    }
+    if (!operations.isCurrent(ownerSignal)) return false;
     // `denied` lo resuelve el ciclo de vida de la sesion, no este reintento:
     // aqui solo se acepta un contexto valido.
     if (resolution.status !== 'ok') return false;
     setSofiaContext(resolution.context);
     setSofiaContextIssue(null);
     return true;
-  }, [resolveSofiaContext, setSofiaContext, setSofiaContextIssue, usingSofia, userId]);
+  }, [operations, ownerSignal, resolveSofiaContext, setSofiaContext, setSofiaContextIssue, usingSofia, userId]);
 
   useEffect(() => {
     if (!autoRetryEnabled || !usingSofia || !userId) return undefined;

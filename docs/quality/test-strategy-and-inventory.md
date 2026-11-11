@@ -1,8 +1,51 @@
 # Estrategia e inventario de pruebas
 
-Estado: vigente. Actualizado: 2026-10-22.
+Estado: vigente. Actualizado: 2026-10-30.
 
-El inventario del cambio contiene 675 archivos de prueba: 456 para main y 213
+Communication Hub prueba los diez contratos con servicio real y puertos de
+SOFIA/estado/transportes ficticios, actor falso, fuente, A/B/A, cambios de rol,
+snapshot/HITL, aislamiento de historial, cuotas físicas y señal deadline.
+La integración atraviesa preload, allowlist y wrapper reales. Una regresión
+verifica que polling persistente no herede una lease IPC cerrada. No ejecuta
+mensajería, cambios de configuración, GUI o SQL reales.
+
+OpenAI nativo prueba las cuatro capas, credenciales por sujeto/proveedor,
+fuentes/documentos revocados, A/B/A, lectura bajo demanda/replay, Stop y cierre
+físico con proveedor tardío. El SDK instalado se ejecuta con fetch ficticio;
+chat/herramientas/citas/uso y análisis en equipo usan el cliente real del puente.
+El build centinela verifica renderer/preload sin clave y main con el fallback
+ficticio ejercitado. No acredita cuentas, proveedor, GUI o RLS reales.
+
+Backends web/UIA prueban revocación durante decisiones/capturas/acciones compuestas,
+ausencia de fallback posterior, limpieza con inicio/finalizador fallidos y cierre
+de traza sin captura final nueva. Son puertos de SDK/entrada/página ficticios;
+no ejecutan GUI ni acreditan reversión de I/O ya enviado.
+
+Publicaciones Desktop prueban procedencia no serializable, respuestas/eventos
+tardíos, A/B/A, cancelación, snapshots mutados/reentrantes y aprendizaje único
+por evento. Las tres colas conservan contexto; una cola BrowserWeb recorre
+emisor Desktop y guardado de memoria reales con puertos de modelo/entrada ficticios.
+No acredita aislamiento de todo el estado de los backends ni GUI real.
+
+Desktop Agent prueba los 23 contratos y denegación por canal, fuente/revisión,
+snapshot de aprobación, controles durante trabajo y cuatro capas. Teclado,
+observación y configuración incluyen entradas hostiles, A/B/A, ciclos físicos
+pendientes, modelo tardío, fallos de reemplazo y restauración. Sólo filesystem
+temporal propio y puertos/modelos de prueba, sin GUI/cuentas reales.
+
+Backend GUI heredado prueba datos separados de programas por plataforma,
+entrada hostil/larga, teclas cerradas, timeout/salida/cierre físico y revocación
+en captura/OCR/proceso. Comprueba blocks de Tesseract 7 y cierre de un thread
+Node inocuo real; los procesos GUI y sus capturas son sustituidos. La sintaxis
+PowerShell/Python se analiza sin ejecutar programas ni acreditar permisos del SO.
+
+Computer Use prueba fuentes ajenas/revocadas, contratos de las 33 herramientas,
+HITL en main, snapshot inmutable, cuota UTF-8, concurrencia física, errores sin
+secretos y cuatro capas. El renderer distingue revisión local nativa de otras
+rutas. Usa servicios/puertos sustituidos y pruebas existentes de herramientas;
+no ejecuta GUI, shell, correo ni recursos del usuario para esta verificación.
+
+El inventario del cambio contiene 823 archivos de prueba: 533 para main y 272
 para renderer, además de los archivos de prueba de scripts. El validador documental recalcula estas cifras; el numero de casos
 ejecutados se registra en el reporte de evidencia de cada cambio, no aqui.
 
@@ -17,6 +60,133 @@ estricta sin escribir; si cambia el inventario, exigen sincronizarlo explícitam
 <!-- evidence: electron/sqlite/database.ts -->
 
 ## Proyectos Vitest
+
+Investigación con fuentes prueba autorización, sesión A/B/A, navegación,
+cancelación por emisor, plazo, cuotas reales y plazas retenidas hasta cerrar
+transporte. Integra wrapper/preload/allowlist/handler con fetch sustituido;
+comprueba que el consumidor no abre HTTP ni reintenta tras rechazo nativo.
+Conserva fuentes/gráficas y prueba formatos inválidos/MIME/índices de citas.
+No usa modelos, red/cuentas o GUI reales.
+
+Custodia Remote Node usa filesystem temporal propio y AES-GCM de prueba para
+comprobar perfiles separados, archivo legado preservado, fallo de llavero,
+cifrado/reemplazo, cuotas y A/B/A. La integración recorre las cuatro capas con
+servicio/almacén reales y puertos HTTP/llavero sustituidos. Las pruebas de host
+comprueban revocación durante cuerpo/tarea, bearer, bytes/plazo y cambio de
+identidad sin sockets reales. Renderer prueba caché por identidad y StrictMode,
+aviso de migración y campos de contraseña. No acredita llavero nativo ni GUI.
+
+La matriz Remote Node cubre los 13 canales sin sesión, ventana ajena, subframe
+y documento ajeno, más éxito, cancelación, schemas/cuotas, argumentos literales,
+timeout, A/B/A y navegación. Incluye wrapper/preload/allowlist/handler reales;
+servicios, diálogos y red se sustituyen. Las pruebas del servicio real verifican
+revisión/señales y reconciliación concurrente, y las del cliente real cubren
+redirects, bytes/plazo/cancelación y errores sin datos privados. El binding se
+prueba sin sockets reales; no acredita UI, cuentas ni nodos reales.
+
+Los contratos de automatización se comprueban con pruebas del preload/allowlist
+reales, argumentos negativos de compilación y regresiones de handlers y
+consumidores. Las pruebas remotas sustituyen fetch y cubren JSON no objeto,
+capacidades inválidas/futuras y errores. La proyección de credenciales se
+comprueba en main/WhatsApp y renderer, preservando la API manual y los originales.
+No ejecutan acciones nativas ni usan cuentas o nodos reales.
+
+El gate genera cobertura V8 de toda producción src/electron, incluidos módulos
+no importados. `check-coverage.test.mjs` comprueba inventario completo, porcentajes,
+totales, métricas y pisos; `workflow-integrity.test.mjs` prueba referencias
+mutables, aliases/YAML inválidos y dependencias escondidas en actions locales.
+La política y límites se describen en el [estándar de pruebas](../standards/testing.md).
+
+`auth-state-contract.test.ts` comprueba roles Hub/Orbe, emisor/frame/documento,
+bootstrap sin sesión, cuotas/tipos/pares, normalización de cierre, revisión,
+navegación durante SOFIA/Lia/canje/revocación y errores sin datos privados.
+Recorre wrapper, preload seguro, allowlist, handler y servicios con transporte
+IPC y SDK sustituidos. `renderer-source.test.ts` comprueba liberación, eventos
+de navegación actuales/posicionales, subframes, URL y composición de identidad
+incluido A/B/A. No crea ventanas ni acredita GUI nativa o rollback de SDK.
+
+`auth-intent-ownership.test.tsx` usa el modelo real del proveedor, login, SSO,
+reintentos y publicación, con proveedores ficticios explícitos. Cubre mutaciones
+fuera de orden, cierre inmediato, SDK propio/anterior/ajeno, StrictMode,
+cancelación SSO reclamada y exclusión del Orbe. `auth-operations.test.ts` comprueba
+cola acotada y liberación; `auth-operations-sdk.test.ts` usa Supabase real con
+fetch cerrado a endpoints ficticios y clientes en memoria con storageKey único.
+`sofia-auth-cancellation.test.ts` cubre las etapas del servicio real y snapshot;
+`learning-sso.test.ts` incluye cuerpo/OTP/backoff cancelados. Sin red/cuentas
+reales ni verificación criptográfica del JWT o RLS.
+
+`auth-lifecycle-cancellation.test.tsx` integra ciclo de vida, recuperación y
+canje Lia reales con fuentes Auth y respuestas diferidas ficticias. Cubre
+lecturas/eventos tardíos, A/B/A, desmontaje/StrictMode, errores, limpieza,
+cancelación durante SDK/OTP/backoff y perfil auxiliar fallido. Los consumidores
+AuthContext/SSO conservan sus suites; no usa cuentas, red ni UI reales ni
+acredita revocación de I/O enviado o arbitraje global de intentos de acceso.
+
+`chat-sync-session.test.ts` prueba sesión ausente/ajena, revocación durante I/O,
+A/B/A, ciclos y scopes, eventos/lecturas tardías, renovación, callback síncrono
+y liberación con un SDK ficticio explícito compartido por consumidores. No
+hay fallback de autorización para un mock sin sesión. `chat-session-sdk.test.ts`
+comprueba además el adaptador con el SDK Supabase real: sesión en memoria,
+signOut y refresh con fetch ficticio cerrado a endpoints propios. No acredita
+JWT, RLS o cuentas reales; persistSession/autoRefreshToken están desactivados y
+el cliente/listeners se liberan en finally.
+
+`chat-sync-intent.test.ts` integra coordinador, pending-state y cache reales
+con respuestas remotas diferidas. Usa Storage de jsdom de un documento sin
+recursos, separado del Map del setup global. Cubre sustitución de pendientes,
+cache adelantado, borrado, coalescencia/scopes, errores y fallos de escritura;
+no usa Supabase ni una ventana real. Los consumidores de guardado/borrado y la
+clasificación de rechazo permanente conservan suites propias.
+
+`image-dependencies.test.mjs` añade tres contratos al tooling del gate: peers
+físicos coherentes con el cierre declarado, APIs Jimp de ambos consumidores y
+proveedores de lectura/escritura/color de nut-js sobre imágenes sintéticas.
+Incluye píxeles/alpha, RGB/BGR, operaciones posicionales y rechazo de archivo o
+coordenadas inválidos. No importa el bootstrap de automatización ni interactúa
+con el escritorio. El [procedimiento de dependencias](../operations/development-and-devops.md#actualizaciones-de-dependencias)
+describe ejecución adicional en Electron en modo Node y retirada de overrides.
+
+`document-export-dependencies.test.mjs` añade dos contratos al tooling del gate:
+UUID CJS/ESM con buffers cortos/offset inválido y API v4 conservada; PNG/JPEG/SVG,
+lectura buffer/archivo y rechazo de ICNS de tamaño cero. La guarda del propio QA
+detiene crecimiento tras 32 pushes si vuelve el defecto y se restaura en finally.
+Genera y relee XLSX con CF extendido y UUID/referencias, fórmula, Unicode e imagen;
+inspecciona PPTX CJS/ESM con imagen/gráfica editable y Word con texto español.
+
+`document-export:smoke:native` repite esos contratos en Node/Electron reales y
+compila el exportador PPTX del Hub en un temporal sin .env, con entorno permitido.
+Comprueba su texto/notas y rechazo de entrada vacía. Red bloqueada, perfiles y
+archivos sintéticos. No acredita representación visual de Office, macros, ni
+compatibilidad de otros sistemas sin ejecutarlos. Se mantienen las bibliotecas
+generadoras y contratos públicos; los overrides tienen retiro documentado.
+
+Validación y parser nativo: `zod-resource-boundary.test.ts` comprueba rechazo de
+array/set/map fuera de cuota sin visitar hijos, transformaciones y schemas reales
+del calendario. El tooling `onnx-install-zip.test.mjs` ejecuta el contrato ZIP
+compartido con el smoke nativo: extracción por entry, CRC, tamaño declarado sin
+asignación anticipada y límites síncrono/asíncrono. Usa fixtures pequeños y una
+barrera de QA sobre Buffer.alloc; no intenta agotar memoria. Queda en test:quality
+y por tanto en verify:pr.
+
+`npm run validation:smoke:native` prueba Node y Electron instalados con Zod/ZIP,
+Identity ONNX (valores/forma/error/release) y parser real con Sharp, letterbox,
+decode y NMS. Genera modelos propios IR8/opset13 e imagen sintética en un temporal,
+sin red ni capturas/modelos externos. El modelo de detecciones es constante:
+verifica integración, no precisión de OmniParser ni estabilidad prolongada/GPU.
+La sesión directa se libera; la sesión interna del parser termina con el proceso
+de QA, sin afirmar un nuevo contrato de dispose del producto. El smoke nativo
+es optativo; el gate mantiene regresiones puras de Zod/ZIP. No acredita otras
+plataformas o instalador sin ejecutarlos.
+
+Autorización de calendario: `calendar-oauth-receiver.test.ts` prueba state/PKCE,
+validación y TCP real, incluidos timeout, bind ocupado y conexiones incompletas.
+`calendar-oauth-window.test.ts` cubre navegador externo controlado y revocación
+durante esperas; `calendar-microsoft-oauth.test.ts` y `calendar-mutations.test.ts`
+ejercen ambos conectores. `calendar-oauth-sdk.test.ts` usa MSAL/Google reales con
+canje ficticio y nonce correcto/incorrecto, sin aceptar un JWT de QA como prueba
+de identidad. `calendar:oauth:smoke:native` verifica la fachada en Electron real,
+sandbox, HTTP local y retirada de recursos; sustituye shell.openExternal y no
+autentica proveedores reales. [Contrato y límites](../security/calendar-oauth.md).
 
 Entrega Gmail: archivos reales temporales, rechazo completo de adjuntos
 ausentes/ilegibles, enlaces finales, límites individuales/acumulados, crecimiento
@@ -506,5 +676,34 @@ pytest ni descargas. Cubre expansión ZIP, DTD UTF-16, CRC, directorio/entradas,
 cuotas XML acumuladas, dimensiones Excel falsas, spans Word, cierre en fallos,
 Unicode/relleno y ampliación por redacción. PDF declara parcialidad; PPTX/Word y
 Excel conservan tablas. Stdio verifica ping durante lectura, rechazo de recursos
-y otro ping posterior en el mismo proceso. Estas pruebas Python son separadas
-de verify:pr; las versiones QA y limitaciones se registran en el reporte.
+y otro ping posterior en el mismo proceso. Los contratos stdlib se ejecutan en
+verify:pr; formatos requiere bibliotecas y se verifica en un comando/job separado.
+Las versiones QA y limitaciones se registran en el reporte.
+
+La política `test_reader_dependencies.py` rechaza versiones PDF antiguas,
+metadata inválida y locks malformados, y comprueba concordancia exacta de
+lector/bootstrap. `test_reader_native_build.py` cubre hash fuente, traversal,
+enlaces/rutas duplicadas, enlace dinámico externo y host incorrecto; son guardas
+puras, sin certificar una compilación macOS. `--formats` exige ambos locks.
+Los tests Node de runtime y verificación empaquetada cubren invalidación por
+lock/bootstrap, imports posteriores a la política y módulos obligatorios del
+sidecar. La instalación conjunta real con voz no usa audio ni modelos.
+
+`test:quality` cubre selección/versión/aislamiento y fallos del wrapper Python,
+rechazo de archivo standalone con hash incorrecto antes de tar y contratos
+estructurados de CI/release/matriz. Estas comprobaciones de YAML no equivalen
+a ejecución remota. verify:pr añade el runner stdlib real; el workflow reutilizable
+de formatos prepara el mismo standalone 3.12.11 en temporal por plataforma,
+instala los dos locks y comprueba SO/arquitectura/versiones. Intel conserva
+su verificación nativa pendiente y no se agrega un hash al lock por configurar
+ese workflow.
+
+El checker de Electron combina estabilidad y rangos de seguridad registrados;
+sus regresiones prueban versiones justo antes/después de cada parche, metadata
+inválida y excepción beta que no elude el aviso. runtime:stable corre en PR y
+acredita también el ejecutable físico. El smoke zoom exige la API aislada de
+Electron 44, factor nativo, independencia entre vistas, viewport/bitmap,
+coordenadas de input y ausencia de doble zoom. Su rectángulo de color fija
+borde/padding para evitar dependencia del estilo nativo del botón; conserva
+tolerancias. Las once fases del browser smoke son regresiones focalizadas,
+no certificación del instalador, TLS comprometido real o todos los proveedores.

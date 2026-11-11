@@ -29,6 +29,12 @@ El sistema MUST distinguir captura local de conexión Zoom y liberar recursos al
 - **WHEN** faltan credenciales SDK en Learning
 - **THEN** el panel informa que la conexión audiovisual requiere configuración
   administrativa en Learning, sin nombrar al proveedor ni afirmar transmitir
+#### Scenario: Fallo al solicitar acceso audiovisual
+- **WHEN** vence el plazo de la solicitud, falla el transporte o el Hub no puede validar la respuesta audiovisual
+- **THEN** el panel distingue la etapa del fallo y el proceso main registra una categoría segura sin incluir el contenido de la respuesta ni credenciales
+#### Scenario: Dependencia de ingreso audiovisual no disponible
+- **WHEN** Learning rechaza el ingreso audiovisual con 503 y un motivo reconocido de grabación, cuenta anfitriona o acceso a datos
+- **THEN** Hub presenta una indicación segura para ese motivo y reserva el aviso genérico para motivos desconocidos
 #### Scenario: Rol del SDK
 - **WHEN** un participante solicita ingreso
 - **THEN** la firma usa rol participante aunque el cliente intente solicitar permisos de anfitrión

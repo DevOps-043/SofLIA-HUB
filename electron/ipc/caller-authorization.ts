@@ -1,17 +1,14 @@
-import { app, dialog, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
-import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { dialog, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
 import { getAuthState, onAuthStateChange } from '../main/auth-state';
+import { rendererSource } from './renderer-source';
+export { isAppDocument } from './renderer-source';
 
 export const IPC_APPROVAL_MS = 120000;
 
-export function isAppDocument(value: string): boolean {
-  try {
-    const expected = new URL(process.env.VITE_DEV_SERVER_URL || pathToFileURL(path.join(app.getAppPath(), 'dist', 'index.html')).href);
-    const actual = new URL(value);
-    return actual.protocol === expected.protocol && actual.host === expected.host && actual.pathname === expected.pathname
-      && !actual.username && !actual.password;
-  } catch { return false; }
+export class AppCallerSessionError extends Error {
+  constructor(readonly code: 'SOFIA_SESSION_PENDING' | 'SESSION_CHANGED') {
+    super('context_invalid');
+  }
 }
 
 /** Contexto de una llamada: cualquier cambio de sesión o navegación la invalida. */
@@ -28,32 +25,24 @@ export function trustedAppWindow(windows: () => (BrowserWindow | null)[]) {
 
 function appSourceContext(sender: IpcMainInvokeEvent['sender'], frame: IpcMainInvokeEvent['senderFrame'], windows: () => (BrowserWindow | null)[]) {
   const user = getAuthState();
-  const parent = windows().find(win => win && !win.isDestroyed() && win.webContents === sender);
-  let changed = false;
+  const source = rendererSource(sender, frame, windows);
   const cancellation = new AbortController();
-  const invalidate = () => { changed = true; cancellation.abort(); };
+  const invalidate = () => cancellation.abort();
   const unsubscribe = onAuthStateChange(invalidate);
-  const navigation = (_event: unknown, _url: string, _inPlace: boolean, main: boolean) => { if (main) invalidate(); };
-  if (parent) {
-    sender.on('did-start-navigation', navigation);
-    sender.on('render-process-gone', invalidate);
-    sender.on('destroyed', invalidate);
-  }
   const assert = () => {
+    source.assert();
     const now = getAuthState();
-    if (changed || !user.authenticated || !user.userId || !now.authenticated || now.userId !== user.userId
-      || !parent || parent.isDestroyed() || !windows().includes(parent) || sender.isDestroyed()
-      || !frame || frame.detached || frame !== parent.webContents.mainFrame || !isAppDocument(frame.url) || sender !== parent.webContents) {
-      throw new Error('context_invalid');
+    if (cancellation.signal.aborted || user.authenticated !== now.authenticated || now.userId !== user.userId) {
+      throw new AppCallerSessionError('SESSION_CHANGED');
+    }
+    if (!user.authenticated || !user.userId) {
+      throw new AppCallerSessionError('SOFIA_SESSION_PENDING');
     }
   };
-  return { parent, userId: user.userId, assert, signal: cancellation.signal, dispose: () => {
+  return { parent: source.parent, userId: user.userId, assert, signal: AbortSignal.any([source.signal, cancellation.signal]), dispose: () => {
     invalidate();
     unsubscribe();
-    if (parent) {
-      sender.removeListener('did-start-navigation', navigation);
-      sender.removeListener('render-process-gone', invalidate); sender.removeListener('destroyed', invalidate);
-    }
+    source.dispose();
   } };
 }
 

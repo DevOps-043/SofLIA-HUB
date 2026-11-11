@@ -25,7 +25,7 @@ describe('CalendarService config and connections', () => {
     service.setConfig({});
     const result = await service.connectGoogle();
     expect(result.success).toBe(false);
-    expect(result.error).toContain('Google OAuth credentials not configured');
+    expect(result.error).toContain('Google OAuth no está configurado');
   });
 
   it('CAL-004: restaura conexiones del propietario y emite connected', async () => {

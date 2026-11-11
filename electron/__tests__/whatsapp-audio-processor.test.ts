@@ -1,64 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
-import {
-  getAudioProcessorMocks,
-  mockTranscription,
-} from './whatsapp-audio-processor.setup';
+import { getAudioProcessorMocks, mockTranscription } from './whatsapp-audio-processor.setup';
 import { processAudioMessage } from '../whatsapp-audio-processor';
-
-const { mockGenerateContent, mockGetGenerativeModel } = getAudioProcessorMocks();
-
-describe('WhatsApp Audio Processor', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    process.env.GEMINI_API_KEY = 'test-api-key';
-    mockTranscription();
+const mocks = getAudioProcessorMocks();
+beforeEach(() => { vi.clearAllMocks(); mockTranscription(); });
+describe('Audio de mensajería con OpenAI', () => {
+  it.each(['ogg', 'mp3', 'wav', 'mp4', 'webm', 'flac', 'm4a'])('conserva el contenedor %s y bytes del audio', async format => {
+    expect(await processAudioMessage(Buffer.from('audio-ficticio'), `audio/${format}; codecs=opus`)).toBe('Crea un evento para manana');
+    const body = mocks.create.mock.calls[0][0];
+    expect(body.model).toBe('gpt-transcribe');
+    expect(body.file.name).toBe(`grabacion.${format}`);
+    expect(Buffer.from(await body.file.arrayBuffer()).toString()).toBe('audio-ficticio');
   });
-
-  it('WA-138: transcribes .ogg audio from WhatsApp', async () => {
-    const buffer = Buffer.from('fake-ogg-audio-data');
-    const result = await processAudioMessage(buffer, 'audio/ogg');
-
-    expect(result).toBe('Crea un evento para manana');
-    expect(mockGetGenerativeModel).toHaveBeenCalledWith(expect.objectContaining({ model: SOFLIA_RUNTIME_MODEL }));
-    expect(mockGenerateContent).toHaveBeenCalledWith([
-      { inlineData: { mimeType: 'audio/ogg', data: buffer.toString('base64') } },
-    ]);
+  it('audio silencioso conserva respuesta vacía', async () => {
+    mockTranscription(''); expect(await processAudioMessage(Buffer.from('silencio'))).toBe('');
   });
-
-  it('WA-139: transcribes .mp3 audio', async () => {
-    const result = await processAudioMessage(Buffer.from('fake-mp3-audio-data'), 'audio/mp3');
-    expect(result).toBe('Crea un evento para manana');
-    expect(mockGenerateContent).toHaveBeenCalledWith([
-      expect.objectContaining({ inlineData: expect.objectContaining({ mimeType: 'audio/mp3' }) }),
-    ]);
-  });
-
-  it('WA-140: transcribes .wav audio', async () => {
-    const result = await processAudioMessage(Buffer.from('fake-wav-audio-data'), 'audio/wav');
-    expect(result).toBe('Crea un evento para manana');
-    expect(mockGenerateContent).toHaveBeenCalledWith([
-      expect.objectContaining({ inlineData: expect.objectContaining({ mimeType: 'audio/wav' }) }),
-    ]);
-  });
-
-  it('WA-141: returns empty string for silent/unintelligible audio', async () => {
-    mockTranscription('');
-    expect(await processAudioMessage(Buffer.from('silent-audio'), 'audio/ogg')).toBe('');
-  });
-
-  it('WA-142: returns empty string for corrupted audio', async () => {
-    mockGenerateContent.mockRejectedValue(new Error('Invalid audio data'));
-    expect(await processAudioMessage(Buffer.from('corrupted-data'), 'audio/ogg')).toBe('');
-  });
-
-  it('WA-143: uses Gemini multimodal API with system instruction', async () => {
-    await processAudioMessage(Buffer.from('test-audio'), 'audio/ogg');
-    expect(mockGetGenerativeModel).toHaveBeenCalledWith(
-      expect.objectContaining({
-        model: SOFLIA_RUNTIME_MODEL,
-        systemInstruction: expect.stringContaining('Transcribe'),
-      })
-    );
+  it('un fallo del proveedor conserva resultado vacío sin registrar contenido privado', async () => {
+    mocks.create.mockRejectedValue(new Error('Detalle privado'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try { expect(await processAudioMessage(Buffer.from('audio'))).toBe(''); expect(JSON.stringify(warn.mock.calls)).not.toContain('Detalle privado'); }
+    finally { warn.mockRestore(); }
   });
 });

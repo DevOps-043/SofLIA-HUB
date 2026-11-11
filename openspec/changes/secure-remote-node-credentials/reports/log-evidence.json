@@ -1,0 +1,97 @@
+[
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-credentials-2026-10-26\\build-final.log",
+    "bytes": 38604,
+    "sha256": "39af6aaa816f99a31e57684af9c1bd42b777342a7dab802a382f779f2d208a91"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-credentials-2026-10-26\\cache-green-second.log",
+    "bytes": 502,
+    "sha256": "aded4ff4a54cc1f4fd69750e89a0f06da811ec05545159144e7c7abf889a7962"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-credentials-2026-10-26\\cache-green.log",
+    "bytes": 881,
+    "sha256": "9b3fd5412714c3f171c237bb80ba5db9b36e7107398c5086edad7f9741c5e7db"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-credentials-2026-10-26\\custody-cache-final.log",
+    "bytes": 3857,
+    "sha256": "62038608cdb33ce06bfce0cb9bd9143cdb95652214886b8aaf0c12e99cd1b449"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-credentials-2026-10-26\\custody-integration.log",
+    "bytes": 3868,
+    "sha256": "20748f31c209b2e64329648ac7f74a7ed8e3afc0a6134a285bd3c8379a1e0b08"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-credentials-2026-10-26\\directed-final.log",
+    "bytes": 33822,
+    "sha256": "c107df3c20c9f64bcc535a3a6ca41b980fea53888b78a45909c532bb178c2bc8"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-credentials-2026-10-26\\directed-first.log",
+    "bytes": 30274,
+    "sha256": "e369dbd5ae69539955c2f90947247bf9a86480ebf453f18865263b5588f340bc"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-credentials-2026-10-26\\directed-second.log",
+    "bytes": 30275,
+    "sha256": "084053069a17146291a14776b73c377c1f8c8605cbdd202c52d1ab47e29f91aa"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-credentials-2026-10-26\\gate-final.log",
+    "bytes": 157315,
+    "sha256": "2e582f4584bc303a5174bd74157c2e495b71fca8d55cd2b676d7e867d11caa7a"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-credentials-2026-10-26\\hook-fix-tests.log",
+    "bytes": 498,
+    "sha256": "9d0707a7e335516e61fcf789759249ebc8ec9d8526d6b55ef504cbdfdf764eec"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-credentials-2026-10-26\\host-green.log",
+    "bytes": 494,
+    "sha256": "a6969d6d6b75543aa864c2d721f9940c36d496b0839e24bad558e5d373301bed"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-credentials-2026-10-26\\pre-hook-fix-build-final.log",
+    "bytes": 38607,
+    "sha256": "e3737cbc89a7fbe456fe916ec10d8c1d9d1c29b260c4c9eac7089a461b1e275e"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-credentials-2026-10-26\\pre-hook-fix-gate-final.log",
+    "bytes": 18485,
+    "sha256": "8c88edb7fe6e3c55175b0a4d3f09916ea6f4a37e9ef35dcf94992924b4d64929"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-credentials-2026-10-26\\session-green.log",
+    "bytes": 883,
+    "sha256": "93a4f43472d28153b2337bf794a316d0911256af0e6ed3e2da268ced3f918d43"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-credentials-2026-10-26\\session-red.log",
+    "bytes": 495,
+    "sha256": "5db714f53caffe36d2ae0498a9415d4c6d2936c0bb99efa40dc6200018178fce"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-credentials-2026-10-26\\store-session-green.log",
+    "bytes": 889,
+    "sha256": "ed4a0bbcd8608c88fde92332b7606505cec1c0ea4f35caa7f3a6d5fbe9dbe268"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-credentials-2026-10-26\\typecheck-final-preliminary.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-credentials-2026-10-26\\typecheck-first.log",
+    "bytes": 514,
+    "sha256": "3971b6a793720814ab55178b71f600d09ca6430b44f941a4f54f4238db7429fd"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-remote-node-credentials-2026-10-26\\typecheck-second.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  }
+]

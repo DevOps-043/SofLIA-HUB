@@ -1,5 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { SUMMARIZE_MODEL } from './constants';
+import { generateSessionText } from '../ai-provider/text';
 import { truncateToTokens } from './math';
 import { buildExtractionGenerationConfig } from './model-config';
 import { AUTO_LEARNABLE_SKILL_TYPES, type SkillType } from './skills-types';
@@ -75,15 +74,10 @@ export async function extractAndSaveSkills(
   summaryText: string,
   source: string,
 ): Promise<void> {
-  if (!service.apiKey || !ownerKey) return;
+  if (!ownerKey) return;
   try {
-    const genAI = new GoogleGenerativeAI(service.apiKey);
-    const model = genAI.getGenerativeModel({
-      model: SUMMARIZE_MODEL,
-      generationConfig: buildExtractionGenerationConfig(),
-    });
-    const result = await model.generateContent(buildSkillsExtractionPrompt(summaryText));
-    const skills = parseSkillsResponse(result.response.text().trim());
+    const result = await generateSessionText(buildSkillsExtractionPrompt(summaryText), { maxOutputTokens: buildExtractionGenerationConfig().maxOutputTokens });
+    const skills = parseSkillsResponse(result.trim());
     for (const skill of skills) {
       service.saveSkill({ ownerKey, type: skill.type, title: skill.title, content: skill.content, triggerContext: skill.triggerContext, source });
     }

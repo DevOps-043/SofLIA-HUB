@@ -1,9 +1,14 @@
 # Manual del agente runtime de SofLIA Hub
 
-Estado: vigente. Actualizado: 2026-10-11.
+Estado: vigente. Actualizado: 2026-10-30.
+
+Communication Hub distingue el actor de IPC del remitente runtime: la interfaz
+usa autoridad main y SOFIA; los agentes conservan su resolución de canal y sus
+guardas. Los transportes permanentes no heredan la lease temporal de una llamada
+IPC. [Contrato y límites](../security/security-and-privacy.md#communication-hub).
 
 Meeting Ops incorpora [análisis en equipo](runtime-multiagent-harness.md):
-dos especialistas y un coordinador, proveedores Gemini/Codex y herramientas
+dos especialistas y un coordinador, proveedores OpenAI/Codex y herramientas
 de lectura cerradas. Es una estrategia del agente de reuniones; no expone
 capacidades del plano de desarrollo ni concede permisos de escritura a workers.
 
@@ -22,6 +27,45 @@ Este documento es la referencia extendida de **el agente**: qué es, cómo razon
 qué puede hacer, qué tiene prohibido, con qué límites numéricos opera y cómo se
 extiende. El resumen normativo corto vive en
 [Agentes y automatizacion](agents-and-automation.md); aquí está el detalle.
+
+Chat y especialistas OpenAI comparten inferencia Responses en main; el renderer
+recibe datos y no esa clave del proveedor por el nuevo contrato. Las herramientas
+siguen en su dispatcher y revisión existentes. Fuente/documento/sesión revocan
+streaming y resultados; cuotas/cancelación y trabajo pendiente de otras claves
+se detallan en [seguridad](../security/security-and-privacy.md#inferencia-openai-nativa).
+
+Las rutas heredadas de chat e investigación todavía usan
+[inferencia con historial curado en main](ipc-and-integrations.md#conversación-gemini).
+El catálogo y el despacho de herramientas siguen sujetos a las guardas del turno.
+
+
+Las herramientas conversacionales de nodos remotos retiran el campo token del
+estado del host y los registros, y exponen token_configured. Ambos recorridos
+runtime (main/WhatsApp y renderer) comparten esa proyección; el panel manual
+conserva su API de emparejamiento. Contratos y límites de autorización/custodia:
+[automatización IPC](ipc-and-integrations.md#contratos-de-automatización).
+
+El servicio main de nodos deriva identidad vigente también para herramientas
+runtime: los perfiles son cifrados por usuario y logout/A/B/A revocan transporte
+y host. Nodos huérfanos del legado requieren nuevo emparejamiento. La propiedad
+no la decide el modelo ni un argumento de herramienta. [Custodia y límites](../security/remote-node-custody.md).
+
+El [adaptador GUI heredado](../security/computer-gui-backends.md) del dispatcher
+captura identidad main y revalida capturas/OCR/entrada. Usa programas fijos y
+datos separados; no aporta permisos nuevos ni reemplaza Desktop Agent. El
+canal heredado conserva su cierre en preload.
+
+Los backends web/UIA de Desktop Agent conservan cancelación entre etapas y
+acciones compuestas, y liberan estado/cola ante errores de inicio/finalización.
+Una llamada ya iniciada no se declara revertida. Los límites se mantienen en la
+[guía Desktop](../security/desktop-agent-ipc.md#cancelación-de-etapas-web-y-uia).
+
+La [frontera IPC Desktop Agent](../security/desktop-agent-ipc.md) autoriza fuente
+y revisión nativa para efectos. Observación runtime liga generación/identidad
+main y no actúa con resultados posteriores a stop. Publicaciones y aprendizaje
+de tareas ligan identidad originaria en main y descartan resultados tardíos,
+sin ownerKey decidido por el modelo. No certifica aislamiento de todos los
+historiales/cachés/perfiles o mutaciones internas de otros productores runtime.
 
 Alcance: el **plano runtime** (los agentes embebidos en el producto). Los agentes
 de desarrollo del Arnés (`ai-specs/`, OpenSpec, Codex/Claude/Antigravity) no
@@ -93,6 +137,8 @@ Fuente: `src/services/gemini-chat/`, `src/services/gemini-tools/`,
 
 ### 2.1 Loop agéntico
 
+La superficie [flotante contextual](../../openspec/changes/floating-soflia-chat/design.md) usa este mismo agente, modelos, streaming, Stop y confirmaciones. Enviar incluye automáticamente una observación puntual de la pestaña integrada o texto visible acotado del apartado de la app, sin franja de controles de contexto. No hay captura continua ni lectura automática de otras aplicaciones; éstas se pueden adjuntar mediante el selector existente. Adjuntar pestañas explícitas conserva el modo de extractos. Nuevo chat reinicia el compositor dentro de la vista y conserva el ámbito del proyecto. La lectura no autoriza acciones: los controles DOM y Computer Use mantienen sus guardas y HITL. No se incorporan herramientas nuevas ni credenciales del plano de desarrollo.
+
 Excepción de alcance del turno: al adjuntar pestañas explícitamente, el modo
 `attached-fragments` no hace captura automática ni consulta el documento activo
 o herramientas de búsqueda/recuperación hospedadas. El modelo sólo puede trabajar
@@ -125,6 +171,10 @@ conclusión sea correcta. Ver [contrato y límites de adjuntos](integrated-brows
    presupuesto/tarea incompleta. No afirma éxito por alcanzar un límite.
 
 ### 2.1.1 Permisos locales de comandos y archivos
+
+La presentación de [confirmaciones accesibles](../ux/accessibility.md#confirmación-de-acciones-del-chat)
+conserva una identidad efímera por revisión; su resolver pertenece al controlador
+del chat. Esa identidad renderer no es un permiso ni un contrato IPC.
 
 La [confirmación del chat](../../src/services/computer-use/confirmation.ts)
 permite los movimientos reversibles solicitados (`move_item`, `organize_files`,
@@ -174,22 +224,23 @@ ejecutando acciones a espaldas del usuario.
 
 | Nombre en la UI | Modelo | Modos de razonamiento |
 |---|---|---|
-| SofLIA | `gemini-3.8-flash` | Bajo / Medio / Alto |
-| SofLIA Max | `gpt-6.1-sol` | Bajo / Medio / Alto / Muy alto / Maximo |
-| SofLIA Pro | `gpt-5.6-luna` | Bajo / Medio / Alto / Muy alto / Maximo |
-| SofLIA Lite | `gemini-3.5-flash-lite` | Bajo / Medio / Alto |
+| SofLIA | `gpt-6-luna` | Bajo / Medio / Alto / Muy alto / Máximo |
+| SofLIA Max | `gpt-6.1-sol` | Bajo / Medio / Alto / Muy alto / Máximo |
+| SofLIA Pro | `gpt-6.1-terra` | Bajo / Medio / Alto / Muy alto / Máximo |
 
-SofLIA usa `gemini-3.8-flash` por defecto. El modelo elegido determina el
-proveedor del turno: SofLIA y Lite usan Google; Max y Pro usan OpenAI. La
-selección y el nivel se conservan por modelo en preferencias locales. El modo
+SofLIA usa `gpt-6-luna` por defecto. El chat envía el modelo elegido a OpenAI
+Responses y conserva la selección y el nivel en preferencias locales. Cada
+modelo parte de Medio y recuerda su propio nivel. La cuota de tres usos por
+mes aplica a Max, que recurre a SofLIA al agotarla. El modo
 “Rápido” no se expone; preferencias antiguas `minimal` o `none` se migran a
 `low`. Una solicitud que necesita Computer Use conserva el modelo y esfuerzo
 seleccionados como orquestador del turno. La herramienta `use_computer` delega
-solo la percepción y actuación al `gemini-3.8-flash` fijo de main, sin degradar
+solo la percepción y actuación al modelo OpenAI fijo de main, sin degradar
 ese actuador ni sustituir silenciosamente el proveedor conversacional.
 
-Los identificadores de Max y Pro provienen de
-`src/shared/soflia-runtime-model.ts` tanto en el catálogo como en el ruteo.
+Los identificadores del catálogo provienen de
+`src/shared/soflia-runtime-model.ts`. Los equipos en segundo plano conservan el
+modelo del encargo al ejecutarlo y al recuperar el historial.
 `useModelSelector` migra la selección anterior de Max (`gpt-5.6-terra`) a
 `gpt-6.1-sol` dentro del ámbito del usuario y conserva su razonamiento, sin
 sobrescribir una preferencia ya guardada para Sol ni reiniciar la cuota mensual.
@@ -919,9 +970,7 @@ La personalización (`nickname`, `occupation`, `tone`, `instructions`) y el
 flujo de presentaciones usan `gpt-6-luna` mediante Responses API. El cliente de
 main obtiene OpenAI del RPC `get_api_key` del Hub autenticado (proveedor
 `openai`), con respaldo en configuración OpenAI del entorno. No reutiliza la
-clave Gemini ni cambia de modelo si OpenAI falla. El agente puede iniciar sin
-clave Gemini; transcripción, memoria y herramientas especializadas que usan
-Gemini conservan su configuración independiente.
+clave Gemini ni cambia de modelo si OpenAI falla. El agente, la transcripción y las herramientas migradas resuelven OpenAI en main.
 
 El [adaptador Responses](../../electron/wa-agent/openai-session.ts) conserva
 historial textual, imágenes, PDF, resultados por `call_id` y razonamiento cifrado
@@ -1029,7 +1078,7 @@ ahí todo envío fallaba con «WhatsApp no está conectado».
 
 ### 3.3 Audio y media
 
-- **Audio**: `handleWhatsAppAudioMessage` transcribe con Gemini y reinyecta el
+- **Audio**: `handleWhatsAppAudioMessage` transcribe con OpenAI y reinyecta el
   texto por la ruta normal. En DM además **abre el modo llamada** (§3.18) y
   marca el turno para que la respuesta salga hablada.
 - **Media**: `handleWhatsAppMediaMessage` prepara partes `inlineData` (tope de
@@ -1601,7 +1650,7 @@ Fuente: `electron/voice-call/`. Permite sostener una conversación hablada por
 WhatsApp y Telegram con el catálogo completo de herramientas disponible.
 
 **No es un segundo agente.** Es una política de entrega: decide si la respuesta
-del loop Gemini sale hablada o escrita. El razonamiento, el catálogo, las
+del bucle conversacional sale hablada o escrita. El razonamiento, el catálogo, las
 guardas duras, los bloqueos de grupo y las confirmaciones HITL siguen siendo los
 mismos de un turno escrito, sin ampliar ni reducir permisos por hablar.
 
@@ -1796,9 +1845,9 @@ resuelven las coordenadas) y conversión correcta DIP ↔ físico. `coordinate-s
 mueve el cursor a puntos conocidos por monitor y verifica con `GetCursorPos`
 (tolerancia ±2 px); se autoejecuta al cambiar la topología de monitores.
 
-### 4.7 Cerebro Gemini Computer Use
+### 4.7 Controlador visual OpenAI
 
-`gemini-cu/` implementa la Computer Use API nativa de Gemini, con drivers para
+El controlador visual utiliza Responses con funciones validadas en main y drivers para
 escritorio (nut.js), navegador integrado (`WebContentsView`) y Playwright
 aislado, mas mapeo de acciones propio. Se controla con:
 
@@ -1911,7 +1960,7 @@ opcionales antes de instalarse. Una extensión con error puede reintentarse sin
 reinstalarla; el renderer recibe un diagnóstico genérico y nunca una ruta local.
 
 - `computerUseEngine`: `'gemini'` o `'legacy'` (default `'gemini'`);
-- `computerUseModel`: `gemini-3.8-flash` (único; sin fallback de modelo);
+- `computerUseModel`: `gpt-6-luna` (único; sin fallback de modelo);
 - `computerUseDesktopEnabled` / `computerUseBrowserEnabled`: `true`;
 - `computerUsePromptInjectionDetection`: `true` (detección de inyección en la
   captura).
@@ -2300,3 +2349,30 @@ documental por patrones impide usar mammoth crudo en DOCX y UIA/imagen de respal
 en Office cuando se requiere redacción. No agrega herramientas runtime ni
 promete anonimización completa de todas las fuentes. Ver
 [privacidad documental](../security/python-document-boundary.md).
+
+
+### Inferencia estructurada y extracción de reuniones
+
+La extracción de reuniones clasifica antes de construir la minuta mediante
+Responses OpenAI. Conserva los prompts, normalizadores, evidencia y reglas de
+aprobación; ante indisponibilidad mantiene la extracción local. Las tareas JSON
+del workspace usan Responses y validan el schema antes de devolver un resultado.
+Ambas capacidades resuelven la credencial desde el cliente nativo compartido
+`electron/ai-provider/session-client.ts`, sin recibir la clave Google del
+inicializador de WhatsApp. Este cliente fija el endpoint oficial y revoca el
+transporte y sus resultados cuando cambia la sesión.
+
+
+### Estado de la migración de medios y memoria
+
+Las notas de voz de WhatsApp y Telegram, el dictado de Flow y el audio compatible
+incrustado en el chat OpenAI se transcriben en main. El chat incorpora el texto
+como evidencia no confiable y adjunta los cuadros de una pestaña como imágenes.
+Quedan pendientes los archivos de audio y vídeo que necesitan conversión o
+transporte por separado. El sobre del turno distingue los medios omitidos.
+
+La memoria nueva usa embeddings OpenAI con el modelo identificado junto al
+vector. El navegador conserva el consentimiento al cambiar de versión y requiere
+reconstruir el índice desde las fuentes actuales. Los vectores conversacionales
+anteriores quedan excluidos de la comparación. Sus textos permanecen en disco y
+la reindexación conversacional sigue pendiente.

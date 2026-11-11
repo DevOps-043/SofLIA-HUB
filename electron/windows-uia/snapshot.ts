@@ -1,15 +1,16 @@
 import { exec as execCb } from 'node:child_process';
+import { runBackendTaskStage } from '../desktop-agent/task-cancellation';
 import { promisify } from 'node:util';
 import type { WindowsUIAServiceCore } from './core';
 import type { WindowsUIASnapshot } from './types';
 
 const execAsync = promisify(execCb);
 
-export async function collectSnapshot(service: WindowsUIAServiceCore): Promise<WindowsUIASnapshot> {
-  const currentWindow = await getForegroundWindowInfo();
-  const windows = await service.desktopAgent.listWindows().catch(() => []);
-  const elements = await service.desktopAgent.getUIElements();
-  const screenshotBase64 = await service.desktopAgent.takeScreenshot().catch(() => '');
+export async function collectSnapshot(service: WindowsUIAServiceCore, signal?: AbortSignal): Promise<WindowsUIASnapshot> {
+  const currentWindow = await runBackendTaskStage(signal, getForegroundWindowInfo);
+  const windows = await runBackendTaskStage(signal, () => service.desktopAgent.listWindows().catch(() => []));
+  const elements = await runBackendTaskStage(signal, () => service.desktopAgent.getUIElements());
+  const screenshotBase64 = await runBackendTaskStage(signal, () => service.desktopAgent.takeScreenshot().catch(() => ''));
   const signature = JSON.stringify({
     currentWindowTitle: currentWindow.title,
     currentProcess: currentWindow.process,
@@ -27,10 +28,10 @@ Add-Type -Name FgWin -Namespace W -MemberDefinition '[DllImport(\\\"user32.dll\\
 $hwnd = [W.FgWin]::GetForegroundWindow()
 $sb = New-Object System.Text.StringBuilder 1024
 [void][W.FgWin]::GetWindowText($hwnd, $sb, $sb.Capacity)
-$pid = [uint32]0
-[void][W.FgWin]::GetWindowThreadProcessId($hwnd, [ref]$pid)
-$proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
-@{ title = $sb.ToString(); process = ($proc.ProcessName); pid = $pid } | ConvertTo-Json -Compress
+$foregroundProcessId = [uint32]0
+[void][W.FgWin]::GetWindowThreadProcessId($hwnd, [ref]$foregroundProcessId)
+$proc = Get-Process -Id $foregroundProcessId -ErrorAction SilentlyContinue
+@{ title = $sb.ToString(); process = ($proc.ProcessName); pid = $foregroundProcessId } | ConvertTo-Json -Compress
 "`, { timeout: 3000, windowsHide: true });
   const parsed = JSON.parse(stdout || '{}');
   return { title: parsed.title || '', process: parsed.process || '', pid: parsed.pid || 0 };

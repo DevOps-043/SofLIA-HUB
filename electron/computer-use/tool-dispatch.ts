@@ -20,6 +20,7 @@ import { handleUseComputer } from './gui-tool';
 import { handleListScreens, handleTakeScreenshot } from './screenshot-tool';
 import { handleGetSystemInfo, handleKillProcess, handleListProcesses } from './process-system-tools';
 import { handleCreateWordDocument } from './document-tool';
+import type { ComputerExecutionGuard } from './gui/execution-context';
 
 export async function executeToolDirect(
   toolName: string,
@@ -30,6 +31,7 @@ export async function executeToolDirect(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   args: Record<string, any>,
   onProgress?: (message: string) => void,
+  context?: ComputerExecutionGuard,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
   // Negacion por defecto: ninguna herramienta de computer-use se ejecuta sin
@@ -66,7 +68,7 @@ export async function executeToolDirect(
     case 'get_system_info': return handleGetSystemInfo();
     case 'clipboard_read': return handleClipboardRead();
     case 'clipboard_write': return handleClipboardWrite(args);
-    case 'use_computer': return handleUseComputer(args, onProgress);
+    case 'use_computer': return handleUseComputer(args, onProgress, context);
     case 'take_screenshot': return handleTakeScreenshot(args, onProgress);
     case 'get_email_config': return handleGetEmailConfig();
     case 'configure_email': return handleConfigureEmail(args);

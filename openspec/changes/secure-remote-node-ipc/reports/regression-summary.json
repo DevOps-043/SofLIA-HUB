@@ -1,0 +1,20 @@
+{
+  "ipcRed": {
+    "failed": 35,
+    "passed": 0,
+    "sha256": "2c30bad152995c7a2a77b6fa8576ca93b3247ab7f832a301b82158947eab66b0"
+  },
+  "transportRed": {
+    "failed": 4,
+    "sha256": "7ceef56ce8a12215543f3bf5eab03b0973430e1566c9b8223fac361ac1630689"
+  },
+  "directed": {
+    "passed": 177,
+    "failed": 0,
+    "newCases": 140,
+    "sha256": "24bffa06f1652f271703869798d8e3cbd021e0bc7fea6c1d90a8e4f2e3b58292"
+  },
+  "initialIpcAttempt": "Error sintáctico del test corregido antes del red causal; no se atribuye al producto.",
+  "deadlineCompatibility": "Primera compuerta y build verdes; revisión final identificó tarea síncrona superior a un minuto. Plazo 15 minutos probado y compuerta/build repetidos sobre fuentes finales.",
+  "scope": "Guardas/canales/preload/allowlist/wrappers y servicio/cliente reales; puertos de persistencia, HTTP, binding y diálogo sustituidos. Sin UI, sockets, cuentas ni acciones remotas reales."
+}

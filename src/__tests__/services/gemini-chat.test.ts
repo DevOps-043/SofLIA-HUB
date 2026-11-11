@@ -203,8 +203,8 @@ describe('gemini-chat', () => {
       expect(mockChatsCreate).not.toHaveBeenCalled();
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       expect(String(fetchSpy.mock.calls[0]?.[0])).toContain('/gemini-3.8-flash:generateContent');
-      expect(String(fetchSpy.mock.calls[0]?.[0])).toContain('?key=');
-      expect(requestInit.headers).toEqual({ 'Content-Type': 'application/json' });
+      expect(String(fetchSpy.mock.calls[0]?.[0])).not.toContain('?key=');
+      expect(requestInit.headers).toEqual({ 'Content-Type': 'application/json', 'x-goog-api-key': 'env-test-key' });
       expect(body.tools).toEqual([{ google_search: {} }, { code_execution: {} }]);
       expect(sources?.[0]).toMatchObject({ uri: 'https://example.com/source', title: 'Fuente actual' });
     } finally {
@@ -238,8 +238,8 @@ describe('gemini-chat', () => {
 
       expect(text).toBe('Respuesta con clave de entorno');
       expect(fetchSpy).toHaveBeenCalledTimes(2);
-      expect(String(fetchSpy.mock.calls[0]?.[0])).toContain('db-test-key-without-grounding-access');
-      expect(String(fetchSpy.mock.calls[1]?.[0])).toContain('env-test-key');
+      expect(fetchSpy.mock.calls[0]?.[1]?.headers).toMatchObject({ 'x-goog-api-key': 'db-test-key-without-grounding-access' });
+      expect(fetchSpy.mock.calls[1]?.[1]?.headers).toMatchObject({ 'x-goog-api-key': 'env-test-key' });
       expect(sources?.[0]).toMatchObject({ uri: 'https://example.com/env-source', title: 'Fuente env' });
     } finally {
       (window as any).ipcRenderer = previousIpc;
@@ -274,7 +274,9 @@ describe('gemini-chat', () => {
       expect(text).toBe('Respuesta desde main');
       expect(fetchSpy).not.toHaveBeenCalled();
       expect(invoke).toHaveBeenCalledWith('ai:generate-grounded', expect.any(Object));
-      expect(payload).toMatchObject({ modelName: 'gemini-3.8-flash', apiKey: 'env-test-key' });
+      expect(payload).toMatchObject({ modelName: 'gemini-3.8-flash' });
+      expect(payload).not.toHaveProperty('apiKey');
+      expect(mockGetApiKeyWithCache).not.toHaveBeenCalled();
       expect(payload.body.tools).toEqual([{ google_search: {} }, { code_execution: {} }]);
       expect(sources?.[0]).toMatchObject({ uri: 'https://example.com/main-source', title: 'Fuente main' });
     } finally {
@@ -310,6 +312,20 @@ describe('gemini-chat', () => {
       (window as any).ipcRenderer = previousIpc;
       fetchSpy.mockRestore();
     }
+  });
+
+  it('no registra información privada cuando falla el intento del modelo', async () => {
+    const secret = 'clave-ficticia contenido-privado';
+    mockChatsCreate.mockReturnValue({ sendMessage: vi.fn().mockRejectedValue(new Error(secret)) });
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const { sendMessageStream } = await import('../../services/gemini-chat');
+      await expect(sendMessageStream('Hola', [])).rejects.toThrow();
+      const attempts = warning.mock.calls.filter(args => String(args[0]).includes('attempt failed') || String(args[0]).includes('intento del modelo'));
+      expect(attempts).toHaveLength(1);
+      expect(attempts[0][1]).not.toHaveProperty('error', expect.any(Error));
+      expect(JSON.stringify(attempts)).not.toContain(secret);
+    } finally { warning.mockRestore(); }
   });
 
   it('RS-011: hides provider rate-limit details from visible chat errors', async () => {

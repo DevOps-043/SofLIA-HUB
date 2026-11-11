@@ -1,0 +1,8 @@
+{
+  "legacyVersion": "0.5.18",
+  "rejectedBeforeAllocation": true,
+  "allocationBytesDeclared": 134217728,
+  "guardBytes": 1048576,
+  "message": "Asignación excesiva bloqueada por QA.",
+  "ownTemporaryFixture": true
+}

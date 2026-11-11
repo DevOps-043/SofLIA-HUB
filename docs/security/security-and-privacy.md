@@ -1,10 +1,73 @@
 # Seguridad y privacidad
 
-Estado: vigente. Actualizado: 2026-10-22.
+Estado: vigente. Actualizado: 2026-10-30.
 
 <!-- evidence: electron/preload/safe-ipc.ts -->
 <!-- evidence: electron/main/window-controller.ts -->
 <!-- evidence: ai-specs/policies/tool-boundaries.md -->
+
+## Communication Hub
+
+Los diez IPC channels usan ventanas Hub/Orbe reales, frame/documento vigente,
+sesión main y revisión privada de organización. Actor, rol y organización no se
+conceden desde un payload. SOFIA ausente, inactivo, ajeno o con rol desconocido
+se rechaza en esta vía; no cae al principal legacy de los agentes runtime.
+
+Envío, programación, cambios de conexión/política y vinculación Telegram usan
+confirmación nativa del snapshot validado. La clave queda oculta. Se revalidan
+sesión/organización y rol SOFIA después de confirmar y antes del efecto. Los
+grupos requieren su capacidad incluso cuando se solicita scope personal.
+Un chat ya vinculado a otra persona no se reasigna por esta vía.
+
+Historial/identidades locales se acotan a la organización y a cien registros;
+mensajes/eventos personales sólo se entregan a su actor. Eventos antiguos sin
+alcance organizacional probado quedan restringidos al actor. El historial físico
+WhatsApp no tiene ownership acreditado y se entrega vacío por este contrato.
+El estado de los transportes expone booleanos operativos, sin chats/números globales.
+
+Límites fijos: [parámetros](../architecture/runtime-parameters.md#communication-hub).
+El SDK recibe señal de cancelación/deadline; una consulta que ignore la señal
+retiene su plaza física hasta resolver. La aprobación usa su bloqueo/deadline
+nativo. Efectos ya enviados no se revierten y no se reintentan automáticamente.
+El inicio de transportes y singletons queda fuera de la lease temporal para no
+contaminar polling o eventos permanentes.
+
+Otras APIs directas de WhatsApp/Telegram, cifrado/ownership del estado físico y
+sus conexiones globales conservan trabajo pendiente. No se acredita aislamiento
+integral del transporte, RLS o cuentas/proveedores reales con estos controles.
+
+## Inferencia OpenAI nativa
+
+El cliente Responses de chat y análisis en equipo ejecuta HTTP autenticado en
+main. Su contrato no entrega claves a renderer/preload. La credencial se consulta
+por proveedor OpenAI con la sesión Lia nativa vigente y getUser; SOFIA y Lia son
+sujetos distintos según sus contratos. No se reutiliza la caché global de claves
+del renderer. Un recibo de publicación aceptada vincula main con el sujeto Lia;
+durante el cambio de identidad, Lia anterior aún sin recibo nuevo se rechaza.
+No se deduce ese vínculo de comparar IDs o de un payload del modelo.
+Sólo ausencia de clave activa fallback del entorno nativo; un
+fallo de RPC no selecciona otra credencial silenciosamente. La suscripción SDK y
+la lease main revocan logout/A/B/A, navegación o cambio de sujeto, incluso al
+esperar proveedor. No se aplicó SQL ni se acreditó RLS del servidor en este lote.
+
+Vite excluye VITE_OPENAI_API_KEY del entorno público y de defines preload; main
+conserva su fallback. Las demás claves y el RPC accesible desde otra vía siguen
+pendientes: no se declara custodia integral de IA ni protección de una clave
+compartida frente al dueño del instalador. El bundle main puede inspeccionarse.
+
+El servicio retiene cuatro plazas físicas y como máximo ocho resultados/streams,
+con una lectura simultánea por trabajo y replay sólo del último cursor. No lee
+eventos por adelantado. Solicitud/evento: 32 MiB; stream acumulado: 64 MiB;
+plazo: 15 minutos; espera ociosa entre lecturas: 60 segundos. Stop, abandono,
+revocación y exceso cierran el iterador; una espera pública cancelada no libera
+plaza mientras proveedor/next/cierre físico sigan pendientes. No revierte I/O.
+
+Errores públicos llevan sólo categoría, estado HTTP y retry-after acotado; no
+mensaje, cuerpo o headers privados. El logging nativo registra duración/estado/
+volumen sin prompts o credenciales y el SDK tiene logs desactivados. Texto,
+herramientas, citas, uso y políticas de modelo conservan el pipeline existente.
+Pruebas de SDK con transporte ficticio y build centinela; sin proveedor real.
+[Cambio y evidencia](../../openspec/changes/move-openai-inference-to-main/reports/verification.md).
 
 ## Activos protegidos
 
@@ -53,6 +116,49 @@ entrada no confiable. Un resultado de IA es propuesta; no es identidad, permiso 
 aprobacion.
 
 ## Controles implementados
+
+La [frontera Desktop Agent](desktop-agent-ipc.md) autoriza 23 canales, valida
+contratos y confirma efectos en main. Observación descarta acciones posteriores
+a stop/revocación; teclado usa tokens cerrados y configuración publica sólo tras
+persistir. Las publicaciones de tareas y su aprendizaje conservan identidad/revisión
+originarias, incluso tras colas. No acredita ownership de todo el estado runtime
+ni reversión de entrada ya enviada al SO/proveedor.
+
+El [IPC de Computer Use](computer-use-ipc.md) valida fuente/sesión, snapshots y
+contratos por operación; los efectos requieren revisión nativa ligada a los
+argumentos. Acota trabajos físicos y descarta progresos/respuestas revocados.
+El [adaptador GUI heredado](computer-gui-backends.md) revalida etapas y usa hijos
+sin shell, con datos separados y cierre físico. No acredita reversión de I/O ya
+admitido ni autorización de otras rutas runtime o drivers de Desktop Agent.
+
+La [investigación con fuentes](grounded-generation.md) exige fuente/identidad
+vigentes, cancelación nativa y HTTP acotado. Stop aborta transporte y los rechazos
+Electron cierran el intento. Main resuelve la credencial tras admitir el trabajo
+y la aplica al header del endpoint fijo. Los errores públicos son fijos. Sigue pendiente retirar claves de
+cliente en el conjunto del producto y auditar las demás superficies IA.
+
+Los [nodos remotos](remote-node-custody.md) usan perfiles cifrados por propietario
+exacto y host nuevo apagado. El legado se preserva cifrado sin asignar huérfanos;
+sesión/colas impiden publicación entre cuentas y éxito antes de persistir.
+El host revalida identidad/bearer durante esperas y las tareas reciben señal.
+El panel descarta cachés obsoletas. No acredita roles/RLS ni identidad del
+cliente remoto más allá de la autoridad del bearer de emparejamiento.
+
+AuthProvider comparte vigencia entre restauración, login, SSO, reintentos y
+cierre. Se invalida antes de esperar y se ordenan mutaciones SDK con una sola
+continuación pendiente. Cierre retira el perfil local y publica revocación sin
+leer tokens; operaciones obsoletas no publican ni inician la siguiente etapa.
+El sujeto se contrasta con session.user.id del SDK, sin usar preferencias ni
+presumir equivalencia del perfil. Esta barrera local no revierte peticiones ya
+enviadas ni sustituye aislamiento de servidor o coordinación entre ventanas.
+[Evidencia y riesgo residual](../../openspec/changes/coordinate-authentication-intents/reports/verification.md).
+
+Los canales Auth autorizan la fuente en main antes de procesar datos: Hub
+publica; Hub/Orbe leen, siempre desde el documento principal propio registrado.
+El rechazo no revela identidad y las respuestas nunca contienen tokens. La
+[frontera IPC](../architecture/ipc-and-integrations.md#limites-de-contrato)
+documenta cuotas, invalidación y límites de llamadas SDK ya iniciadas. No
+sustituye protección XSS, identidad del servidor o autorización de otros IPC.
 
 | Capa | Control | Evidencia |
 |---|---|---|
@@ -146,6 +252,9 @@ credenciales ficticias en un perfil temporal, sin inspeccionar perfiles reales.
 
 La protección del SO no aísla de otro proceso bajo el mismo usuario de Windows;
 no sustituye controles de acceso del equipo. Linux rechaza basic_text/unknown.
+La autorización usa navegador externo, state/PKCE por intento y nonce Microsoft,
+con receiver loopback acotado y cierre físico antes del resultado. Ver
+[autorización OAuth de calendarios](calendar-oauth.md).
 Las claves compartidas del build y los scopes OAuth amplios siguen como deuda
 separada. Ver [custodia y operación](../operations/configuration.md#custodia-del-calendario).
 
@@ -530,3 +639,83 @@ salidas acotadas. La preferencia global se confirma después de persistir;
 desactivarla exige revisión nativa. Office/DOCX protegidos rechazan respaldos
 crudos. Alcance por patrones, cancelación y temporales pendientes en
 [lectura documental local](python-document-boundary.md).
+
+La verificación de Electron combina estabilidad y rangos afectados publicados.
+El checkout fija 44.9.3 para incorporar la mitigación de
+[GHSA-jr5w-w6x2-84p9](https://github.com/electron/electron/security/advisories/GHSA-jr5w-w6x2-84p9).
+runtime:stable corre en PR y compara manifiesto, lock, paquete físico y versión
+del ejecutable. Una excepción beta no evita la barrera. Esta política se
+mantiene por aviso y no sustituye una auditoría completa; modificar el repo no
+actualiza aplicaciones ya desplegadas ni el store de certificados del SO.
+
+La percepción del navegador fija un ciclo antes de sus esperas. Pausar/reactivar,
+cerrar o cambiar sesión/documento revoca resultados pendientes, incluidos errores;
+la operación nativa ya iniciada puede seguir físicamente en curso. Se conservan
+autorización de sitio y revisión de sensibilidad, sin ampliar permisos ni exponer
+contenido a logs. Límites, respaldo UI y alcance de verificación en el
+[ciclo de percepción](../architecture/integrated-browser-platform.md#ciclo-de-vida-de-percepción).
+
+La aprobación de recuperación local mantiene un plazo monotónico además del
+límite civil y se consume una vez. La vigencia se revalida también tras I/O y
+esperas de publicación; un cambio de reloj no renueva una revisión vencida.
+Los reintentos Windows no eliminan destinos ni sustituyen la confirmación o
+guardas del consumidor. Alcance de cuatro motores, estados parciales y límites:
+[persistencia y recuperación del navegador](../architecture/integrated-browser-platform.md#persistencia-y-recuperación).
+
+### Errores de IA en el renderer
+
+Los flujos de chat, imagen, Flow y dictado registran mensajes controlados ante
+fallos de proveedores o de lectura de contexto. No deben registrar el error bruto,
+que puede contener claves, texto o rutas. El dictado muestra un mensaje público;
+la clasificación por capacidad, tiempo o seguridad sigue disponible. Esta
+medida no traslada claves a main ni cubre todos los registros de la aplicación.
+
+
+### Vigencia de claves en renderer
+
+Las lecturas de claves consultan cada proveedor sin caché global y se revocan
+si cambia la sesión o una modificación local de credenciales invalida la lectura.
+Una lectura revocada falla en vez de usar una clave de entorno como fallback.
+Esto no retira Gemini del renderer ni revoca solicitudes ya iniciadas; tampoco
+sustituye autorización o RLS del servidor.
+
+
+Las lecturas RPC de claves distinguen error de ausencia: un error o dato de tipo
+inesperado detiene la operación y no activa el fallback de entorno. Las fallas
+de administración muestran mensajes públicos; el módulo histórico comparte la
+implementación canónica. La validación Google envía la clave mediante cabecera.
+
+
+Las consultas y mutaciones personales de claves observan cambios de sesión
+hasta concluir y comprueban vigencia después de cada espera. Si una escritura
+ya fue enviada y cambia la sesión, la interfaz recibe resultado no confirmado;
+la guarda no revierte efectos remotos ni reemplaza la autorización del servidor.
+
+La misma guarda cubre las lecturas directas y sus fachadas históricas; una
+modificación local también invalida consultas personales pendientes.
+
+
+La generación de imágenes OpenAI en Electron resuelve su credencial en main y
+no la transmite por el canal de inferencia. Otros usos de Gemini siguen en el
+renderer; una solicitud enviada al proveedor no se revierte al cancelar.
+
+
+Flow observa la sesión durante análisis, reintentos, fallback y transcripción.
+Un cambio de sesión impide etapas posteriores y descarta respuestas obsoletas;
+no cancela ni revierte solicitudes ya enviadas al proveedor.
+
+
+En Electron, análisis, fallback y transcripción de Flow resuelven la clave
+OpenAI en main. Renderer y preload excluyen las claves de inferencia del build.
+
+
+Subir y liberar medios resuelve la credencial Google en main; el renderer y
+preload ya no envían claves por esos canales. Se revalida la autoridad nativa
+tras consultar la clave antes de iniciar el servicio.
+
+La [conversación Gemini](../architecture/ipc-and-integrations.md#conversación-gemini)
+resuelve la credencial en main para las rutas heredadas del chat y sus acciones.
+Los especialistas, títulos, redacción y optimización usan Responses nativa de OpenAI. El SDK usa el origen de Gemini Developer API. Main
+vincula el turno al marco y sesión, controla las plazas físicas y sólo confirma
+historial vigente. La UI conserva el despacho de herramientas con sus permisos.
+Renderer y preload excluyen la clave Gemini del build. Ajustes dejó de pasarla por sus componentes a WhatsApp. La retirada de los demás servicios continúa.

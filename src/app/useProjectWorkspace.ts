@@ -7,7 +7,10 @@ import {
 } from "react";
 import type { ActiveView, ChatState, FolderState } from "./app-types";
 import type { ProjectHubProject } from "../services/project-hub-api";
-import { readProjectChatBinding } from "../services/project-chat-binding";
+import { projectHubApi } from '../services/project-hub-api';
+import { resolveProjectChatSpace } from '../services/project-chat-space';
+import type { Folder } from '../services/folder-service';
+import { loadConversations } from '../services/chat';
 import { integratedBrowserService } from "../services/integrated-browser-service";
 import { safeWebUrl } from "../services/project-web-url";
 import type {
@@ -70,7 +73,11 @@ export function useProjectWorkspace(options: Options) {
     key: string;
     id: string | null;
     error?: string;
+    folder?: Folder;
   }>({ key: "", id: null });
+  const [chatRevision, setChatRevision] = useState(0);
+  const preparing = useRef<{ key: string; promise: Promise<Folder | null>; abort: AbortController } | null>(null);
+  useEffect(() => () => { preparing.current?.abort.abort(); preparing.current = null; }, [key]);
   const [notice, setNotice] = useState<{ key: string; message: string } | null>(
     null,
   );
@@ -85,13 +92,9 @@ export function useProjectWorkspace(options: Options) {
     if (!active || activeView !== "project-hub" || !unifiedProject || !project)
       return undefined;
     const abort = new AbortController();
-    void readProjectChatBinding(
-      unifiedProject.workspaceId,
-      unifiedProject.projectId,
-      abort.signal,
-    )
-      .then((id) => {
-        if (!abort.signal.aborted) setBinding({ key, id });
+    void resolveProjectChatSpace({ ...unifiedProject, userId: userId!, orgId, name: project.project_name, create: false, signal: abort.signal })
+      .then((resolved) => {
+        if (!abort.signal.aborted) setBinding({ key, id: resolved?.id || null, folder: resolved || undefined });
       })
       .catch(() => {
         if (!abort.signal.aborted)
@@ -99,17 +102,17 @@ export function useProjectWorkspace(options: Options) {
             key,
             id: null,
             error:
-              "No se pudo comprobar el espacio de chats. Vuelve a abrir el proyecto para reintentar.",
+              "No se pudieron cargar tus chats del proyecto. Comprueba la conexión y pulsa Actualizar chats.",
           });
       });
     return () => abort.abort();
-  }, [active, activeView, key, project, unifiedProject]);
+  }, [active, activeView, key, project, unifiedProject, userId, orgId, chatRevision]);
   const chatFolder = !active
     ? undefined
     : activeView === "project"
       ? currentFolder
       : binding.key === key
-        ? folder.folders.find((item) => item.id === binding.id)
+        ? folder.folders.find((item) => item.id === binding.id && (!item.org_id || item.org_id === orgId)) || binding.folder
         : undefined;
   const conversations =
     active && chatFolder
@@ -128,8 +131,7 @@ export function useProjectWorkspace(options: Options) {
       : [];
   const role = project?.role ?? project?.membership?.project_role;
   const canCreateChat =
-    !!chatFolder &&
-    chatFolder.can_edit !== false &&
+    (chatFolder ? chatFolder.can_edit !== false : binding.key === key && !binding.error) &&
     (activeView === "project" ||
       ["owner", "admin", "member"].includes(role || ""));
   const chatMessage =
@@ -137,8 +139,7 @@ export function useProjectWorkspace(options: Options) {
       ? notice.message
       : activeView === "project-hub" && !chatFolder
         ? binding.key === key
-          ? binding.error ||
-            "El espacio de chats todavía no está preparado o no tienes acceso."
+          ? binding.error || (canCreateChat ? undefined : 'Este proyecto no tiene chats disponibles para tu acceso.')
           : "Comprobando el espacio de chats…"
         : canCreateChat
           ? undefined
@@ -148,14 +149,28 @@ export function useProjectWorkspace(options: Options) {
     setSelection({ key, section });
   };
   const prepareChat = async () => {
-    if (!canCreateChat || !chatFolder) return false;
+    if (!canCreateChat) return false;
     const captured = key;
+    let destination = chatFolder;
+    if (!destination && unifiedProject && project && userId) {
+      if (!preparing.current || preparing.current.key !== key) {
+        const abort = new AbortController();
+        preparing.current = { key, abort, promise: resolveProjectChatSpace({ ...unifiedProject, userId, orgId, name: project.project_name, create: true, signal: abort.signal }) };
+      }
+      const pending = preparing.current;
+      try { destination = await pending.promise || undefined; } finally { if (preparing.current === pending) preparing.current = null; }
+      if (scopeRef.current !== captured || !destination) return false;
+      setBinding({ key, id: destination.id, folder: destination });
+      const resolved = destination;
+      folder.setFolders(previous => previous.some(item => item.id === resolved.id) ? previous : [resolved, ...previous]);
+    }
+    if (!destination) return false;
     await chat.handleNewChat(
-      chatFolder.id,
+      destination.id,
       () => scopeRef.current === captured,
     );
     if (scopeRef.current !== captured) return false;
-    folder.setCurrentFolderId(chatFolder.id);
+    folder.setCurrentFolderId(destination.id);
     return true;
   };
   const onNewChat = () => {
@@ -199,7 +214,16 @@ export function useProjectWorkspace(options: Options) {
         key,
         message: "El navegador integrado no está disponible en esta sesión.",
       });
-      return;
+      return false;
+    }
+    if (activeView === 'project-hub' && unifiedProject && !project) {
+      const result = await projectHubApi.getProject(unifiedProject.workspaceId, unifiedProject.projectId);
+      if (scopeRef.current !== key) return false;
+      if (!result.success || result.data?.project_id !== unifiedProject.projectId || result.data?.workspace_id !== unifiedProject.workspaceId) {
+        setNotice({ key, message: result.error || 'No se pudo comprobar el proyecto antes de abrir el navegador.' });
+        return false;
+      }
+      setVerified({ key, project: result.data });
     }
     if (
       !conversations.some((item) => item.id === chat.currentConversationId) &&
@@ -209,14 +233,16 @@ export function useProjectWorkspace(options: Options) {
       )
     )
       await prepareChat();
-    if (scopeRef.current === key) setBrowserOpen(true);
+    if (scopeRef.current !== key) return false;
+    setBrowserOpen(true);
+    return true;
   };
   const onOpenWeb = (url: string) => {
     const safe = safeWebUrl(url);
     if (!safe) return;
     void openBrowser()
-      .then(async () => {
-        if (scopeRef.current !== key) return;
+      .then(async (opened) => {
+        if (!opened || scopeRef.current !== key) return;
         const result = await integratedBrowserService.navigate(safe);
         if (!result.success && scopeRef.current === key)
           setNotice({
@@ -231,6 +257,7 @@ export function useProjectWorkspace(options: Options) {
   };
   const navigation: ProjectNavigation | undefined = active
     ? {
+        browserProject: activeView === 'project-hub' && project && unifiedProject ? { ...unifiedProject, organizationId: orgId, name: project.project_name, canWrite: ['owner', 'admin', 'member'].includes(role || '') } : undefined,
         name:
           activeView === "project"
             ? currentFolder!.name
@@ -244,6 +271,10 @@ export function useProjectWorkspace(options: Options) {
           : null,
         canCreateChat,
         chatMessage,
+        onRetryChats: () => {
+          setNotice(null); setChatRevision(value => value + 1);
+          if (userId) void loadConversations(userId, orgId).then(rows => { if (scopeRef.current === key) chat.setConversations(rows); }).catch(() => { if (scopeRef.current === key) setNotice({ key, message: 'No se pudieron actualizar las conversaciones. Reintenta en unos momentos.' }); });
+        },
         browserOpen,
         onNavigate: navigate,
         onBack: () => {
@@ -255,7 +286,7 @@ export function useProjectWorkspace(options: Options) {
           void openChat(id);
         },
         onBrowserNewChat: async () => {
-          await prepareChat();
+          if (!await prepareChat()) throw new Error('No se pudo preparar un chat editable de este proyecto.');
         },
         onBrowserOpenChat: (id) => openChat(id, true),
         onOpenBrowser: () => {

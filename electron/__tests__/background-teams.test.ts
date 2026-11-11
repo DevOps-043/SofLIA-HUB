@@ -23,7 +23,7 @@ function fixture(provider?: BackgroundProvider) {
     provider: async () => provider ?? writerProvider() });
   return { root, repository, service, authorize };
 }
-const request = (): BackgroundStart => ({ requestId: randomUUID(), messageId: randomUUID(), conversationId: 'chat-origen', task: 'Usa multiagentes para proponer dos activaciones diferentes.', source: 'Rethink & Delight', model: 'gemini-3.8-flash', effort: 'medium', allowResearch: false, expectedOwnerId: scope.userId, expectedOrganizationId: null });
+const request = (): BackgroundStart => ({ requestId: randomUUID(), messageId: randomUUID(), conversationId: 'chat-origen', task: 'Usa multiagentes para proponer dos activaciones diferentes.', source: 'Rethink & Delight', model: 'gpt-6-luna', effort: 'medium', allowResearch: false, expectedOwnerId: scope.userId, expectedOrganizationId: null });
 function writerProvider(): BackgroundProvider {
   return {
     execute: vi.fn(async (input: ExecutorInput) => {
@@ -40,6 +40,26 @@ function writerProvider(): BackgroundProvider {
   };
 }
 describe('Equipos ejecutores en main', () => {
+  it('recupera un trabajo histórico con modelo retirado usando OpenAI', async () => {
+    const { service, repository } = fixture();
+    await service.context(null);
+    await service.start(request());
+    await service.idle();
+    const jobs = service.state().jobs;
+    jobs[0].model = 'gemini-3.8-flash';
+    repository.save(scope, jobs);
+    expect(repository.load(scope)[0].model).toBe('gpt-6-luna');
+    service.close();
+  });
+  it('migra la selección anterior antes de despachar un trabajo nuevo', async () => {
+    const { service } = fixture();
+    await service.context(null);
+    const job = await service.start({ ...request(), model: 'models/gemini-3.8-flash' });
+    expect(job.model).toBe('gpt-6-luna');
+    await service.idle();
+    expect(service.state().jobs[0].model).toBe('gpt-6-luna');
+    service.close();
+  });
   it('resuelve marca con el scope del trabajo, guarda aviso y ejecuta la guarda antes de escribir', async () => {
     const { service, repository } = fixture(); await service.context(null); await service.start(request()); await service.idle();
     const job = service.state().jobs[0];
@@ -142,9 +162,9 @@ describe('Equipos ejecutores en main', () => {
     expect(service.state().jobs[0].status).toBe('failed');
     expect(service.state().jobs[0].artifacts).toHaveLength(2); service.close();
   });
-  it('admite inmediatamente, ejecuta dos trabajadores y coordina archivos reales', async () => {
+  it.each(['gpt-6-luna', 'gpt-6.1-terra'])('admite el modelo %s, ejecuta dos trabajadores y coordina archivos reales', async (model) => {
     const { service, repository } = fixture(); await service.context(null);
-    const input = request(); const job = await service.start(input);
+    const input = { ...request(), model }; const job = await service.start(input);
     expect(job.conversationId).toBe('chat-origen');
     expect((await service.start(input)).id).toBe(job.id);
     await service.idle();
@@ -154,7 +174,7 @@ describe('Equipos ejecutores en main', () => {
     expect(finished.artifacts.every(file => file.verified)).toBe(true);
     expect(finished.agents.map(agent => agent.status)).toEqual(['completed', 'completed', 'completed']);
     expect(finished.calls).toBe(3);
-    expect(repository.load(scope)[0].status).toBe('completed');
+    expect(repository.load(scope)[0]).toMatchObject({ model, status: 'completed' });
     const file = await service.artifactFile(job.id, finished.artifacts[0].id);
     expect(fs.readFileSync(file, 'utf8')).toContain('Archivo creado');
     service.close();

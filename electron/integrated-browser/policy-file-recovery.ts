@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { safeStorage } from 'electron';
+import { createRecoveryReviewLifetime } from './recovery-review-lifetime';
 
 const LIMIT = 8 * 1024 * 1024;
 const queues = new Map<string, Promise<unknown>>();
@@ -62,20 +63,33 @@ function decode(file: string, content: Buffer): Buffer {
   const result = Buffer.from(value.data, 'base64');
   if (result.length > LIMIT || result.toString('base64') !== value.data) throw failure(); return result;
 }
-async function atomic(file: string, content: Buffer, guard: () => void, exclusive = false): Promise<void> {
+const WINDOWS_RENAME_RETRY_MS = [20, 40, 80, 160] as const;
+async function atomic(file: string, content: Buffer, guard: () => void,
+  validateCurrent: () => Promise<void>, exclusive = false): Promise<void> {
   const temporary = `${file}.${randomUUID()}.tmp`;
-  let published = false;
+  let created = false; let published = false;
   try {
-    guard(); const handle = await fs.open(temporary, 'wx', 0o600);
+    guard(); const handle = await fs.open(temporary, 'wx', 0o600); created = true;
     try { await handle.writeFile(content); await handle.sync(); } finally { await handle.close(); }
-    guard();
-    if (exclusive) await fs.link(temporary, file); else await fs.rename(temporary, file);
-    published = true;
-  } finally { await fs.unlink(temporary).catch(error => {
+    for (let attempt = 0; ; attempt++) {
+      guard(); await validateCurrent(); guard();
+      try {
+        if (exclusive) await fs.link(temporary, file); else await fs.rename(temporary, file);
+        published = true; break;
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (exclusive || process.platform !== 'win32' || !['EPERM', 'EBUSY'].includes(code ?? '')
+          || attempt >= WINDOWS_RENAME_RETRY_MS.length) throw error;
+        // El archivo preparado no cambia; cada intento revalida bytes y autoridad.
+        await new Promise(resolve => setTimeout(resolve, WINDOWS_RENAME_RETRY_MS[attempt]));
+      }
+    }
+  } finally { if (created) await fs.unlink(temporary).catch(error => {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
-    if (!published) throw error;
-    // La publicación ya terminó: no presentar un falso fallo que invite a repetirla.
-    console.warn('[Navegador][Recuperación] Se guardó el archivo, pero quedó un temporal pendiente de limpieza.');
+    // Conservar éxito/error de la operación; la limpieza no debe sustituirlo.
+    console.warn(published
+      ? '[Navegador][Recuperación] Se guardó el archivo, pero quedó un temporal pendiente de limpieza.'
+      : '[Navegador][Recuperación] No se publicó el archivo; quedó un temporal propio pendiente de limpieza.');
   }); }
 }
 function same(a: Buffer | null, b: Buffer | null): boolean { return a === null ? b === null : b !== null && a.equals(b); }
@@ -96,15 +110,20 @@ export async function writePolicyFile<T>(file: string, next: T, validate: (raw: 
   if (original) parse(original, validate, codec);
   else if (await bytes(policyBackupPath(file), LIMIT * 2)) throw failure();
   await fs.mkdir(path.dirname(file), { recursive: true }); guard();
+  const validatePrimary = async () => { if (!same(original, await bytes(file))) throw failure(); };
   if (eraseCopies) {
     // Restablecer permisos no deja la lista de orígenes retirada en las copias.
     await removePolicyCopies(file, guard);
   } else if (original) {
     const backup = encode(file, original);
-    await atomic(policyBackupPath(file), backup, guard);
+    const backupFile = policyBackupPath(file), previousBackup = await bytes(backupFile, LIMIT * 2);
+    await atomic(backupFile, backup, guard, async () => {
+      await validatePrimary();
+      if (!same(previousBackup, await bytes(backupFile, LIMIT * 2))) throw failure();
+    });
   }
   if (!same(original, await bytes(file))) throw failure();
-  await atomic(file, content, guard, original === null);
+  await atomic(file, content, guard, validatePrimary, original === null);
 }
 async function damagedFiles(file: string): Promise<string[]> {
   const prefix = `${path.basename(file)}.damaged-`;
@@ -134,21 +153,30 @@ export async function preparePolicyRecovery<T>(file: string, validate: (raw: unk
     const projected = restrict(parse(decode(file, backup), validate, codec));
     const restored = codec.encode(validate(projected.value));
     if (restored.length > LIMIT) throw failure();
-    const expires = Date.now() + 300_000; let consumed = false; guard();
+    const lifetime = createRecoveryReviewLifetime(); guard();
+    const assertCurrent = () => { guard(); if (lifetime.expired()) throw failure(); };
+    const validateFiles = async () => {
+      if (!same(original, await bytes(file)) || !same(backup, await bytes(policyBackupPath(file), LIMIT * 2))) throw failure();
+    };
     return { count: projected.count, commit: async () => {
-      if (consumed) throw failure(); consumed = true;
+      if (!lifetime.consume()) throw failure();
       await serializePolicyFile(file, async () => {
-        guard(); if (Date.now() > expires || !same(original, await bytes(file)) || !same(backup, await bytes(policyBackupPath(file), LIMIT * 2))) throw failure();
-        let damaged: string | undefined; let committed = false;
+        assertCurrent();
+        if (!same(original, await bytes(file)) || !same(backup, await bytes(policyBackupPath(file), LIMIT * 2))) throw failure();
+        assertCurrent();
+        let damaged: string | undefined; let archived = false; let committed = false;
         try {
           if (original) {
             if ((await damagedFiles(file)).length >= 5) throw failure();
             damaged = `${file}.damaged-${randomUUID()}.bin`;
-            await atomic(damaged, encode(file, original), guard, true);
+            await atomic(damaged, encode(file, original), assertCurrent, validateFiles, true);
+            archived = true;
           }
           if (!same(original, await bytes(file)) || !same(backup, await bytes(policyBackupPath(file), LIMIT * 2))) throw failure();
-          await atomic(file, restored, guard, original === null); committed = true;
-        } finally { if (damaged && !committed) await fs.unlink(damaged).catch(() => {}); }
+          await atomic(file, restored, assertCurrent, validateFiles, original === null); committed = true;
+        } finally { if (damaged && archived && !committed) await fs.unlink(damaged).catch(error => {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') console.warn('[Navegador][Recuperación] No se publicó el almacén; quedó una copia protegida pendiente de limpieza.');
+        }); }
       });
     } };
   } catch { throw failure(); }

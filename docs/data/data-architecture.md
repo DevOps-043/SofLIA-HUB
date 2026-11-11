@@ -1,10 +1,13 @@
 # Arquitectura de datos
 
-Estado: vigente. Actualizado: 2026-10-22.
+Estado: vigente. Actualizado: 2026-10-25.
 
 <!-- evidence: database/README.md -->
 <!-- evidence: src/config.ts -->
 <!-- evidence: electron/memory/schema.ts -->
+<!-- evidence: src/services/chat/sync-pass.ts -->
+<!-- evidence: src/services/chat/pending-state/clear.ts -->
+<!-- evidence: src/services/chat/session-review.ts -->
 
 ## Autoridades remotas
 
@@ -51,6 +54,43 @@ El renderer mantiene pending state y cache para soportar escrituras parciales. L
 fuente remota Lia sigue siendo autoridad; recovery purga/replica pendientes y
 normaliza conversaciones/mensajes. Borrar una conversacion debe respetar shares y
 politicas RLS, no solo remover cache.
+
+La sincronización local del chat reconoce el contenido normalizado que envió,
+no sólo su ID. Revalida antes de cada efecto y después de esperar red: otra
+versión o una intención de borrado conservan su pendiente. La retirada sólo se
+acredita si `writePendingChatState` confirma la escritura local; un fallo
+transitorio conserva la entrada y un rechazo permanente retira únicamente el
+contenido vigente. Un borrado heredado contradictorio invalida también sus
+payloads, evitando recreación en la misma pasada.
+
+El cache puede adelantarse a la cola por autosave. Una revisión efímera sólo
+permite publicar la respuesta si el cache estaba ausente o coincidía con lo
+enviado y su valor persistido sigue intacto. Un cambio ajeno bajo la misma clave
+puede omitir un refresco canónico; se preserva el contenido local. No se agregan
+campos al formato persistente ni cambia el contrato Supabase.
+
+La coordinación serializa por identidad dentro del mismo renderer y fusiona
+una sola pasada pendiente. No ofrece transacción entre ventanas, CAS de servidor
+o resolución de edición simultánea entre equipos. El ID recibido por sí solo
+no acredita sesión: `session-review.ts` lo contrasta con el sujeto del SDK Lia
+y vincula cada lote a un ciclo efímero. Cambiar/cerrar sesión revoca trabajo
+anterior, incluido A/B/A; no se reconoce ni publica su respuesta. Una solicitud
+nueva válida puede recuperar los pendientes conservados. Los scopes de ciclos
+distintos no se fusionan; refresh/eventos repetidos de la misma identidad
+conservan trabajo vigente. Se libera el listener al quedar ocioso.
+
+La suscripción precede a la lectura inicial. Un evento vigente puede liberar
+una lectura que siga esperando; su resultado tardío no sustituye al evento.
+Error o falta de sesión coincidente bloquean efectos nuevos. Sólo se observa
+el estado del SDK, sin conservar tokens: getSession no verifica por sí solo un
+JWT. Autenticación, cierre/revocación global y RLS conservan su autoridad en el
+proveedor existente; las preferencias y los aliases SOFIA no son pruebas de Lia.
+[Evidencia de sesión](../../openspec/changes/bind-chat-sync-to-lia-session/reports/verification.md).
+
+Una petición ya enviada puede
+tener efecto: la intención posterior sigue disponible para otra pasada. Cuota,
+errores o payloads corruptos de localStorage conservan sus límites de recuperación;
+el éxito remoto no demuestra durabilidad local. [Evidencia de concurrencia](../../openspec/changes/preserve-pending-chat-sync-intent/reports/verification.md).
 
 ### Meetings
 

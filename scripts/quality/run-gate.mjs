@@ -7,6 +7,8 @@ const scripts = [
   'adapters:check',
   'harness:validate',
   'audit:supply-chain',
+  'ci:integrity',
+  'runtime:stable',
   'docs:system:check',
   'docs:check',
   // La semilla del catalogo de Skills y el respaldo en codigo deben decir lo
@@ -15,11 +17,12 @@ const scripts = [
   'skills:seed:check',
   'openspec:validate',
   'test:quality',
+  'python-tools:test',
   'typecheck',
   'lint:changed',
-  'test',
+  'test:coverage',
 ];
-if (release) scripts.push('runtime:stable', 'build');
+if (release) scripts.push('build');
 
 for (const script of scripts) {
   console.log(`\n=== npm run ${script} ===`);

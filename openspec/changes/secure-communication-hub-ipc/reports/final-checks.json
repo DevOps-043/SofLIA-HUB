@@ -1,0 +1,18 @@
+{
+  "status": "verificado_localmente",
+  "at": "2026-10-30T21:19:12.299Z",
+  "gateExitCode": 0,
+  "buildExitCode": 0,
+  "strictOpenSpecExitCode": 0,
+  "docsLinksExitCode": 0,
+  "docsSystemExitCode": 0,
+  "scopedWorktreeAndIndexWhitespaceExitCode": 0,
+  "newSourcesWithoutTrailingWhitespace": true,
+  "finalSourceInventorySha256": "eb7bffe2356f508d1808007f8b6ab3d136bce06211e0233eb81d82aa50a167e6",
+  "rootConfigNotGenerated": true,
+  "activeMarkdownFiles": 872,
+  "independentReview": "pendiente",
+  "archived": false,
+  "goal": "active",
+  "docsLogSha256": "57fa1faeb90a4635947cfe46f042df6919d720c15a466508888d032daf73f439"
+}

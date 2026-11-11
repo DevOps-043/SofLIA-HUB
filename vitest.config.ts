@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitest/config';
 import path from 'node:path';
 import { availableParallelism } from 'node:os';
+import coveragePolicy from './config/coverage-policy.json';
 
 export default defineConfig({
   test: {
@@ -9,6 +10,14 @@ export default defineConfig({
     globals: true,
     testTimeout: 15000,
     hookTimeout: 15000,
+    coverage: {
+      provider: 'v8',
+      include: coveragePolicy.include,
+      exclude: coveragePolicy.exclude,
+      excludeAfterRemap: true,
+      reporter: ['text-summary', 'json-summary', 'json', 'lcov'],
+      thresholds: coveragePolicy.thresholds,
+    },
     projects: [
       {
         test: {

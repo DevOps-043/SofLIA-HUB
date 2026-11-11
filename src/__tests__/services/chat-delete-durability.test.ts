@@ -8,12 +8,14 @@
  * antes de darla por buena.
  */
 
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
+import { chatAuth } from './chat-auth.fixture';
 import './chat-service.setup';
 import { mockDelete, mockOrder, mockMaybeSingle, mockSoftDeleteSelect, mockUpdate } from './chat-service.setup';
 
 const USER = 'lia-user-1';
 const CONV = 'conv-borrada';
+beforeEach(() => chatAuth.reset(USER));
 
 function conversacionRemota() {
   return {

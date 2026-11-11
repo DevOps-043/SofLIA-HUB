@@ -275,14 +275,14 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
     const { sendMessageStream } = await import('../../services/gemini-chat');
 
     await sendMessageStream('Hola', [], {
-      model: 'gpt-5.6-luna',
+      model: 'gpt-6.1-terra',
       thinking: { id: 'xhigh', level: 'xhigh' },
     });
 
     expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({
-      modelId: 'gpt-5.6-luna',
+      modelId: 'gpt-6.1-terra',
       options: expect.objectContaining({
-        model: 'gpt-5.6-luna',
+        model: 'gpt-6.1-terra',
         thinking: { id: 'xhigh', level: 'xhigh' },
       }),
     }));

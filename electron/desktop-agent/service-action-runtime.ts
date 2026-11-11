@@ -152,7 +152,7 @@ export async function runServiceProactiveRecovery(
 ): Promise<boolean> {
   return executeProactiveRecovery({
     ...params,
-    ai: service.getGenAI(),
+    ai: service.getInference(),
     config: service.config,
     currentPlan: service.currentPlan,
     actionHistory: service.actionHistory,

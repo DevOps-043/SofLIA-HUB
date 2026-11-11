@@ -1,7 +1,7 @@
 # Inicio de sesión federado con SofLIA Learning
 
 Estado: vigente. Documenta el sistema tal como está implementado en este
-repositorio (Soflia Hub, escritorio Electron). Fecha: 2026-08-19.
+repositorio (Soflia Hub, escritorio Electron). Fecha: 2026-10-25.
 
 Propósito de este documento: servir de referencia completa y portable para
 implementar el mismo tipo de inicio de sesión federado en **Project Hub**.
@@ -66,8 +66,16 @@ hace un cliente OAuth público sin `client_secret`.
 9. **Canje del ticket (HTTPS directo Hub → Learning).** `exchangeTicketForSofiaSession(ticket, codeVerifier)` en `src/services/learning-sso.ts` hace `POST {VITE_LEARNING_BASE_URL}/api/auth/desktop/exchange` con `{ ticket, code_verifier }`, `credentials: 'omit'` (el endpoint se autentica por el ticket + verificador, no por cookie). Reintenta con backoff (250ms, 750ms) solo errores de red/5xx; **401/403 no se reintentan**.
 10. **Validación en Learning (servidor).** Learning localiza el ticket por el hash del valor recibido, ejecuta el consumo atómico (`consume_desktop_sso_ticket`, ver §6), compara el `code_challenge` guardado contra SHA-256(`code_verifier` recibido), comprueba `organization_users.status = 'active'` para el `user_id` del ticket, y si todo es válido llama a `admin.auth.admin.generateLink({ type: 'magiclink', email })` sobre el proyecto SOFIA. Devuelve **únicamente** `{ tokenHash }`, con cabeceras que impiden caché.
 11. **Sesión Supabase (renderer).** El Hub canjea `tokenHash` con `sofiaSupa.auth.verifyOtp({ token_hash, type: 'magiclink' })` sobre el cliente anónimo — el mismo patrón que ya usa `lia-session-exchange.ts` para federar hacia el proyecto Lia. Obtiene una `Session` de Supabase Auth **indistinguible** de la que produce `signInWithPassword`, con el mismo `user.id` que ya existía.
-12. **Resolución de perfil (camino común).** `sofiaAuth.completeSofiaSsoSession(session)` (`src/services/sofia-auth.ts`) resuelve la fila de `public.users` por correo, verifica que su `id` coincida con `session.user.id` (si no coincide, la identidad no es la misma y se aborta), y llama a `completeAuthenticatedSession()` — **la misma función que usa el login por contraseña** para resolver membresía activa, perfil y sesión local. Si no hay membresía activa, cierra la sesión de Supabase Auth recién creada antes de devolver el error: **nunca queda una sesión parcial abierta**.
+12. **Resolución de perfil (camino común).** `sofiaAuth.completeSofiaSsoSession(session, signal)` comparte con el login por contraseña la resolución de perfil mediante `get_desktop_user_profile`, las membresías y el snapshot local. No consulta `public.users` por correo ni demuestra equivalencia del ID de perfil con el UUID Auth. La señal se revisa antes/después de las esperas; una operación revocada no inicia persistencia ni un logout compensatorio sobre otra identidad. La denegación vigente intenta cerrar la sesión SDK; una llamada ya enviada puede tener efecto y no se declara revocación remota garantizada.
 13. **Federación a Lia.** `ensureLiaSession(email, accessToken)` sigue exactamente el mismo camino que el login por contraseña — sin cambios, sin una segunda credencial.
+
+La solicitud viva conserva su intención y estado de reclamación hasta finalizar
+el canje. Un retorno se reclama una sola vez; cancelar durante creación,
+canje, perfil o recuperación impide etapas posteriores. Otro acceso o cierre
+la invalida mediante el coordinador privado del AuthProvider. Se ordenan
+mutaciones SDK sin retener la cola mientras se espera interacción humana en el
+navegador. La señal opcional alcanza fetch y el backoff; no revierte I/O enviado.
+[Evidencia y límites](../../openspec/changes/coordinate-authentication-intents/reports/verification.md).
 
 ## 4. Inventario de código (Hub, Electron)
 

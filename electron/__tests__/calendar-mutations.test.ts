@@ -10,17 +10,41 @@ import type { CalendarBridge } from '../../src/shared/calendar';
 import { CalendarService } from '../calendar-service';
 import { openOAuthWindow } from '../calendar/oauth-window';
 
-const calls = vi.hoisted(() => ({ insert: vi.fn(), patch: vi.fn(), remove: vi.fn(), getToken: vi.fn() }));
+const calls = vi.hoisted(() => ({ insert: vi.fn(), patch: vi.fn(), remove: vi.fn(), getToken: vi.fn(), generateAuthUrl: vi.fn(() => 'https://example.test') }));
 vi.mock('../calendar/oauth-window', () => ({ openOAuthWindow: vi.fn(async () => 'codigo-ficticio') }));
-vi.mock('googleapis', () => ({ google: {
+vi.mock('googleapis', () => ({ Auth: { CodeChallengeMethod: { S256: 'S256' } }, google: {
   calendar: () => ({ events: { insert: calls.insert, patch: calls.patch, delete: calls.remove } }),
-  auth: { OAuth2: vi.fn(function () { return { generateAuthUrl: () => 'https://example.test', getToken: calls.getToken, setCredentials: vi.fn() }; }) },
+  auth: { OAuth2: vi.fn(function () { return { generateAuthUrl: calls.generateAuthUrl, getToken: calls.getToken, setCredentials: vi.fn() }; }) },
   oauth2: () => ({ userinfo: { get: async () => ({ data: { email: 'cuenta@example.test' } }) } }),
 } }));
 beforeEach(() => { vi.clearAllMocks(); calls.insert.mockResolvedValue({ data: { id: 'nuevo' } }); calls.patch.mockResolvedValue({}); calls.remove.mockResolvedValue({}); calls.getToken.mockResolvedValue({ tokens: { access_token: 'ficticio' } }); vi.mocked(openOAuthWindow).mockResolvedValue('codigo-ficticio'); });
 const input = { title: 'Revisión', start: new Date('2026-10-22T16:00:00Z'), end: new Date('2026-10-22T17:00:00Z') };
 
 describe('Mutaciones del servicio calendario', () => {
+  it('vincula URL y canje Google a la misma prueba PKCE sin ampliar scopes', async () => {
+    const credentials = { load: vi.fn(async () => []), save: vi.fn(async () => {}) };
+    const service = new CalendarService(credentials); service.setUserId('A');
+    service.setConfig({ google: { clientId: 'ficticio', clientSecret: 'ficticio' } });
+    try {
+      expect((await service.connectGoogle()).success).toBe(true);
+      const options = vi.mocked(openOAuthWindow).mock.calls[0][2];
+      expect(calls.generateAuthUrl).toHaveBeenCalledWith(expect.objectContaining({ state: options.proof.state,
+        code_challenge: options.proof.challenge, code_challenge_method: 'S256', access_type: 'offline', prompt: 'consent' }));
+      expect(calls.getToken).toHaveBeenCalledWith({ code: 'codigo-ficticio', codeVerifier: options.proof.verifier });
+    } finally { service.dispose(); }
+  });
+  it.each(['configuración', 'canje', 'código URL'])('Google no persiste ante contexto inválido: %s', async stage => {
+    const credentials = { load: vi.fn(async () => []), save: vi.fn(async () => {}) };
+    const service = new CalendarService(credentials); service.setUserId('A');
+    service.setConfig({ google: { clientId: 'ficticio', clientSecret: 'ficticio' } });
+    if (stage === 'configuración') vi.mocked(openOAuthWindow).mockImplementationOnce(async () => { service.setConfig({}); return 'codigo-ficticio'; });
+    if (stage === 'canje') calls.getToken.mockImplementationOnce(async () => { service.setUserId('B'); service.setUserId('A'); return { tokens: { access_token: 'obsoleto' } }; });
+    if (stage === 'código URL') vi.mocked(openOAuthWindow).mockResolvedValueOnce('https://ajeno.invalid');
+    try {
+      expect((await service.connectGoogle()).success).toBe(false); expect(credentials.save).not.toHaveBeenCalled();
+      expect(service.getConnections()).toEqual([]); if (stage !== 'canje') expect(calls.getToken).not.toHaveBeenCalled();
+    } finally { service.dispose(); }
+  });
   it('OAuth no intercambia el código después de una transición A/B/A', async () => {
     const credentials = { load: vi.fn(async () => []), save: vi.fn(async () => {}) };
     const service = new CalendarService(credentials); service.setUserId('A');

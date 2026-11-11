@@ -1,4 +1,5 @@
 import { beforeEach, vi } from 'vitest';
+import { chatAuth } from './chat-auth.fixture';
 
 export const mockSelect = vi.fn();
 export const mockInsert = vi.fn();
@@ -27,13 +28,10 @@ type UpdateChain = Promise<{ data: unknown; error: unknown }> & {
   select: (...args: unknown[]) => unknown;
 };
 
-vi.mock('../../lib/supabase', () => ({
+vi.mock('../../lib/supabase', async () => ({
   supabase: {
-    from: (...args: any[]) => mockFrom(...args),
-    auth: {
-      getSession: vi.fn(async () => ({ data: { session: null }, error: null })),
-      onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
-    },
+    from: (...args: unknown[]) => mockFrom(...args),
+    auth: (await import('./chat-auth.fixture')).chatAuth.source,
   },
   isSupabaseConfigured: vi.fn(() => true),
 }));
@@ -51,6 +49,7 @@ vi.mock('../../config', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  chatAuth.reset('user-123');
   localStorage.clear();
   mockSingle.mockResolvedValue({
     data: {

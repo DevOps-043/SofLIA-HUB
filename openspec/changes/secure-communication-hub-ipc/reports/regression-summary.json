@@ -1,0 +1,24 @@
+{
+  "red": {
+    "failed": 2,
+    "passed": 0,
+    "sha256": "5871a4ed11f28093f466a0bf7d88e259674d6b7ff16b7bfbd9fa21f7b7329e01"
+  },
+  "enumRed": {
+    "failed": 3,
+    "passed": 82,
+    "sha256": "32f90259aadfa65405bca435f240b066e74f558369dbf55618232a5f5f947f13"
+  },
+  "openaiEnumRed": {
+    "failed": 3,
+    "passed": 20,
+    "sha256": "869ee6c7427b97ae4635dcdfb6b8448fd14868c49f10d0a8b173688ec55cb3b3"
+  },
+  "directed": {
+    "passed": 169,
+    "failed": 0,
+    "newCases": 93,
+    "sha256": "6270e0d386ae114c63c81a696447b4e7334b0118a6dac897fb4776701527f225"
+  },
+  "scope": "Communication Hub: cuatro capas/servicio reales, puertos SOFIA/persistencia/transportes/diálogos ficticios. Sin GUI/cuentas/claves o mensajería reales."
+}

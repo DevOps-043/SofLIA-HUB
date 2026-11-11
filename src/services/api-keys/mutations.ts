@@ -1,12 +1,17 @@
 import { supabase } from '../../lib/supabase';
+import { invalidateApiKeyCache } from './cache';
+import { observeApiKeySession } from './session-scope';
 import type { ApiKeyInput, ApiKeyProvider } from './types';
 
 type MutationResult = { success: boolean; error?: string };
 
 export async function saveUserApiKey(input: ApiKeyInput): Promise<MutationResult> {
+  invalidateApiKeyCache();
+  const scope = observeApiKeySession();
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: 'No authenticated user' };
+    if (!scope.isCurrent()) return { success: false, error: 'La sesión cambió. Intenta de nuevo.' };
+    if (!user) return { success: false, error: 'Inicia sesión para administrar las claves.' };
 
     const { error } = await supabase
       .from('api_keys')
@@ -21,21 +26,28 @@ export async function saveUserApiKey(input: ApiKeyInput): Promise<MutationResult
         onConflict: 'user_id,provider',
       });
 
+    if (!scope.isCurrent()) return { success: false, error: 'La sesión cambió; no se confirmó el resultado. Revisa la configuración.' };
     if (error) {
-      console.error('Error saving API key:', error);
-      return { success: false, error: error.message };
+      console.error('[Claves] No se pudo guardar la credencial.');
+      return { success: false, error: 'No se pudo guardar la credencial. Intenta de nuevo.' };
     }
     return { success: true };
-  } catch (error: any) {
-    console.error('Error in saveUserApiKey:', error);
-    return { success: false, error: error.message };
+  } catch {
+    console.error('[Claves] No se pudo guardar la credencial.');
+    return { success: false, error: 'No se pudo guardar la credencial. Intenta de nuevo.' };
+  } finally {
+    scope.dispose();
+    invalidateApiKeyCache();
   }
 }
 
 export async function deleteUserApiKey(provider: ApiKeyProvider = 'google'): Promise<MutationResult> {
+  invalidateApiKeyCache();
+  const scope = observeApiKeySession();
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: 'No authenticated user' };
+    if (!scope.isCurrent()) return { success: false, error: 'La sesión cambió. Intenta de nuevo.' };
+    if (!user) return { success: false, error: 'Inicia sesión para administrar las claves.' };
 
     const { error } = await supabase
       .from('api_keys')
@@ -43,13 +55,17 @@ export async function deleteUserApiKey(provider: ApiKeyProvider = 'google'): Pro
       .eq('user_id', user.id)
       .eq('provider', provider);
 
+    if (!scope.isCurrent()) return { success: false, error: 'La sesión cambió; no se confirmó el resultado. Revisa la configuración.' };
     if (error) {
-      console.error('Error deleting API key:', error);
-      return { success: false, error: error.message };
+      console.error('[Claves] No se pudo eliminar la credencial.');
+      return { success: false, error: 'No se pudo eliminar la credencial. Intenta de nuevo.' };
     }
     return { success: true };
-  } catch (error: any) {
-    console.error('Error in deleteUserApiKey:', error);
-    return { success: false, error: error.message };
+  } catch {
+    console.error('[Claves] No se pudo eliminar la credencial.');
+    return { success: false, error: 'No se pudo eliminar la credencial. Intenta de nuevo.' };
+  } finally {
+    scope.dispose();
+    invalidateApiKeyCache();
   }
 }

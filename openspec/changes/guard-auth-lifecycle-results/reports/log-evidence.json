@@ -1,0 +1,82 @@
+[
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-auth-lifecycle-2026-10-25\\adversarial.log",
+    "bytes": 1870,
+    "sha256": "43ca6157ee73a02f4e669db539591921e68963be96ee622ebebc27633b2ae742"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-auth-lifecycle-2026-10-25\\build-final.log",
+    "bytes": 38991,
+    "sha256": "7be8b1c30b125055179bef98ec58e5b356ad03647a0efddc8fc5a09b0f352b99"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-auth-lifecycle-2026-10-25\\directed-final.log",
+    "bytes": 5025,
+    "sha256": "007d7e8685c04fec2b358064db8c00bf48776ee34f13618f090f544a0bce053b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-auth-lifecycle-2026-10-25\\docs-final.log",
+    "bytes": 139,
+    "sha256": "33eae4c1528ba46759a5cd4c7a91ac091e6ff1f08deec9332f45667257a5c806"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-auth-lifecycle-2026-10-25\\docs-system-final.log",
+    "bytes": 195,
+    "sha256": "3fa257510462afc709ad8872997b157e0b84e13ca49a9d6a74cd51ea9bf69f4c"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-auth-lifecycle-2026-10-25\\first-green.log",
+    "bytes": 7063,
+    "sha256": "408ca691cc39a667f672fcf2d67f9bf709358002e890de32cf5e9caebdc51907"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-auth-lifecycle-2026-10-25\\fixture-import-interrupted.log",
+    "bytes": 448,
+    "sha256": "cd33077ab7d2e0d0c201391884ea6bd2fefd8fe98ef72eeae6d135bbced31570"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-auth-lifecycle-2026-10-25\\fixture-import-second-interrupted.log",
+    "bytes": 448,
+    "sha256": "cd33077ab7d2e0d0c201391884ea6bd2fefd8fe98ef72eeae6d135bbced31570"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-auth-lifecycle-2026-10-25\\gate-final.log",
+    "bytes": 122080,
+    "sha256": "d470993cc7ca0aeb0de2c3901537a2275d36dff498dff9d6abea6dd2cd9d6803"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-auth-lifecycle-2026-10-25\\harness-final.log",
+    "bytes": 144,
+    "sha256": "916e65bfd3de6fbfa30c2fa5e9d816f138601dd577b5d8ebf17711b92b2aeebd"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-auth-lifecycle-2026-10-25\\inventory.log",
+    "bytes": 214,
+    "sha256": "779bbc87ef84a380407ec8598ab3a6a2fa1adbcd46a93ae0b37bbacff9b91684"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-auth-lifecycle-2026-10-25\\lifecycle-red.log",
+    "bytes": 28051,
+    "sha256": "fb1c802551a48adaec2f3bed4f9e22d71730dee5e95a8c5c894b2986b3c15207"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-auth-lifecycle-2026-10-25\\lint-directed.log",
+    "bytes": 145,
+    "sha256": "ba26d1d884b0ff5772cf98c34dee1ee65bdc1549477559c935eb8538179893c4"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-auth-lifecycle-2026-10-25\\openspec-final.log",
+    "bytes": 48,
+    "sha256": "5666ea7becb737a35dc5075b97a1e9191ea2921e7ae1330a6728e4baa21181ab"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-auth-lifecycle-2026-10-25\\second-green.log",
+    "bytes": 628,
+    "sha256": "e5db9c0da2d3e17ba0f0483f35d6f11470f63c4d23bbf273a31b5dd5c1b5a4ba"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-auth-lifecycle-2026-10-25\\typecheck-first.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  }
+]

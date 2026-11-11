@@ -1,7 +1,6 @@
 export interface ClipboardConfig {
   maxHistorySize?: number;
   pollingIntervalMs?: number;
-  apiKey?: string;
 }
 
 export interface ClipboardStatus {

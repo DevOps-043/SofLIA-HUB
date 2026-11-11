@@ -1,14 +1,7 @@
 import { MODELS } from '../../config';
-import { MULTIMODAL_FEATURES } from '../../shared/multimodal-input';
 import { supportsCodeExecutionCombo } from '../../shared/gemini-grounding-config';
-import {
-  COMPUTER_USE_TOOLS,
-  GOOGLE_WORKSPACE_TOOLS,
-  INTEGRATED_BROWSER_TOOLS,
-  NATIVE_AI_TOOLS,
-  PROJECT_HUB_TOOLS,
-} from '../gemini-tools';
-import { filterDeclarationsBySelection, resolveSkillToolGroups, resolveAttachedSourceToolGroups, type ActiveSkillContext } from '../gemini-tools/turn-catalog';
+import type { ActiveSkillContext } from '../gemini-tools/turn-catalog';
+import { buildTurnToolGroups } from './turn-tool-groups';
 import type { SendMessageStreamOptions } from './types';
 
 export function resolveModelId(options?: SendMessageStreamOptions): string {
@@ -42,15 +35,6 @@ export function buildGenerationConfig(options?: SendMessageStreamOptions): Recor
   const mediaResolution = resolveMediaResolution(options?.mediaResolution);
   if (mediaResolution) generationConfig.mediaResolution = mediaResolution;
   return generationConfig;
-}
-
-const VISION_TOOL_NAMES = new Set(['capturar_vista_navegador', 'analizar_video_pestana']);
-
-function withoutVisionTools(group: { functionDeclarations: Array<{ name: string }> }) {
-  return {
-    ...group,
-    functionDeclarations: group.functionDeclarations.filter((tool) => !VISION_TOOL_NAMES.has(tool.name)),
-  };
 }
 
 /**
@@ -87,33 +71,8 @@ export function buildModelTools(
   activeSkill?: ActiveSkillContext | null,
   attachedSourcesOnly = false,
 ): any[] {
-  if (attachedSourcesOnly) return resolveAttachedSourceToolGroups(activeSkill);
-  const hasGoogleWorkspace = typeof window !== 'undefined' && !!(window as any).calendar;
-  const base: any[] = computerUseEnabled
-    ? [COMPUTER_USE_TOOLS, PROJECT_HUB_TOOLS, NATIVE_AI_TOOLS]
-    : [PROJECT_HUB_TOOLS, NATIVE_AI_TOOLS];
-  if (hasGoogleWorkspace) base.push(GOOGLE_WORKSPACE_TOOLS);
-  if (typeof window !== 'undefined' && !!window.integratedBrowser) {
-    base.push(MULTIMODAL_FEATURES.browserVision ? INTEGRATED_BROWSER_TOOLS : withoutVisionTools(INTEGRATED_BROWSER_TOOLS));
-  }
-
-  // Seleccion del usuario para esta Skill: acota el catalogo ANTES de enviarlo.
-  // Un grupo que se queda sin declaraciones no se envia: un `functionDeclarations`
-  // vacio es una entrada invalida para el proveedor.
-  const tools: any[] = base
-    .map((group) => ({
-      ...group,
-      functionDeclarations: filterDeclarationsBySelection(
-        group.functionDeclarations,
-        activeSkill?.allowedTools,
-      ),
-    }))
-    .filter((group) => group.functionDeclarations.length > 0);
-  // Herramientas de la Skill activa. Sin Skill (o sin workspace vivo) el
-  // catalogo queda exactamente igual que antes de este cambio.
-  tools.push(...resolveSkillToolGroups(activeSkill));
-  // Gemini 3+ permite combinar function calling con ejecucion de codigo:
-  // calculos y analisis de datos (pandas) salen de Python real, no de memoria.
-  if (modelId && supportsCodeExecutionCombo(modelId)) tools.push({ codeExecution: {} });
-  return tools;
+  const tools = buildTurnToolGroups(computerUseEnabled, activeSkill, attachedSourcesOnly);
+  return !attachedSourcesOnly && modelId && supportsCodeExecutionCombo(modelId)
+    ? [...tools, { codeExecution: {} }]
+    : tools;
 }

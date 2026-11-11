@@ -1,4 +1,6 @@
 // Generado desde Learning. Sincronizar con scripts/quality/sync-learning-studio.mjs.
+import { engineSessionManifestSchema } from './engine-preparation.contract';
+export { engineSessionManifestSchema } from './engine-preparation.contract';
 import { z } from 'zod';
 import { recordingOperationSchema,recordingResponseSchema,recordingSnapshotSchema } from './recordings.contract';
 
@@ -10,9 +12,11 @@ export const studioMaterialSchema = z.object({ id, name: text(160), kind: z.enum
 const quizBase = z.object({ id, question: text(300), options: z.array(text(120)).min(2).max(6).refine((items) => new Set(items).size === items.length), correct: z.number().int().min(0).max(5) }).strict();
 export const studioQuizSchema = quizBase.refine((quiz) => quiz.correct < quiz.options.length);
 const practice = z.object({ id, title: text(160), instructions: text(2000) }).strict();
-export const engineSessionManifestSchema = z.object({ version: z.literal(1), course_id: id, revision: text(100), scenes: z.array(studioSceneSchema).max(12), materials: z.array(studioMaterialSchema).max(20), quizzes: z.array(studioQuizSchema).max(20), practices: z.array(practice).max(20) }).strict();
 export const studioClockSchema = z.object({ mode: z.enum(['timer', 'stopwatch']), seconds: z.number().int().min(0).max(86400), running: z.boolean(), updated_at: z.string().datetime() }).strict();
+export const studioReactionSchema=z.enum(['👏','👍','💡','❤️','🎉','😂']);
 export const studioCommandSchema = z.discriminatedUnion('type', [
+  z.object({type:z.literal('reaction'),emoji:studioReactionSchema,room_id:id.nullable()}).strict(),
+  z.object({type:z.literal('chat_interval'),seconds:z.number().int().min(0).max(300)}).strict(),
   z.object({ type: z.literal('post'), content: text(2000), question: z.boolean(), room_id: id.nullable() }).strict(),
   z.object({ type: z.literal('moderation'), locked: z.boolean(), reactions: z.boolean() }).strict(),
   z.object({ type: z.literal('restrict'), user_id: id, restriction: z.enum(['none', 'chat', 'blocked']) }).strict(),
@@ -33,17 +37,22 @@ export const studioCommandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('import_engine'), manifest: engineSessionManifestSchema }).strict(),
 ]);
 export type StudioCommand = z.infer<typeof studioCommandSchema>;
+export const STUDIO_RECORDING_NOTICE_VERSION = 1;
+export const STUDIO_RECORDING_NOTICE_HEADER = 'X-Soflia-Studio-Recording-Notice';
+export const STUDIO_RECORDING_NOTICE_REQUIRED = 'Se requiere aceptar el aviso vigente de grabación.';
 export const studioOperationSchema = z.discriminatedUnion('type', [
   z.object({type:z.literal('recordings'),operation:recordingOperationSchema}).strict(),
   z.object({ type: z.literal('snapshot') }).strict(),
   z.object({ type: z.literal('command'), id, revision: z.number().int().nonnegative(), command: studioCommandSchema }).strict(),
-  z.object({ type: z.literal('zoom') }).strict(),
+  z.object({ type: z.literal('zoom'), recording_notice_version: z.literal(STUDIO_RECORDING_NOTICE_VERSION).optional() }).strict(),
   z.object({ type: z.literal('upload'), name: text(160), mime: text(100), bytes: z.number().int().min(1).max(25 * 1024 * 1024) }).strict(),
 ]);
-export const studioRequestSchema = studioReferenceSchema.extend({ operation: studioOperationSchema }).strict();
+export const studioRequestSchema = studioReferenceSchema.extend({ operation: studioOperationSchema, participation_version:z.literal(1).optional() }).strict();
 export const studioStateSchema = z.object({
   version: z.literal(1), revision: z.number().int().nonnegative(), engine_revision: z.string().max(100).nullable(),
-  moderation: z.object({ locked: z.boolean(), reactions: z.boolean(), restrictions: z.record(id, z.enum(['chat', 'blocked'])) }).strict(),
+  moderation: z.object({ locked: z.boolean(), reactions: z.boolean(), message_interval_seconds:z.number().int().min(0).max(300).default(0), restrictions: z.record(id, z.enum(['chat', 'blocked'])) }).strict(),
+  reaction_events:z.array(z.object({id,user_id:id,author:text(160),emoji:studioReactionSchema,room_id:id.nullable(),created_at:z.string().datetime()}).strict()).max(100).default([]),
+  participation:z.record(id,z.object({last_message_at:z.string().datetime().optional(),last_reaction_at:z.string().datetime().optional()}).strict()).refine(items=>Object.keys(items).length<=5000).default({}),
   messages: z.array(z.object({ id, user_id: id, author: text(160), instructor: z.boolean(), content: text(2000), question: z.boolean(), room_id: id.nullable(), created_at: z.string().datetime() }).strict()).max(100),
   members: z.array(z.object({ user_id: id, name: text(160), instructor: z.boolean(), room_id: id.nullable(), seen_at: z.string().datetime() }).strict()).max(500),
   rooms: z.array(z.object({ id, name: text(60), user_ids: z.array(id).max(500) }).strict()).max(50),
@@ -57,6 +66,7 @@ export const studioStateSchema = z.object({
 }).strict();
 export type StudioState = z.infer<typeof studioStateSchema>;
 export const studioSnapshotSchema = z.object({
+  participation_version:z.literal(1).optional(),
   session_id: id, user_id: id, can_manage: z.boolean(), title: text(160), server_time: z.string().datetime(),
   state: studioStateSchema.omit({ quizzes: true }).extend({ quizzes: z.array(quizBase.omit({ correct: true }).extend({ correct: z.number().int().min(0).max(5).optional() })).max(20) }),
   asset_urls: z.record(z.string(), z.string().url().max(4096)),
@@ -67,4 +77,4 @@ export const videoJoinSchema = z.object({ provider: z.literal("zoom-video"), ses
 export const zoomJoinSchema = z.union([meetingJoinSchema, videoJoinSchema]);
 export type ZoomJoin = z.infer<typeof zoomJoinSchema>;
 export const studioResponseSchema = z.object({ snapshot: studioSnapshotSchema.optional(), zoom: zoomJoinSchema.optional(), recording_snapshot: recordingSnapshotSchema.optional(), playback: recordingResponseSchema.shape.playback, upload: z.object({ path: text(500), token: text(8192), url: z.string().url().max(4096) }).strict().optional() }).strict();
-export type StudioResult = ({ success: true } & z.infer<typeof studioResponseSchema>) | { success: false; code: 'not_ready' | 'access_denied' | 'conflict' | 'unavailable'; error: string };
+export type StudioResult = ({ success: true } & z.infer<typeof studioResponseSchema>) | { success: false; code: 'not_ready' | 'access_denied' | 'conflict' | 'rate_limited' | 'unavailable'; error: string };

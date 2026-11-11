@@ -1,5 +1,6 @@
 /** Una línea base sólo es comparable cuando el analizador pudo completarla. */
 export function assertAnalyzable(result, label) {
+  if (!result || !Array.isArray(result.messages)) throw new Error('No se recibió un análisis completo de ' + label + '.');
   if (result?.fatalErrorCount || result?.messages?.some(message => message.fatal)) {
     throw new Error('No se pudo analizar ' + label + '. El fallo del parser no es deuda aceptable.');
   }

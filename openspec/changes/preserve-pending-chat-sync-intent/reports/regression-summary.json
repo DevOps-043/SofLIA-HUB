@@ -1,0 +1,293 @@
+{
+  "sourcesBefore": [
+    {
+      "source": "src/services/chat/sync.ts",
+      "previousSha256": "f96d830ca3130deb975c5ac643bed8fa83af990a653826a09bf87d6477a7d7c3",
+      "currentSha256": "de12bc8775f775dbdb94e2db6b883015ab03da8c4764c3db7edaa3fb30b0990d"
+    },
+    {
+      "source": "src/services/chat/pending-state/clear.ts",
+      "previousSha256": "825e29cdce26f34b7ed908405a0df7bcfe174ef55419083399ed21498d7653c5",
+      "currentSha256": "f3571262fcbb6e335027a50583f8945f4005cd824493a1a80dd2bfed8b796d76"
+    },
+    {
+      "source": "src/services/chat/pending-state/state-store.ts",
+      "previousSha256": "a56a79b2da27ec8f578c097f2e108f4b759a3ca73752b1ab7797bffdb720196d",
+      "currentSha256": "878e1eb76980228e77cc304a1ec1809a19de395e6c764d2a5a25a3dc3d5b2d56"
+    }
+  ],
+  "validRed": {
+    "failed": 15,
+    "passed": 1,
+    "logSha256": "2577135ce4c50260dedc60b67d88cef1a1514954a7486463758689f1d57770fc"
+  },
+  "initialStorageProbeInvalid": true,
+  "initialInvalidCases": 2,
+  "directed": {
+    "passed": 57,
+    "failed": 0,
+    "files": [
+      {
+        "file": "src/__tests__/services/chat-delete-durability.test.ts",
+        "cases": 9,
+        "checks": [
+          {
+            "name": "durabilidad del borrado de conversaciones marca deleted_at en vez de borrar la fila y sus mensajes",
+            "status": "passed"
+          },
+          {
+            "name": "durabilidad del borrado de conversaciones no declara borrada una conversacion que la politica no dejo marcar",
+            "status": "passed"
+          },
+          {
+            "name": "durabilidad del borrado de conversaciones acepta el borrado idempotente cuando la conversacion ya estaba marcada",
+            "status": "passed"
+          },
+          {
+            "name": "durabilidad del borrado de conversaciones acepta el borrado idempotente cuando la fila ya no existe",
+            "status": "passed"
+          },
+          {
+            "name": "durabilidad del borrado de conversaciones no da por hecho el borrado si la migracion de deleted_at no esta aplicada",
+            "status": "passed"
+          },
+          {
+            "name": "durabilidad del borrado de conversaciones mantiene oculta la conversacion aunque el borrado remoto falle y siga llegando desde Supabase",
+            "status": "passed"
+          },
+          {
+            "name": "durabilidad del borrado de conversaciones ignora un guardado de mensajes que aterriza despues del borrado",
+            "status": "passed"
+          },
+          {
+            "name": "durabilidad del borrado de conversaciones no vuelve a subir una conversacion borrada que quedo en el cache de otra identidad",
+            "status": "passed"
+          },
+          {
+            "name": "durabilidad del borrado de conversaciones la migracion de identidad no arrastra conversaciones borradas",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/__tests__/services/chat-service.messages.test.ts",
+        "cases": 6,
+        "checks": [
+          {
+            "name": "chat-service messages RS-002A: saveMessages preserves created_at and avoids deleting remote siblings",
+            "status": "passed"
+          },
+          {
+            "name": "chat-service messages RS-003: createConversation returns null if userId is empty",
+            "status": "passed"
+          },
+          {
+            "name": "chat-service messages RS-004: loadMessages returns cached/empty on Supabase error",
+            "status": "passed"
+          },
+          {
+            "name": "chat-service messages RS-005: generateTitle produces a short semantic title from messages",
+            "status": "passed"
+          },
+          {
+            "name": "chat-service messages RS-006: generateTitle removes prompt filler and keeps useful chat context",
+            "status": "passed"
+          },
+          {
+            "name": "chat-service messages RS-007: generateTitle avoids using a greeting as the chat title",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/__tests__/services/chat-service.test.ts",
+        "cases": 3,
+        "checks": [
+          {
+            "name": "chat-service conversations RS-001: createConversation calls Supabase insert via sync",
+            "status": "passed"
+          },
+          {
+            "name": "chat-service conversations RS-001A: migrateLegacyChatCache moves cached conversations to the Lia user id",
+            "status": "passed"
+          },
+          {
+            "name": "chat-service conversations RS-002: loadMessages calls Supabase select with ascending order",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/__tests__/services/chat-sync-intent.test.ts",
+        "cases": 30,
+        "checks": [
+          {
+            "name": "propiedad del contenido que sincroniza el chat conserva mensajes encolados durante una respuesta anterior: éxito",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat conserva mensajes encolados durante una respuesta anterior: permanente",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat conserva título encolado durante una respuesta anterior: éxito",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat conserva título encolado durante una respuesta anterior: permanente",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat conserva cache de mensajes adelantado a su turno en la cola",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat conserva cache de conversación adelantado a su turno en la cola",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat no repuebla cache retirado mientras espera red",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat un borrado del consumidor no revive desde el upsert en vuelo",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat serializa efectos de la misma identidad y después escribe su versión reciente",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat otro usuario progresa mientras una identidad espera",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat une scopes pendientes sin escribir conversaciones ajenas al filtro",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat una petición global pendiente conserva todos los destinos",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat no envía otro upsert capturado que fue revocado durante la espera",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat el borrado heredado tiene prioridad sobre payloads contradictorios",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat no publica si falla confirmar retirada mediante setItem",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat no publica si falla confirmar retirada mediante removeItem",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat un fallo inesperado no bloquea la pasada pendiente ni un ciclo posterior",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat diez solicitudes durante una espera comparten una pasada con el contenido más reciente",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat solicitudes fusionadas esperan el resultado de todos sus destinos",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat copia los IDs solicitados antes de esperar su turno",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat revalida otro snapshot antes de enviarlo tras esperar mensajes anteriores",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat un fallo transitorio conserva conversación con storage de jsdom",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat un fallo transitorio conserva mensajes con storage de jsdom",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat no escribe la entrada heredada de otra identidad",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat una lápida durable excluye payloads huérfanos de escritura",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat conserva mensajes cambiados sólo en cache durante la espera",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat conserva un título cambiado sólo en cache durante la espera",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat conserva cache corrupto para recuperación sin reemplazarlo desde una respuesta",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat no programa efectos sin identidad o configuración remota",
+            "status": "passed"
+          },
+          {
+            "name": "propiedad del contenido que sincroniza el chat el aviso de rechazo permanente no incorpora contenido ni error libre del proveedor",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/__tests__/services/chat-sync-permanent-errors.test.ts",
+        "cases": 9,
+        "checks": [
+          {
+            "name": "sincronizacion del estado pendiente clasificacion del error un rechazo de RLS es permanente",
+            "status": "passed"
+          },
+          {
+            "name": "sincronizacion del estado pendiente clasificacion del error una clave foranea rota o un uuid invalido son permanentes",
+            "status": "passed"
+          },
+          {
+            "name": "sincronizacion del estado pendiente clasificacion del error un fallo de red o de servidor NO es permanente",
+            "status": "passed"
+          },
+          {
+            "name": "sincronizacion del estado pendiente conversaciones un rechazo de RLS saca la conversacion de la cola",
+            "status": "passed"
+          },
+          {
+            "name": "sincronizacion del estado pendiente conversaciones un fallo transitorio la conserva para el siguiente intento",
+            "status": "passed"
+          },
+          {
+            "name": "sincronizacion del estado pendiente conversaciones no intenta escribir una conversacion de otra identidad",
+            "status": "passed"
+          },
+          {
+            "name": "sincronizacion del estado pendiente conversaciones sigue guardando lo que si es suyo",
+            "status": "passed"
+          },
+          {
+            "name": "sincronizacion del estado pendiente mensajes un rechazo de RLS saca el snapshot de la cola",
+            "status": "passed"
+          },
+          {
+            "name": "sincronizacion del estado pendiente mensajes un fallo transitorio lo conserva",
+            "status": "passed"
+          }
+        ]
+      }
+    ],
+    "newCases": 30,
+    "jsonSha256": "2d97a2b8bf288bd74f06e302acf43a0068abd2591026adbbe78518c2ebd2dea4"
+  },
+  "scope": "Coordinador, pending-state y cache reales; Storage de jsdom y servicios remotos sustituidos. Sin I/O de negocio ni UI real."
+}

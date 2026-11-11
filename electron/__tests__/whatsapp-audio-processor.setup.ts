@@ -1,27 +1,8 @@
 import { vi } from 'vitest';
-
-const audioMocks = vi.hoisted(() => {
-  const mockGenerateContent = vi.fn();
-  return {
-    mockGenerateContent,
-    mockGetGenerativeModel: vi.fn().mockReturnValue({
-      generateContent: mockGenerateContent,
-    }),
-  };
-});
-
-vi.mock('@google/generative-ai', () => ({
-  GoogleGenerativeAI: vi.fn().mockImplementation(function () {
-    return { getGenerativeModel: audioMocks.mockGetGenerativeModel };
-  }),
-}));
-
+const mocks = vi.hoisted(() => ({ create: vi.fn(), client: vi.fn() }));
+vi.mock('../ai-provider/session-client', () => ({ getSessionOpenAIClient: mocks.client }));
 export function mockTranscription(text = 'Crea un evento para manana') {
-  audioMocks.mockGenerateContent.mockResolvedValue({
-    response: { text: () => text },
-  });
+  mocks.client.mockResolvedValue({ audio: { transcriptions: { create: mocks.create } } });
+  mocks.create.mockResolvedValue({ text });
 }
-
-export function getAudioProcessorMocks() {
-  return audioMocks;
-}
+export function getAudioProcessorMocks() { return mocks; }

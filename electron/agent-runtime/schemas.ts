@@ -3,11 +3,12 @@ import { AGENT_LIMITS } from '../../src/shared/agent-runtime';
 export const startSchema = z.object({
   title: z.string().trim().min(1).max(AGENT_LIMITS.titleChars),
   source: z.string().trim().min(10).max(AGENT_LIMITS.sourceChars),
-  provider: z.enum(['gemini', 'codex']),
+  provider: z.enum(['openai', 'codex']),
 }).strict();
 const identifier = z.string().min(1).max(200);
 const tokens = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 export const storedRunSchema = startSchema.extend({
+  provider: z.preprocess(value => value === 'gemini' ? 'openai' : value, z.enum(['openai', 'codex'])),
   id: identifier,
   scope: z.object({ userId: identifier, organizationId: identifier.nullable() }).strict(),
   status: z.enum(['running', 'review', 'cancelled', 'failed', 'interrupted', 'publishing', 'published', 'uncertain']),

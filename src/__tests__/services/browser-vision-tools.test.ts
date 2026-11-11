@@ -139,7 +139,7 @@ describe('analizar_video_pestana', () => {
 
     expect(api.sampleFrames).toHaveBeenCalled();
     expect(salida.evidencia).toBe('muestreo-de-cuadros');
-    expect(salida.nota).toContain('MUESTREO');
+    expect(salida.nota).toContain('sin audio');
     expect(salida.marcas_de_tiempo).toEqual([10, 12]);
     expect(salida.__media[0].kind).toBe('frames');
     expect(salida.__media[0].frames[0].base64).toBe('AAA');

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { isPermanentWriteError } from '../../services/chat/remote/error-kind';
 import type { ChatMessage, Conversation } from '../../services/chat/types';
+import { chatAuth } from './chat-auth.fixture';
 
 /**
  * Reproduce el bucle observado en produccion: miles de
@@ -20,17 +21,21 @@ const limpiarUpsert = vi.hoisted(() => vi.fn());
 const limpiarSnapshot = vi.hoisted(() => vi.fn());
 const pendientes = vi.hoisted(() => ({ conversaciones: [] as Conversation[], snapshots: {} as Record<string, ChatMessage[]> }));
 
-vi.mock('../../lib/supabase', () => ({
-  supabase: {},
+vi.mock('../../lib/supabase', async () => ({
+  supabase: { auth: (await import('./chat-auth.fixture')).chatAuth.source },
   isSupabaseConfigured: () => true,
 }));
 
-vi.mock('../../services/chat/cache', () => ({
+vi.mock('../../services/chat/cache', async importOriginal => ({
+  ...await importOriginal<typeof import('../../services/chat/cache')>(),
   saveConversationToCache: vi.fn(),
   saveMessagesToCache: vi.fn(),
 }));
 
 vi.mock('../../services/chat/pending-state', () => ({
+  isCurrentConversationDelete: () => true,
+  isCurrentConversationUpsert: () => true,
+  isCurrentMessageSnapshot: () => true,
   clearPendingConversationDelete: vi.fn(),
   clearPendingConversationUpsert: limpiarUpsert,
   clearPendingMessageSnapshot: limpiarSnapshot,
@@ -73,6 +78,8 @@ function conversacion(extra: Partial<Conversation> = {}): Conversation {
 describe('sincronizacion del estado pendiente', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    chatAuth.reset(USUARIO);
+    limpiarUpsert.mockReturnValue(true); limpiarSnapshot.mockReturnValue(true);
     pendientes.conversaciones = [];
     pendientes.snapshots = {};
     vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -107,7 +114,7 @@ describe('sincronizacion del estado pendiente', () => {
 
       await syncPendingChatState(USUARIO);
 
-      expect(limpiarUpsert).toHaveBeenCalledWith(USUARIO, conversacion().id);
+      expect(limpiarUpsert).toHaveBeenCalledWith(USUARIO, conversacion().id, expect.objectContaining({ id: conversacion().id }));
     });
 
     it('un fallo transitorio la conserva para el siguiente intento', async () => {
@@ -127,7 +134,7 @@ describe('sincronizacion del estado pendiente', () => {
       await syncPendingChatState(USUARIO);
 
       expect(upsertConversacion).not.toHaveBeenCalled();
-      expect(limpiarUpsert).toHaveBeenCalledWith(USUARIO, conversacion().id);
+      expect(limpiarUpsert).toHaveBeenCalledWith(USUARIO, conversacion().id, expect.objectContaining({ id: conversacion().id }));
     });
 
     it('sigue guardando lo que si es suyo', async () => {
@@ -137,7 +144,7 @@ describe('sincronizacion del estado pendiente', () => {
       await syncPendingChatState(USUARIO);
 
       expect(upsertConversacion).toHaveBeenCalledTimes(1);
-      expect(limpiarUpsert).toHaveBeenCalledWith(USUARIO, conversacion().id);
+      expect(limpiarUpsert).toHaveBeenCalledWith(USUARIO, conversacion().id, expect.objectContaining({ id: conversacion().id }));
     });
   });
 
@@ -155,7 +162,7 @@ describe('sincronizacion del estado pendiente', () => {
 
       await syncPendingChatState(USUARIO);
 
-      expect(limpiarSnapshot).toHaveBeenCalledWith(USUARIO, 'a293d695-d757-459d-be8f-81a201dc72c4');
+      expect(limpiarSnapshot).toHaveBeenCalledWith(USUARIO, 'a293d695-d757-459d-be8f-81a201dc72c4', []);
     });
 
     it('un fallo transitorio lo conserva', async () => {

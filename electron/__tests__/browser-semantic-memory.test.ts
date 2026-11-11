@@ -8,6 +8,7 @@ import { BrowserSemanticMemory, type SemanticContext, type SemanticEmbedder } fr
 import { BrowserSemanticMemoryStore, normalizeSemanticVector, semanticSource } from '../integrated-browser/semantic-memory-store';
 import { validateBrowserSemanticRequest, type BrowserSemanticSource } from '../../src/shared/browser-semantic-memory';
 import { semanticRecoveryPath } from '../integrated-browser/semantic-memory-recovery';
+import { failRecoveryPublication } from './helpers/recovery-publication-faults';
 
 const vector = (index = 0) => Array.from({ length: 768 }, (_, i) => Number(i === index));
 const source = (id = '1', source: 'history' | 'bookmark' = 'history'): BrowserSemanticSource => ({ id, source, title: 'Astronomía', url: 'https://example.com/cielo?token=privado#secreto' });
@@ -25,6 +26,75 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); fs.rmSync(directory, { recursive: true, force: true }); });
 
 describe('memoria semántica opt-in', () => {
+  it('conserva el consentimiento previo y exige reconstruir los vectores de otro modelo', async () => {
+    await memory.run(request('enable'), context);
+    const previous = semanticSource(source());
+    if (!previous) throw new Error('La fuente de prueba no es válida.');
+    const db = new DatabaseSync(file);
+    try {
+      const payload = safeStorage.encryptString(JSON.stringify({ scope: file, snapshot: {
+        enabled: true, indexedAt: Date.now(), entries: [{ ...previous, vector: vector() }],
+      } }));
+      db.prepare('UPDATE snapshot SET payload = ? WHERE id = 1').run(payload);
+    } finally { db.close(); }
+    expect(store.read(file)).toEqual({ enabled: true, indexedAt: null, entries: [] });
+    expect(embed).not.toHaveBeenCalled();
+    await memory.run(request('rebuild'), context);
+    expect(store.read(file).entries).toHaveLength(2);
+    expect(embed).toHaveBeenCalledOnce();
+  });
+  it.each(['unlink', 'close'] as const)('conserva el fallo primario aunque falle también %s', async secondary => {
+    await memory.run(request('enable'), context); fs.writeFileSync(file, 'roto');
+    const before = fs.readFileSync(file), backup = fs.readFileSync(semanticRecoveryPath(file));
+    const review = memory.prepareRecovery(context.guard), fault = failRecoveryPublication(file, secondary);
+    await expect(review.commit()).rejects.toBe(fault.primary);
+    expect(fs.readFileSync(file)).toEqual(before); expect(fs.readFileSync(semanticRecoveryPath(file))).toEqual(backup);
+    expect(fault.warning).toHaveBeenCalled();
+    expect(JSON.stringify(fault.warning.mock.calls)).not.toContain(JSON.stringify(file).slice(1, -1));
+    expect(JSON.stringify(fault.warning.mock.calls)).not.toMatch(/Publicación ficticia|Recurso ficticio/);
+    expect(fs.readdirSync(directory).some(name => name.includes('.damaged-') && name.endsWith('.bin'))).toBe(false);
+  });
+
+  it('rechaza una revisión vencida aunque el reloj civil vuelva atrás', async () => {
+    let elapsed = 0n; vi.spyOn(process.hrtime, 'bigint').mockImplementation(() => elapsed);
+    await memory.run(request('enable'), context); fs.writeFileSync(file, 'roto');
+    const original = fs.readFileSync(file), backup = fs.readFileSync(semanticRecoveryPath(file));
+    const review = memory.prepareRecovery(context.guard);
+    vi.spyOn(Date, 'now').mockReturnValue(Date.now() - 3_600_000); elapsed = 300_001_000_000n;
+    await expect(review.commit()).rejects.toThrow();
+    expect(fs.readFileSync(file)).toEqual(original); expect(fs.readFileSync(semanticRecoveryPath(file))).toEqual(backup);
+    expect(fs.readdirSync(directory).some(name => name.includes('.damaged-'))).toBe(false);
+  });
+
+  it('vencer al sincronizar un temporal no publica ni filtra rutas por una limpieza inexistente', async () => {
+    let elapsed = 0n; vi.spyOn(process.hrtime, 'bigint').mockImplementation(() => elapsed);
+    await memory.run(request('enable'), context); fs.writeFileSync(file, 'roto');
+    const original = fs.readFileSync(file), review = memory.prepareRecovery(context.guard), sync = fs.fsyncSync;
+    vi.spyOn(fs, 'fsyncSync').mockImplementation(fd => { sync(fd); elapsed = 300_001_000_000n; });
+    await expect(review.commit()).rejects.toThrow('No se pudo recuperar la memoria local');
+    expect(fs.readFileSync(file)).toEqual(original);
+    expect(fs.readdirSync(directory).some(name => name.endsWith('.tmp') || name.includes('.damaged-'))).toBe(false);
+  });
+
+  it('una copia protegida que no se puede limpiar conserva el error controlado original', async () => {
+    let elapsed = 0n; vi.spyOn(process.hrtime, 'bigint').mockImplementation(() => elapsed);
+    await memory.run(request('enable'), context); fs.writeFileSync(file, 'roto');
+    const original = fs.readFileSync(file), review = memory.prepareRecovery(context.guard);
+    const link = fs.linkSync, unlink = fs.unlinkSync;
+    vi.spyOn(fs, 'linkSync').mockImplementation((source, destination) => { link(source, destination); elapsed = 300_001_000_000n; });
+    vi.spyOn(fs, 'unlinkSync').mockImplementation(target => {
+      if (String(target).includes('.damaged-') && String(target).endsWith('.bin')) throw Object.assign(new Error('ruta privada'), { code: 'EACCES' });
+      unlink(target);
+    });
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await expect(review.commit()).rejects.toThrow('No se pudo recuperar la memoria local');
+    expect(fs.readFileSync(file)).toEqual(original); expect(warning).toHaveBeenCalledOnce();
+    expect(JSON.stringify(warning.mock.calls)).not.toMatch(/ruta privada|browser-semantic-/);
+    const copies = fs.readdirSync(directory).filter(name => name.includes('.damaged-'));
+    expect(copies).toHaveLength(1);
+    expect(fs.readFileSync(path.join(directory, copies[0])).includes(Buffer.from('roto'))).toBe(false);
+  });
+
   it('no consulta fuentes ni proveedor sin consentimiento, y cancelar no activa', async () => {
     expect(await memory.run(request('status'), context)).toMatchObject({ status: { enabled: false, count: 0 } });
     await expect(memory.run(request('rebuild'), context)).rejects.toThrow('consentimiento');

@@ -3,38 +3,49 @@ import { openOAuthWindow } from './oauth-window';
 import type { CalendarConnection, CalendarConnectionResult, CalendarServiceCore } from './types';
 import { calendarSession } from './session-context';
 import { CalendarStorageUnavailableError } from './credential-store';
+import { randomBytes } from 'node:crypto';
+import { createOAuthProof, validOAuthCode } from './oauth-proof';
 
 export async function connectMicrosoft(service: CalendarServiceCore, beforeSave: () => void = () => {}, userId = service.userId): Promise<CalendarConnectionResult> {
   if (!service.config.microsoft?.clientId) {
-    return { success: false, error: 'Microsoft OAuth credentials not configured. Set VITE_MICROSOFT_CLIENT_ID in .env' };
+    return { success: false, error: 'Microsoft OAuth no está configurado. Revisa VITE_MICROSOFT_CLIENT_ID.' };
   }
 
   try {
+    const config = service.config.microsoft;
     const context = calendarSession(service);
-    const assert = () => { context(); beforeSave(); if (userId !== service.userId) throw new Error('Propietario incorrecto.'); };
+    const assert = () => { context(); beforeSave(); if (userId !== service.userId || service.config.microsoft !== config) throw new Error('El contexto de autorización cambió.'); };
     assert();
-    const { ConfidentialClientApplication } = await import('@azure/msal-node');
+    const { PublicClientApplication, ResponseMode } = await import('@azure/msal-node');
     assert();
-    const cca = new ConfidentialClientApplication({
+    const proof = createOAuthProof();
+    const nonce = randomBytes(32).toString('base64url');
+    const client = new PublicClientApplication({
       auth: {
-        clientId: service.config.microsoft.clientId,
+        clientId: config.clientId,
         authority: 'https://login.microsoftonline.com/common',
       },
+      system: { loggerOptions: { piiLoggingEnabled: false, loggerCallback: () => {} } },
     });
-    const authUrl = await cca.getAuthCodeUrl({
+    const authUrl = await client.getAuthCodeUrl({
       scopes: ['Calendars.Read', 'User.Read'],
       redirectUri: OAUTH_REDIRECT_URI,
+      state: proof.state, nonce, codeChallenge: proof.challenge, codeChallengeMethod: 'S256', responseMode: ResponseMode.QUERY,
     });
     assert();
-    const code = await openOAuthWindow(authUrl, 'Microsoft Calendar');
+    const code = await openOAuthWindow(authUrl, 'Microsoft Calendar', { provider: 'microsoft', clientId: config.clientId, proof, assertCurrent: assert });
     assert();
-    if (!code) return { success: false, error: 'OAuth flow cancelled' };
+    if (!code) return { success: false, error: 'La autorización fue cancelada o venció.' };
+    if (!validOAuthCode(code)) throw new Error('Código OAuth inválido.');
 
-    const tokenResult = await cca.acquireTokenByCode({
+    const tokenResult = await client.acquireTokenByCode({
       code,
       scopes: ['Calendars.Read', 'User.Read'],
       redirectUri: OAUTH_REDIRECT_URI,
+      codeVerifier: proof.verifier, nonce, state: proof.state,
     });
+    assert();
+    if (!tokenResult.accessToken) throw new Error('No se recibió una autorización válida.');
     const connection: CalendarConnection = {
       userId: userId || '',
       provider: 'microsoft',

@@ -56,6 +56,11 @@ permisos nuevos.
 
 ## Orden de inicializacion
 
+La fachada OAuth de calendario coordina navegador externo, ventana local sin
+privilegios y revocación. `calendar/oauth-proof.ts` valida y vincula el intento;
+`oauth-receiver.ts` posee HTTP/plazos/cierre; los conectores mantienen SDK y
+custodia del servicio. [Contrato OAuth](../security/calendar-oauth.md).
+
 El orden de `electron/main/startup.ts` es normativo porque refleja dependencias:
 memoria -> conocimiento -> meetings -> automation/workflow -> deteccion ->
 path memory -> updater -> scheduler -> clipboard -> daily briefing -> communication

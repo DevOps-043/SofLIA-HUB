@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ConfirmationDecision } from '../../../shared/command-approval';
 import { assertBrowserShortcutTurn, type PreparedBrowserShortcut } from './browser-shortcut-turn';
 import type { BrowserAgentShortcut } from '../../../shared/browser-agent-shortcuts';
@@ -20,10 +20,15 @@ import { captureBrowserTabSources } from '../../../services/browser-tab-sources'
 import { browserSourcesContext } from '../../../shared/browser-tab-context';
 import { useAttachmentPreparation } from './useAttachmentPreparation';
 import { APP_CONTEXT_LIMITS, buildAppContextBlock, resolveAppAttachments } from './app-attachments';
+import { hasActivePlaceholder } from '../../../hooks/chat-manager/helpers';
 
 export function useChatUIController(props: ChatUIProps) {
   const canSendMessages = props.canSendMessages ?? true;
-  const normalizedProps = { ...props, canSendMessages };
+  // Al remontar no hay una generación propietaria de los marcadores heredados.
+  // Se omiten en la vista, sin escribir ni trasladar mensajes entre ámbitos.
+  const [orphanedPlaceholders] = useState(() => new Set(props.messages.filter(message => hasActivePlaceholder([message])).map(message => message.id)));
+  const visibleMessages = useMemo(() => orphanedPlaceholders.size ? props.messages.filter(message => !orphanedPlaceholders.has(message.id) || !hasActivePlaceholder([message])) : props.messages, [props.messages, orphanedPlaceholders]);
+  const normalizedProps = { ...props, canSendMessages, messages: visibleMessages };
   const state = useChatUIState();
   const files = useChatFileHandlers(canSendMessages, state.images.setSelected);
   const dictation = useDictation(state.input.set);
@@ -79,6 +84,7 @@ export function useChatUIController(props: ChatUIProps) {
   });
   const setConfirmationModal = state.confirmation.setModal;
   const pendingConfirmation = useRef<((decision: ConfirmationDecision) => void) | null>(null);
+  const confirmationSequence = useRef(0);
 
   useEffect(() => {
     setConfirmationHandler((toolName, description, options) => new Promise<ConfirmationDecision>((resolve) => {
@@ -95,7 +101,7 @@ export function useChatUIController(props: ChatUIProps) {
       const onAbort = () => finish(false);
       pendingConfirmation.current = finish;
       options?.signal?.addEventListener('abort', onAbort, { once: true });
-      setConfirmationModal({ toolName, description, allowAlways: options?.allowAlways, resolve: finish });
+      setConfirmationModal({ requestId: ++confirmationSequence.current, toolName, description, allowAlways: options?.allowAlways, resolve: finish });
     }));
     return () => {
       pendingConfirmation.current?.(false);
@@ -151,6 +157,10 @@ export function useChatUIController(props: ChatUIProps) {
       if (signal.aborted) return;
       const browserSources = await captureBrowserTabSources(attached, signal);
       if (signal.aborted) return;
+      // La elección explícita de pestañas conserva su contrato de extractos.
+      const visible = !attached.length && !preparedShortcut && props.readVisibleContext
+        ? await props.readVisibleContext(signal) : null;
+      if (signal.aborted) return;
 
       // El presupuesto del turno es compartido: lo que ya gastaron las pestañas no
       // vuelve a estar disponible para las aplicaciones.
@@ -159,12 +169,13 @@ export function useChatUIController(props: ChatUIProps) {
       const appContext = buildAppContextBlock(resolvedApps, appBudget);
 
       const combinedContextParts = [
+        visible?.text ?? '',
         selContext ? `Selección del usuario:\n${selContext}` : '',
         appContext.block ? `Aplicaciones abiertas del equipo adjuntas para análisis:\n${appContext.block}` : '',
       ].filter(Boolean);
 
       const contexto = combinedContextParts.length > 0 ? combinedContextParts.join('\n\n') : undefined;
-      const images = [...state.images.selected, ...appContext.images];
+      const images = [...state.images.selected, ...appContext.images, ...(visible?.images ?? [])];
       state.input.set('');
       setPreparedShortcut(null);
       state.selection.set(null);

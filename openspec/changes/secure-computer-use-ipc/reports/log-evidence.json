@@ -1,0 +1,47 @@
+[
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-computer-use-ipc-2026-10-26\\build-final.log",
+    "bytes": 38604,
+    "sha256": "fb1445deb09e2039dd36bfeed69ea273ce0d080bc0acf87a44edf18289261d34"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-computer-use-ipc-2026-10-26\\directed-final.log",
+    "bytes": 1225,
+    "sha256": "dc902a408caccea7a19f32febcaf5af851d7d4cc9607aa6db7ffb0963857afb4"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-computer-use-ipc-2026-10-26\\directed-first.log",
+    "bytes": 675,
+    "sha256": "9eeb7a571585ca03f4aad5522d2fdafe7ccfa67bafae89f588e4e060e19d8cc6"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-computer-use-ipc-2026-10-26\\gate-final.log",
+    "bytes": 163746,
+    "sha256": "4cde8e59f9b156aa6deaff1751694e551d907cb8973d619f7ab41834213bebf7"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-computer-use-ipc-2026-10-26\\native-first.log",
+    "bytes": 489,
+    "sha256": "39b48cb17c4e4a2a5ea404adcf3c618d05ed9f6806911625c02a45336845ea2b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-computer-use-ipc-2026-10-26\\red.log",
+    "bytes": 480,
+    "sha256": "ebd0d9f911ea998b6ffaa36103f453cdf396b98aae76272b6037b28416264cb3"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-computer-use-ipc-2026-10-26\\typecheck-final.log",
+    "bytes": 1163,
+    "sha256": "65fc05c06cac9662a887b378eb9c058dc6100b1cb249073597340bf7270b7770"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-computer-use-ipc-2026-10-26\\typecheck-repaired.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-computer-use-ipc-2026-10-26\\typecheck.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  }
+]

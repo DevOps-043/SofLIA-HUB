@@ -1,0 +1,52 @@
+[
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-gui-backends-2026-10-26\\build-final.log",
+    "bytes": 38796,
+    "sha256": "97528c7dcd836730bc76e880307ee92cb860abed3f7954c690d69ee8199c1edc"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-gui-backends-2026-10-26\\build-interrupted.log",
+    "bytes": 37975,
+    "sha256": "e319757305c1502dd6df4992dc1d685c3431182a8db1200b4dcfc189a2925e50"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-gui-backends-2026-10-26\\directed-final.log",
+    "bytes": 3901,
+    "sha256": "f909397f38906e516b157565f6b39737443c68b62489e4b52237d380081d1c29"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-gui-backends-2026-10-26\\directed-first.log",
+    "bytes": 2754,
+    "sha256": "777367459b75afe9583743e192f899cfba66e017985e13bbb9418826b1e050a0"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-gui-backends-2026-10-26\\first.log",
+    "bytes": 478,
+    "sha256": "f278fb22cad368727b1c334f9240ecfa2e07fee72acc72dbb75d7ff6248df19e"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-gui-backends-2026-10-26\\gate-final.log",
+    "bytes": 166548,
+    "sha256": "1fe57d363378b758d24de0cb5217158f21583c77fd9bd095512f7dc24bffd5f2"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-gui-backends-2026-10-26\\gate-interrupted.log",
+    "bytes": 17690,
+    "sha256": "d0bd2c133a567e740e26920cb2cf6de31a0e3aa5871f2994b0aa8f6c0f1e25ce"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-gui-backends-2026-10-26\\red.log",
+    "bytes": 476,
+    "sha256": "004f24bffa9f51f8177f38545cdf5a46773e05de1e621ad4faa92ded9ca6d9d7"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-gui-backends-2026-10-26\\typecheck-final.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-gui-backends-2026-10-26\\typecheck-first.log",
+    "bytes": 468,
+    "sha256": "025467ba556fb85fd473f71b9e77891d1e62b86e776addd29701ff2647f427f7"
+  }
+]

@@ -10,6 +10,7 @@ export type DesktopTaskQueueItem = {
   reject: (error: Error) => void;
   /** Limpieza (timeout/listeners) invocada al salir de la cola por cualquier via. */
   onDequeue?: () => void;
+  execute?: () => Promise<DesktopTaskOutcome>;
 };
 
 type TaskEventEmitter = (eventName: string, payload?: unknown) => void;
@@ -102,7 +103,10 @@ export function processDesktopTaskQueue(input: {
       }));
       continue;
     }
-    input.executeTask(queued.task, queued.options).then(queued.resolve).catch(queued.reject);
+    try {
+      const running = queued.execute ? queued.execute() : input.executeTask(queued.task, queued.options);
+      running.then(queued.resolve).catch(queued.reject);
+    } catch { queued.reject(new Error('No se pudo admitir la tarea de escritorio en cola.')); }
   }
 }
 

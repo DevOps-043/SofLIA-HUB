@@ -1,0 +1,45 @@
+{
+  "directory": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-calendar-oauth-2026-10-24",
+  "logs": [
+    {
+      "file": "callback-red.log",
+      "sha256": "0e221a4c2f2b2ad3e45d0915ebbdf60ee3b8884fdc35a13f3d2e94da28995587"
+    },
+    {
+      "file": "directed-final.log",
+      "sha256": "401b420af6124a3a1f2e0f456417eb121773572b33b8f053909f3ac73b3abaa0"
+    },
+    {
+      "file": "types-current.log",
+      "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+    },
+    {
+      "file": "oauth-native-final.log",
+      "sha256": "814ca2277a1414149b24eec8159d10ad09b841c28edfa263af240d0a425fb7d9"
+    },
+    {
+      "file": "gate-final.log",
+      "sha256": "b09e7f9574934c084ce9c4a51386fa8bc1a7a7415f15c270aa14c4a194645f18"
+    },
+    {
+      "file": "build-final.log",
+      "sha256": "0a3ff06889ac055d439ced55a109d5fa0db56aaca28b0b698cb667a5a52bf989"
+    },
+    {
+      "file": "npm-audit-before.json",
+      "sha256": "6a30d550a40b35a8fba596c08d5dea476d1034cc981165dd6a4d463576460680"
+    },
+    {
+      "file": "npm-audit-after.json",
+      "sha256": "5a6cbab2478e316602f0ae9db0136c94e6cdc86c99e0d47ae2b2bcc34aec5c37"
+    },
+    {
+      "file": "npm-audit-prod-before.json",
+      "sha256": "6a30d550a40b35a8fba596c08d5dea476d1034cc981165dd6a4d463576460680"
+    },
+    {
+      "file": "npm-audit-prod-after.json",
+      "sha256": "5a6cbab2478e316602f0ae9db0136c94e6cdc86c99e0d47ae2b2bcc34aec5c37"
+    }
+  ]
+}

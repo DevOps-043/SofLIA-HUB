@@ -1,3 +1,4 @@
+export type { BrowserProfileDescriptor } from '../../src/shared/desktop-agent';
 /**
  * Tipos del paquete browser-web.
  *
@@ -9,6 +10,7 @@ export type BrowserTaskStatus = 'idle' | 'executing';
 export type BrowserProfileMode = 'persistent' | 'isolated';
 
 export interface BrowserTaskOptions {
+  signal?: AbortSignal;
   maxSteps?: number;
   startUrl?: string;
   profileId?: string;
@@ -17,6 +19,7 @@ export interface BrowserTaskOptions {
 }
 
 export interface BrowserQueueEntry {
+  execute?: () => Promise<string>;
   task: string;
   options?: BrowserTaskOptions;
   resolve: (value: string) => void;
@@ -97,11 +100,4 @@ export interface BrowserTaskArtifacts {
   tracePath: string;
   reportPath: string;
   finalScreenshotPath: string;
-}
-
-export interface BrowserProfileDescriptor {
-  id: string;
-  path: string;
-  exists: boolean;
-  lastModifiedAt: string | null;
 }

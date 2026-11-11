@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "at": "2026-10-25T07:31:40.641Z",
+  "exitCode": 0,
+  "sourceFiles": 3471,
+  "envFilesCopied": false,
+  "packaged": false,
+  "applicationStarted": false,
+  "elapsedSeconds": 80.717209,
+  "sandbox": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-app-build-wcBtEA",
+  "copiedFilesMatching": 3470,
+  "missingTrackedSourcesSkipped": [
+    "electron/wa-agent/bulk-label-verification.ts"
+  ],
+  "sourceFilesMeans": "Rutas enumeradas por Git, incluidas eliminaciones locales omitidas al copiar",
+  "outputs": [
+    {
+      "file": "dist/index.html",
+      "bytes": 548,
+      "sha256": "afda46e3562d795cd28a18439aa82f8c79abc03ac5f055592d42149d79d72413"
+    },
+    {
+      "file": "dist-electron/main.js",
+      "bytes": 199532,
+      "sha256": "eb3aadf40098a0fdb334d913e77659838429e07918e38fef8c20f4a758ca6bd4"
+    },
+    {
+      "file": "dist-electron/preload.js",
+      "bytes": 48857,
+      "sha256": "3dc4c65558a3e95a20ea7c986707156c706eb67d942bc274f5a70eefd0d45d6a"
+    },
+    {
+      "file": "dist/presentation/presentation-runtime.iife.js",
+      "bytes": 915199,
+      "sha256": "4f89da10d5c334ce9bb9978648ebb96bda1f8cfe5c7896bc6d004959c4d32235"
+    },
+    {
+      "file": "dist/audiovisual/film-runtime.iife.js",
+      "bytes": 223019,
+      "sha256": "1e497c8583b88e5b2c8ff1299eb48e121afc5a3073a06351f574841a0d61109d"
+    },
+    {
+      "file": "dist/zoom-runtime/index.html",
+      "bytes": 489,
+      "sha256": "86ccc046c0eb931d8fe2599ac3d0a3de8dc73fea00df5ec2b8cdbac705b6b9fb"
+    }
+  ]
+}

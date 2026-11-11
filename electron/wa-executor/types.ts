@@ -2,7 +2,6 @@
  * Tipos compartidos por el dispatcher de tools de WhatsApp.
  */
 
-import type { GoogleGenerativeAI } from '@google/generative-ai';
 import type { CalendarService } from '../calendar-service';
 import type { ClipboardAIAssistant } from '../clipboard-ai-assistant';
 import type { DesktopAgentService } from '../desktop-agent-service';
@@ -42,7 +41,6 @@ export interface ToolExecutorContext {
   workspaceAutomation?: { executeCustomTemplate: (payload: { templateId: string; input: Record<string, unknown> }) => Promise<unknown> } | null;
   /** OwnerKey de memoria del remitente, resuelto al construir el contexto. */
   ownerKey?: string;
-  getGenAI: () => GoogleGenerativeAI;
   /** Si true, se omiten todas las confirmaciones (para tests/automatización). */
   skipConfirmations?: boolean;
   requestConfirmation: (

@@ -99,6 +99,7 @@ import { BrowserDownloadManager } from './download-manager';
 import { BrowserSessionStore } from './session-store';
 import { BrowserSessionCheckpoint } from './session-checkpoint';
 import { BrowserResourcePolicy } from './resource-policy';
+import { BrowserPerceptionState, type BrowserPerceptionTarget, type BrowserVisualCapture } from './perception-state';
 import type { BrowserSessionSnapshot, BrowserRecentlyClosedTab, BrowserHistoryRetention, BrowserProfileDescriptor, BrowserProfileKind } from './platform-types';
 import { readBrowserCapabilityFlags } from './feature-flags';
 import { BookmarkImportRejected, BrowserBookmarkStore } from './bookmark-store';
@@ -226,14 +227,6 @@ type BrowserTabRuntime = {
   groupId: string | null;
 };
 
-type BrowserVisualCapture = {
-  tabId: string;
-  url: string;
-  capturedAt: string;
-  screenshot: string;
-  revision: number;
-};
-
 export class IntegratedBrowserService extends EventEmitter {
   private extensionAuthRevision = 0;
   private extensionAuthCleanup: (() => void) | null = null;
@@ -277,7 +270,6 @@ export class IntegratedBrowserService extends EventEmitter {
     }
   }
   private readonly semanticMemory = new BrowserSemanticMemory();
-  configureSemanticMemoryKey(provider: () => string | null): void { this.semanticMemory.configureKey(provider); }
   async semanticMemoryCommand(raw: BrowserSemanticRequest, assertCaller: () => void = () => {}): Promise<BrowserSemanticResponse> {
     const input = validateBrowserSemanticRequest(raw);
     this.assertCapability('agentGovernance');
@@ -479,19 +471,12 @@ export class IntegratedBrowserService extends EventEmitter {
   private governedWindowOrigins = new Map<number, string>();
   private viewportWaiters = new Set<ViewportWaiter>();
   private extensionsRestored = false;
-  private observationEnabled = true;
-  private observationTimer: ReturnType<typeof setTimeout> | null = null;
-  private observationTimerGeneration = 0;
-  private observationInFlight: Promise<BrowserObservationSnapshot | null> | null = null;
-  private observationInFlightTarget: { tabId: string; url: string } | null = null;
-  private visualCaptureInFlight: Promise<BrowserVisualCapture | null> | null = null;
-  private visualCaptureInFlightTarget: { tabId: string; url: string } | null = null;
-  private latestVisualCapture: BrowserVisualCapture | null = null;
-  private latestObservation: BrowserObservationSnapshot | null = null;
+  private readonly perception = new BrowserPerceptionState({
+    isCurrent: target => this.isPerceptionTargetCurrent(target),
+    describeError: error => safeErrorMessage(error instanceof Error ? error.message : String(error)),
+  });
   /** Ultima captura explicita, para espaciar invocaciones consecutivas. */
   private lastExplicitCaptureAt = 0;
-  private observationSequence = 0;
-  private observationLastError: string | null = null;
   private readonly resourcePolicy = new BrowserResourcePolicy<BrowserTabRuntime>({
     liveTabs: () => Array.from(this.tabs.values()).filter(tab => tab.view && !tab.view.webContents.isDestroyed()),
     isLayoutProtected: tab => tab.id === this.activeTabId || tab.id === this.primaryTabId
@@ -999,13 +984,7 @@ export class IntegratedBrowserService extends EventEmitter {
       this.selectionProbeTimer = null;
     }
     this.lastReportedSelection = '';
-    this.latestObservation = null;
-    this.observationInFlight = null;
-    this.observationInFlightTarget = null;
-    this.latestVisualCapture = null;
-    this.visualCaptureInFlight = null;
-    this.visualCaptureInFlightTarget = null;
-    this.observationLastError = null;
+    this.perception.reset();
     this.stopResourcePolicyTimer();
     // Las extensiones pertenecen al perfil: el proximo perfil restaura las suyas.
     this.extensionManager.resetForProfileChange();
@@ -1255,6 +1234,7 @@ export class IntegratedBrowserService extends EventEmitter {
     if (this.enterprisePolicy?.agentAllowed === false) throw new Error('El agente está administrado por tu organización.');
     // Invalidar antes de esperar evita que una tarea use una autorización anterior.
     this.agentPolicyRevision += 1;
+    this.perception.invalidate();
     const policy = await this.agentPolicyStore.set({ ...input, origin: target }); assertCurrent();
     return { ...policy, enabled: this.capabilities.agentGovernance };
   }
@@ -1500,6 +1480,7 @@ export class IntegratedBrowserService extends EventEmitter {
     const wasVisible = tabId === this.primaryTabId || (this.viewMode !== 'single' && tabId === this.secondaryTabId);
     if (!tab.sensitive) this.closedTabs.push({ ...this.toSessionTab(tab, Array.from(this.tabs.keys()).indexOf(tabId)), closedAt: new Date().toISOString() });
     if (this.closedTabs.length > 25) this.closedTabs.shift();
+    this.perception.invalidate(tabId);
     this.tabs.delete(tabId);
     try {
       if (this.tabs.size === 0 || (this.visible && !Array.from(this.tabs.values()).some((candidate) => !this.detachedWindows.has(candidate.id)))) {
@@ -1910,8 +1891,7 @@ export class IntegratedBrowserService extends EventEmitter {
     this.resourceOverlayHidden = temporary;
     this.hideWorkspaceTabsExcept();
     this.visible = false;
-    this.latestObservation = null;
-    this.latestVisualCapture = null;
+    this.perception.invalidate();
     this.emitState();
     return this.getState();
   }
@@ -2174,11 +2154,14 @@ export class IntegratedBrowserService extends EventEmitter {
     return this.auditAgentOperation('capture', () => this.captureVisiblePageInternal());
   }
   private async captureVisiblePageInternal(): Promise<string> {
+    if (!this.perception.enabled) throw new Error('La percepción del navegador está pausada.');
+    const cycleCurrent = this.perception.guardCycle();
+    const assertPerception = () => { if (!cycleCurrent()) throw new CuContextChangedError(); };
     const assertTarget = await this.authorizeAgentAccess('capture');
-    assertTarget();
+    assertTarget(); assertPerception();
     const capture = await this.captureVisibleBackdrop();
     await this.assertDocumentNotSensitive();
-    assertTarget();
+    assertTarget(); assertPerception();
     return capture.screenshot;
   }
 
@@ -2219,9 +2202,11 @@ export class IntegratedBrowserService extends EventEmitter {
   }
 
   private async captureExplicitFrameInternal(signal?: AbortSignal): Promise<BrowserExplicitCapture> {
-    if (!this.observationEnabled) throw new Error('La percepción del navegador está pausada.');
+    if (!this.perception.enabled) throw new Error('La percepción del navegador está pausada.');
+    const cycleCurrent = this.perception.guardCycle();
+    const assertPerception = () => { if (!cycleCurrent()) throw new CuContextChangedError(); };
     const assertTarget = await this.authorizeAgentAccess('capture', undefined, signal);
-    assertTarget();
+    assertTarget(); assertPerception();
     const active = this.getActiveTab();
     if (!active || !this.isTabVisible(active)) {
       return { ok: false, reason: 'navegador-no-visible', detail: 'El navegador integrado no esta visible.' };
@@ -2238,19 +2223,20 @@ export class IntegratedBrowserService extends EventEmitter {
         setTimeout(resolve, INTEGRATED_BROWSER_EXPLICIT_CAPTURE_MIN_GAP_MS - desde);
       });
     }
-    assertTarget();
-    if (!this.observationEnabled || !this.isTabVisible(active)) throw new CuContextChangedError();
+    assertTarget(); assertPerception();
+    if (!this.perception.enabled || !this.isTabVisible(active)) throw new CuContextChangedError();
 
     let image: Awaited<ReturnType<WebContents['capturePage']>>;
     try {
       image = await contents.capturePage();
     } catch (error) {
+      assertTarget(); assertPerception();
       return { ok: false, reason: 'captura-fallida', detail: safeCaptureError(error) };
     }
-    assertTarget();
+    assertTarget(); assertPerception();
     await this.assertDocumentNotSensitive(active.id);
-    assertTarget();
-    if (!this.observationEnabled || !this.isTabVisible(active)) throw new CuContextChangedError();
+    assertTarget(); assertPerception();
+    if (!this.perception.enabled || !this.isTabVisible(active)) throw new CuContextChangedError();
     this.lastExplicitCaptureAt = Date.now();
 
     const size = image.getSize();
@@ -2279,9 +2265,11 @@ export class IntegratedBrowserService extends EventEmitter {
   }
 
   private async getPlayerStateInternal(signal?: AbortSignal): Promise<BrowserPlayerState> {
-    if (!this.observationEnabled) throw new Error('La percepción del navegador está pausada.');
+    if (!this.perception.enabled) throw new Error('La percepción del navegador está pausada.');
+    const cycleCurrent = this.perception.guardCycle();
+    const assertPerception = () => { if (!cycleCurrent()) throw new CuContextChangedError(); };
     const assertTarget = await this.authorizeAgentAccess('observe-dom', undefined, signal);
-    assertTarget();
+    assertTarget(); assertPerception();
     const active = this.getActiveTab();
     if (!active || !this.isTabVisible(active)) return emptyPlayerState();
     let state: BrowserPlayerState;
@@ -2290,10 +2278,10 @@ export class IntegratedBrowserService extends EventEmitter {
     } catch {
       state = emptyPlayerState();
     }
-    assertTarget();
+    assertTarget(); assertPerception();
     await this.assertDocumentNotSensitive(active.id);
-    assertTarget();
-    if (!this.observationEnabled || !this.isTabVisible(active)) throw new CuContextChangedError();
+    assertTarget(); assertPerception();
+    if (!this.perception.enabled || !this.isTabVisible(active)) throw new CuContextChangedError();
     return state;
   }
 
@@ -2308,7 +2296,9 @@ export class IntegratedBrowserService extends EventEmitter {
     frames: Array<{ screenshot: string; atSeconds: number }>;
     failure: BrowserExplicitCapture | null;
   }> {
-    const assertTarget = this.createAgentTargetGuard(signal, true);
+    const cycleCurrent = this.perception.guardCycle();
+    const documentCurrent = this.createAgentTargetGuard(signal, true);
+    const assertTarget = () => { documentCurrent(); if (!cycleCurrent()) throw new CuContextChangedError(); };
     const frames: Array<{ screenshot: string; atSeconds: number }> = [];
     const total = Math.max(1, Math.min(12, Math.floor(count)));
 
@@ -2417,13 +2407,7 @@ export class IntegratedBrowserService extends EventEmitter {
 
   getObservationStatus(): BrowserObservationStatus {
     const active = this.getActiveTab();
-    return {
-      enabled: this.observationEnabled,
-      capturing: this.observationInFlight !== null || this.visualCaptureInFlight !== null,
-      intervalMs: passiveObservationIntervalMs(active?.view?.webContents.getURL() ?? active?.url ?? ''),
-      lastCapturedAt: this.latestVisualCapture?.capturedAt ?? this.latestObservation?.capturedAt ?? null,
-      lastError: this.observationLastError,
-    };
+    return this.perception.status(passiveObservationIntervalMs(active?.view?.webContents.getURL() ?? active?.url ?? ''));
   }
 
   async getObservation(forceFresh = false, signal?: AbortSignal): Promise<{ observation: BrowserObservationSnapshot | null; observationStatus: BrowserObservationStatus }> {
@@ -2431,24 +2415,21 @@ export class IntegratedBrowserService extends EventEmitter {
   }
   private async getObservationInternal(forceFresh = false, signal?: AbortSignal): Promise<{ observation: BrowserObservationSnapshot | null; observationStatus: BrowserObservationStatus }> {
     assertCuNotAborted(signal);
-    if (!this.observationEnabled) return { observation: null, observationStatus: this.getObservationStatus() };
+    if (!this.perception.enabled) return { observation: null, observationStatus: this.getObservationStatus() };
+    const cycleCurrent = this.perception.guardCycle();
     const assertTarget = await this.authorizeAgentAccess('observe-dom', undefined, signal);
+    if (!cycleCurrent()) return { observation: null, observationStatus: this.getObservationStatus() };
     const active = this.getActiveTab();
-    const currentUrl = active?.view?.webContents.getURL() ?? active?.url ?? '';
-    const latest = this.latestObservation;
-    const latestMatches = latest !== null && latest.tabId === active?.id && latest.dom.url === sanitizeStateUrl(currentUrl);
-    const observation = forceFresh ? await this.refreshObservation(true, assertTarget) : latestMatches ? latest : null;
+    const target = active && this.perceptionTarget(active);
+    const observation = forceFresh ? await this.refreshObservation(true, assertTarget) : target ? this.perception.observation(target) : null;
     assertTarget();
     return { observation, observationStatus: this.getObservationStatus() };
   }
 
   async setObservationEnabled(enabled: boolean): Promise<{ observation: BrowserObservationSnapshot | null; observationStatus: BrowserObservationStatus }> {
-    this.observationEnabled = enabled;
-    this.observationLastError = null;
+    this.perception.setEnabled(enabled);
     if (!enabled) {
       this.stopObservationTimer();
-      this.latestObservation = null;
-      this.latestVisualCapture = null;
       return { observation: null, observationStatus: this.getObservationStatus() };
     }
     this.startObservationTimer();
@@ -4877,33 +4858,17 @@ export class IntegratedBrowserService extends EventEmitter {
   }
 
   private startObservationTimer(): void {
-    if (!this.observationEnabled || this.observationTimer) return;
+    if (!this.perception.enabled || this.perception.timerPending) return;
     const active = this.getActiveTab();
-    if (!active) return;
-    this.schedulePassiveCapture(passiveObservationIntervalMs(active.view?.webContents.getURL() ?? active.url));
+    if (active) this.schedulePassiveCapture(passiveObservationIntervalMs(active.view?.webContents.getURL() ?? active.url));
   }
 
-  private stopObservationTimer(): void {
-    this.observationTimerGeneration += 1;
-    if (this.observationTimer) {
-      clearTimeout(this.observationTimer);
-      this.observationTimer = null;
-    }
-  }
+  private stopObservationTimer(): void { this.perception.stopTimer(); }
 
   private schedulePassiveCapture(delayMs: number): void {
-    if (!this.observationEnabled || !this.parentWindow) return;
-    if (this.observationTimer) clearTimeout(this.observationTimer);
-    const generation = ++this.observationTimerGeneration;
-    this.observationTimer = setTimeout(() => {
-      if (generation !== this.observationTimerGeneration) return;
-      this.observationTimer = null;
-      // La percepción pasiva es dirigida por eventos: carga, navegación o una
-      // nueva interacción vuelven a programarla. En reposo no hay polling del
-      // compositor; una herramienta del agente conserva la captura explícita.
-      void this.refreshVisualCapture();
-    }, Math.max(0, delayMs));
-    this.observationTimer.unref?.();
+    if (!this.parentWindow) return;
+    // Los eventos programan una captura; no hay polling del compositor o DOM.
+    this.perception.schedule(delayMs, () => this.refreshVisualCapture());
   }
 
   /**
@@ -5128,169 +5093,107 @@ export class IntegratedBrowserService extends EventEmitter {
     if (now - tab.lastDeferAt < INTEGRATED_BROWSER_DEFER_THROTTLE_MS) return;
     tab.lastDeferAt = now;
     tab.visualRevision += 1;
-    if (this.latestObservation?.tabId === tab.id) this.latestObservation = null;
+    this.perception.invalidateDom(tab.id);
     this.schedulePassiveCapture(idleMs);
   }
 
-  private invalidateObservation(tabId?: string): void {
-    if (!tabId || this.latestObservation?.tabId === tabId) this.latestObservation = null;
-    if (!tabId || this.latestVisualCapture?.tabId === tabId) this.latestVisualCapture = null;
+  private invalidateObservation(tabId?: string): void { this.perception.invalidate(tabId); }
+
+  private perceptionTarget(tab: BrowserTabRuntime): BrowserPerceptionTarget | null {
+    const contents = tab.view?.webContents;
+    if (!contents || contents.isDestroyed()) return null;
+    return { tabId: tab.id, url: contents.getURL(), contents, documentToken: tab.documentToken,
+      loadSequence: tab.loadSequence, visualRevision: tab.visualRevision, sessionGeneration: this.sessionGeneration,
+      policyRevision: this.agentPolicyRevision, controlRevision: this.agentControlRevision };
+  }
+
+  private isPerceptionTargetCurrent(target: BrowserPerceptionTarget): boolean {
+    const tab = this.tabs.get(target.tabId);
+    const contents = tab?.view?.webContents;
+    return !this.scopeChanging && target.sessionGeneration === this.sessionGeneration
+      && target.policyRevision === this.agentPolicyRevision && target.controlRevision === this.agentControlRevision
+      && !!tab && this.getActiveTab() === tab && this.isTabVisible(tab)
+      && !!contents && contents === target.contents && !contents.isDestroyed()
+      && contents.getURL() === target.url && tab.documentToken === target.documentToken
+      && tab.loadSequence === target.loadSequence && tab.visualRevision === target.visualRevision;
   }
 
   private async refreshVisualCapture(force = false, authorization?: () => void): Promise<BrowserVisualCapture | null> {
-    if (!this.observationEnabled) return null;
+    if (!this.perception.enabled) return null;
     const tab = this.getActiveTab();
-    if (!tab || !this.isTabVisible(tab) || !tab.view || tab.view.webContents.isDestroyed()) return null;
-    if (this.usesShellHome(tab)) return null;
-    const authorizedUrl = tab.view.webContents.getURL();
-    if (!authorization && !await this.canAgentAccessWithoutPrompt(authorizedUrl, 'capture')) {
-      this.latestVisualCapture = null;
+    if (!tab || !this.isTabVisible(tab) || !tab.view || tab.view.webContents.isDestroyed() || this.usesShellHome(tab)) return null;
+    const target = this.perceptionTarget(tab)!;
+    const lease = this.perception.acquire(target);
+    if (!authorization && !await this.canAgentAccessWithoutPrompt(target.url, 'capture')) {
+      if (lease.isCurrent()) this.perception.invalidate(tab.id);
       return null;
     }
-    try { await this.assertDocumentNotSensitive(tab.id); } catch { this.invalidateObservation(tab.id); return null; }
+    if (!lease.isCurrent()) return null;
+    try { await this.assertDocumentNotSensitive(tab.id); }
+    catch { if (lease.isCurrent()) this.perception.invalidate(tab.id); return null; }
+    if (!lease.isCurrent()) return null;
     authorization?.();
-    if (this.getActiveTab() !== tab || tab.view.webContents.isDestroyed() || tab.view.webContents.getURL() !== authorizedUrl) return null;
     const host = this.getTabHost(tab);
-    if (!host || !this.isWindowUsable(host)) {
-      return Promise.resolve(this.compatibleLatestVisualCapture(tab.id, tab.view.webContents.getURL(), tab.visualRevision));
-    }
-    if (!force && !host.isFocused()) {
-      return Promise.resolve(this.compatibleLatestVisualCapture(tab.id, tab.view.webContents.getURL(), tab.visualRevision));
-    }
-    if (tab.loading && !force) return Promise.resolve(this.compatibleLatestVisualCapture(tab.id, tab.view.webContents.getURL(), tab.visualRevision));
-    const tabId = tab.id;
-    const contents = tab.view.webContents;
-    const startedUrl = contents.getURL();
-    const startedRevision = tab.visualRevision;
-    const intervalMs = passiveObservationIntervalMs(startedUrl);
-    const compatibleLatest = this.compatibleLatestVisualCapture(tabId, startedUrl, startedRevision);
+    const latest = this.perception.visual(target);
+    if (!host || !this.isWindowUsable(host) || (!force && !host.isFocused()) || (tab.loading && !force)) return latest;
     if (!force) {
-      if (this.agentControlling || Date.now() < tab.passiveCaptureNotBefore) return Promise.resolve(compatibleLatest);
-      const latestAge = compatibleLatest
-        ? Date.now() - Date.parse(compatibleLatest.capturedAt)
-        : Number.POSITIVE_INFINITY;
-      if (latestAge < intervalMs) return Promise.resolve(compatibleLatest);
+      if (this.agentControlling || Date.now() < tab.passiveCaptureNotBefore) return latest;
+      const age = latest ? Date.now() - Date.parse(latest.capturedAt) : Number.POSITIVE_INFINITY;
+      if (age < passiveObservationIntervalMs(target.url) || this.perception.observing) return latest;
     }
-    if (this.observationInFlight && !force) {
-      return Promise.resolve(compatibleLatest);
-    }
-    if (this.visualCaptureInFlight) {
-      const sameTarget = this.visualCaptureInFlightTarget?.tabId === tabId && this.visualCaptureInFlightTarget.url === startedUrl;
-      if (sameTarget) return this.visualCaptureInFlight;
-      return this.visualCaptureInFlight.then(() => this.refreshVisualCapture(force, authorization));
-    }
-    const capture = (async (): Promise<BrowserVisualCapture | null> => {
-      try {
-        const image = await contents.capturePage();
-        await this.assertDocumentNotSensitive(tabId);
-        authorization?.();
-        if (image.isEmpty()) throw new Error('La captura de percepción está vacía.');
-        if (!this.observationEnabled || !this.isTabVisible(tab) || this.activeTabId !== tabId || contents.isDestroyed() || contents.getURL() !== startedUrl || tab.visualRevision !== startedRevision) {
-          return this.compatibleLatestVisualCapture(tabId, startedUrl, tab.visualRevision);
-        }
-        const visualCapture: BrowserVisualCapture = {
-          tabId,
-          url: startedUrl,
-          capturedAt: new Date().toISOString(),
-          screenshot: encodePassiveCapture(image),
-          revision: startedRevision,
-        };
-        this.latestVisualCapture = visualCapture;
-        return visualCapture;
-      } catch (error) {
-        this.observationLastError = safeErrorMessage(error instanceof Error ? error.message : String(error));
-        return this.compatibleLatestVisualCapture(tabId, startedUrl, tab.visualRevision);
-      } finally {
-        this.visualCaptureInFlight = null;
-        this.visualCaptureInFlightTarget = null;
-      }
-    })();
-    this.visualCaptureInFlight = capture;
-    this.visualCaptureInFlightTarget = { tabId, url: startedUrl };
-    return capture;
+    const contents = tab.view.webContents;
+    return this.perception.captureVisual(lease, async () => {
+      const image = await contents.capturePage();
+      if (!lease.isCurrent()) return null;
+      await this.assertDocumentNotSensitive(tab.id);
+      if (!lease.isCurrent()) return null;
+      authorization?.();
+      if (image.isEmpty()) throw new Error('La captura de percepción está vacía.');
+      return { tabId: tab.id, url: target.url, capturedAt: new Date().toISOString(),
+        screenshot: encodePassiveCapture(image), revision: target.visualRevision };
+    });
   }
 
   private async refreshObservation(force = false, authorization?: () => void): Promise<BrowserObservationSnapshot | null> {
-    if (!this.observationEnabled) return null;
+    if (!this.perception.enabled) return null;
     const tab = this.getActiveTab();
-    if (!tab || !this.isTabVisible(tab) || !tab.view || tab.view.webContents.isDestroyed()) return null;
-    if (this.usesShellHome(tab)) return null;
-    const authorizedUrl = tab.view.webContents.getURL();
-    if (!authorization && !await this.canAgentAccessWithoutPrompt(authorizedUrl, 'observe-dom')) {
-      this.latestObservation = null;
+    if (!tab || !this.isTabVisible(tab) || !tab.view || tab.view.webContents.isDestroyed() || this.usesShellHome(tab)) return null;
+    const target = this.perceptionTarget(tab)!;
+    const lease = this.perception.acquire(target);
+    if (!authorization && !await this.canAgentAccessWithoutPrompt(target.url, 'observe-dom')) {
+      if (lease.isCurrent()) this.perception.invalidate(tab.id);
       return null;
     }
-    try { await this.assertDocumentNotSensitive(tab.id); } catch { this.invalidateObservation(tab.id); return null; }
+    if (!lease.isCurrent()) return null;
+    try { await this.assertDocumentNotSensitive(tab.id); }
+    catch { if (lease.isCurrent()) this.perception.invalidate(tab.id); return null; }
+    if (!lease.isCurrent()) return null;
     authorization?.();
-    if (this.getActiveTab() !== tab || tab.view.webContents.isDestroyed() || tab.view.webContents.getURL() !== authorizedUrl) return null;
     const host = this.getTabHost(tab);
-    if (!host || !this.isWindowUsable(host)) {
-      return Promise.resolve(this.compatibleLatestObservation(tab.id, tab.view.webContents.getURL()));
-    }
-    if (tab.loading && !force) return Promise.resolve(this.compatibleLatestObservation(tab.id, tab.view.webContents.getURL()));
-    const tabId = tab.id;
+    if (!host || !this.isWindowUsable(host) || (tab.loading && !force)) return this.perception.observation(target);
     const contents = tab.view.webContents;
-    const startedUrl = contents.getURL();
-    if (this.observationInFlight) {
-      const sameTarget = this.observationInFlightTarget?.tabId === tabId && this.observationInFlightTarget.url === startedUrl;
-      if (sameTarget) return this.observationInFlight;
-      return this.observationInFlight.then(() => this.refreshObservation(force, authorization));
-    }
-    const capture = (async (): Promise<BrowserObservationSnapshot | null> => {
-      try {
-        const [visualCapture, dom] = await Promise.all([
-          this.getFreshVisualCapture(tabId, startedUrl, authorization),
-          collectIntegratedBrowserDom(contents),
-        ]);
-        await this.assertDocumentNotSensitive(tabId);
-        authorization?.();
-        if (!visualCapture) throw new Error('La captura de percepción está vacía.');
-        if (!this.observationEnabled || !this.isTabVisible(tab) || this.activeTabId !== tabId || contents.isDestroyed() || contents.getURL() !== startedUrl) {
-          return this.compatibleLatestObservation(tabId, startedUrl);
-        }
-        const observation: BrowserObservationSnapshot = {
-          id: randomUUID(),
-          sequence: ++this.observationSequence,
-          capturedAt: visualCapture.capturedAt,
-          tabId,
-          screenshot: visualCapture.screenshot,
-          dom,
-        };
-        this.latestObservation = observation;
-        this.observationLastError = null;
-        return observation;
-      } catch (error) {
-        this.observationLastError = safeErrorMessage(error instanceof Error ? error.message : String(error));
-        return this.compatibleLatestObservation(tabId, startedUrl);
-      } finally {
-        this.observationInFlight = null;
-        this.observationInFlightTarget = null;
-      }
-    })();
-    this.observationInFlight = capture;
-    this.observationInFlightTarget = { tabId, url: startedUrl };
-    return capture;
-  }
-
-  private compatibleLatestObservation(tabId: string, url: string): BrowserObservationSnapshot | null {
-    const latest = this.latestObservation;
-    return latest?.tabId === tabId && latest.dom.url === sanitizeStateUrl(url) ? latest : null;
-  }
-
-  private compatibleLatestVisualCapture(tabId: string, url: string, revision?: number): BrowserVisualCapture | null {
-    const latest = this.latestVisualCapture;
-    return latest?.tabId === tabId && latest.url === url && (revision === undefined || latest.revision === revision) ? latest : null;
+    return this.perception.captureObservation(lease, async () => {
+      const [visualCapture, dom] = await Promise.all([
+        this.getFreshVisualCapture(tab.id, target.url, authorization), collectIntegratedBrowserDom(contents),
+      ]);
+      if (!lease.isCurrent()) return null;
+      await this.assertDocumentNotSensitive(tab.id);
+      if (!lease.isCurrent()) return null;
+      authorization?.();
+      if (!visualCapture) throw new Error('La captura de percepción está vacía.');
+      return { capturedAt: visualCapture.capturedAt, tabId: tab.id, screenshot: visualCapture.screenshot, dom };
+    });
   }
 
   private getFreshVisualCapture(tabId: string, url: string, authorization?: () => void): Promise<BrowserVisualCapture | null> {
     const tab = this.tabs.get(tabId);
-    const latest = this.compatibleLatestVisualCapture(tabId, url, tab?.visualRevision);
+    const target = tab && this.perceptionTarget(tab);
+    const latest = target && target.url === url ? this.perception.visual(target) : null;
     const age = latest ? Date.now() - Date.parse(latest.capturedAt) : Number.POSITIVE_INFINITY;
-    // La cadencia multimedia solo limita el muestreo pasivo. Un turno
-    // explicito no debe reutilizar durante 30 s una imagen que pudo cambiar por
-    // XHR sin producir un evento de entrada.
+    // La cadencia multimedia sólo limita muestreo pasivo, no un turno explícito.
     return age < INTEGRATED_BROWSER_OBSERVATION_INTERVAL_MS ? Promise.resolve(latest) : this.refreshVisualCapture(true, authorization);
   }
+
 
   private configureTabZoom(tab: BrowserTabRuntime): void {
     const contents = tab.view?.webContents;

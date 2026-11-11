@@ -1,0 +1,96 @@
+{
+  "count": 3602,
+  "before": "348c05bbedee297cd2c3fbb40b1d8bd1a935ba6aa4f03d9d181d3af923b98510",
+  "after": "348c05bbedee297cd2c3fbb40b1d8bd1a935ba6aa4f03d9d181d3af923b98510",
+  "changedDuringGate": [],
+  "copiedFilesMatching": 3582,
+  "deltaFromUnit45": [
+    {
+      "file": "electron/browser-web/action-executor.ts",
+      "previousSha256": "ca7ff243e439cf2d2c7145613862cdea9e14c45f103d0f9e6bcd12a6565e1225",
+      "currentSha256": "26f72cede8addb0573da5a5be654aef319b6ebd7b3ccbad81577f87351168509"
+    },
+    {
+      "file": "electron/browser-web/service-artifacts.ts",
+      "previousSha256": "e25ba1f654b244f2e9278a49cb16fd0405d0205504269ecab2382d7024f63667",
+      "currentSha256": "815ceb0012935e8fa37dcfafba0e1c731b60e24246995d8e4ea9166a8df021b7"
+    },
+    {
+      "file": "electron/browser-web/service-engine.ts",
+      "previousSha256": "d8e00f36da7f5147158d57746ecbd1616554ff5b19021cb596ace276abe66d33",
+      "currentSha256": "10b88d16a05a0de9796fc6fc7504bc9022d62e4268ee591d1fc4092561b38ede"
+    },
+    {
+      "file": "electron/browser-web/service-runtime.ts",
+      "previousSha256": "7b273d738bd4a1a5a9f74014a9e76df45ffaefcb71492749cafd02f1c7db2af0",
+      "currentSha256": "8c11a389b83a1dcd0f73339988c6cbe70a9894bb2094dc19e6c3957e5dcd6ebb"
+    },
+    {
+      "file": "electron/browser-web/service-task-loop.ts",
+      "previousSha256": "5ecabae7c72d9037b62fbf1a1ab80ac6846d66e41f59e6933b5af26b8643442d",
+      "currentSha256": "72b8ad1f1367bc160e437d0ce59a517fdcaab1c4c338e5da42b210717d43fbe1"
+    },
+    {
+      "file": "electron/browser-web/service-types.ts",
+      "previousSha256": "19c659fd61f3d178743e3d5283d4c9c740cdae0a0666caf3d6beedf418190bde",
+      "currentSha256": "d5a6de14a11fcb683723a32ecb31fb81a7dbe359765dc0bb193dae2ba551e06e"
+    },
+    {
+      "file": "electron/browser-web/snapshot-collector.ts",
+      "previousSha256": "e2ac2d1dc1529f264df8727f64cfb522f902d2bc538aff9b3d4e451ba23da7bf",
+      "currentSha256": "f203dfb4e4b3f84ce2ceaab0ce9ee413f5dc59ee9c87f25fcc77101c8dcb3299"
+    },
+    {
+      "file": "electron/windows-uia/action-executor.ts",
+      "previousSha256": "daf1fe7dc47d4b70a1b94c7b30296f08fed764bf510c51c2173ab69be58350e8",
+      "currentSha256": "7bf737ed7cec3139dc037c348730858dc99d51180f6525a8c37bbced3ffe3fd0"
+    },
+    {
+      "file": "electron/windows-uia/planner.ts",
+      "previousSha256": "170a5b675758734251bb02905e7ade3cae11b53f83ed36ff629e82104ee47785",
+      "currentSha256": "bf72993e5d136ad5906df69ca8400e2a3349a4715d71c6b6ff5e2e6fa3a5befd"
+    },
+    {
+      "file": "electron/windows-uia/runner.ts",
+      "previousSha256": "5a0ca8d14b6e55701265bb775ab392894c49a6920f7221398afe9e6c65d0c801",
+      "currentSha256": "1ca68f2105138facbfe39ec91ddb1b8947a1af8be8c617868d6d15fea8b28e23"
+    },
+    {
+      "file": "electron/windows-uia/snapshot.ts",
+      "previousSha256": "0484b90483f3e6bf05658896b263fe17c56ddececb25b1a946d0bad9827abd74",
+      "currentSha256": "35dd196127d59a03a11d0e0da5dcf14a223183e1d7d976700d3a162d67700380"
+    },
+    {
+      "file": "electron/windows-uia/step-runner.ts",
+      "previousSha256": "217cb40b2a3719184ca16118e6caeb9d2510739e8ce51e894ba96167eaf815a1",
+      "currentSha256": "a725f6f8e25ab5d0ec40f32d308599212f0f942b019eaf0c50e20bbbb936ea91"
+    },
+    {
+      "file": "electron/__tests__/backend-action-cancellation.test.ts",
+      "previousSha256": null,
+      "currentSha256": "544bd0d703cad3b1146ebb80d98f4b132fd10daf25eb56c60fd4c6b085def129"
+    },
+    {
+      "file": "electron/__tests__/browser-backend-cancellation.test.ts",
+      "previousSha256": null,
+      "currentSha256": "adab0b7b8f3f9f4719448512565b38d1cab19418db44a8f52f77d2b6bed09143"
+    },
+    {
+      "file": "electron/__tests__/uia-backend-cancellation.test.ts",
+      "previousSha256": null,
+      "currentSha256": "ab013ebe1b10529f11b676dc7f4b3ec1b9783dc679cec424b3a7ba3e819f7f64"
+    },
+    {
+      "file": "electron/__tests__/uia-snapshot-cancellation.test.ts",
+      "previousSha256": null,
+      "currentSha256": "795781244192ce989e78d9a4820019f30eb310ac6dee29c5d72a50310eb822ed"
+    },
+    {
+      "file": "electron/desktop-agent/task-cancellation.ts",
+      "previousSha256": null,
+      "currentSha256": "dbbcf9878ce8005bb7fb727fadf130463f4785033052c9f9536821f0f6fa38a2"
+    }
+  ],
+  "dependenciesAndPolicyUnchanged": true,
+  "groundingModelPolicyUnchanged": true
+}

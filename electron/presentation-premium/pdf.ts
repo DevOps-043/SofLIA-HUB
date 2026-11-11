@@ -7,9 +7,9 @@ import { generateSlideImage } from './image-generation';
 import { renderSlide } from './render-slide';
 
 async function buildImageCache(options: CreatePresentationPDFOptions): Promise<Map<number, string | null>> {
-  const { slides, includeImages = true, genAI } = options;
+  const { slides, includeImages = true } = options;
   const imageCache = new Map<number, string | null>();
-  if (!includeImages || !genAI) {
+  if (!includeImages) {
     return imageCache;
   }
 
@@ -19,7 +19,7 @@ async function buildImageCache(options: CreatePresentationPDFOptions): Promise<M
     const results = await Promise.allSettled(
       batch.map((slide) => {
         const prompt = slide.diagramPrompt || slide.imagePrompt;
-        return prompt ? generateSlideImage(genAI, prompt, Boolean(slide.diagramPrompt)) : Promise.resolve(null);
+        return prompt ? generateSlideImage(prompt, Boolean(slide.diagramPrompt)) : Promise.resolve(null);
       }),
     );
     results.forEach((result, idx) => {

@@ -1,0 +1,62 @@
+[
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-backend-cancellation-2026-10-27\\build-final.log",
+    "bytes": 39181,
+    "sha256": "8a6bb8325aa78f336d207212a8e6ced99bbf88a76a53edef77603de7c650541f"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-backend-cancellation-2026-10-27\\directed-final.log",
+    "bytes": 495,
+    "sha256": "396f9c10e76f353171c2c2787b23819afa992ad465bbe944f0b48c7df0f0a1f1"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-backend-cancellation-2026-10-27\\directed-first.log",
+    "bytes": 495,
+    "sha256": "532248780710d775c7a8b9363e73a218eb1ef2befee9bdbc12f59198e260d5a6"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-backend-cancellation-2026-10-27\\directed-second.log",
+    "bytes": 496,
+    "sha256": "ed4da465d1f0798357075ff86ff785cb5847794fa40eebc87d15181a486d506f"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-backend-cancellation-2026-10-27\\directed-third.log",
+    "bytes": 495,
+    "sha256": "66e3a6d76e55254bef56d615dabb3030e3d6f0aa4eca92ff729f25adccbf9eea"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-backend-cancellation-2026-10-27\\gate-final.log",
+    "bytes": 166577,
+    "sha256": "decdc9154055705adbab65c4e001b36e84752cb69be797c1e52ef59042aa9f82"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-backend-cancellation-2026-10-27\\green-first.log",
+    "bytes": 492,
+    "sha256": "976f0acadb823fd5fb0b7cc2263f38f2729451bc41de31b9e98de0188f48691d"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-backend-cancellation-2026-10-27\\red-native.log",
+    "bytes": 491,
+    "sha256": "fc68478ce4c92f8191a6f53a40acf9b93eff92883f78289512ace74a692b2079"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-backend-cancellation-2026-10-27\\red.log",
+    "bytes": 484,
+    "sha256": "ec28557a9d2764358929975cd4e2fd7eae235b7f50f50db6742f8476762f67ca"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-backend-cancellation-2026-10-27\\typecheck-final.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-backend-cancellation-2026-10-27\\typecheck-first.log",
+    "bytes": 344,
+    "sha256": "8fe1f3cdebeaba86033351307eda7231dc252d4e77adbfb753366ae4cf4b26a9"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-backend-cancellation-2026-10-27\\typecheck-second.log",
+    "bytes": 988,
+    "sha256": "39fec439244fa2cf68190316cf30223b0f6750076a1f8fd8c208f3a2e823907d"
+  }
+]

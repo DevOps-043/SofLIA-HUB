@@ -6,6 +6,7 @@ interface BackendEventForwardingOptions {
   markTaskStarted: (payload: BackendTaskStartedPayload) => void;
   markStep: (payload: BackendStepPayload) => void;
   restoreLegacyStatus: () => void;
+  canPublish?: () => boolean;
 }
 
 type BackendTaskStartedPayload = { task?: string | null };
@@ -21,21 +22,26 @@ export function registerBackendEventForwarding(options: BackendEventForwardingOp
   } = options;
 
   source.on('task-queued', (payload: unknown) => {
+    if (options.canPublish && !options.canPublish()) return;
     emit('task-queued', payload);
   });
   source.on('task-started', (payload: unknown) => {
+    if (options.canPublish && !options.canPublish()) return;
     markTaskStarted(toTaskStartedPayload(payload));
     emit('task-started', payload);
   });
   source.on('step', (payload: unknown) => {
+    if (options.canPublish && !options.canPublish()) return;
     markStep(toStepPayload(payload));
     emit('step', payload);
   });
   source.on('step-result', (payload: unknown) => {
+    if (options.canPublish && !options.canPublish()) return;
     emit('step-result', payload);
   });
 
   const completeExternalTask = (eventName: string, payload: unknown) => {
+    if (options.canPublish && !options.canPublish()) return;
     restoreLegacyStatus();
     emit(eventName, payload);
   };

@@ -243,6 +243,23 @@ describe('Regresiones de identidad y recuperación Project Hub', () => {
     expect((await exchange).success).toBe(true);
   });
 
+  it('el reintento durante un canje enviado no lo reemplaza ni publica un error definitivo', async () => {
+    login();
+    const pending = deferred<Response>();
+    const started = deferred<void>();
+    const request = vi.fn(() => { started.resolve(); return pending.promise; });
+    vi.stubGlobal('fetch', request);
+    const service = new ProjectHubApiService('https://api.example.test');
+    const exchange = service.exchangeSofiaToken('sofia-ficticio');
+    await started.promise;
+    expect((await service.getStatus()).authError?.code).toBe('SOFIA_SESSION_PENDING');
+    expect((await service.retryAuthentication()).code).toBe('SOFIA_SESSION_PENDING');
+    expect(request).toHaveBeenCalledOnce();
+    pending.resolve(response(auth()));
+    expect((await exchange).success).toBe(true);
+    expect((await service.getStatus()).authenticated).toBe(true);
+  });
+
   it('un fallo de persistencia mantiene memoria sin registrar excepción/credenciales', async () => {
     login(); storage.write.mockImplementationOnce(() => { throw new Error('secreto-ficticio-de-disco'); });
     vi.stubGlobal('fetch', vi.fn(async () => response(auth())));

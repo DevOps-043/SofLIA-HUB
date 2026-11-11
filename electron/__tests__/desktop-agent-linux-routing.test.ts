@@ -10,7 +10,7 @@ describe('Desktop Agent Linux routing', () => {
     };
 
     await expect(executeDesktopAgentTaskEntrypoint('abrir explorador de archivos', { backend: 'uia' }, {
-      apiKey: 'test-key',
+
       browserWeb: { executeTask: vi.fn() } as any,
       windowsUIA: windowsUIA as any,
       platformCapabilities: detectPlatformCapabilities('linux', { DISPLAY: ':0', XDG_SESSION_TYPE: 'x11' }),

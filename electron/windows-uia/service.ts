@@ -1,5 +1,4 @@
 import { EventEmitter } from 'node:events';
-import type { GoogleGenerativeAI } from '@google/generative-ai';
 import type { DesktopAgentService } from '../desktop-agent-service';
 import { abortAll, getLastRunResult, getStatusSnapshot, isRunning } from './state';
 import { executeQueuedTask, processQueue } from './queue';
@@ -15,7 +14,6 @@ import type {
 
 export class WindowsUIAService extends EventEmitter implements WindowsUIAServiceCore {
   apiKey = '';
-  genAI: GoogleGenerativeAI | null = null;
   status: WindowsUIAStatus = 'idle';
   currentTask: string | null = null;
   currentStep = 0;
@@ -36,7 +34,6 @@ export class WindowsUIAService extends EventEmitter implements WindowsUIAService
 
   setApiKey(key: string): void {
     this.apiKey = key;
-    this.genAI = null;
   }
 
   getStatus(): WindowsUIAStatusSnapshot {

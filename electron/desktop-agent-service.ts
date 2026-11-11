@@ -1,5 +1,4 @@
 import { EventEmitter } from 'node:events';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { BrowserWebService } from './browser-web-service';
 import { WindowsUIAService } from './windows-uia-service';
 import { detectPlatformCapabilities, type PlatformCapabilities } from './platform-capabilities';
@@ -37,6 +36,7 @@ import { attachDesktopAgentObservation, type DesktopAgentObservationApi } from '
 import { attachDesktopAgentPlanning, type DesktopAgentPlanningApi } from './desktop-agent/service-planning';
 import type { IntegratedBrowserService } from './integrated-browser';
 import type { VisualGuidancePort } from './orb-guidance/service';
+import { desktopTaskPublication } from './desktop-agent/task-publications';
 
 export type { DesktopAgentConfig, DesktopActionPayload, UIElement, AgentStatus, AgentTask, DesktopAgentStatus };
 
@@ -51,6 +51,10 @@ export interface DesktopAgentService
     DesktopAgentPlanningApi {}
 
 export class DesktopAgentService extends EventEmitter {
+  override emit(name: string | symbol, ...args: unknown[]): boolean {
+    const publication = desktopTaskPublication(this, name, args);
+    return publication ? super.emit(name, ...publication) : false;
+  }
   visualGuidance?: VisualGuidancePort;
   config: DesktopAgentConfig = loadConfig();
   status: AgentStatus = 'idle';
@@ -63,7 +67,6 @@ export class DesktopAgentService extends EventEmitter {
   observationRunning = false;
   screenScale = { scaleX: 1.5, scaleY: 1.5 };
   apiKey = '';
-  genAI: GoogleGenerativeAI | null = null;
   recovery: RecoveryContext = { consecutiveFailures: 0, sameScreenCount: 0, lastScreenHash: '', totalRecoveries: 0, lastRecoveryStep: -10 };
   strategicPlan: StrategicPlan | null = null;
   historySummaries: HistorySummary[] = [];

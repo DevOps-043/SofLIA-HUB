@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { inferDesktop, type DesktopInference } from './inference';
 import type { AgentStatus, DesktopAgentConfig, DesktopAgentStatus } from '../desktop-agent-types';
 import { normalizeDesktopAgentConfig, saveConfig } from '../desktop-agent-types';
 import type { BrowserProfileDescriptor } from '../browser-web/types';
@@ -7,13 +7,14 @@ import { buildDesktopAgentStatus } from './status-snapshot';
 import { abortDesktopAgentTask } from './task-control';
 import { abortBrowserCuTask, getBrowserCuTask } from './browser-cu-task';
 import type { DesktopAgentServiceConstructor } from './service-types';
+import { desktopConfigUpdates, desktopInputSnapshot } from '../../src/shared/desktop-input';
 
 type BrowserProfileResetResult = { success: boolean; profileId: string; path: string; removed: boolean };
 
 export interface DesktopAgentLifecycleApi {
   generateTaskId(): string;
   setApiKey(key: string): void;
-  getGenAI(): GoogleGenerativeAI;
+  getInference(): DesktopInference;
   getConfig(): DesktopAgentConfig;
   setConfig(updates: Partial<DesktopAgentConfig>): void;
   getStatus(): DesktopAgentStatus;
@@ -32,21 +33,19 @@ export function attachDesktopAgentLifecycle(Service: DesktopAgentServiceConstruc
     },
     setApiKey(key: string) {
       this.apiKey = key;
-      this.genAI = null;
       this.browserWeb.setApiKey(key);
       this.windowsUIA.setApiKey(key);
     },
-    getGenAI() {
-      if (!this.apiKey) throw new Error('Gemini API key no configurada para DesktopAgent');
-      if (!this.genAI) this.genAI = new GoogleGenerativeAI(this.apiKey);
-      return this.genAI;
-    },
+    getInference() { return inferDesktop; },
     getConfig() {
       return { ...this.config };
     },
     setConfig(updates: Partial<DesktopAgentConfig>) {
-      this.config = normalizeDesktopAgentConfig({ ...this.config, ...updates });
-      saveConfig(this.config);
+      const [snapshot] = desktopInputSnapshot([updates]);
+      const validated = desktopConfigUpdates.parse(snapshot);
+      const next = normalizeDesktopAgentConfig({ ...this.config, ...validated });
+      saveConfig(next);
+      this.config = next;
       this.emit('config-updated', this.config);
     },
     getStatus() {

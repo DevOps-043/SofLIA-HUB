@@ -10,10 +10,8 @@ import { SkillsSettingsPanel } from '../../skills-settings/SkillsSettingsPanel';
  * siempre estuvo su vista canónica.
  */
 export function IntegrationsSkillsSection({
-  apiKey,
   onClose,
 }: {
-  apiKey: string;
   onClose: () => void;
 }) {
   const [subTab, setSubTab] = useState<'whatsapp' | 'connections' | 'skills'>('whatsapp');
@@ -91,13 +89,13 @@ export function IntegrationsSkillsSection({
       <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6 no-scrollbar">
         {subTab === 'whatsapp' && (
           <div className="animate-in fade-in duration-200">
-            <WhatsAppSetup isOpen onClose={onClose} apiKey={apiKey} embedded />
+            <WhatsAppSetup isOpen onClose={onClose} embedded />
           </div>
         )}
 
         {subTab === 'connections' && (
           <div className="animate-in fade-in duration-200">
-            <ConnectionsPanel apiKey={apiKey} />
+            <ConnectionsPanel />
           </div>
         )}
 

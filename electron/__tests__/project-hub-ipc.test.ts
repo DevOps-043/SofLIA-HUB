@@ -9,6 +9,7 @@ import { resetAuthStateForTests, setAuthState } from '../main/auth-state';
 import { projectHubIpcCases } from './project-hub/ipc-cases';
 import { deferred } from './project-hub/fixtures';
 import { IPC_APPROVAL_MS } from '../ipc/caller-authorization';
+import { isExplicitBrowserBookmark } from '../project-hub/browser-bookmark';
 
 const ID = '12345678-1234-4123-8123-123456789012';
 const harness = ipcMain as unknown as { _getHandler(channel: string): (event: IpcMainInvokeEvent, ...args: unknown[]) => Promise<Record<string, unknown>> };
@@ -34,6 +35,56 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); resetAuthStateForTests(); });
 
 describe('Autorización IPC Project Hub', () => {
+  it('permite reintentar la lectura cuando main termina de verificar la sesión', async () => {
+    setAuthState({ authenticated: false, userId: null });
+    expect(await invoke('status')).toMatchObject({ success: false, code: 'SOFIA_SESSION_PENDING' });
+    expect(service.getStatus).not.toHaveBeenCalled();
+    expect(dialog.showMessageBox).not.toHaveBeenCalled();
+    setAuthState({ authenticated: true, userId: 'usuario-ficticio' });
+    expect(await invoke('status')).toMatchObject({ success: true });
+  });
+
+  it('un documento ajeno no puede consultar si la sesión está pendiente', async () => {
+    setAuthState({ authenticated: false, userId: null });
+    sender.mainFrame.url = 'https://externo.example.test/';
+    expect(await invoke('status')).toMatchObject({ success: false, code: 'IPC_DENIED' });
+    expect(service.getStatus).not.toHaveBeenCalled();
+  });
+
+  it('descarta la lectura iniciada antes de un cambio de sesión', async () => {
+    const waiting = deferred<unknown>();
+    service.listProjects.mockReturnValueOnce(waiting.promise);
+    const pending = invoke('list-projects', { workspaceId: ID });
+    expect(service.listProjects).toHaveBeenCalledOnce();
+    setAuthState({ authenticated: true, userId: 'otra-sesion' });
+    waiting.resolve({ success: true, data: ['proyecto-anterior'] });
+    const result = await pending;
+    expect(result).toMatchObject({ success: false, code: 'SESSION_CHANGED' });
+    expect(result.data).toBeUndefined();
+  });
+
+  const bookmark = { workspaceId: ID, projectId: ID, evidence: { type: 'link', source_system: 'soflia-browser', title: 'Página guardada', external_reference: 'https://example.test/pagina', metadata: { url: 'https://example.test/pagina', saved_from: 'browser' }, items: [] } };
+  it('guardar una página explícita no abre un aviso nativo ni expone el payload al usuario', async () => {
+    expect(await invoke('add-evidence', bookmark)).toMatchObject({ success: true });
+    expect(dialog.showMessageBox).not.toHaveBeenCalled(); expect(service.addEvidence).toHaveBeenCalledWith(bookmark, expect.objectContaining({ userId: 'usuario-ficticio' }));
+  });
+  it('la excepción de marcador rechaza texto, adjuntos, metadatos extra y URLs sin sanear', async () => {
+    const invalid = [
+      { ...bookmark, evidence: { ...bookmark.evidence, summary: 'Texto privado' } },
+      { ...bookmark, evidence: { ...bookmark.evidence, metadata: { ...bookmark.evidence.metadata, secreto: 'privado' } } },
+      { ...bookmark, evidence: { ...bookmark.evidence, items: [{ type: 'excerpt', position: 0, content: 'Texto privado' }] } },
+      { ...bookmark, evidence: { ...bookmark.evidence, metadata: { ...bookmark.evidence.metadata, url: 'https://example.test/?token=secreto' } } },
+    ];
+    for (const input of invalid) expect(isExplicitBrowserBookmark(input)).toBe(false);
+    expect(await invoke('add-evidence', invalid[0])).toMatchObject({ cancelled: true });
+    expect(dialog.showMessageBox).toHaveBeenCalledOnce(); expect(service.addEvidence).not.toHaveBeenCalled();
+  });
+  it('un marcador sigue exigiendo sesión, origen y contrato correctos', async () => {
+    setAuthState({ authenticated: false, userId: null });
+    expect(await invoke('add-evidence', bookmark)).toMatchObject({ success: false }); expect(service.addEvidence).not.toHaveBeenCalled();
+    setAuthState({ authenticated: true, userId: 'usuario-ficticio' }); sender.mainFrame.url = 'https://ajeno.test/';
+    expect(await invoke('add-evidence', bookmark)).toMatchObject({ success: false }); expect(service.addEvidence).not.toHaveBeenCalled();
+  });
   it.each(['proveedor', 'ventana', 'subframe', 'origen', 'sesión', 'frame separado'])('deniega %s ausente o inválido antes de leer', async mode => {
     if (mode === 'proveedor') register(false);
     if (mode === 'ventana') win = null;

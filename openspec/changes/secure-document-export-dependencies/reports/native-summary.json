@@ -1,0 +1,130 @@
+{
+  "command": "npm run document-export:smoke:native",
+  "sandbox": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-document-export-native-rBVQIa",
+  "modes": {
+    "node": {
+      "status": "passed",
+      "checks": [
+        "uuid-cjs-esm-v4-y-bounds-v5",
+        "imagen-png-jpeg-cjs-esm-y-api-de-archivo",
+        "svg-y-formato-desconocido",
+        "icns-cero-rechazado-sin-activar-guarda",
+        "xlsx-cf-extendido-con-ids-unicos-y-referencias",
+        "xlsx-roundtrip-formula-unicode-imagen-y-cf",
+        "pptx-imagen-texto-y-grafica-editable",
+        "pptx-esm-conserva-generacion",
+        "bundle-cjs-del-padre-sin-importar-image-size",
+        "word-conserva-texto-y-paquete-ooxml",
+        "exportador-real-del-hub-con-texto-notas-y-rechazo-vacio"
+      ],
+      "versions": {
+        "exceljs": "4.4.0",
+        "pptxgenjs": "4.0.1",
+        "uuid": "11.1.1",
+        "image-size": "2.0.4"
+      },
+      "node": "26.7.0",
+      "electron": null,
+      "platform": "win32",
+      "architecture": "x64",
+      "realAccountsUsed": false,
+      "officeApplicationValidated": false,
+      "externalNetworkUsed": false,
+      "artifacts": [
+        {
+          "file": "hub.pptx",
+          "bytes": 48195,
+          "sha256": "80b06746f408bd3668681cbe95ff32b02a032070144559a48b1d53c650a50522"
+        },
+        {
+          "file": "imagen.jpeg",
+          "bytes": 268,
+          "sha256": "f1fb7fe869e1bc2df84a487a23e938132df6c7f5b9bd4dacbcfab5f054e33c75"
+        },
+        {
+          "file": "imagen.png",
+          "bytes": 94,
+          "sha256": "a896a97e7f4e7292bdeac30ef992081768dfcc6f6a248381cf264d56194bb75f"
+        },
+        {
+          "file": "informe.docx",
+          "bytes": 8505,
+          "sha256": "e9e792cfdfd0ed45ca3085d6ad8fbb2df094eff2634e2ee728a35cabc53196ee"
+        },
+        {
+          "file": "informe.xlsx",
+          "bytes": 8841,
+          "sha256": "0a00858dca6143d434a6e56cf2911e1c09c6170c64bb4195d0fc46b02a22f866"
+        },
+        {
+          "file": "presentacion.pptx",
+          "bytes": 68369,
+          "sha256": "12043875cf9e6685a23967d220bfe7b361c0692b40051e9105189b03f1d1373b"
+        }
+      ]
+    },
+    "electron": {
+      "status": "passed",
+      "checks": [
+        "uuid-cjs-esm-v4-y-bounds-v5",
+        "imagen-png-jpeg-cjs-esm-y-api-de-archivo",
+        "svg-y-formato-desconocido",
+        "icns-cero-rechazado-sin-activar-guarda",
+        "xlsx-cf-extendido-con-ids-unicos-y-referencias",
+        "xlsx-roundtrip-formula-unicode-imagen-y-cf",
+        "pptx-imagen-texto-y-grafica-editable",
+        "pptx-esm-conserva-generacion",
+        "bundle-cjs-del-padre-sin-importar-image-size",
+        "word-conserva-texto-y-paquete-ooxml",
+        "exportador-real-del-hub-con-texto-notas-y-rechazo-vacio"
+      ],
+      "versions": {
+        "exceljs": "4.4.0",
+        "pptxgenjs": "4.0.1",
+        "uuid": "11.1.1",
+        "image-size": "2.0.4"
+      },
+      "node": "24.22.0",
+      "electron": "44.9.3",
+      "platform": "win32",
+      "architecture": "x64",
+      "realAccountsUsed": false,
+      "officeApplicationValidated": false,
+      "externalNetworkUsed": false,
+      "artifacts": [
+        {
+          "file": "hub.pptx",
+          "bytes": 48195,
+          "sha256": "2ac1103045a7457eb25f4a9c7c11ff943eb5bb5d9fcc47940afc00a67faa3e8d"
+        },
+        {
+          "file": "imagen.jpeg",
+          "bytes": 268,
+          "sha256": "f1fb7fe869e1bc2df84a487a23e938132df6c7f5b9bd4dacbcfab5f054e33c75"
+        },
+        {
+          "file": "imagen.png",
+          "bytes": 94,
+          "sha256": "a896a97e7f4e7292bdeac30ef992081768dfcc6f6a248381cf264d56194bb75f"
+        },
+        {
+          "file": "informe.docx",
+          "bytes": 8506,
+          "sha256": "1b581af0f3f24f7bd7bbbec6db1e4f2ede63cad9116bf0d235809313add0acdf"
+        },
+        {
+          "file": "informe.xlsx",
+          "bytes": 8842,
+          "sha256": "a3a9cb0ed76b523ad25c19d8816ec4ca5a6c051edeaf220d89e3c903e55c2c06"
+        },
+        {
+          "file": "presentacion.pptx",
+          "bytes": 68369,
+          "sha256": "076c196c53842610368dec8be38875023a574dcbb1589fd57cbb81162aee2636"
+        }
+      ]
+    }
+  },
+  "bundledHubExporter": "2273eba29b821b302cbc28e111165f47215ec621134ec66cb922959c88cbc286",
+  "officeApplicationValidated": false
+}

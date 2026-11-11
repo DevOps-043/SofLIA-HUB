@@ -1,0 +1,19 @@
+{
+  "status": "passed",
+  "electron": "44.9.3",
+  "checks": [
+    "ventana-local-sandbox-sin-proveedor-ni-prueba",
+    "state-ajeno-rechazado-en-listener-real",
+    "resultado-despues-de-liberar-puerto-y-ventana",
+    "callback-vigente-sin-reflejar-codigo",
+    "cerrar-ventana-cancela-y-permite-reintentar",
+    "sesion-revocada-retira-intento-nativo",
+    "fallo-de-apertura-no-retiene-recursos",
+    "destino-ajeno-no-se-abre"
+  ],
+  "externalBrowserMocked": true,
+  "realCredentialsUsed": false,
+  "realProviderAuthenticated": false,
+  "profile": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-calendar-oauth-native-8fUCjp",
+  "command": "npm run calendar:oauth:smoke:native"
+}

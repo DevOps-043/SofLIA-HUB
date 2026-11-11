@@ -1,24 +1,5 @@
-/**
- * Contrato de finalizacion estructurado de una tarea del agente de escritorio.
- * Permite al agente conversacional distinguir "completada" de "se agotaron los
- * pasos" o "expiro en cola", en lugar de interpretar un string plano.
- */
-export type DesktopTaskEstado =
-  | 'completada'
-  | 'fallida'
-  | 'cancelada'
-  | 'presupuesto_agotado'
-  | 'cola_expirada';
-
-export type DesktopTaskOutcome = {
-  taskId: string | null;
-  estado: DesktopTaskEstado;
-  mensaje: string;
-  pasosEjecutados: number;
-  duracionMs: number;
-  ultimaVentana?: string;
-};
-
+import type { DesktopTaskEstado, DesktopTaskOutcome } from '../../src/shared/desktop-agent';
+export type { DesktopTaskEstado, DesktopTaskOutcome } from '../../src/shared/desktop-agent';
 export function buildTaskOutcome(params: {
   taskId: string | null;
   estado: DesktopTaskEstado;

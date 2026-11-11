@@ -394,8 +394,6 @@ export function useOrbConversation() {
       const result = await sendMessageStream(text, historyRef.current, {
         model: MODELS.ORB,
         userId,
-        // La Orbe usa Gemini 3.8 Flash para Computer Use y SofLIA Pro para los
-        // demás comandos cuando OpenAI está configurado.
         task: 'orb',
         signal: controller.signal,
         onToolCall: (toolCall) => {

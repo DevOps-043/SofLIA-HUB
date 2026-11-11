@@ -1,0 +1,57 @@
+[
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-grounded-generation-2026-10-26\\build-final.log",
+    "bytes": 38993,
+    "sha256": "ae81b3a23ae66d1abb02670dfaa3835b210e0acb057c074a9e4237bd960faefb"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-grounded-generation-2026-10-26\\consumers-first.log",
+    "bytes": 2021,
+    "sha256": "f84608e00de7e9eafc035d62009e134154c097a6bad36977ba45ad56550859cb"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-grounded-generation-2026-10-26\\consumers-second.log",
+    "bytes": 6856,
+    "sha256": "29799e94e39009e532c7130d015857675357d389987417264c1cfaa2a975e2cb"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-grounded-generation-2026-10-26\\directed-final.log",
+    "bytes": 6853,
+    "sha256": "3e1c5ef4fcfeeaae79c5eea7debc32eaae1e2a9f7f8e3c4c15d6cc3a3a40330a"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-grounded-generation-2026-10-26\\directed-first.log",
+    "bytes": 6853,
+    "sha256": "643734d32603f11de2a1fca8c2b010ae81a355a55237dc2b077e02c6341a2925"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-grounded-generation-2026-10-26\\gate-final.log",
+    "bytes": 163680,
+    "sha256": "a5dc80fa217e2296e2fb43f0f40d9659f954297a011f845f598907734693e7bd"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-grounded-generation-2026-10-26\\lifetime-final.log",
+    "bytes": 6853,
+    "sha256": "1eba17471df260f93e583c6bf54629344f8f73a1e683f517f2a3b4129ec7ea58"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-grounded-generation-2026-10-26\\native-green.log",
+    "bytes": 2017,
+    "sha256": "926261d3f6b365aaf7c7241ac04955fa5c212a4106df0dc6000ef406dc5f502d"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-grounded-generation-2026-10-26\\red.log",
+    "bytes": 483,
+    "sha256": "0811cdffa694fe570fffbe9b3661e8f2ed6a1defc3d1762edce7bd2d03c0870a"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-grounded-generation-2026-10-26\\typecheck-first.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  },
+  {
+    "file": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-grounded-generation-2026-10-26\\typecheck-second.log",
+    "bytes": 113,
+    "sha256": "4cc0cb805f70b736325560149c70c27faba23060c46c476a046f05c5a39f1c4b"
+  }
+]

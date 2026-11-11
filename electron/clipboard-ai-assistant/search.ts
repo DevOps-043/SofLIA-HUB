@@ -1,5 +1,5 @@
-import type { GoogleGenerativeAI } from '@google/generative-ai';
-import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
+import { generateSessionText } from '../ai-provider/text';
+import { captureSessionOperation } from '../ai-provider/session-operation';
 import type { ClipboardItem } from './types';
 
 const NO_MATCH = 'NO_MATCH';
@@ -8,7 +8,6 @@ const NOT_FOUND_MESSAGE = 'No se encontro informacion que coincida con la busque
 
 export async function searchClipboardItems(
   history: ClipboardItem[],
-  genAI: GoogleGenerativeAI | null,
   query: string,
 ): Promise<string> {
   if (history.length === 0) {
@@ -17,7 +16,7 @@ export async function searchClipboardItems(
   }
 
   console.log(`[ClipboardAIAssistant] Buscando en portapapeles: "${query}"...`);
-  const aiMatch = await searchWithGemini(history, genAI, query);
+  const aiMatch = await searchWithOpenAI(history, query);
   if (aiMatch) return aiMatch;
 
   const keywordMatch = findKeywordMatch(history, query);
@@ -30,24 +29,22 @@ export async function searchClipboardItems(
   return NOT_FOUND_MESSAGE;
 }
 
-async function searchWithGemini(
+async function searchWithOpenAI(
   history: ClipboardItem[],
-  genAI: GoogleGenerativeAI | null,
   query: string,
 ): Promise<string | null> {
-  if (!genAI) return null;
-
+  const operation = captureSessionOperation();
   try {
-    const model = genAI.getGenerativeModel({ model: SOFLIA_RUNTIME_MODEL });
-    const result = await model.generateContent(buildClipboardPrompt(history, query));
-    const responseText = result.response.text().trim();
+    const responseText = (await generateSessionText(buildClipboardPrompt(history, query), { signal: operation.signal })).trim();
+    operation.assert();
     if (!responseText || responseText === NO_MATCH) return null;
     logSearchResult(query, responseText);
     return responseText;
-  } catch (err: any) {
-    console.error('[ClipboardAIAssistant] Error en busqueda con LLM:', err.message);
+  } catch {
+    operation.assert();
+    console.warn('[ClipboardAIAssistant] Se utilizó búsqueda local tras fallar la inferencia.');
     return null;
-  }
+  } finally { operation.dispose(); }
 }
 
 function findKeywordMatch(history: ClipboardItem[], query: string): string | null {

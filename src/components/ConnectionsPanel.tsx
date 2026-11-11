@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { GoogleConnectionSection } from './connections-panel/GoogleConnectionSection';
 import { TelegramConnectionSection } from './connections-panel/TelegramConnectionSection';
 import { WhatsAppConnectionSection } from './connections-panel/WhatsAppConnectionSection';
@@ -19,8 +19,9 @@ export function ConnectionsPanel({ apiKey }: ConnectionsPanelProps) {
     membership.organization_id === auth.sofiaContext?.currentOrganization?.id
   );
   const isOrgAdmin = activeMembership?.role === 'owner' || activeMembership?.role === 'admin';
-  const whatsApp = useWhatsAppConnection(apiKey);
-  const telegram = useTelegramConnection();
+  const actor = useMemo(() => ({ userId: auth.user?.id || null, organizationId: auth.sofiaContext?.currentOrganization?.id || null }), [auth.user?.id, auth.sofiaContext?.currentOrganization?.id]);
+  const whatsApp = useWhatsAppConnection(apiKey, actor);
+  const telegram = useTelegramConnection(actor);
   const calendar = useCalendarConnections();
   const toggle = (section: ConnectionSection) => setExpanded((prev) => prev === section ? null : section);
 

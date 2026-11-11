@@ -31,6 +31,7 @@ export async function executeIntegratedBrowserTool(
   toolName: string,
   args: Record<string, unknown>,
   signal?: AbortSignal,
+  sampleVideo = false,
 ): Promise<string> {
   signal?.throwIfAborted();
   const api = window.integratedBrowser;
@@ -105,7 +106,7 @@ export async function executeIntegratedBrowserTool(
   if (toolName === 'analizar_video_pestana') {
     const visible = await requireVisibleBrowser('analizar el video de');
     if (visible) return visible;
-    return analyzeTabVideo(api, args, signal);
+    return analyzeTabVideo(api, args, signal, sampleVideo);
   }
 
   if (toolName === 'navigate_integrated_browser') {
@@ -193,6 +194,7 @@ async function analyzeTabVideo(
   api: NonNullable<typeof window.integratedBrowser>,
   args: Record<string, unknown>,
   signal?: AbortSignal,
+  sampleVideo = false,
 ): Promise<string> {
   const estado = await api.getPlayerState();
   signal?.throwIfAborted();
@@ -204,7 +206,7 @@ async function analyzeTabVideo(
   const ventana = resolveRequestedWindow(args.ventana_segundos);
   const posicionConocida = player.currentTimeSeconds !== null;
 
-  if (player.publicVideoUrl) {
+  if (player.publicVideoUrl && !sampleVideo) {
     const base = buildPlaybackWindow(player.currentTimeSeconds, player.durationSeconds ?? undefined);
     // La ventana pedida se cuenta desde el inicio ya alineado con la
     // reproduccion; `clampWindow` la recorta al medio y al maximo del turno.
@@ -257,7 +259,7 @@ async function analyzeTabVideo(
     evidencia: 'muestreo-de-cuadros',
     cuadros: cuadros.length,
     marcas_de_tiempo: cuadros.map((frame) => Math.round(frame.atSeconds)),
-    nota: 'Este video no es publicamente direccionable, asi que la evidencia es un MUESTREO de cuadros sin audio, no el video completo. Dilo explicitamente al responder.',
+    nota: 'La evidencia consiste en cuadros muestreados sin audio. Indica esa limitación al responder.',
     __media: [{
       kind: 'frames',
       frames: cuadros.map((frame) => ({

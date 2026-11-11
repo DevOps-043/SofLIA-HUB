@@ -1,131 +1,55 @@
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
 import { clipboard as electronClipboard } from 'electron';
-import { SEND_KEYS_MAP } from '../desktop-agent-types';
 import { assertGuiAutomationSupported, detectPlatformCapabilities } from '../platform-capabilities';
 import type { PowerShellExecutor } from './window-controls';
 import type { InputDriver } from './input-driver/types';
 import { buildWindowsHotkey } from './windows-hotkey';
-
+import { desktopKeys } from '../../src/shared/desktop-keys';
 type Delay = (ms: number) => Promise<void>;
 const execFileAsync = promisify(execFileCb);
 
 export class DesktopKeyboardControls {
-  /** Driver de alto nivel (nut.js, tecleo humano). Si es null, se usa raw. */
   private inputDriver: InputDriver | null = null;
-
-  constructor(
-    private readonly ps: PowerShellExecutor,
-    private readonly delay: Delay,
-  ) {}
-
-  setInputDriver(driver: InputDriver | null): void {
-    this.inputDriver = driver;
-  }
-
+  constructor(private readonly ps: PowerShellExecutor, private readonly delay: Delay) {}
+  setInputDriver(driver: InputDriver | null): void { this.inputDriver = driver; }
   async keyboardType(text: string): Promise<void> {
-    if (this.inputDriver) {
-      await this.inputDriver.typeText(text);
-      return;
-    }
-    if (process.platform !== 'win32') {
-      await runXdotool(['type', '--clearmodifiers', text]);
-      return;
-    }
+    if (typeof text !== 'string' || text.length > 20000 || text.includes('\0')) throw new Error('Texto de teclado no válido.');
+    if (this.inputDriver) { await this.inputDriver.typeText(text); return; }
+    if (process.platform !== 'win32') { await runXdotool(['type', '--clearmodifiers', '--', text]); return; }
     const savedClip = await electronClipboard.readText();
     await electronClipboard.writeText(text);
     try {
       await this.delay(50);
-      await this.ps(`Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('^v')`);
+      await this.ps("Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('^v')");
       await this.delay(100);
     } finally {
-      await electronClipboard.writeText(savedClip);
+      // No sobrescribir una modificación del usuario/otra aplicación durante la espera.
+      if (await electronClipboard.readText() === text) await electronClipboard.writeText(savedClip);
     }
   }
-
-  async keyboardKey(key: string): Promise<void> {
-    // Computer Use emite combinaciones como un solo string ("ctrl+shift+n").
-    // Sin este desglose el driver nut.js no encontraba ninguna tecla con ese
-    // nombre, filtraba todo y la accion se perdia SIN error: el agente creia
-    // haber pulsado el atajo. SEND_KEYS_MAP solo cubre unos pocos combos fijos.
-    const partes = splitKeyCombination(key);
-    if (partes.length > 1) {
-      await this.keyboardHotkey(...partes);
-      return;
-    }
-    if (this.inputDriver) {
-      await this.inputDriver.pressKeys([key]);
-      return;
-    }
-    if (process.platform === 'win32' && ['win', 'meta', 'super', 'command', 'cmd'].includes(key.toLowerCase())) {
-      await this.ps(buildWindowsHotkey([key])); return;
-    }
-    const sendKey = SEND_KEYS_MAP[key.toLowerCase()] || key;
-    if (process.platform !== 'win32') {
-      await runXdotool(['key', '--clearmodifiers', normalizeXdotoolKey(sendKey)]);
-      return;
-    }
-    await this.ps(`Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('${sendKey}')`);
-  }
-
+  async keyboardKey(key: string): Promise<void> { await this.pressValidated(desktopKeys(key)); }
   async keyboardHotkey(...keys: string[]): Promise<void> {
-    if (this.inputDriver) {
-      await this.inputDriver.pressKeys(keys);
-      return;
-    }
-    if (process.platform !== 'win32') {
-      await runXdotool(['key', '--clearmodifiers', keys.map(normalizeXdotoolKey).join('+')]);
-      return;
-    }
-    if (keys.some(key => ['win', 'meta', 'super', 'command', 'cmd'].includes(key.toLowerCase()))) {
-      await this.ps(buildWindowsHotkey(keys)); return;
-    }
-    let combo = '';
-    for (const key of keys) {
-      const lower = key.toLowerCase();
-      if (lower === 'ctrl') combo += '^';
-      else if (lower === 'shift') combo += '+';
-      else if (lower === 'alt') combo += '%';
-      else combo += lower.length === 1 ? lower : `{${lower.toUpperCase()}}`;
-    }
-    await this.ps(`Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('${combo}')`);
+    if (!keys.length || keys.some(key => typeof key !== 'string')) throw new Error('Combinación de teclado no válida.');
+    await this.pressValidated(desktopKeys(keys.join('+')));
+  }
+  private async pressValidated(keys: string[]): Promise<void> {
+    if (this.inputDriver) { await this.inputDriver.pressKeys(keys); return; }
+    if (process.platform !== 'win32') { await runXdotool(['key', '--clearmodifiers', keys.map(normalizeXdotoolKey).join('+')]); return; }
+    await this.ps(buildWindowsHotkey(keys));
   }
 }
-
 async function runXdotool(args: string[]): Promise<void> {
-  const capabilities = detectPlatformCapabilities();
-  assertGuiAutomationSupported(capabilities);
-  if (!capabilities.linuxXdotool) throw new Error(capabilities.unsupportedReason || 'xdotool solo se usa en Linux X11.');
-  try {
-    await execFileAsync('xdotool', args, { timeout: 10000, windowsHide: true });
-  } catch (error: unknown) {
-    const detail = error instanceof Error ? error.message : String(error);
-    throw Object.assign(
-      new Error(`No se pudo ejecutar xdotool. Instala xdotool y usa una sesion X11. Detalle: ${detail}`),
-      { cause: error },
-    );
-  }
+  const capabilities = detectPlatformCapabilities(); assertGuiAutomationSupported(capabilities);
+  if (!capabilities.linuxXdotool) throw new Error('xdotool sólo está disponible en Linux X11.');
+  try { await execFileAsync('xdotool', args, { timeout: 10000, windowsHide: true, maxBuffer: 65536 }); }
+  catch { throw new Error('No se completó la entrada xdotool. Comprueba instalación y sesión X11.'); }
+}
+function normalizeXdotoolKey(key: string): string {
+  const names: Readonly<Record<string, string>> = { ctrl: 'Control_L', shift: 'Shift_L', alt: 'Alt_L', meta: 'Super_L', enter: 'Return', escape: 'Escape', tab: 'Tab', backspace: 'BackSpace', delete: 'Delete', pageup: 'Prior', pagedown: 'Next', up: 'Up', down: 'Down', left: 'Left', right: 'Right', home: 'Home', end: 'End', '+': 'plus', ';': 'semicolon', "'": 'apostrophe', '\x60': 'grave', '\\': 'backslash', '[': 'bracketleft', ']': 'bracketright', '=': 'equal', '-': 'minus', ',': 'comma', '.': 'period', '/': 'slash' };
+  return names[key] ?? (/^f\d+$/.test(key) ? key.toUpperCase() : key);
 }
 
-function normalizeXdotoolKey(key: string): string {
-  const normalized = key.replace(/[{}]/g, '').toLowerCase();
-  const map: Record<string, string> = {
-    ctrl: 'ctrl',
-    control: 'ctrl',
-    shift: 'shift',
-    alt: 'alt',
-    enter: 'Return',
-    return: 'Return',
-    esc: 'Escape',
-    escape: 'Escape',
-    tab: 'Tab',
-    backspace: 'BackSpace',
-    delete: 'Delete',
-    del: 'Delete',
-    space: 'space',
-  };
-  return map[normalized] || key;
-}
 
 /**
  * Desglosa "ctrl+shift+n" en sus teclas. Un "+" suelto (la tecla mas) se

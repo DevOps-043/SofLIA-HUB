@@ -29,7 +29,7 @@ export default tseslint.config(
       '.worktrees/**',
     ],
   },
-  { files: ['scripts/**/*.mjs', 'eslint.config.mjs'], languageOptions: { globals: globals.node } },
+  { files: ['scripts/**/*.mjs', 'test/**/*.mjs', 'eslint.config.mjs'], languageOptions: { globals: globals.node } },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -37,16 +37,28 @@ export default tseslint.config(
   },
   {
     // Entradas Node CommonJS: hooks y fixtures nativas se cargan con require.
-    files: ['scripts/setup-python-runtime.js', 'scripts/python-runtime-support.cjs', 'scripts/verify-packaged-python.cjs', 'test/manual/voice-ipc/*.cjs'],
+    files: ['scripts/**/*.{js,cjs}', 'test/**/*.cjs', 'postcss.config.js', 'tailwind.config.js'],
     languageOptions: { sourceType: 'commonjs', globals: globals.node },
     rules: { '@typescript-eslint/no-require-imports': 'off' },
   },
   {
-    files: ['**/*.{ts,tsx}'],
+    files: ['src/**/*.{js,jsx,mjs}', 'public/**/*.js', 'resources/**/*.js'],
+    languageOptions: { globals: globals.browser, parserOptions: { ecmaFeatures: { jsx: true } } },
+  },
+  {
+    // Sólo callbacks de page.evaluate de este smoke acceden al DOM.
+    files: ['test/manual/project-panel/smoke.mjs'],
+    languageOptions: { globals: { document: 'readonly', window: 'readonly' } },
+  },
+  {
+    files: ['**/*.{ts,tsx,mts,cts}'],
     languageOptions: {
       ecmaVersion: 2020,
       globals: { ...globals.browser, ...globals.node },
     },
+  },
+  {
+    files: ['**/*.{ts,tsx,mts,cts,js,jsx}'],
     plugins: {
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,

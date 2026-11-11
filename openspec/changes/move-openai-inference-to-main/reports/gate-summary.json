@@ -1,0 +1,79 @@
+{
+  "exitCode": 0,
+  "durationSeconds": 578.2014579,
+  "stages": [
+    {
+      "script": "adapters:check",
+      "exitCode": 0
+    },
+    {
+      "script": "harness:validate",
+      "exitCode": 0
+    },
+    {
+      "script": "audit:supply-chain",
+      "exitCode": 0
+    },
+    {
+      "script": "ci:integrity",
+      "exitCode": 0
+    },
+    {
+      "script": "runtime:stable",
+      "exitCode": 0
+    },
+    {
+      "script": "docs:system:check",
+      "exitCode": 0
+    },
+    {
+      "script": "docs:check",
+      "exitCode": 0
+    },
+    {
+      "script": "skills:seed:check",
+      "exitCode": 0
+    },
+    {
+      "script": "openspec:validate",
+      "exitCode": 0
+    },
+    {
+      "script": "test:quality",
+      "exitCode": 0
+    },
+    {
+      "script": "python-tools:test",
+      "exitCode": 0
+    },
+    {
+      "script": "typecheck",
+      "exitCode": 0
+    },
+    {
+      "script": "lint:changed",
+      "exitCode": 0
+    },
+    {
+      "script": "test:coverage",
+      "exitCode": 0
+    }
+  ],
+  "tests": {
+    "passed": 6746,
+    "skipped": 5,
+    "total": 6751
+  },
+  "files": {
+    "passed": 560,
+    "skipped": 2,
+    "total": 562
+  },
+  "toolingTests": 62,
+  "pythonTests": 33,
+  "lintFiles": 637,
+  "markdownFiles": 866,
+  "node": "v26.7.0",
+  "electron": "44.9.3",
+  "remoteExecuted": false
+}

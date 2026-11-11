@@ -1,0 +1,408 @@
+{
+  "confirmationProfile": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-app-build-vZ5b2N",
+  "reportSha256": "eceb1cadb0767d8ad9b72f6c05e158321701ac3dbcea5f71ce723ec370dd7063",
+  "functionalChecks": [
+    "modalidad nativa: Cancelar recibe foco y el fondo queda fuera de foco y árbol AX operativo",
+    "Tab y Shift+Tab recorren acciones del modal sin shortcuts por burbujeo",
+    "otra solicitud con texto idéntico renueva foco seguro",
+    "Escape cancela sin aprobar y devuelve foco al invocador",
+    "las tres decisiones explícitas mantienen su resultado sin enviar formulario exterior",
+    "sin permiso permanente sólo se ofrecen Cancelar y Ejecutar; cierre controlado restaura foco",
+    "arrastrar desde contenido no decide; clic real en fondo sólo cancela",
+    "un gesto de aprobación de ratón o Space iniciado antes de reemplazar la solicitud no decide la nueva",
+    "las tres variantes conservan contraste 4.5:1 de texto principal en ambos temas, reposo y hover",
+    "ambos temas a 200% conservan lectura inicial y acciones desplazables con movimiento reducido"
+  ],
+  "contrast": [
+    {
+      "theme": "dark",
+      "toolName": "execute_command",
+      "state": "default",
+      "hoverForced": false,
+      "foreground": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "background": [
+        187,
+        77,
+        0,
+        255
+      ],
+      "ratio": 5.030530556917215
+    },
+    {
+      "theme": "dark",
+      "toolName": "execute_command",
+      "state": "hover",
+      "hoverForced": true,
+      "foreground": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "background": [
+        151,
+        60,
+        0,
+        255
+      ],
+      "ratio": 7.089312751579982
+    },
+    {
+      "theme": "dark",
+      "toolName": "send_email",
+      "state": "default",
+      "hoverForced": false,
+      "foreground": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "background": [
+        21,
+        93,
+        252,
+        255
+      ],
+      "ratio": 5.245696961921662
+    },
+    {
+      "theme": "dark",
+      "toolName": "send_email",
+      "state": "hover",
+      "hoverForced": true,
+      "foreground": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "background": [
+        20,
+        71,
+        230,
+        255
+      ],
+      "ratio": 6.832214471392099
+    },
+    {
+      "theme": "dark",
+      "toolName": "delete_item",
+      "state": "default",
+      "hoverForced": false,
+      "foreground": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "background": [
+        231,
+        0,
+        11,
+        255
+      ],
+      "ratio": 4.7698900124065196
+    },
+    {
+      "theme": "dark",
+      "toolName": "delete_item",
+      "state": "hover",
+      "hoverForced": true,
+      "foreground": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "background": [
+        193,
+        0,
+        7,
+        255
+      ],
+      "ratio": 6.420920075570489
+    },
+    {
+      "theme": "light",
+      "toolName": "execute_command",
+      "state": "default",
+      "hoverForced": false,
+      "foreground": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "background": [
+        187,
+        77,
+        0,
+        255
+      ],
+      "ratio": 5.030530556917215
+    },
+    {
+      "theme": "light",
+      "toolName": "execute_command",
+      "state": "hover",
+      "hoverForced": true,
+      "foreground": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "background": [
+        151,
+        60,
+        0,
+        255
+      ],
+      "ratio": 7.089312751579982
+    },
+    {
+      "theme": "light",
+      "toolName": "send_email",
+      "state": "default",
+      "hoverForced": false,
+      "foreground": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "background": [
+        21,
+        93,
+        252,
+        255
+      ],
+      "ratio": 5.245696961921662
+    },
+    {
+      "theme": "light",
+      "toolName": "send_email",
+      "state": "hover",
+      "hoverForced": true,
+      "foreground": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "background": [
+        20,
+        71,
+        230,
+        255
+      ],
+      "ratio": 6.832214471392099
+    },
+    {
+      "theme": "light",
+      "toolName": "delete_item",
+      "state": "default",
+      "hoverForced": false,
+      "foreground": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "background": [
+        231,
+        0,
+        11,
+        255
+      ],
+      "ratio": 4.7698900124065196
+    },
+    {
+      "theme": "light",
+      "toolName": "delete_item",
+      "state": "hover",
+      "hoverForced": true,
+      "foreground": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "background": [
+        193,
+        0,
+        7,
+        255
+      ],
+      "ratio": 6.420920075570489
+    }
+  ],
+  "minimumContrast": 4.7698900124065196,
+  "layouts": [
+    {
+      "theme": "dark",
+      "factor": 2,
+      "top": 16,
+      "bottom": 184,
+      "left": 18,
+      "right": 342,
+      "width": 360,
+      "height": 200,
+      "scrollTop": 0,
+      "animation": "none",
+      "transition": "none",
+      "action": {
+        "visible": true,
+        "scroll": 5921.2001953125
+      }
+    },
+    {
+      "theme": "light",
+      "factor": 2,
+      "top": 16,
+      "bottom": 184,
+      "left": 18,
+      "right": 342,
+      "width": 360,
+      "height": 200,
+      "scrollTop": 0,
+      "animation": "none",
+      "transition": "none",
+      "action": {
+        "visible": true,
+        "scroll": 6176.7998046875
+      }
+    }
+  ],
+  "focusEmulated": true,
+  "replacementGesture": {
+    "before": "cancelar,cancelar,siempre,confirmar,cancelar,siempre,confirmar,cancelar",
+    "after": "cancelar,cancelar,siempre,confirmar,cancelar,siempre,confirmar,cancelar",
+    "opened": true
+  },
+  "replacementKeyboard": {
+    "before": "cancelar,cancelar,siempre,confirmar,cancelar,siempre,confirmar,cancelar",
+    "after": "cancelar,cancelar,siempre,confirmar,cancelar,siempre,confirmar,cancelar",
+    "opened": true
+  },
+  "componentSources": [
+    {
+      "file": "src/components/ConfirmActionModal.tsx",
+      "sha256": "0e9a50ae743a3492f8886aeaf874e5a7e75dd39c5a80641c972aed7fd82c910c"
+    },
+    {
+      "file": "src/components/confirm-action-modal/ConfirmActionModal.tsx",
+      "sha256": "59bcfc6ed9f48195a99f479cd09bef944f37b14a730a7c8bc50ae32c3668cf3a"
+    },
+    {
+      "file": "src/components/confirm-action-modal/ActionDetail.tsx",
+      "sha256": "b71e9d9c3b97e49db05b6ff11aa524d2df15c1b264b5b339e393cf92b8d0635a"
+    },
+    {
+      "file": "src/components/confirm-action-modal/action-tone.ts",
+      "sha256": "16ac62ecc9df3a112b959585db44aaeb5d4da60dfbd0c70be7adf05dd5a367e4"
+    },
+    {
+      "file": "src/components/confirm-action-modal/tool-meta.tsx",
+      "sha256": "b43fffa41ad5d1885b76efe86e398c9c11810afefdff4659f556a84b32fa8b5f"
+    },
+    {
+      "file": "src/components/confirm-action-modal/types.ts",
+      "sha256": "c37d6358f224c1cfc40e18bb9039b590506dd308316dfe263ff21052fd55d51c"
+    },
+    {
+      "file": "src/index.css",
+      "sha256": "2d6ed6066a65d2fff8f85f21c30ebebc410ffcbdddcd8eaeffe422d62a0a7c28"
+    },
+    {
+      "file": "postcss.config.js",
+      "sha256": "43645306936fb39b0e45426cead8de43c320122807814a9f1c6e2d4e93f8c6f0"
+    },
+    {
+      "file": "package.json",
+      "sha256": "4dc85e8294854ff6785e33d72956e53970840aa8cfd693b71dcb170b814bf2be"
+    },
+    {
+      "file": "package-lock.json",
+      "sha256": "16e0accb2c755825427afaa8f41e1a0760627d67a8b8305e2cc0ccb79d9563c1"
+    },
+    {
+      "file": "src/adapters/desktop_ui/chat-ui/ChatModals.tsx",
+      "sha256": "b6cd30c329927d7fa00640f2b7683b9a7e4d37da4c2c43c3fef101b66802c299"
+    },
+    {
+      "file": "src/adapters/desktop_ui/chat-ui/types.ts",
+      "sha256": "9bcc4a6cd457c68ed3cf517aeb7901e20b85808710d16fc98e319fe7ceb5e609"
+    },
+    {
+      "file": "src/adapters/desktop_ui/chat-ui/useChatUIController.ts",
+      "sha256": "95eb075dc072655232b4b561b7bdc3b5713bad4340c419dd57709817f1a0ca48"
+    }
+  ],
+  "fixtureChanges": [
+    {
+      "file": "test/manual/confirmation-dialog/main.cjs",
+      "executedCopy": "46be236e6f2ca79f79fa15d9831c7d31b0f9f47ca40e40f10977691d41accb49",
+      "current": "6ed2e18f28de7fb8d8de92ee043de52955e167f5b0090c9fa16c9a5a041e17ea"
+    },
+    {
+      "file": "test/manual/confirmation-dialog/fixture.tsx",
+      "executedCopy": "802d97fdcafb9a0153bbe13e541b7457b9693dd92ab3e0d1f47b54252bafb126",
+      "current": "2c2d12f0effc65a3a95c51192c9be707026e718fbbb65dd06ee496252139da3e"
+    }
+  ],
+  "finalHarnessExecuted": false,
+  "visualReview": "Pendiente: imágenes defectuosas descartadas; apertura de archivo local rechazada por política del navegador. Sin vía alternativa.",
+  "discardedImageFiles": [
+    "confirmation-dark-100.png",
+    "confirmation-light-100.png",
+    "confirmation-dark-200.png",
+    "confirmation-light-200.png"
+  ],
+  "selector": {
+    "profile": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-app-build-kM34xi",
+    "reportSha256": "9f751cc8126541e9e3695c488ba224b51db7536620ae7ae76a0a92424ce693b5",
+    "checks": [
+      "el árbol AX conserva nombre externo y estado expandido en portal modal real",
+      "primer Escape cierra sólo popup; segundo Escape puede cerrar el diálogo nativo",
+      "reordenar opciones conserva la identidad elegida sin cambiar el foco",
+      "Tab y cambio de foco cierran sin confirmar ni atrapar al usuario",
+      "a 200% la lista queda en viewport y End muestra la opción final con movimiento reducido",
+      "desplazar opciones no fuerza el retorno a la opción activa"
+    ],
+    "matchingSources": [
+      {
+        "file": "scripts/quality/renderer-fixture-smoke.mjs",
+        "sha256": "0b8fd0324c286bd41bda764f78e32edc5a42a57b4067750e33c8fab163ec74c2"
+      },
+      {
+        "file": "scripts/quality/smoke-select-dropdown.mjs",
+        "sha256": "ff686498bef557e7c7c9ef0bd6ecdda26795a7849e3a0f05d5b2e1a53493612f"
+      },
+      {
+        "file": "src/components/ui/SelectDropdown.tsx",
+        "sha256": "a9e5e4d9aaf848ee681a16c0927b656d7a5c2ebd203542c3318eebba33dbcc04"
+      },
+      {
+        "file": "src/components/ui/select-dropdown-navigation.ts",
+        "sha256": "353c2db874c74fb354515fa6b95d3854f23a8646d21b63ce82c4f073417eb027"
+      },
+      {
+        "file": "test/manual/select-dropdown/main.cjs",
+        "sha256": "06ae02f96948e5fb73edb626e41687f4d119de65113de54390e0a0aa7d3f0454"
+      },
+      {
+        "file": "test/manual/select-dropdown/fixture.tsx",
+        "sha256": "5a5975628ebce6b111b068c17f1375dbe77a83d10c1abf6b43d47acc35d1f05b"
+      }
+    ]
+  },
+  "scope": "Resultados funcionales previos al bloqueo, Windows/x64, Electron oculto con foco emulado. No certificación AT/WCAG, otras plataformas o arranque de producto.",
+  "remoteExecuted": false
+}

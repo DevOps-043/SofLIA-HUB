@@ -80,7 +80,6 @@ export function makeCtx(overrides: Partial<ToolExecutorContext> = {}): ToolExecu
     clipboardAssistant: null, taskScheduler: null, neuralOrganizer: null, smartSearch: null,
     memory: { storeFact: vi.fn(), searchSemantic: vi.fn(), getStats: vi.fn() } as unknown as ToolExecutorContext['memory'],
     knowledge: { save: vi.fn(), search: vi.fn() } as unknown as ToolExecutorContext['knowledge'],
-    getGenAI: vi.fn() as unknown as ToolExecutorContext['getGenAI'],
     requestConfirmation: vi.fn(async () => true),
     ...overrides,
   };

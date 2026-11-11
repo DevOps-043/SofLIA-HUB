@@ -1,9 +1,11 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { TelegramStatusSnapshot } from '../../../services/telegram-service';
 import { getEffectiveTriageQuery } from './formatters';
-import type { ActiveAutomationAction, RemoteImageState, TriagePresetId } from './types';
+import type { ActiveAutomationAction, TriagePresetId } from './types';
+import { useRemoteNodeForm } from './useRemoteNodeForm';
 
-export function useAutomationFormState() {
+export function useAutomationFormState(userId: string) {
+  const remoteNode = useRemoteNodeForm(userId);
   const [triagePreset, setTriagePreset] = useState<TriagePresetId>('unread');
   const [triageQuery, setTriageQuery] = useState('');
   const [triageMaxResults, setTriageMaxResults] = useState(5);
@@ -31,10 +33,6 @@ export function useAutomationFormState() {
   const [telegramToken, setTelegramToken] = useState('');
   const [telegramAllowedChats, setTelegramAllowedChats] = useState('');
   const [telegramPollInterval, setTelegramPollInterval] = useState(8000);
-  const [nodeName, setNodeName] = useState('');
-  const [nodeBaseUrl, setNodeBaseUrl] = useState('http://127.0.0.1:47825');
-  const [nodeToken, setNodeToken] = useState('');
-  const [remoteImage, setRemoteImage] = useState<RemoteImageState | null>(null);
   const [activeAction, setActiveAction] = useState<ActiveAutomationAction>('triage');
   const effectiveTriageQuery = useMemo(
     () => getEffectiveTriageQuery(triagePreset, triageQuery),
@@ -56,7 +54,7 @@ export function useAutomationFormState() {
     desktop: { objective: desktopObjective, setObjective: setDesktopObjective, backend: desktopBackend, setBackend: setDesktopBackend, startUrl: desktopStartUrl, setStartUrl: setDesktopStartUrl },
     custom: { name: customFlowName, setName: setCustomFlowName, objective: customFlowObjective, setObjective: setCustomFlowObjective, details: customFlowDetails, setDetails: setCustomFlowDetails },
     telegram: { enabled: telegramEnabled, setEnabled: setTelegramEnabled, token: telegramToken, setToken: setTelegramToken, allowedChats: telegramAllowedChats, setAllowedChats: setTelegramAllowedChats, pollInterval: telegramPollInterval, setPollInterval: setTelegramPollInterval, hydrate: hydrateTelegram },
-    remoteNode: { name: nodeName, setName: setNodeName, baseUrl: nodeBaseUrl, setBaseUrl: setNodeBaseUrl, token: nodeToken, setToken: setNodeToken, image: remoteImage, setImage: setRemoteImage },
+    remoteNode,
     action: { active: activeAction, setActive: setActiveAction },
   };
 }

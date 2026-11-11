@@ -1,0 +1,62 @@
+{
+  "date": "2026-11-07",
+  "gateExit": 0,
+  "buildExit": 0,
+  "testsPassed": 7096,
+  "testsSkipped": 5,
+  "testFilesPassed": 596,
+  "testFilesSkipped": 2,
+  "toolingTests": 64,
+  "pythonTests": 33,
+  "lintChangedFiles": 794,
+  "productionFiles": 2633,
+  "coverage": {
+    "lines": 60.93,
+    "statements": 59.37,
+    "functions": 55.86,
+    "branches": 52.7
+  },
+  "sourceSha256": "cab2e3cb755a04df62493bbc00087ec62eaf807ab1ff45f729daeff02701b2d3",
+  "realProviders": false,
+  "installedApplicationTested": false,
+  "independentReview": false,
+  "integratedBranchesTested": false,
+  "receipts": {
+    "gate.log": {
+      "path": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-openai-meeting-extraction-2026-11-07\\gate.log",
+      "sha256": "75017901e3a8a2cd7539b190a4212821e60df933921044d3a3f2c95c6df0fc09"
+    },
+    "build.log": {
+      "path": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-openai-meeting-extraction-2026-11-07\\build.log",
+      "sha256": "f880958570a94665827ee43e20ee86abaf8ea09e95e1e17f65dead651253e1a0"
+    },
+    "lint-summary.json": {
+      "path": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-openai-meeting-extraction-2026-11-07\\lint-summary.json",
+      "sha256": "698a15122e698324130c0316ed0f4c98dbcfab9b40a05ad17ae010a619d29bab"
+    },
+    "static-audit.json": {
+      "path": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-openai-meeting-extraction-2026-11-07\\static-audit.json",
+      "sha256": "72d91c8fab68f85b61ce0e4c3e4aee5e714157b2b1658cc8c883942df0922272"
+    },
+    "docs-check-final.log": {
+      "path": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-openai-meeting-extraction-2026-11-07\\docs-check-final.log",
+      "sha256": "b792d57e30b93eeb007295fefc6f2367784735497a8ed31127867e8830124e6f"
+    },
+    "docs-system-final.log": {
+      "path": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-openai-meeting-extraction-2026-11-07\\docs-system-final.log",
+      "sha256": "eb9732a75c4e973678677430b02bb1db722a3e735e671c9e7e4afb59202cf86a"
+    },
+    "openspec-final.log": {
+      "path": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-openai-meeting-extraction-2026-11-07\\openspec-final.log",
+      "sha256": "0ff312c209fcf6846dcea707f13233687ce976f007684adacd42c157c487fd4e"
+    },
+    "package.json": {
+      "path": "package.json",
+      "sha256": "7a0eacea26b61cd35bc0d4b28fa5c1f8bbfa3717f0ab1424fd59fc88a6834347"
+    },
+    "package-lock.json": {
+      "path": "package-lock.json",
+      "sha256": "77bc00691779dd7714cb47915a7e117a490bd4ec106d3827b1d580bf1ff8c7cd"
+    }
+  }
+}

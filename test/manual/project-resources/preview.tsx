@@ -1,0 +1,33 @@
+/** Superficie de QA aislada, con datos simulados y sin preload del producto. */
+import { useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import '../../../src/index.css';
+import { Sidebar } from '../../../src/components/Sidebar';
+import type { SidebarProps } from '../../../src/components/sidebar/types';
+import { UnifiedProjectHub } from '../../../src/components/project-hub/UnifiedProjectHub';
+import type { ProjectNavigation, ProjectSection } from '../../../src/components/project-workspace/types';
+import { SavePageDialog } from '../../../src/components/browser/BrowserSaveToProject';
+const noop = () => {};
+const ok = (data: unknown) => Promise.resolve({ success: true, data });
+const project = { project_id: 'p', workspace_id: 'w', project_key: 'SOF', project_name: 'Soflia Hub', project_description: 'Diseño y desarrollo de la nueva experiencia de trabajo.', project_status: 'active', role: 'owner', updated_at: '2026-10-24', target_date: '2026-11-12' };
+const docs = [{ id: 'd1', name: 'Guía de marca', provider: 'google_drive', external_url: 'https://drive.google.com/file/d/guia/view', doc_type: 'document' }, { id: 'd2', name: 'Plan de lanzamiento', provider: 'google_sheets', external_url: 'https://drive.google.com/file/d/plan/view', doc_type: 'spreadsheet' }, { id: 'd3', name: 'Presentación del producto', provider: 'google_drive', external_url: 'https://drive.google.com/file/d/deck/view', doc_type: 'presentation' }];
+const api = {
+ getProject: () => ok(project), getAnalytics: () => ok({}), listTasks: () => ok([]), getTaskOptions: () => ok({}), listMembers: () => ok([]), getLocation: () => ok(null),
+ locationFiles: () => ok({ location: { mode: 'local', rootPath: 'C:\\Proyectos\\Soflia', additionalFolders: [] }, files: [{ id: 'Notas del proyecto.md', name: 'Notas del proyecto.md', size: 1324 }, { id: 'Investigación de usuarios.pdf', name: 'Investigación de usuarios.pdf', size: 424000 }, { id: 'Arquitectura.png', name: 'Arquitectura.png', size: 128000 }], partial: false }),
+ cloudAccounts: () => ok([{ provider: 'google_drive', connected: true }]), listDocuments: () => ok(docs),
+ listEvidence: () => ok([{ evidence_id: 'web1', evidence_type: 'link', title: 'Guía de accesibilidad de W3C', external_reference: 'https://www.w3.org/WAI/', metadata: { url: 'https://www.w3.org/WAI/' } }, { evidence_id: 'web2', evidence_type: 'link', title: 'Diseño de interfaces · Material Design', external_reference: 'https://m3.material.io/', metadata: { url: 'https://m3.material.io/' } }, { evidence_id: 'web3', evidence_type: 'link', title: 'Documentación de React', external_reference: 'https://react.dev/', metadata: { url: 'https://react.dev/' } }]),
+ cloudFiles: (input: { selectionId?: string }) => ok({ selectionId: input.selectionId || 'root', provider: 'google_drive', name: input.selectionId ? 'Diseño' : 'Mi unidad', accountEmail: 'ana@example.test', breadcrumbs: [{ selectionId: 'root', name: 'Mi unidad' }, ...(input.selectionId ? [{ selectionId: 'design', name: 'Diseño' }] : [])], folders: input.selectionId ? [] : [{ selectionId: 'design', name: 'Diseño' }, { selectionId: 'research', name: 'Investigación' }], files: [{ selectionId: 's1', name: 'Brief del proyecto.pdf' }, { selectionId: 's2', name: 'Identidad de Soflia.png' }, { selectionId: 's3', name: 'Propuesta de navegación' }] }),
+ linkCloudFile: () => ok({}), previewLocationFile: () => ok({ name: 'Notas del proyecto.md', mimeType: 'text/plain', base64: btoa('# Notas del proyecto\n\nObjetivo\nSimplificar el trabajo del equipo en una sola aplicación.\n\nPróximos pasos\n- Validar la navegación con el equipo.\n- Organizar los archivos del lanzamiento.\n- Revisar las pruebas de accesibilidad.') }),
+ resolveOrganization: () => ok({ workspaceId: 'w' }), listProjects: () => ok([project, { ...project, project_id: 'p2', project_name: 'Lanzamiento del producto' }]), addEvidence: () => ok({}),
+};
+Object.assign(window, { projectHubApi: api });
+const defaults = {
+ isOpen: true, onToggle: noop, activeView: 'project-hub', conversations: [], currentConversationId: null, loadingConversations: false, onNewChat: noop, onSelectConversation: noop, onDeleteConversation: noop, onTogglePinConversation: noop, renamingChatId: null, onSetRenamingChatId: noop, editingChatTitle: '', onSetEditingChatTitle: noop, onRenameChat: noop, activeMenuChatId: null, onSetActiveMenuChatId: noop, onSetMovingChatId: noop, folders: [], expandedFolders: new Set(), currentFolderId: null, onCreateFolderClick: noop, onToggleFolder: noop, onOpenProject: noop, onDeleteFolder: noop, renamingFolderId: null, editingFolderName: '', onSetEditingFolderName: noop, onStartRenameFolder: noop, onFinishRenameFolder: noop, onCancelRenameFolder: noop, irisTeams: [], irisProjects: [], irisIssues: {}, expandedTeams: new Set(), expandedProjects: new Set(), onToggleTeam: noop, onToggleProject: noop, onIrisProjectClick: noop, onIrisIssueClick: noop, onRefreshIris: noop, displayName: 'Ana López', initials: 'AL', orgName: 'Organización de prueba', theme: 'light', onSetTheme: noop, onOpenSettings: noop, onSignOut: noop,
+} as SidebarProps;
+export function Preview() {
+ const [section, setSection] = useState<ProjectSection>('files'), [expanded, setExpanded] = useState(true), [save, setSave] = useState(false), [web, setWeb] = useState('');
+ const chats = ['Decisiones de producto', 'Plan de lanzamiento', 'Revisión de entregables'].map((title, index) => ({ id: String(index), user_id: 'u', title, created_at: '', updated_at: '2026-10-24' }));
+ const navigation: ProjectNavigation = { name: project.project_name, section, conversations: chats, currentConversationId: null, canCreateChat: true, browserOpen: false, onNavigate: setSection, onBack: noop, onNewChat: () => setSection('chat'), onOpenChat: () => setSection('chat'), onOpenBrowser: () => setSave(true) };
+ return <div className="flex h-screen flex-col bg-background"><div className="flex h-8 shrink-0 items-center justify-end px-5 text-[10px] text-secondary">Prueba visual · Datos simulados</div><div className="flex min-h-0 flex-1"><Sidebar {...defaults} isOpen={expanded} onToggle={() => setExpanded(!expanded)} projectNavigation={navigation} /><UnifiedProjectHub workspaceId="w" projectId="p" section={section} navigation={navigation} onNavigate={setSection} onOpenWeb={setWeb} /></div>{save && <SavePageDialog organizationId="org" title="Guía de accesibilidad de W3C" url="https://www.w3.org/WAI/" onClose={() => setSave(false)} />}{web && <div role="status">Vista del proveedor solicitada: {web}</div>}</div>;
+}
+createRoot(document.getElementById('root')!).render(<Preview />);

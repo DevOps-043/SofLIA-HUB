@@ -1,0 +1,233 @@
+{
+  "date": "2026-10-25",
+  "baseline": "technical-debt-2026-10-19.json",
+  "baselineIndex": 50.375,
+  "currentGlobalIndex": null,
+  "reason": "No se repitió la evaluación ponderada completa de 44 criterios.",
+  "blocks": [
+    {
+      "change": "bind-chat-sync-to-lia-session",
+      "checked": 6,
+      "unchecked": 0
+    },
+    {
+      "change": "bound-browser-recovery-review-lifetime",
+      "checked": 8,
+      "unchecked": 0
+    },
+    {
+      "change": "bound-python-document-parsing",
+      "checked": 7,
+      "unchecked": 0
+    },
+    {
+      "change": "constrain-gmail-runtime-feedback",
+      "checked": 6,
+      "unchecked": 0
+    },
+    {
+      "change": "constrain-legacy-image-peer-resolution",
+      "checked": 6,
+      "unchecked": 0
+    },
+    {
+      "change": "enforce-electron-security-floor",
+      "checked": 6,
+      "unchecked": 0
+    },
+    {
+      "change": "gate-lint-against-trusted-git-baselines",
+      "checked": 7,
+      "unchecked": 0
+    },
+    {
+      "change": "gate-python-document-contracts",
+      "checked": 6,
+      "unchecked": 0
+    },
+    {
+      "change": "guard-auth-lifecycle-results",
+      "checked": 6,
+      "unchecked": 0
+    },
+    {
+      "change": "guard-gmail-delivery",
+      "checked": 9,
+      "unchecked": 0
+    },
+    {
+      "change": "harden-action-confirmation-dialog",
+      "checked": 5,
+      "unchecked": 1
+    },
+    {
+      "change": "harden-select-dropdown-interaction",
+      "checked": 8,
+      "unchecked": 0
+    },
+    {
+      "change": "isolate-browser-perception-lifecycle",
+      "checked": 7,
+      "unchecked": 0
+    },
+    {
+      "change": "isolate-browser-resource-policy",
+      "checked": 7,
+      "unchecked": 0
+    },
+    {
+      "change": "isolate-browser-session-checkpoint",
+      "checked": 7,
+      "unchecked": 0
+    },
+    {
+      "change": "isolate-python-sidecar-lifecycle",
+      "checked": 9,
+      "unchecked": 0
+    },
+    {
+      "change": "minimize-whatsapp-tool-telemetry",
+      "checked": 7,
+      "unchecked": 0
+    },
+    {
+      "change": "preserve-pending-chat-sync-intent",
+      "checked": 6,
+      "unchecked": 0
+    },
+    {
+      "change": "reduce-technical-debt-foundation",
+      "checked": 10,
+      "unchecked": 0
+    },
+    {
+      "change": "reduce-vulnerable-dependencies",
+      "checked": 7,
+      "unchecked": 0
+    },
+    {
+      "change": "secure-calendar-credentials",
+      "checked": 6,
+      "unchecked": 0
+    },
+    {
+      "change": "secure-calendar-oauth-exchange",
+      "checked": 8,
+      "unchecked": 0
+    },
+    {
+      "change": "secure-document-export-dependencies",
+      "checked": 7,
+      "unchecked": 0
+    },
+    {
+      "change": "secure-gmail-mailbox-operations",
+      "checked": 7,
+      "unchecked": 0
+    },
+    {
+      "change": "secure-gmail-organization-plans",
+      "checked": 7,
+      "unchecked": 0
+    },
+    {
+      "change": "secure-local-voice-authorization",
+      "checked": 9,
+      "unchecked": 0
+    },
+    {
+      "change": "secure-project-hub-file-downloads",
+      "checked": 9,
+      "unchecked": 0
+    },
+    {
+      "change": "secure-project-hub-file-uploads",
+      "checked": 9,
+      "unchecked": 0
+    },
+    {
+      "change": "secure-project-hub-ipc",
+      "checked": 9,
+      "unchecked": 0
+    },
+    {
+      "change": "secure-project-hub-session-custody",
+      "checked": 9,
+      "unchecked": 0
+    },
+    {
+      "change": "secure-python-document-boundary",
+      "checked": 9,
+      "unchecked": 0
+    },
+    {
+      "change": "secure-python-reader-dependencies",
+      "checked": 6,
+      "unchecked": 1
+    },
+    {
+      "change": "secure-validation-and-onnx-dependencies",
+      "checked": 7,
+      "unchecked": 0
+    },
+    {
+      "change": "unify-guarded-recovery-file-publication",
+      "checked": 7,
+      "unchecked": 0
+    }
+  ],
+  "blocksLocallyChecked": 32,
+  "independentReviewPending": true,
+  "latestGate": "../../openspec/changes/guard-auth-lifecycle-results/reports/gate-summary.json",
+  "auditCommand": "npm audit --json",
+  "auditExitCode": 1,
+  "auditError": null,
+  "auditMetadata": {
+    "info": 0,
+    "low": 0,
+    "moderate": 7,
+    "high": 0,
+    "critical": 0,
+    "total": 7
+  },
+  "affected": [
+    {
+      "name": "@jimp/core",
+      "severity": "moderate",
+      "direct": false
+    },
+    {
+      "name": "@jimp/custom",
+      "severity": "moderate",
+      "direct": false
+    },
+    {
+      "name": "@nut-tree-fork/nut-js",
+      "severity": "moderate",
+      "direct": true
+    },
+    {
+      "name": "@nut-tree-fork/provider-interfaces",
+      "severity": "moderate",
+      "direct": false
+    },
+    {
+      "name": "@nut-tree-fork/shared",
+      "severity": "moderate",
+      "direct": false
+    },
+    {
+      "name": "file-type",
+      "severity": "moderate",
+      "direct": false
+    },
+    {
+      "name": "jimp",
+      "severity": "moderate",
+      "direct": false
+    }
+  ],
+  "rawAuditPath": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-debt-progress-2026-10-25\\npm-audit.json",
+  "rawAuditSha256": "0ac2ed6e0fd63547b66c18e60b016948018d2d1a549e72947cd08e759a4c56f9",
+  "productionDeployed": false
+}

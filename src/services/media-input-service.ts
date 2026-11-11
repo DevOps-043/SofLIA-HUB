@@ -1,5 +1,4 @@
-import { getApiKeyWithCache } from './api-keys';
-import { GOOGLE_API_KEY } from '../config';
+import { observeApiKeySession } from './api-keys/session-scope';
 import type { MediaRef } from '../shared/multimodal-input';
 
 /**
@@ -24,10 +23,10 @@ export interface MediaUploadRecord {
 }
 
 interface MediaInputApi {
-  upload(input: { path: string; mimeType: string; apiKey: string }): Promise<{ success: boolean; upload?: MediaUploadRecord; error?: string }>;
+  upload(input: { path: string; mimeType: string }): Promise<{ success: boolean; upload?: MediaUploadRecord; error?: string }>;
   status(uploadId: string): Promise<{ success: boolean; upload?: MediaUploadRecord | null; error?: string }>;
   cancel(uploadId: string): Promise<{ success: boolean; cancelled?: boolean; error?: string }>;
-  release(uploadId: string, apiKey: string): Promise<{ success: boolean; released?: boolean; error?: string }>;
+  release(uploadId: string): Promise<{ success: boolean; released?: boolean; error?: string }>;
 }
 
 function api(): MediaInputApi | null {
@@ -46,36 +45,40 @@ export function isMediaUploadAvailable(): boolean {
  * cada adjunto en una friccion, y no preguntarlo nunca ocultaria una
  * transferencia que el usuario no eligio.
  */
-let uploadConsentGranted = false;
+let consentScope: ReturnType<typeof observeApiKeySession> | null = null;
 
 export function hasMediaUploadConsent(): boolean {
-  return uploadConsentGranted;
+  if (consentScope && !consentScope.isCurrent()) resetMediaUploadConsent();
+  return consentScope !== null;
 }
 
 export function grantMediaUploadConsent(): void {
-  uploadConsentGranted = true;
+  resetMediaUploadConsent();
+  consentScope = observeApiKeySession();
 }
 
 export function resetMediaUploadConsent(): void {
-  uploadConsentGranted = false;
+  consentScope?.dispose();
+  consentScope = null;
 }
 
 export const MEDIA_UPLOAD_CONSENT_MESSAGE =
   'Para analizar este archivo debo enviarlo a la infraestructura del proveedor del modelo, '
   + 'donde permanece de forma temporal hasta caducar. ¿Lo envío?';
 
-async function resolveApiKey(): Promise<string> {
-  const guardada = await getApiKeyWithCache('google');
-  return guardada || GOOGLE_API_KEY || '';
-}
-
 export async function uploadMedia(input: { path: string; mimeType: string }): Promise<MediaUploadRecord> {
   const bridge = api();
   if (!bridge) throw new Error('La subida de medios no esta disponible en esta superficie.');
-  if (!uploadConsentGranted) throw new Error('Falta el consentimiento para enviar el archivo al proveedor.');
+  if (!hasMediaUploadConsent()) throw new Error('Falta el consentimiento para enviar el archivo al proveedor.');
 
-  const apiKey = await resolveApiKey();
-  const result = await bridge.upload({ ...input, apiKey });
+  const approvedScope = consentScope;
+  const assert = () => {
+    if (!approvedScope || consentScope !== approvedScope || !approvedScope.isCurrent() || api() !== bridge) throw new Error('La sesión o el consentimiento de medios cambió. Intenta de nuevo.');
+  };
+  await Promise.resolve();
+  assert();
+  const result = await bridge.upload(input);
+  assert();
   if (!result.success || !result.upload) throw new Error(result.error || 'No pude subir el archivo.');
   return result.upload;
 }
@@ -88,7 +91,7 @@ export async function cancelMediaUpload(uploadId: string): Promise<boolean> {
 export async function releaseMediaUpload(uploadId: string): Promise<boolean> {
   const bridge = api();
   if (!bridge) return false;
-  const result = await bridge.release(uploadId, await resolveApiKey());
+  const result = await bridge.release(uploadId);
   return Boolean(result?.success && result.released);
 }
 

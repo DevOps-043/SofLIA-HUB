@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import os from 'node:os';
-import { DEFAULT_PORT, REMOTE_NODE_CAPABILITIES } from './constants';
-import type { RemoteNodeHostUpdates, RemoteNodeRecord, RemoteNodeState } from './types';
+import { DEFAULT_PORT } from './constants';
+import type { RemoteNodeHostUpdates, RemoteNodeState } from './types';
 
 export function generateToken(): string {
   return crypto.randomBytes(24).toString('hex');
@@ -31,7 +31,7 @@ export function buildDefaultState(): RemoteNodeState {
   const hostname = process.env.COMPUTERNAME || os.hostname() || 'soflia-node';
   return {
     host: {
-      enabled: true,
+      enabled: false,
       bindAddress: '127.0.0.1',
       port: DEFAULT_PORT,
       token: generateToken(),
@@ -39,27 +39,6 @@ export function buildDefaultState(): RemoteNodeState {
       advertiseUrl: null,
     },
     nodes: [],
-  };
-}
-
-export function normalizeRemoteNode(node: Partial<RemoteNodeRecord>): RemoteNodeRecord {
-  return {
-    ...node,
-    id: sanitizeNodeId(node.id || node.name || node.baseUrl || ''),
-    name: node.name || sanitizeNodeId(node.id || node.baseUrl || ''),
-    baseUrl: normalizeBaseUrl(node.baseUrl || ''),
-    token: node.token || '',
-    enabled: node.enabled !== false,
-    owner_user_id: typeof node.owner_user_id === 'string' && node.owner_user_id.trim() ? node.owner_user_id.trim() : null,
-    organization_id: typeof node.organization_id === 'string' && node.organization_id.trim() ? node.organization_id.trim() : null,
-    visibility: node.visibility === 'organization' ? 'organization' : 'personal',
-    createdAt: node.createdAt || safeNow(),
-    updatedAt: node.updatedAt || safeNow(),
-    lastHealthAt: node.lastHealthAt || null,
-    lastError: node.lastError || null,
-    capabilities: Array.isArray(node.capabilities) && node.capabilities.length > 0
-      ? node.capabilities
-      : [...REMOTE_NODE_CAPABILITIES],
   };
 }
 

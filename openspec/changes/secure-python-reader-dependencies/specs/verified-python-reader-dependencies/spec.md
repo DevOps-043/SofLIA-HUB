@@ -13,10 +13,15 @@ La preparación MUST fijar versiones y hashes del cierre del lector y comprobarl
 
 ### Requirement: Caché de preparación completa
 La caché MUST depender también de los bytes del lock transitivo del lector, además de los entrypoints y target del runtime.
+MUST incluir también el lock de bootstrap utilizado para preparar el candidato.
 
 #### Scenario: Cambio sólo en el lock
 - **WHEN** se actualiza una transitiva o hash sin modificar el entrypoint
 - **THEN** la caché anterior no se considera vigente
+
+#### Scenario: Candidato nativo aún no aprobado
+- **WHEN** el índice no ofrece una wheel segura para un target soportado
+- **THEN** su preparación sigue fallando sin promocionar; un job de construcción sólo genera un candidato con evidencia para revisión, sin incorporarlo automáticamente al lock ni publicarlo
 
 ### Requirement: Rechazo de runtime PDF inseguro
 El lector MUST rechazar versiones PDF conocidas como vulnerables o inverificables antes de interpretar el documento. MUST comunicar un error controlado que indique actualizar el runtime, sin nuevas capacidades ni rutas internas públicas.
