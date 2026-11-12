@@ -144,3 +144,11 @@ Reversión: revertir el commit de implementación en la rama aislada. El workspa
 principal conserva cambios ajenos; no usar un reset global para revertir esta UI.
 La fusión local del compositor de proyecto añadió sólo imports y el personaje,
 preservando sus cambios de iconografía.
+
+## Publicación autorizada
+
+Implementación publicada en `origin/codex/soflia-avatar-2d`, commit
+`abb97ec43fe4024152058154a86cfe0b0ca86134`. Se comprobó que `git ls-remote --heads`
+devuelve el mismo SHA que el commit local. La actualización documental posterior
+registra esta comprobación; no modifica el código verificado. El cambio sigue
+abierto en OpenSpec y no se publicó instalador ni release.
