@@ -1,4 +1,5 @@
 import type { SidebarProps } from './types';
+import { BrowserNavIcon, MeetingsNavIcon } from '../ui/Icons';
 
 interface SidebarNavToolsProps {
   isOpen: boolean;
@@ -24,12 +25,7 @@ export function SidebarNavTools({
       id: 'browser',
       label: 'Navegador',
       title: 'Navegador integrado compartido con la IA',
-      icon: (className: string) => (
-        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-          <circle cx="12" cy="12" r="9" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3.6 9h16.8M3.6 15h16.8M12 3c2.1 2.45 3.2 5.45 3.2 9S14.1 18.55 12 21M12 3C9.9 5.45 8.8 8.45 8.8 12S9.9 18.55 12 21" />
-        </svg>
-      ),
+      icon: (className: string) => <BrowserNavIcon size={18} className={className} />,
       isActive: Boolean(browserOpen),
       onClick: onOpenBrowser,
       badge: 'Nativo',
@@ -38,11 +34,7 @@ export function SidebarNavTools({
       id: 'meetings',
       label: 'Reuniones',
       title: 'Reuniones: transcripciones, minutas y ejecuciones',
-      icon: (className: string) => (
-        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
-        </svg>
-      ),
+      icon: (className: string) => <MeetingsNavIcon size={18} className={className} />,
       isActive: activeView === 'meetings',
       onClick: onOpenMeetings,
       badge: 'Minutas',

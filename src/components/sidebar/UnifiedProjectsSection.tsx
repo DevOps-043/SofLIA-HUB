@@ -1,3 +1,4 @@
+import { FolderIcon, PlusIcon, RefreshIcon } from '../ui/Icons';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { projectHubApi, type ProjectHubProject } from '../../services/project-hub-api';
 import type { ProjectOrganization } from '../../shared/project-creation';
@@ -78,15 +79,15 @@ function OrganizationProjects({ props }: { props: SidebarProps }) {
   const recovering = autoRetry;
   return <>
     {props.isOpen && <SidebarSectionLabel label="Proyectos" action={<div className="flex gap-1">
-      <button disabled={loading || recovering} onClick={() => void load(true)} className="grid h-6 w-6 place-items-center rounded-lg hover:bg-surface-2 disabled:opacity-40" title="Actualizar proyectos" aria-label="Actualizar proyectos">↻</button>
-      <button disabled={!organization || loading} onClick={() => setCreatorOpen(true)} className="grid h-6 w-6 place-items-center rounded-lg bg-primary text-card disabled:opacity-40 dark:bg-accent dark:text-on-accent" title="Crear proyecto" aria-label="Crear proyecto">+</button>
+      <button disabled={loading || recovering} onClick={() => void load(true)} className="grid h-6 w-6 place-items-center rounded-lg hover:bg-surface-2 disabled:opacity-40" title="Actualizar proyectos" aria-label="Actualizar proyectos"><RefreshIcon size={14} /></button>
+      <button disabled={!organization || loading} onClick={() => setCreatorOpen(true)} className="grid h-6 w-6 place-items-center rounded-lg bg-primary text-card disabled:opacity-40 dark:bg-accent dark:text-on-accent" title="Crear proyecto" aria-label="Crear proyecto"><PlusIcon size={15} /></button>
     </div>} />}
     {creatorOpen && organization && currentOrgId && <CreateProjectModal organizationId={currentOrgId} workspaceId={organization.workspaceId} onClose={() => setCreatorOpen(false)} onCreated={created} />}
     {props.isOpen && (loading || recovering) && <p role="status" className="px-3 py-2 text-[11px] text-secondary">Cargando proyectos…</p>}
     {props.isOpen && error && !loading && !recovering && <button onClick={() => void load(true)} className="mx-2 rounded-lg border border-warning/30 bg-warning/10 px-2 py-1.5 text-left text-[10px] text-primary">{error} Reintentar</button>}
     {projects.map(project => <button key={project.project_id} onClick={() => props.onOpenUnifiedProject?.(project.workspace_id, project.project_id)}
       className={`flex min-h-9 w-full items-center gap-2 rounded-xl px-2 text-left text-[12px] transition-colors ${props.activeUnifiedProjectId === project.project_id ? 'bg-primary/10 font-semibold text-primary dark:bg-accent/10 dark:text-accent' : 'text-secondary hover:bg-surface-2'}`} title={`${props.orgName || organization?.name} · ${project.project_key}`}>
-      <span className="h-2 w-2 rounded-full bg-success" /><span className="min-w-0 flex-1 truncate">{project.project_name}</span><span className="text-[9px] tabular-nums opacity-60">{project.completion_percentage}%</span>
+      <FolderIcon size={18} className="text-accent" /><span className="min-w-0 flex-1 truncate">{project.project_name}</span><span className="text-[9px] tabular-nums opacity-60">{project.completion_percentage}%</span>
     </button>)}
     {props.isOpen && !loading && !error && projects.length === 0 && <p className="px-3 py-2 text-[11px] text-secondary">Aún no hay proyectos.</p>}
   </>;

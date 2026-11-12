@@ -1,3 +1,4 @@
+import { AppsIcon, BrowserNavIcon, DocumentIcon, MeetingsNavIcon, ToolsIcon } from '../../../../components/ui/Icons';
 import { useEffect, useRef, useState } from 'react';
 import { useArtifactViewer } from '../../../../components/artifacts/artifact-viewer-context';
 import type { ActiveView } from '../../../../app/app-types';
@@ -52,10 +53,7 @@ export function ToolsDropdownButton({
         }`}
         title={onOpenLiveSessions ? 'Herramientas (Navegador, Reuniones, Sesiones síncronas)' : 'Herramientas (Navegador, Reuniones)'}
       >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-          <circle cx="12" cy="12" r="9" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3.6 9h16.8M3.6 15h16.8M12 3c2.1 2.45 3.2 5.45 3.2 9S14.1 18.55 12 21M12 3C9.9 5.45 8.8 8.45 8.8 12S9.9 18.55 12 21" />
-        </svg>
+        <ToolsIcon size={18} />
       </button>
 
       {viewer?.error && !isOpen && <p role="alert" className="absolute right-0 top-10 z-50 w-64 rounded-xl border border-border bg-card p-3 text-xs">{viewer.error}</p>}
@@ -71,7 +69,7 @@ export function ToolsDropdownButton({
             Herramientas Integradas
           </div>
           <div className="flex flex-col gap-0.5">
-            {viewer && <button type="button" role="menuitem" onClick={() => { setIsOpen(false); void viewer.pick(); }} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-xs font-semibold hover:bg-gray-100/80 dark:hover:bg-white/[0.06] text-gray-800 dark:text-white/90"><span aria-hidden="true">▤</span>Abrir archivo</button>}
+            {viewer && <button type="button" role="menuitem" onClick={() => { setIsOpen(false); void viewer.pick(); }} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-xs font-semibold hover:bg-gray-100/80 dark:hover:bg-white/[0.06] text-gray-800 dark:text-white/90"><DocumentIcon size={18} />Abrir archivo</button>}
             {viewer?.error && <p role="alert" className="px-3 py-2 text-xs">{viewer.error}</p>}
             {onOpenBrowser && (
               <button
@@ -85,10 +83,7 @@ export function ToolsDropdownButton({
               >
                 <div className="flex items-center gap-2.5">
                   <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/10 border border-accent/20 text-accent group-hover:bg-accent group-hover:text-on-accent transition-colors">
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <circle cx="12" cy="12" r="9" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.6 9h16.8M3.6 15h16.8M12 3c2.1 2.45 3.2 5.45 3.2 9S14.1 18.55 12 21M12 3C9.9 5.45 8.8 8.45 8.8 12S9.9 18.55 12 21" />
-                    </svg>
+                    <BrowserNavIcon size={18} />
                   </span>
                   <span>Navegador</span>
                 </div>
@@ -113,9 +108,7 @@ export function ToolsDropdownButton({
               >
                 <div className="flex items-center gap-2.5">
                   <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-500 dark:text-purple-400 group-hover:bg-purple-500 group-hover:text-white transition-colors">
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
-                    </svg>
+                    <MeetingsNavIcon size={18} />
                   </span>
                   <span>Reuniones</span>
                 </div>
@@ -142,9 +135,7 @@ export function ToolsDropdownButton({
               >
                 <div className="flex items-center gap-2.5">
                   <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 dark:text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 5h18v11H3z M12 16v3 M9 19h6" />
-                    </svg>
+                    <AppsIcon size={18} />
                   </span>
                   <span>Presentación</span>
                 </div>

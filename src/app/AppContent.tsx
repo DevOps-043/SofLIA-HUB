@@ -292,7 +292,23 @@ export function AppContent() {
           userId={userId}
           userSettings={userSettings}
         />}
-        <AppModals folder={folder} movingChat={derived.movingChat} shareTarget={shareTarget} userId={userId} orgId={orgId} user={user} userSettings={userSettings} sofiaContext={sofiaContext} isUnifiedSettingsOpen={isUnifiedSettingsOpen} activeSettingsTab={activeSettingsTab} onSetShareTarget={setShareTarget} onSetUserSettings={setUserSettings} onSetUnifiedSettingsOpen={setIsUnifiedSettingsOpen} />
+        <AppModals
+          folder={folder}
+          movingChat={derived.movingChat}
+          shareTarget={shareTarget}
+          userId={userId}
+          orgId={orgId}
+          user={user}
+          userSettings={userSettings}
+          sofiaContext={sofiaContext}
+          isUnifiedSettingsOpen={isUnifiedSettingsOpen}
+          activeSettingsTab={activeSettingsTab}
+          onSetShareTarget={setShareTarget}
+          onSetUserSettings={setUserSettings}
+          onSetUnifiedSettingsOpen={setIsUnifiedSettingsOpen}
+          onConfirmDeleteFolder={handlers.handleConfirmDeleteFolder}
+          onCancelDeleteFolder={handlers.handleCancelDeleteFolder}
+        />
       </div>
       {/* En el navegador el panel flota dentro de su layout para reservar espacio a la vista nativa. */}
       {!browserWorkspaceVisible && !liveRoomVisible && <AgentActivityPanel className="absolute right-3 top-3 z-40 max-w-[calc(100%-24px)]" />}

@@ -5,6 +5,7 @@ import { ChatItem } from './ChatItem';
 import { buildChatItemProps } from './chatProps';
 import { EditIcon } from './ChatIcons';
 import { ShareBadge } from './ShareBadge';
+import { FolderIcon as ProjectFolderIcon } from '../ui/Icons';
 
 export function FolderRow({
   props,
@@ -27,7 +28,7 @@ export function FolderRow({
   return (
     <div className="mb-0.5" style={{ fontFamily: 'var(--font-system-ui)' }}>
       <div
-        className={`h-8.5 w-full flex items-center gap-2 px-2 rounded-xl text-[13px] transition-all duration-150 cursor-pointer group ${folderStateClass(isActive, isExpanded)}`}
+        className={`hub-icon-action h-8.5 w-full flex items-center gap-2 px-2 rounded-xl text-[13px] transition-all duration-150 cursor-pointer group ${folderStateClass(isActive, isExpanded)}`}
         onClick={() => { if (!isRenaming) props.onToggleFolder(folder.id); }}
         onDoubleClick={() => { if (!isRenaming) props.onOpenProject(folder.id); }}
         title={folder.name}
@@ -73,22 +74,18 @@ function folderStateClass(isActive: boolean, isExpanded: boolean): string {
 
 function FolderIcon({ active, isExpanded }: { active: boolean; isExpanded: boolean }) {
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      className={`h-4 w-4 shrink-0 transition-colors ${
+    <ProjectFolderIcon
+      active={active}
+      isExpanded={isExpanded}
+      size={16}
+      className={`shrink-0 transition-colors ${
         active
           ? 'text-accent'
           : isExpanded
           ? 'text-gray-700 dark:text-white/90'
           : 'text-gray-400 dark:text-white/45 group-hover:text-gray-700 dark:group-hover:text-white'
       }`}
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={1.8}
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9.75A1.5 1.5 0 015.25 8.25h4.125c.398 0 .78.158 1.06.44l1.125 1.125c.28.282.662.44 1.06.44H18.75a1.5 1.5 0 011.5 1.5v6.75a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5V9.75z" />
-    </svg>
+    />
   );
 }
 

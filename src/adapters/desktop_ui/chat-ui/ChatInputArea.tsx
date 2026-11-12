@@ -10,6 +10,7 @@ import { TabAttachmentChips } from './input/TabAttachmentChips';
 import { AppAttachmentChips } from './input/AppAttachmentChips';
 import { TabAttachmentPicker } from './input/TabAttachmentPicker';
 import { BROWSER_SOURCE_LIMITS } from '../../../shared/browser-tab-context';
+import { MicIcon, SendIcon } from '../../../components/ui/Icons';
 
 export function ChatInputArea({ controller }: { controller: ChatUIController }) {
   const input = controller.state.input;
@@ -143,7 +144,13 @@ export function ChatInputArea({ controller }: { controller: ChatUIController }) 
                 className={`${compact ? 'h-[30px] w-[30px]' : 'h-[34px] w-[34px]'} flex items-center justify-center rounded-full bg-accent hover:bg-accent/80 text-on-accent shadow-sm transition-all disabled:opacity-50`}
                 title={controller.dictation.isRecording ? 'Detener dictado' : controller.dictation.isTranscribing ? 'Transcribiendo audio' : 'Enviar mensaje'}
               >
-                {(chat.showLoadingUI || controller.dictation.isTranscribing) && !controller.dictation.isRecording ? '...' : controller.dictation.isRecording ? '■' : '➤'}
+                {(chat.showLoadingUI || controller.dictation.isTranscribing) && !controller.dictation.isRecording ? (
+                  <span className="text-xs">...</span>
+                ) : controller.dictation.isRecording ? (
+                  <span className="block w-2.5 h-2.5 rounded-[2px] bg-on-accent" />
+                ) : (
+                  <SendIcon size={compact ? 14 : 16} />
+                )}
               </button>
             ) : (
               <button
@@ -152,9 +159,7 @@ export function ChatInputArea({ controller }: { controller: ChatUIController }) 
                 className={`${compact ? 'h-[30px] w-[30px]' : 'h-[34px] w-[34px]'} flex items-center justify-center rounded-full border border-border bg-card text-secondary transition-all hover:border-accent/25 hover:text-accent`}
                 title={controller.dictation.errorMessage || 'Dictado por voz'}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                </svg>
+                <MicIcon size={compact ? 15 : 17} />
               </button>
             )}
           </div>

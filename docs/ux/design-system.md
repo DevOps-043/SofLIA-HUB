@@ -108,3 +108,22 @@ interpreta como sistema SOFIA actual; no existe ADR de branding versionado.
 - No implementar custom dropdown sin teclado, roles y foco.
 - No copiar el antiguo standard SOFIA Web: mencionaba rutas inexistentes en este
   repositorio y fue sustituido por este catalogo basado en codigo.
+
+## Iconografía e interacción
+
+El catálogo [HubGlyph](../../src/components/ui/HubGlyph.tsx) reutiliza las
+siluetas de Proyectos para chats, carpetas, archivos y navegador. Los demás
+iconos locales se exportan desde [Icons](../../src/components/ui/Icons.tsx).
+Todos usan [IconGlyph](../../src/components/ui/IconGlyph.tsx): SVG decorativo,
+trazo redondeado y planos de `currentColor` con opacidad baja. Los controles
+conservan su texto, nombre accesible y eventos; no se crean botones en el SVG.
+
+[iconography.css](../../src/styles/iconography.css) eleva y gira ligeramente
+el dibujo al hover o foco visible y lo comprime durante la pulsación. El signo
+más gira 90 grados y la flecha de envío avanza. El movimiento afecta al grupo
+interior, sin desplazar etiquetas ni alterar rotaciones exteriores. Cada control
+reinicia las variables para aislar acciones anidadas. Se respetan `:disabled`
+(incluido fieldset), `aria-disabled` y `prefers-reduced-motion`. Filas existentes
+sin rol de botón pueden delimitar esta herencia con `hub-icon-action`.
+Los iconos estáticos no se animan por sí solos; los spinners de carga mantienen
+su comportamiento existente. Logos de proveedores y avatares quedan fuera del catálogo.

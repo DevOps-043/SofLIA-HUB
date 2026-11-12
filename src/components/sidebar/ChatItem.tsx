@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from
 import type { Conversation } from '../../services/chat-service';
 import { ChatActions } from './ChatActions';
 import { ShareBadge } from './ShareBadge';
+import { ChatBubbleIcon, PinIcon } from '../ui/Icons';
 
 export type ChatItemProps = {
   conv: Conversation;
@@ -68,13 +69,9 @@ function ChatIndicator({ active, title, isPinned }: { active: boolean; title: st
       title={title}
     >
       {isPinned ? (
-        <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={1.8}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V3h1.5V1.5h-12V3h1.5v7.5L5.25 12v1.5h5.25v7.5h1.5v-7.5h5.25V12L16.5 10.5z" />
-        </svg>
+        <PinIcon size={16} pinned />
       ) : (
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a.75.75 0 01-1.004-.766c.098-1.042.44-2.02 1.004-2.85A8.172 8.172 0 013 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
-        </svg>
+        <ChatBubbleIcon active={active} size={18} />
       )}
     </div>
   );
@@ -85,15 +82,13 @@ function ChatTitle({ conv, compact }: { conv: Conversation; compact?: boolean })
 
   return (
     <div className="flex flex-1 min-w-0 items-center gap-2 pr-5">
+      <ChatBubbleIcon size={compact ? 15 : 17} className="shrink-0 opacity-80" />
       <span className={`min-w-0 flex-1 text-left truncate${compact ? '' : ' text-[13px]'}`} aria-label={conv.title}>
         {displayTitle}
         {isTyping && <span className="ml-0.5 inline-block h-3.5 w-px translate-y-0.5 animate-pulse bg-accent" />}
       </span>
       {conv.is_pinned && (
-        <svg viewBox="0 0 24 24" className="h-3 w-3 shrink-0 text-accent/70 rotate-[35deg]" fill="currentColor">
-          <title>Fijado</title>
-          <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2z" />
-        </svg>
+        <PinIcon size={12} pinned className="shrink-0 text-accent/70 rotate-[35deg]" />
       )}
       {conv.is_shared && <ShareBadge owner={Boolean(conv.can_share)} ownerTitle="Compartido por ti" memberTitle="Compartido contigo" />}
     </div>
