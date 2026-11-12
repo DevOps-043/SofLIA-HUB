@@ -1,3 +1,5 @@
+import { SofliaAvatar } from '../avatar/SofliaAvatar';
+import { draftExpression } from '../avatar/avatar-reactions';
 import type React from 'react';
 
 interface ProjectChatInputProps {
@@ -25,6 +27,7 @@ export function ProjectChatInput({
       }}
       className="w-full relative group mb-12"
     >
+      <div className="pointer-events-none absolute -top-16 right-3 h-20 w-20"><SofliaAvatar expression={draftExpression(chatInput)} /></div>
       <div className={`w-full px-4.5 py-0.5 backdrop-blur-xl border rounded-xl flex items-center gap-3.5 shadow-sm transition-all duration-300 ${canEditFolder ? 'bg-gray-50/20 dark:bg-white/[0.01] border-gray-200/50 dark:border-white/[0.06] focus-within:border-accent/30 focus-within:ring-4 focus-within:ring-accent/5' : 'bg-gray-100/40 dark:bg-white/[0.005] border-gray-200/40 dark:border-white/[0.03] opacity-60'}`}>
         <div className="text-gray-400 dark:text-gray-500">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

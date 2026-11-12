@@ -1,0 +1,8 @@
+{
+  "source": "Primera imagen aprobada adjunta por el usuario",
+  "width": 1312,
+  "height": 1199,
+  "sha256": "2fead6d4e1b566ccb996ee9e7593e95a40837f9b753b7632a0bc5eabefe3e184",
+  "method": "Contorno SVG; cuerpo, logo y bandas originales. Visor aplanado con muestra RGB de (650,720), según corrección del usuario; máscara SVG visor.svg. Ojos emisivos con transparencia, sin sombras oculares.",
+  "limitation": "La pantalla se uniforma deliberadamente para eliminar cuencas. original-cutout.png conserva los píxeles originales; el componente usa expresiones SVG basadas en la referencia aprobada."
+}

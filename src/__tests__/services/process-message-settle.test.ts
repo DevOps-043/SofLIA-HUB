@@ -117,4 +117,26 @@ describe('process-message settle guarantee', () => {
     // Solo escribió el placeholder inicial; nunca el texto de la respuesta vieja.
     expect(lastAiText(lastMessages())).toBe('...');
   });
+  it('publica pensamiento, ejecución, respuesta y resultado verificado sin celebrar fallos', async () => {
+    const activity = vi.fn();
+    mocks.sendMessageStream.mockImplementation(async (_text, _history, options) => {
+      options.onToolCall({ name: 'crear_archivo', args: {} });
+      return { stream: singleChunk('Listo.'), sources: Promise.resolve(null), toolCalls: [{ result: '{"success":true}' }] };
+    });
+    const { input } = baseInput({ onAvatarActivity: activity });
+    await processChatMessage(input as never);
+    expect(activity.mock.calls.map(([event]) => event.phase)).toEqual(['thinking', 'executing', 'responding', 'complete']);
+    expect(activity.mock.lastCall?.[0].expression).toBe('success');
+    mocks.sendMessageStream.mockRejectedValue(new Error('Falló'));
+    await processChatMessage(input as never);
+    expect(activity.mock.lastCall?.[0]).toMatchObject({ phase: 'failed', expression: 'concerned' });
+  });
+  it('una generación superada no emite gestos ni limpia el estado de la nueva', async () => {
+    const activity = vi.fn();
+    const { input } = baseInput({ isCurrent: () => false, onAvatarActivity: activity });
+    await processChatMessage(input as never);
+    expect(activity).not.toHaveBeenCalled();
+    expect(input.setIsLoading).not.toHaveBeenCalledWith(false);
+  });
+
 });

@@ -1,0 +1,5 @@
+[
+  { "expression": "warning", "pattern": "\\b(borrar|eliminar|formatear|contrasena|password|credencial|token privado|tarjeta bancaria|transferir dinero)\\b" },
+  { "expression": "confused", "pattern": "\\?{2,}|\\b(no entiendo|no se como|no funciona|tengo un problema|estoy confundid[oa]|error desconocido)\\b" },
+  { "expression": "surprised", "pattern": "!{2,}|\\b(sorpresa|sorprendente|increible|extraordinario|wow|ultima hora)\\b" }
+]

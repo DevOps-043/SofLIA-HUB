@@ -1,0 +1,14 @@
+{
+  "checks": [
+    "Portada y chat reaccionan por separado; la boca del streaming escrito gesticula sin fingir audio",
+    "Tres superficies comparten recursos y animación de producción; cadencia de 120 fotogramas registrada",
+    "Portada, panel y compositor de proyecto sin desbordamiento horizontal a 390 px",
+    "Documento nativo funciona con su CSP de hash, máscara embebida, borradores y movimiento reducido"
+  ],
+  "cadence": {
+    "mean": 10.526666666666669,
+    "p95": 10.600000000000364
+  },
+  "errors": [],
+  "scope": "Componentes reales en fixture local y documento nativo con CSP; no sesión autenticada ni tareas externas reales."
+}

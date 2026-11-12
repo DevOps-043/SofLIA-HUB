@@ -72,14 +72,16 @@ el actualizador conserva su artefacto original. El shell tampoco firma ni public
 `npm run build:win` construye ambos; el smoke hace lo mismo sin configuraciones locales.
 
 La escena importa directamente [OrbCanvas](../../src/components/orb/OrbCanvas.tsx),
-la geometría y los shaders de SofLIA: no es una reproducción WPF. Permite arrastre
-con inercia, flechas, doble clic/Inicio/Enter para centrar y pausa de movimiento.
+la fachada del [avatar 2D](../architecture/soflia-avatar.md) compartido con voz y
+asistencia. Conserva el personaje aprobado mediante imágenes transparentes.
+Sigue el cursor; las flechas dirigen la mirada y doble clic/Inicio/Enter la restablecen.
+Respeta pausa de movimiento y preferencias de accesibilidad.
 La web local no recibe herramientas ni acceso al motor; no solicita micrófono.
 WebView2 usa perfil temporal privado, permisos denegados, navegación externa y
 descargas bloqueadas, CSP restrictiva y mensajes de estado únicamente hacia la orbe.
 El SDK Microsoft 1.0.4191.47 se descarga en build con hash fijado, se cachea con
-reverificación y se embebe junto con su licencia. La orbe requiere WebView2
-Evergreen instalado y WebGL; si faltan muestra aviso sin inventar otra orbe.
+reverificación y se embebe junto con su licencia. El avatar requiere WebView2
+Evergreen instalado; no requiere WebGL. Si falta muestra un aviso y permite continuar.
 La ventana/motor requieren .NET Framework 4.8. No se instala WebView2 automáticamente.
 Los temporales `PulseHub-orb-*` conservan recursos/licencias y perfil gráfico de
 la vista; no contienen un perfil del navegador del usuario. Se cierran los

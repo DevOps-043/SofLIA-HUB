@@ -1,3 +1,4 @@
+import avatarBadge from '../../../../assets/soflia-avatar/badge-idle.png';
 import { UserAvatar } from '../../../../components/chat/MarkdownRenderer';
 import type { ChatMessage } from '../../../../services/chat-service';
 import type { ChatUIController } from '../useChatUIController';
@@ -18,7 +19,7 @@ export function ChatMessageItem({
     <div className={`flex min-w-0 gap-4 ${isUser && !isEditing ? 'justify-end' : ''}`}>
       {message.role === 'model' && (
         <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 rounded-full overflow-hidden">
-          <img src={controller.props.floating ? './assets/Icono.png' : './assets/lia-avatar.png'} alt="Soflia" className={controller.props.floating ? 'h-6 w-6 object-contain' : 'w-full h-full object-cover'} />
+          <img src={avatarBadge} alt="SofLIA" className="h-full w-full object-contain" />
         </div>
       )}
       {/* min-w-0 evita que el tamano minimo automatico del item flex (tablas,

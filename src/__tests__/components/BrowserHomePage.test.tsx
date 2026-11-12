@@ -26,4 +26,14 @@ describe('portada en la interfaz existente', () => {
     expect(navigate).not.toHaveBeenCalled();
     expect(updatedNavigate).not.toHaveBeenCalled();
   });
+  it('el mismo personaje reacciona a borradores sin navegar ni enviar texto', () => {
+    const navigate = vi.fn(); const view = render(<BrowserHomePage onNavigate={navigate} />);
+    const field = screen.getByRole('searchbox');
+    fireEvent.input(field, { target: { value: 'wow!!' } });
+    expect(view.container.querySelector('.soflia-avatar')).toHaveAttribute('data-expression', 'surprised');
+    fireEvent.input(field, { target: { value: 'borrar contraseña' } });
+    expect(view.container.querySelector('.soflia-avatar')).toHaveAttribute('data-expression', 'warning');
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
 });

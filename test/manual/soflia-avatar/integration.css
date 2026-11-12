@@ -1,0 +1,18 @@
+body { background-color: #0a0f15 !important; margin: 0; background: #0a0f15; color: #edf5f7; font-family: Inter, 'Segoe UI', sans-serif; }
+.qa-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 20px; min-height: 58px; padding: 14px 24px; border-bottom: 1px solid #ffffff14; font-size: 12px; }
+.qa-controls select { background: #14202b; color: #c9f8f0; border: 1px solid #ffffff20; border-radius: 8px; padding: 7px 12px; }
+.qa-controls label { display: flex; gap: 8px; align-items: center; }
+.qa-layout { display: grid; grid-template-columns: 370px 1fr; height: 760px; }
+.qa-chat { display: flex; flex-direction: column; min-height: 0; margin: 16px 0 16px 16px; border: 1px solid #ffffff14; border-radius: 22px; background: #0f1419; }
+.qa-chat-title { padding: 20px 24px; font-size: 14px; border-bottom: 1px solid #ffffff0c; }
+.qa-chat-title span { display: block; color: #8ea3ac; font-size: 11px; margin-top: 5px; }
+.qa-composer { flex-shrink: 0; margin: 12px; padding: 16px 20px; border: 1px solid #ffffff14; border-radius: 25px; background: #090d12; outline: none; font-size: 13px; }
+.qa-composer:focus { border-color: #00d4b380; }
+.qa-messages { flex: 1; padding: 28px 24px; font-size: 13px; line-height: 1.8; }
+.qa-messages p { margin-bottom: 24px; }
+.qa-messages p:first-child { margin-left: 30px; padding: 14px; border-radius: 16px; background: #00d4b30b; }
+.qa-home { min-width: 0; }
+.qa-project { margin: 32px auto; max-width: 900px; padding: 28px; }
+.qa-project h2 { font-size: 23px; margin-bottom: 8px; }
+.qa-project p { color: #8ea3ac; font-size: 13px; margin-bottom: 80px; }
+@media (max-width: 760px) { .qa-layout { grid-template-columns: 1fr; height: auto; } .qa-chat { min-height: 510px; margin: 12px; } .qa-home { height: 650px; } }

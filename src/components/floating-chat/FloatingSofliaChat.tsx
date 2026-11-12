@@ -1,3 +1,4 @@
+import avatarBadge from '../../assets/soflia-avatar/badge-idle.png';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { MODEL_OPTIONS, useModelSelector } from '../../hooks/useModelSelector';
 import '../../styles/floating-soflia-chat.css';
@@ -83,6 +84,6 @@ export function FloatingSofliaChat({ children, navigation, openRequest, onPrepar
       {error && <div className="soflia-floating-notice" role="alert">{error} <button type="button" onClick={() => void show()}>Reintentar</button></div>}
       {mounted && <div className="soflia-floating-content" hidden={busy || !!error}>{children}</div>}
     </section>
-    <button ref={launcher} type="button" className="soflia-floating-launcher" hidden={open} title="Hablar con Soflia" aria-label="Abrir chat flotante con Soflia" aria-expanded={open} disabled={busy} onClick={event => { focusInput.current = event.detail === 0; void show(); }}><img src="./assets/Icono.png" alt="Icono de Soflia" width="28" height="28" /></button>
+    <button ref={launcher} type="button" className="soflia-floating-launcher" hidden={open} title="Hablar con Soflia" aria-label="Abrir chat flotante con Soflia" aria-expanded={open} disabled={busy} onClick={event => { focusInput.current = event.detail === 0; void show(); }}><img src={avatarBadge} alt="SofLIA" width="28" height="28" /></button>
   </div>;
 }

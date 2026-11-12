@@ -1,3 +1,4 @@
+import { withAvatarPermission } from '../avatar-permission';
 import { canRememberCommand, isReadOnlyCommand, type ConfirmationDecision, type ConfirmationOptions } from '../../shared/command-approval';
 import { getUserPreferenceScope } from '../user-scope';
 import { commandApprovalKey, hasCommandApproval, rememberCommandApproval } from './command-approvals';
@@ -36,10 +37,10 @@ export function setConfirmationHandler(handler: ConfirmationHandler | null) {
  * una accion irreversible nunca procede por omision.
  */
 export async function requestUserConfirmation(toolName: string, description: string): Promise<boolean> {
-  if (confirmationHandler) return (await confirmationHandler(toolName, description)) === true;
+  if (confirmationHandler) return (await withAvatarPermission(() => confirmationHandler!(toolName, description))) === true;
   const api = window.computerUse;
   if (!api) return false;
-  const result = await api.confirmAction(description);
+  const result = await withAvatarPermission(() => api.confirmAction(description));
   return result.confirmed;
 }
 
@@ -69,11 +70,11 @@ export async function confirmToolExecution(toolName: string, args: Record<string
   let decision: ConfirmationDecision;
   if (confirmationHandler) {
     decision = allowAlways || signal
-      ? await confirmationHandler(toolName, description, { allowAlways, ...(signal ? { signal } : {}) })
-      : await confirmationHandler(toolName, description);
+      ? await withAvatarPermission(() => confirmationHandler!(toolName, description, { allowAlways, ...(signal ? { signal } : {}) }), signal)
+      : await withAvatarPermission(() => confirmationHandler!(toolName, description));
   } else {
     if (!api) return false;
-    const result = await api.confirmAction(description, { allowAlways, ...(allowAlways ? { command: String(args.command) } : {}) });
+    const result = await withAvatarPermission(() => api.confirmAction(description, { allowAlways, ...(allowAlways ? { command: String(args.command) } : {}) }), signal);
     decision = result.confirmed ? (result.always ? 'always' : true) : false;
   }
   if (signal?.aborted || scope !== getUserPreferenceScope()) return false;

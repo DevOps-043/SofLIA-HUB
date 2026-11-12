@@ -1,3 +1,4 @@
+import type { AvatarActivity } from '../../components/avatar/avatar-reactions';
 import type { Dispatch, SetStateAction } from 'react';
 
 import type { ChatMessage } from '../../services/chat-service';
@@ -7,6 +8,7 @@ import type { ThinkingOption } from '../useModelSelector';
 import { processChatMessage } from './process-message';
 
 interface CreateProcessMessageInput {
+  onAvatarActivity?: (activity: AvatarActivity) => void;
   organizationId?: string | null;
   onMessagesChange: (messages: ChatMessage[]) => void;
   setIsLoading: Dispatch<SetStateAction<boolean>>;

@@ -1,3 +1,4 @@
+import type { AvatarActivity } from '../components/avatar/avatar-reactions';
 import { useState, useCallback, useRef, useLayoutEffect } from 'react';
 
 import type { ChatMessage } from '../services/chat-service';
@@ -25,6 +26,7 @@ export function useChatProcessor({
 }: UseChatProcessorParams) {
   const [isLoading, setIsLoading] = useState(false);
   const [activeToolCall, setActiveToolCall] = useState<ToolCallInfo | null>(null);
+  const [avatarActivity, setAvatarActivity] = useState<AvatarActivity>({ phase: 'idle', version: 0 });
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
@@ -38,6 +40,8 @@ export function useChatProcessor({
     // Un cambio de destino descarta incluso el acuse de Stop del turno anterior.
     ++genTokenRef.current;
     abortRef.current?.abort();
+    abortRef.current = null;
+    setIsLoading(false); setActiveToolCall(null); setAvatarActivity({ phase: 'idle', version: 0 });
   }, []);
 
   const showLoadingUI = shouldShowLoadingUi(messages);
@@ -48,6 +52,7 @@ export function useChatProcessor({
     onMessagesChange,
     setIsLoading,
     setActiveToolCall,
+    onAvatarActivity: activity => setAvatarActivity({ ...activity, scope: memorySessionScope }),
     preferredPrimaryModel,
     thinkingOption,
     personalization,
@@ -142,5 +147,5 @@ export function useChatProcessor({
     )));
   };
 
-  return { isLoading, showLoadingUI, activeToolCall, copiedId, messagesRef, processMessage, handleSend, handleRegenerate, handleEditMessage, handleCopy, handleFeedback, stopGeneration, cancelScope };
+  return { avatarActivity: avatarActivity.scope === memorySessionScope || avatarActivity.scope?.startsWith('borrador:') ? avatarActivity : undefined, isLoading, showLoadingUI, activeToolCall, copiedId, messagesRef, processMessage, handleSend, handleRegenerate, handleEditMessage, handleCopy, handleFeedback, stopGeneration, cancelScope };
 }

@@ -60,7 +60,7 @@ describe('Chat flotante de Soflia',()=>{
   it('abre con el icono oficial dentro de la aplicación y conserva borrador al minimizar',async()=>{
     const prepare=vi.fn(async()=>{});
     render(<FloatingSofliaChat title="Proyecto actual" onPrepare={prepare}><Conversation /></FloatingSofliaChat>);
-    expect(screen.getByRole('button',{name:'Abrir chat flotante con Soflia'}).querySelector('img')).toHaveAttribute('src','./assets/Icono.png');
+    expect(screen.getByRole('button',{name:'Abrir chat flotante con Soflia'}).querySelector('img')).toHaveAttribute('src',expect.stringContaining('badge-idle.png'));
     expect(screen.queryByRole('textbox')).toBeNull();
     fireEvent.click(screen.getByRole('button',{name:'Abrir chat flotante con Soflia'}));
     const input=await screen.findByRole('textbox');
@@ -70,7 +70,7 @@ describe('Chat flotante de Soflia',()=>{
     fireEvent.click(screen.getByRole('button',{name:'Abrir chat flotante con Soflia'}));
     expect(await screen.findByRole('textbox')).toHaveValue('Mira lo que estoy viendo');
     expect(screen.getByText('Respuesta en el mismo panel')).toBeVisible();
-    expect(document.querySelector('img[src*="avatar"]')).toBeNull();
+    expect(document.querySelector('img[src$="/lia-avatar.png"]')).toBeNull();
   });
   it('no monta chat editable si preparar el destino falla y permite reintentar',async()=>{
     const prepare=vi.fn().mockRejectedValueOnce(new Error('Interno')).mockResolvedValue(undefined);
