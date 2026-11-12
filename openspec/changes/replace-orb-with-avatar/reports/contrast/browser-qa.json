@@ -1,0 +1,81 @@
+{
+  "checks": [
+    "14 expresiones luminosas en tema claro con acento de acciones oscuro",
+    "14 expresiones conservan color en tema oscuro",
+    "Movimiento reducido conserva señales visibles",
+    "Documento nativo real y recursos aprobados sin modificaciones"
+  ],
+  "colors": [
+    {
+      "expression": "idle",
+      "color": "rgb(138, 255, 240)",
+      "stroke": "rgb(138, 255, 240)"
+    },
+    {
+      "expression": "listening",
+      "color": "rgb(138, 255, 240)",
+      "stroke": "rgb(138, 255, 240)"
+    },
+    {
+      "expression": "thinking",
+      "color": "rgb(138, 255, 240)",
+      "stroke": "rgb(138, 255, 240)"
+    },
+    {
+      "expression": "speaking",
+      "color": "rgb(138, 255, 240)",
+      "stroke": "rgb(138, 255, 240)"
+    },
+    {
+      "expression": "success",
+      "color": "rgb(138, 255, 240)",
+      "stroke": "rgb(138, 255, 240)"
+    },
+    {
+      "expression": "warning",
+      "color": "rgb(255, 224, 138)",
+      "stroke": "rgb(255, 224, 138)"
+    },
+    {
+      "expression": "curious",
+      "color": "rgb(138, 255, 240)",
+      "stroke": "rgb(138, 255, 240)"
+    },
+    {
+      "expression": "happy",
+      "color": "rgb(138, 255, 240)",
+      "stroke": "rgb(138, 255, 240)"
+    },
+    {
+      "expression": "confused",
+      "color": "rgb(138, 255, 240)",
+      "stroke": "rgb(138, 255, 240)"
+    },
+    {
+      "expression": "focused",
+      "color": "rgb(138, 255, 240)",
+      "stroke": "rgb(138, 255, 240)"
+    },
+    {
+      "expression": "acknowledging",
+      "color": "rgb(138, 255, 240)",
+      "stroke": "rgb(138, 255, 240)"
+    },
+    {
+      "expression": "sleeping",
+      "color": "rgb(138, 255, 240)",
+      "stroke": "rgb(138, 255, 240)"
+    },
+    {
+      "expression": "surprised",
+      "color": "rgb(138, 255, 240)",
+      "stroke": "rgb(138, 255, 240)"
+    },
+    {
+      "expression": "concerned",
+      "color": "rgb(138, 255, 240)",
+      "stroke": "rgb(138, 255, 240)"
+    }
+  ],
+  "errors": []
+}

@@ -87,3 +87,10 @@ El personaje SHALL sustituir al asistente femenino en chat general, navegador y 
 #### Scenario: Generación superada
 - **WHEN** el usuario cambia conversación o cancela una generación
 - **THEN** los callbacks anteriores no alteran el gesto ni el estado de carga del turno vigente y no celebran éxito
+
+### Requirement: Rostro luminoso independiente del tema
+El visor SHALL conservar señales cian luminosas y advertencias ámbar claras tanto en tema claro como oscuro, sin heredar el color de las acciones de interfaz.
+
+#### Scenario: Escritorio transparente y tema claro
+- **WHEN** el personaje se presenta sobre el escritorio o una superficie clara con acento de interfaz azul oscuro
+- **THEN** ojos, boca y símbolos conservan su luz y trazos legibles sobre el visor oscuro, incluidos reposo y movimiento reducido

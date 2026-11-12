@@ -1,5 +1,8 @@
 /* Tokens compartidos por el renderer y el documento local de Chromium. */
 :root {
+  /* El visor permanece luminoso en ambos temas, incluido el escritorio transparente. */
+  --color-avatar-face: rgb(138 255 240);
+  --color-avatar-warning: rgb(255 224 138);
   --color-background-val: #f9fafb;
   --color-sidebar-val: #f0f2f5;
   --color-card-val: #ffffff;
