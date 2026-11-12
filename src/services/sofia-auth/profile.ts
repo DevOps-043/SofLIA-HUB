@@ -51,7 +51,7 @@ export async function fetchSofiaUserProfile(userId: string): Promise<SofiaUserPr
       .select(`
         id, organization_id, user_id, role, status, job_title, team_id, zone_id, region_id, joined_at,
         organizations (
-          id, name, slug, description, logo_url, contact_email, subscription_plan,
+          id, name, slug, description, logo_url, brand_logo_url, contact_email, contact_phone, website_url, subscription_plan,
           subscription_status, brand_color_primary, brand_color_secondary,
           brand_favicon_url, is_active, created_at
         )

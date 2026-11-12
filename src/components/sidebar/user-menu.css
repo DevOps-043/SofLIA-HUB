@@ -1,0 +1,108 @@
+@import "../../styles/iconography.css";
+.account-menu-footer {
+  border-top: 1px solid var(--color-border-val);
+  background: transparent;
+}
+.account-menu {
+  padding: 7px;
+  border-color: var(--color-border-val);
+  background: var(--color-card-val);
+  box-shadow: 0 18px 50px #0002;
+  animation: account-menu-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.account-menu .account-menu-row {
+  padding: 9px 10px;
+  gap: 10px;
+  min-height: 44px;
+  font-size: 12px;
+  border-radius: 10px;
+  transition:
+    background 160ms,
+    color 160ms;
+}
+.account-menu-glyph {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: color-mix(in srgb, currentColor 5%, transparent);
+}
+.account-menu-row:hover .account-menu-glyph {
+  background: color-mix(in srgb, var(--color-accent-val) 10%, transparent);
+  color: var(--color-accent-val);
+}
+.account-menu button:focus-visible {
+  outline: 2px solid var(--color-accent-val);
+  outline-offset: 1px;
+}
+.account-theme-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  padding: 8px 5px 10px;
+  animation: account-menu-in 160ms ease both;
+}
+.account-theme-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 4px;
+  border: 1px solid var(--color-border-val);
+  border-radius: 10px;
+  font-size: 10px;
+  color: var(--color-text-secondary-val);
+  background: var(--color-background-val);
+  transition:
+    border-color 160ms,
+    background 160ms,
+    transform 120ms;
+}
+.account-theme-option:hover {
+  border-color: color-mix(
+    in srgb,
+    var(--color-accent-val) 35%,
+    var(--color-border-val)
+  );
+}
+.account-theme-option[aria-pressed="true"] {
+  color: var(--color-accent-val);
+  border-color: color-mix(
+    in srgb,
+    var(--color-accent-val) 50%,
+    var(--color-border-val)
+  );
+  background: color-mix(
+    in srgb,
+    var(--color-accent-val) 8%,
+    var(--color-background-val)
+  );
+}
+.account-theme-option:active {
+  transform: scale(0.96);
+}
+@keyframes account-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .account-menu,
+  .account-theme-options {
+    animation: none;
+  }
+  .account-menu * {
+    transition: none !important;
+  }
+  .account-theme-option:active {
+    transform: none;
+  }
+}

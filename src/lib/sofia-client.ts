@@ -41,7 +41,10 @@ export interface SofiaOrganization {
   slug: string;
   description?: string;
   logo_url?: string;
+  brand_logo_url?: string;
   contact_email?: string;
+  contact_phone?: string;
+  website_url?: string;
   subscription_plan?: 'team' | 'business' | 'enterprise';
   subscription_status?: 'active' | 'expired' | 'cancelled' | 'trial' | 'pending';
   brand_color_primary?: string;

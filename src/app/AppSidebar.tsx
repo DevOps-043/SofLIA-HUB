@@ -96,7 +96,8 @@ export function AppSidebar(props: AppSidebarProps) {
       userEmail={auth.user?.email}
       avatarUrl={props.avatarUrl}
       orgName={auth.sofiaContext?.currentOrganization?.name}
-      orgLogoUrl={auth.sofiaContext?.currentOrganization?.brand_favicon_url}
+      orgLogoUrl={auth.sofiaContext?.currentOrganization?.brand_logo_url?.trim() || auth.sofiaContext?.currentOrganization?.logo_url?.trim() || auth.sofiaContext?.currentOrganization?.brand_favicon_url}
+      orgFaviconUrl={auth.sofiaContext?.currentOrganization?.brand_favicon_url}
       organizations={auth.sofiaContext?.organizations}
       currentOrgId={auth.sofiaContext?.currentOrganization?.id}
       organizationsUnavailableMessage={auth.sofiaContextDegraded ? auth.sofiaStatusMessage : null}
