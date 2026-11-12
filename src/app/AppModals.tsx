@@ -23,7 +23,7 @@ interface AppModalsProps {
 
 export function AppModals(props: AppModalsProps) {
   const deletingFolder = props.folder.deletingFolderId
-    ? props.folder.folders.find((item: any) => item.id === props.folder.deletingFolderId) ?? null
+    ? props.folder.folders.find((item: { id: string }) => item.id === props.folder.deletingFolderId) ?? null
     : null;
 
   return (

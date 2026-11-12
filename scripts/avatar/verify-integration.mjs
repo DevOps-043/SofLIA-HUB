@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-/* global document, getComputedStyle, requestAnimationFrame, performance */
+/* global document, requestAnimationFrame, innerWidth */
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { chromium } from 'playwright-core';

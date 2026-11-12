@@ -29,7 +29,7 @@ export default tseslint.config(
       '.worktrees/**',
     ],
   },
-  { files: ['scripts/**/*.mjs', 'test/**/*.mjs', 'eslint.config.mjs'], languageOptions: { globals: globals.node } },
+  { files: ['scripts/**/*.mjs', 'test/**/*.mjs', 'soflia-ai-agent/**/*.mjs', 'eslint.config.mjs'], languageOptions: { globals: globals.node } },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -49,6 +49,11 @@ export default tseslint.config(
     // Sólo callbacks de page.evaluate de este smoke acceden al DOM.
     files: ['test/manual/project-panel/smoke.mjs'],
     languageOptions: { globals: { document: 'readonly', window: 'readonly' } },
+  },
+  {
+    // Estos scripts Node también ejecutan callbacks dentro de Playwright.
+    files: ['soflia-ai-agent/tests/base-browser.mjs', 'soflia-ai-agent/tests/browser-smoke.mjs'],
+    languageOptions: { globals: globals.browser },
   },
   {
     files: ['**/*.{ts,tsx,mts,cts}'],

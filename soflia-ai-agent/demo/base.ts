@@ -44,4 +44,3 @@ async function benchmark(withEffects:boolean):Promise<unknown>{
 }
 render();Object.assign(window,{baseReview:{view,render,benchmark,frames:()=>frames,scene,camera,renderer,model:gltf.scene}});
 window.addEventListener('pagehide',()=>{disposed=true;controls.dispose();environment.dispose();for(const pass of composer.passes)pass.dispose();composer.dispose();gltf.scene.traverse(object=>{if(object instanceof Mesh){object.geometry.dispose();for(const material of Array.isArray(object.material)?object.material:[object.material])material.dispose();}});renderer.dispose();},{once:true});
-

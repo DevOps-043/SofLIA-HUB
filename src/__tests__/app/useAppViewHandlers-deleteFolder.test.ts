@@ -1,6 +1,8 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { useAppViewHandlers } from '../../app/useAppViewHandlers';
+import type { MouseEvent } from 'react';
+import type { ChatState, FolderState } from '../../app/app-types';
 
 describe('useAppViewHandlers - eliminación de carpetas con modal en la app', () => {
   it('abre el modal seteando deletingFolderId sin invocar window.confirm', () => {
@@ -14,19 +16,19 @@ describe('useAppViewHandlers - eliminación de carpetas con modal en la app', ()
       handleDeleteFolder,
       currentFolderId: null,
       setCurrentFolderId: vi.fn(),
-    } as any;
+    } as FolderState;
 
     const { result } = renderHook(() =>
       useAppViewHandlers({
         activeView: 'chat',
-        chat: {} as any,
+        chat: {} as ChatState,
         folder,
         setActiveView: vi.fn(),
         setExternalPrompt: vi.fn(),
       })
     );
 
-    const event = { stopPropagation: vi.fn() } as any;
+    const event = { stopPropagation: vi.fn() } as unknown as MouseEvent;
     act(() => {
       void result.current.handleDeleteFolder('f-1', event);
     });
@@ -49,12 +51,12 @@ describe('useAppViewHandlers - eliminación de carpetas con modal en la app', ()
       handleDeleteFolder: handleDeleteFolderMock,
       currentFolderId: 'f-1',
       setCurrentFolderId,
-    } as any;
+    } as FolderState;
 
     const { result } = renderHook(() =>
       useAppViewHandlers({
         activeView: 'project',
-        chat: {} as any,
+        chat: {} as ChatState,
         folder,
         setActiveView,
         setExternalPrompt: vi.fn(),
@@ -82,12 +84,12 @@ describe('useAppViewHandlers - eliminación de carpetas con modal en la app', ()
       handleDeleteFolder: handleDeleteFolderMock,
       currentFolderId: null,
       setCurrentFolderId: vi.fn(),
-    } as any;
+    } as FolderState;
 
     const { result } = renderHook(() =>
       useAppViewHandlers({
         activeView: 'chat',
-        chat: {} as any,
+        chat: {} as ChatState,
         folder,
         setActiveView: vi.fn(),
         setExternalPrompt: vi.fn(),

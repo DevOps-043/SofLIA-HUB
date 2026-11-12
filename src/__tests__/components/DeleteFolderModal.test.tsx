@@ -16,13 +16,18 @@ const FOLDER_MOCK: Folder = {
 
 describe('DeleteFolderModal', () => {
   it('no se renderiza si isOpen es falso o folder es nulo', () => {
+    const onConfirm = vi.fn();
     const { container, rerender } = render(
-      <DeleteFolderModal isOpen={false} folder={FOLDER_MOCK} onClose={vi.fn()} onConfirm={vi.fn()} />
+      <DeleteFolderModal isOpen={false} folder={FOLDER_MOCK} onClose={vi.fn()} onConfirm={onConfirm} />
     );
     expect(container.firstChild).toBeNull();
+    fireEvent.keyDown(window, { key: 'Enter' });
+    expect(onConfirm).not.toHaveBeenCalled();
 
-    rerender(<DeleteFolderModal isOpen={true} folder={null} onClose={vi.fn()} onConfirm={vi.fn()} />);
+    rerender(<DeleteFolderModal isOpen={true} folder={null} onClose={vi.fn()} onConfirm={onConfirm} />);
     expect(container.firstChild).toBeNull();
+    fireEvent.keyDown(window, { key: 'Enter' });
+    expect(onConfirm).not.toHaveBeenCalled();
   });
 
   it('muestra el titulo con el nombre entre comillas y el mensaje descriptivo', () => {
@@ -78,5 +83,21 @@ describe('DeleteFolderModal', () => {
       fireEvent.keyDown(window, { key: 'Enter' });
     });
     expect(onConfirm).toHaveBeenCalledTimes(1);
+  });
+
+  it('confirma con el callback vigente después de actualizar el modal', async () => {
+    const previousConfirm = vi.fn();
+    const currentConfirm = vi.fn();
+    const onClose = vi.fn();
+    const { rerender } = render(
+      <DeleteFolderModal isOpen={true} folder={FOLDER_MOCK} onClose={onClose} onConfirm={previousConfirm} />
+    );
+    rerender(<DeleteFolderModal isOpen={true} folder={FOLDER_MOCK} onClose={onClose} onConfirm={currentConfirm} />);
+
+    await act(async () => {
+      fireEvent.keyDown(window, { key: 'Enter' });
+    });
+    expect(previousConfirm).not.toHaveBeenCalled();
+    expect(currentConfirm).toHaveBeenCalledTimes(1);
   });
 });

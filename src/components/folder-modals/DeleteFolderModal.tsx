@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { FolderModalShell } from './FolderModalShell';
 import type { DeleteFolderModalProps } from './types';
 
@@ -12,8 +12,18 @@ export function DeleteFolderModal({
   const [internalBusy, setInternalBusy] = useState(false);
   const busy = isDeleting || internalBusy;
 
+  const handleConfirm = useCallback(async () => {
+    if (busy) return;
+    setInternalBusy(true);
+    try {
+      await onConfirm();
+    } finally {
+      setInternalBusy(false);
+    }
+  }, [busy, onConfirm]);
+
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !folder) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Enter' && !busy) {
         event.preventDefault();
@@ -22,21 +32,11 @@ export function DeleteFolderModal({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, busy]);
+  }, [isOpen, folder, busy, handleConfirm]);
 
   if (!isOpen || !folder) return null;
 
   const nombre = folder.name ? `"${folder.name}"` : 'esta carpeta';
-
-  const handleConfirm = async () => {
-    if (busy) return;
-    setInternalBusy(true);
-    try {
-      await onConfirm();
-    } finally {
-      setInternalBusy(false);
-    }
-  };
 
   const handleClose = () => {
     if (busy) return;
