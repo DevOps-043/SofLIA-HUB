@@ -1,3 +1,4 @@
+import { SearchIcon } from "../ui/Icons";
 import { TextField } from "../ui/TextField";
 import { useState } from "react";
 import { Button } from "../ui/Button";
@@ -79,20 +80,7 @@ export function ProjectSidebarContent({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="!rounded-2xl !py-2 !text-xs"
-            icon={
-              <svg
-                aria-hidden="true"
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <path d="m17 17 5 5" />
-              </svg>
-            }
+            icon={<SearchIcon size={14} />}
           />
         </div>
       )}

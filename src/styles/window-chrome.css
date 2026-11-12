@@ -1,0 +1,8 @@
+/* La interfaz modal reserva la misma fila que los controles nativos. */
+:root {
+  --app-titlebar-height: 2.25rem;
+  --browser-titlebar-height: 2.5rem;
+}
+:root:has([data-testid="browser-tab-strip"]) {
+  --app-titlebar-height: var(--browser-titlebar-height);
+}

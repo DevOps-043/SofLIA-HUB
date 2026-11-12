@@ -1,3 +1,4 @@
+import { HubGlyph } from '../ui/HubGlyph';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 const MAX_VISIBLE_CONVERSATIONS = 40;
@@ -95,11 +96,7 @@ export function BrowserConversationMenu(props: BrowserConversationMenuProps) {
             : 'text-secondary hover:bg-accent/10 hover:text-accent'
         }`}
       >
-        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          <path d="M8 9h8" />
-          <path d="M8 13h5" />
-        </svg>
+        <HubGlyph name="chats" size={18} />
         {props.inline && <span>Conversaciones</span>}
       </button>
 
@@ -124,14 +121,14 @@ export function BrowserConversationMenu(props: BrowserConversationMenuProps) {
               onClick={() => void runAction('new', props.onNewChat)}
               className="inline-flex h-7.5 items-center gap-1.5 rounded-xl bg-accent px-3 text-[11px] font-bold text-on-accent shadow-xs transition-all hover:scale-[1.02] hover:shadow-md active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 disabled:cursor-wait disabled:opacity-60"
             >
-              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+              <HubGlyph name="plus" size={18} />
               <span>Nuevo chat</span>
             </button>}
           </div>
 
           <label className="relative block px-0.5 pb-2 pt-0.5 relative z-10">
             <span className="sr-only">Buscar chats</span>
-            <svg className="pointer-events-none absolute left-3 top-2.5 h-3.5 w-3.5 text-gray-400 dark:text-white/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+            <HubGlyph name="search" size={18} className="pointer-events-none absolute left-3 top-2.5 text-gray-400 dark:text-white/40" />
             <input
               ref={searchRef}
               value={query}
@@ -166,16 +163,14 @@ export function BrowserConversationMenu(props: BrowserConversationMenuProps) {
                       }`}
                     >
                       <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg border transition-all ${active ? 'border-accent/30 bg-accent/15 text-accent' : 'border-gray-200/70 dark:border-white/10 bg-gray-100/70 dark:bg-white/[0.06] text-gray-500 dark:text-white/45'}`}>
-                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                        </svg>
+                        <HubGlyph name="chats" size={18} />
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className={`block truncate text-[11.5px] ${active ? 'font-bold text-accent' : 'font-semibold text-gray-900 dark:text-white'}`}>{conversation.title || 'Chat sin título'}</span>
                         <span className="block truncate text-[9.5px] text-gray-400 dark:text-white/45 mt-0.5">{formatUpdatedAt(conversation.updated_at)}</span>
                       </span>
                       {active && (
-                        <svg className="h-3.5 w-3.5 shrink-0 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-label="Chat activo"><polyline points="20 6 9 17 4 12" /></svg>
+                        <span className="ml-auto shrink-0 text-accent" role="img" aria-label="Chat activo"><HubGlyph name="check" size={18} /></span>
                       )}
                       {pending && <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-r-transparent" aria-label="Abriendo chat" />}
                     </button>

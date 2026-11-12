@@ -1,0 +1,6 @@
+- [x] Corregir acceso flotante sin fondo ni flecha, con nombre mayor.
+- [x] Implementar contrato, validación y migración aditiva de administración.
+- [x] Añadir formulario y navegación para administradores activos.
+- [x] Actualizar contexto e identidad después de guardar con guardas de ámbito.
+- [x] Verificar permisos, errores, presentación y documentación.
+- [ ] Aplicar migración y verificar permisos remotos después de autorización explícita.

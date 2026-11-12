@@ -66,6 +66,7 @@ export interface SidebarProps {
   avatarUrl: string | undefined;
   orgName?: string | undefined;
   orgLogoUrl: string | undefined;
+  orgFaviconUrl?: string;
   organizations?: SofiaOrganization[];
   currentOrgId?: string;
   onSelectOrganization?: (orgId: string) => void;

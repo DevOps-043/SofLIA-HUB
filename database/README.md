@@ -14,3 +14,7 @@ deducir quien puede leer que.
 como parte de una migración normal. El esquema de sync cifrado está preparado
 localmente; eso no demuestra su aplicación en Lia.
 Leer `docs/standards/database.md` antes de modificar SQL.
+
+`sofia-learning/rollbacks/desktop-organization-settings.sql` revierte únicamente
+la API nueva de ajustes de organización y bloquea escrituras de su bucket,
+conservando imágenes y datos. Su aplicación también requiere autorización.

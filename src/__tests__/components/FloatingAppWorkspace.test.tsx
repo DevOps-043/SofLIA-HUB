@@ -24,15 +24,11 @@ describe('Integración del chat flotante en la aplicación',()=>{
     fireEvent.click(screen.getByRole('button',{name:'Preparar chat del proyecto para escribir'}));fireEvent.click(screen.getByRole('button',{name:'Nuevo chat'}));
     expect(create).toHaveBeenCalledOnce();await act(async()=>finish());
   });
-  it('permite abrir el compositor en una sección sin sustituirla ni montar otro chat',async()=>{
+  it('la sección general de productividad no monta el compositor de proyectos',()=>{
     render(<AppWorkspace {...props()}/>);
     expect(screen.getByText('Tareas visibles')).toBeVisible();
     expect(screen.queryByTestId('actual-chat')).toBeNull();
-    fireEvent.click(screen.getByRole('button',{name:'Abrir chat flotante con Soflia'}));
-    expect(await screen.findByTestId('actual-chat')).toHaveAttribute('data-floating','true');
-    expect(screen.getByTestId('actual-chat')).toHaveAttribute('data-browser','false');
-    expect(screen.getByText('Tareas visibles')).toBeVisible();
-    expect(screen.getAllByTestId('actual-chat')).toHaveLength(1);
+    expect(screen.queryByRole('button',{name:'Abrir chat flotante con Soflia'})).toBeNull();
   });
   it('la vista principal conserva su chat y no duplica el flotante',()=>{
     render(<AppWorkspace {...props()} activeView="chat"/>);
@@ -40,16 +36,17 @@ describe('Integración del chat flotante en la aplicación',()=>{
     expect(screen.queryByRole('button',{name:'Abrir chat flotante con Soflia'})).toBeNull();
   });
   it('nuevo chat reinicia el compositor sin usar el manejador que cambia a la vista principal',async()=>{
-    const base=props(),create=vi.fn(async()=>null),clearFolder=vi.fn(),navigate=vi.fn();
-    render(<AppWorkspace {...base} onNewChat={navigate} chat={{...base.chat,handleNewChat:create}} folder={{...base.folder,setCurrentFolderId:clearFolder}} />);
+    const base=props(),create=vi.fn(async()=>{}),globalCreate=vi.fn(),navigate=vi.fn();
+    const projectWorkspace={key:'p',canShowChat:true,navigation:{name:'Proyecto',section:'tasks',canCreateChat:true,onBrowserNewChat:create,conversations:[]}} as unknown as NonNullable<typeof base.projectWorkspace>;
+    render(<AppWorkspace {...base} activeView="project-hub" unifiedProject={{workspaceId:'w',projectId:'p'}} projectWorkspace={projectWorkspace} onNewChat={navigate} chat={{...base.chat,handleNewChat:globalCreate}} />);
     fireEvent.click(screen.getByRole('button',{name:'Abrir chat flotante con Soflia'}));
     fireEvent.change(await screen.findByRole('textbox'),{target:{value:'Borrador anterior'}});
     fireEvent.click(screen.getByRole('button',{name:'Nuevo chat'}));
     await waitFor(()=>expect(create).toHaveBeenCalledOnce());
     await waitFor(()=>expect(screen.getByRole('textbox')).toHaveValue(''));
-    expect(clearFolder).toHaveBeenCalledWith(null);
+    expect(globalCreate).not.toHaveBeenCalled();
     expect(navigate).not.toHaveBeenCalled();
-    expect(screen.getByText('Tareas visibles')).toBeVisible();
+    expect(screen.getByText('Tablero del proyecto')).toBeVisible();
   });
   it('nuevo chat conserva el ámbito del proyecto',async()=>{
     const base=props(),create=vi.fn(async()=>{}),globalCreate=vi.fn();

@@ -1,3 +1,6 @@
+import '../../styles/window-chrome.css';
+import { HubGlyph } from '../ui/HubGlyph';
+import { IconGlyph } from '../ui/IconGlyph';
 import { useMemo, useRef, useState } from 'react';
 import {
   integratedBrowserService,
@@ -261,7 +264,7 @@ export function BrowserTabStrip(props: BrowserTabStripProps) {
 
   return (
     <div
-      className="relative z-50 flex h-10 select-none items-center justify-between border-b border-gray-200/80 bg-[#e4e7eb] px-2 pt-1 dark:border-white/[0.08] dark:bg-[#070a0f] [app-region:drag] [-webkit-app-region:drag]"
+      className="relative z-50 flex h-[var(--browser-titlebar-height)] select-none items-center justify-between border-b border-gray-200/80 bg-[#e4e7eb] px-2 pt-1 dark:border-white/[0.08] dark:bg-[#070a0f] [app-region:drag] [-webkit-app-region:drag]"
       data-testid="browser-tab-strip"
     >
       {/* Tira de pestañas responsive con reajuste perfecto continuo estilo Chrome */}
@@ -359,10 +362,7 @@ export function BrowserTabStrip(props: BrowserTabStripProps) {
                   }}
                   className="ml-0.5 grid h-4.5 w-4.5 shrink-0 place-items-center rounded opacity-0 transition-all duration-150 group-hover:opacity-70 hover:!opacity-100 hover:bg-black/10 dark:hover:bg-white/15 hover:scale-110"
                 >
-                  <svg className="h-3 w-3 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                    <rect x="3" y="4" width="8.5" height="16" rx="1.5" />
-                    <rect x="12.5" y="4" width="8.5" height="16" rx="1.5" />
-                  </svg>
+                  <HubGlyph name="split" size={15} />
                 </button>
               )}
 
@@ -376,9 +376,7 @@ export function BrowserTabStrip(props: BrowserTabStripProps) {
                 }}
                 className="ml-0.5 grid h-4.5 w-4.5 shrink-0 place-items-center rounded-full opacity-60 transition-all duration-150 hover:bg-danger/20 hover:text-danger hover:opacity-100 hover:rotate-90 hover:scale-110"
               >
-                <svg className="h-3 w-3 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
+                <HubGlyph name="close" size={15} />
               </button>
             </div>
           );
@@ -392,9 +390,7 @@ export function BrowserTabStrip(props: BrowserTabStripProps) {
           onClick={onCreateTab}
           className="mb-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg text-gray-600 transition-all duration-200 hover:bg-black/10 hover:text-accent hover:scale-110 active:scale-90 focus-visible:outline-none dark:text-gray-300 dark:hover:bg-white/10 [app-region:no-drag] [-webkit-app-region:no-drag]"
         >
-          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
+          <HubGlyph name="plus" size={19} />
         </button>
       </div>
 
@@ -461,12 +457,7 @@ function ViewModeButton(props: {
           : 'text-gray-500 hover:text-accent dark:text-gray-400'
       }`}
     >
-      <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-        {props.mode === 'single' && <rect x="3" y="4" width="18" height="16" rx="2.5" />}
-        {props.mode === 'split' && (
-          <><rect x="3" y="4" width="8.5" height="16" rx="2" /><rect x="12.5" y="4" width="8.5" height="16" rx="2" /></>
-        )}
-      </svg>
+      <HubGlyph name={props.mode === 'split' ? 'split' : 'web'} size={18} />
     </button>
   );
 }
@@ -495,9 +486,7 @@ function TabIconButton(props: {
           : 'text-gray-500 hover:bg-white hover:text-accent hover:shadow-xs dark:text-gray-400 dark:hover:bg-white/[0.1] dark:hover:text-accent'
       }`}
     >
-      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        {props.children}
-      </svg>
+      <IconGlyph className="h-4 w-4">{props.children}</IconGlyph>
     </button>
   );
 }

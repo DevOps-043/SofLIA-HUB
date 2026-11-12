@@ -8,12 +8,12 @@ import { AppearanceVoiceSection } from './sections/AppearanceVoiceSection';
 import { IntegrationsSkillsSection } from './sections/IntegrationsSkillsSection';
 import { TeamProductivitySection } from './sections/TeamProductivitySection';
 import { SystemUpdateSection } from './sections/SystemUpdateSection';
+import { OrganizationSettingsSection } from './sections/OrganizationSettingsSection';
 
 export function SettingsContent({
   activeTab,
   onClose,
   userId,
-  onSaveSettings: _onSaveSettings,
   sofiaContext,
   apiKey,
 }: {
@@ -29,6 +29,8 @@ export function SettingsContent({
   const masterTab = resolveMasterTab(activeTab);
 
   switch (masterTab) {
+    case 'organization':
+      return <OrganizationSettingsSection sofiaContext={sofiaContext} />;
     case 'identity':
       return <IdentityPrivacySection userId={userId} form={form} />;
     case 'appearance':

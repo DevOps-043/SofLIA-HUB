@@ -1,5 +1,7 @@
 import { sofiaAuth, type SofiaContext } from '../../services/sofia-auth';
 import { savePreferredOrgId } from '../../services/sofia-auth/org-preference';
+import { mergeOrganizationProfile } from '../../services/org/settings-context';
+import type { SofiaOrganization } from '../../lib/sofia-client';
 
 type SofiaSelectionDeps = {
   setSofiaContext: (updater: (prev: SofiaContext | null) => SofiaContext | null) => void;
@@ -26,5 +28,10 @@ export function useSofiaSelection({ setSofiaContext, sofiaContext }: SofiaSelect
     setSofiaContext((prev) => prev ? { ...prev, currentTeam: team } : null);
   };
 
-  return { setCurrentOrganization, setCurrentTeam };
+  const updateOrganizationProfile = (organization: SofiaOrganization, actorId: string) => {
+    sofiaAuth.updateOrganizationProfile(organization, actorId);
+    setSofiaContext(previous => mergeOrganizationProfile(previous, organization, actorId));
+  };
+
+  return { setCurrentOrganization, setCurrentTeam, updateOrganizationProfile };
 }

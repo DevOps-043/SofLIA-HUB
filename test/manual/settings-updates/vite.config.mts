@@ -1,0 +1,5 @@
+import { fileURLToPath } from 'node:url';
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+const root = fileURLToPath(new URL('../../../', import.meta.url));
+export default defineConfig({ root: fileURLToPath(new URL('.', import.meta.url)), envDir: false, plugins: [react()], resolve: { alias: [{ find: root + 'src/components/unified-settings/SettingsContent.tsx', replacement: fileURLToPath(new URL('./fixture-content.tsx', import.meta.url)) }, { find: /.*unified-settings\/SettingsContent$/, replacement: fileURLToPath(new URL('./fixture-content.tsx', import.meta.url)) }, { find: /.*memory\/MemorySkillsCard$/, replacement: fileURLToPath(new URL('./fixture-stubs.tsx', import.meta.url)) }, { find: /.*\/PrivacySettings$/, replacement: fileURLToPath(new URL('./fixture-stubs.tsx', import.meta.url)) }, { find: /.*\/CommandApprovalSettings$/, replacement: fileURLToPath(new URL('./fixture-stubs.tsx', import.meta.url)) }] }, server: { host: '127.0.0.1', port: 4324, strictPort: true, fs: { allow: [root] } } });

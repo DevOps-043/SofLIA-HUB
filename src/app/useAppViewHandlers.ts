@@ -45,21 +45,22 @@ export function useAppViewHandlers(options: UseAppViewHandlersOptions) {
 
   const handleDeleteFolder = useCallback(async (folderId: string, event: MouseEvent) => {
     event.stopPropagation();
-    // Borrar es irreversible y arrastra las fuentes de la carpeta. Los chats NO
-    // se pierden: el servicio los deja sin carpeta, y el aviso lo dice para que
-    // nadie cancele por miedo a perder conversaciones.
-    const target = folder.folders.find((item) => item.id === folderId);
-    const nombre = target?.name ? `"${target.name}"` : 'esta carpeta';
-    const confirmado = window.confirm(
-      `Eliminar ${nombre}?\n\nSus chats se conservan y pasan a "Sin carpeta". Las fuentes de la carpeta y los accesos compartidos se eliminan.`,
-    );
-    if (!confirmado) return;
+    folder.setDeletingFolderId(folderId);
+  }, [folder]);
 
+  const handleConfirmDeleteFolder = useCallback(async () => {
+    const folderId = folder.deletingFolderId;
+    if (!folderId) return;
+    folder.setDeletingFolderId(null);
     await folder.handleDeleteFolder(folderId);
     if (folder.currentFolderId === folderId) {
       folder.setCurrentFolderId(null);
       setActiveView('chat');
     }
+  }, [folder, setActiveView]);
+
+  const handleCancelDeleteFolder = useCallback(() => {
+    folder.setDeletingFolderId(null);
   }, [folder]);
 
   const handleOpenProject = useCallback((folderId: string) => {
@@ -79,8 +80,16 @@ export function useAppViewHandlers(options: UseAppViewHandlersOptions) {
   }, [handleNewChat]);
 
   return {
-    handleDeleteConversation, handleDeleteFolder, handleIrisIssueClick,
-    handleIrisProjectClick, handleNewChat, handleNewChatInProject,
-    handleNewChatWithMessage, handleOpenProject, handleSelectConversation,
+    handleCancelDeleteFolder,
+    handleConfirmDeleteFolder,
+    handleDeleteConversation,
+    handleDeleteFolder,
+    handleIrisIssueClick,
+    handleIrisProjectClick,
+    handleNewChat,
+    handleNewChatInProject,
+    handleNewChatWithMessage,
+    handleOpenProject,
+    handleSelectConversation,
   };
 }

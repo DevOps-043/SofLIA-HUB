@@ -254,6 +254,7 @@ export function Sidebar(props: SidebarProps) {
                   avatarUrl={props.avatarUrl}
                   orgName={props.orgName}
                   orgLogoUrl={props.orgLogoUrl}
+                  orgFaviconUrl={props.orgFaviconUrl}
                   organizations={props.organizations}
                   currentOrgId={props.currentOrgId}
                   onSelectOrganization={props.onSelectOrganization}
@@ -333,6 +334,7 @@ export function Sidebar(props: SidebarProps) {
               avatarUrl={props.avatarUrl}
               orgName={props.orgName}
               orgLogoUrl={props.orgLogoUrl}
+              orgFaviconUrl={props.orgFaviconUrl}
               organizations={props.organizations}
               currentOrgId={props.currentOrgId}
               onSelectOrganization={props.onSelectOrganization}

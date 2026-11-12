@@ -2,7 +2,7 @@
 
 Estado: vigente. Actualizado: 2026-10-22.
 
-El inventario del cambio contiene 706 archivos de prueba: 464 para main y 236
+El inventario del cambio contiene 716 archivos de prueba: 464 para main y 246
 para renderer, además de los archivos de prueba de scripts. El validador documental recalcula estas cifras; el numero de casos
 ejecutados se registra en el reporte de evidencia de cada cambio, no aqui.
 

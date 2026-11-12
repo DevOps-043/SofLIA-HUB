@@ -65,3 +65,29 @@ describe('catálogo académico del escritorio', () => {
     expect(deps.fetcher).not.toHaveBeenCalled();
   });
 });
+
+
+describe('capacidades y origen de gestión del catálogo', () => {
+  it('negocia capacidades sin añadir campos obligatorios al cuerpo anterior', async () => {
+    const deps = dependencies();
+    await requestLearningLiveCatalog(input, deps);
+    expect(deps.fetcher).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+      headers: expect.objectContaining({ 'X-Soflia-Catalog-Capabilities': '1' }), body: JSON.stringify(input),
+    }));
+  });
+  it('construye la gestión exclusivamente desde el origen configurado y el slug autorizado', async () => {
+    const deps = dependencies();
+    deps.fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ ...catalog, can_teach: true, capabilities: { version: 1, role: 'organization_admin', can_manage: true, can_view_history: true } })));
+    expect(await requestLearningLiveCatalog(input, deps)).toMatchObject({ success: true, catalog: { management_url: 'https://learning.test/acme/instructor' } });
+  });
+  it('no acepta una URL de gestión suministrada por el proveedor', async () => {
+    const deps = dependencies();
+    deps.fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ ...catalog, management_url: 'https://evil.test/acme/instructor' })));
+    expect((await requestLearningLiveCatalog(input, deps)).success).toBe(false);
+  });
+  it('conserva el período de historial y no inventa permisos de gestión', async () => {
+    const deps = dependencies();
+    expect(await requestLearningLiveCatalog({ ...input, view: 'instructor', period: 'past' }, deps)).toEqual({ success: true, catalog });
+    expect(deps.fetcher).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ body: JSON.stringify({ ...input, view: 'instructor', period: 'past' }) }));
+  });
+});

@@ -1,49 +1,299 @@
-import { useEffect, useState } from 'react';
-import { learningLiveService } from '../../services/learning-live-service';
-import type { LiveCatalog, LiveCatalogSession } from '../../shared/learning-live-catalog';
+import { useState } from 'react';
+import { LIVE_CATALOG_PAGE_SIZE } from '../../shared/learning-live-catalog';
 import type { LearningLiveSessionReference } from '../../shared/learning-live-session';
 import { LiveIcon } from './LiveIcon';
+import { SessionAgendaCard } from './SessionAgendaCard';
+import { managementPageUrl } from './agenda-model';
+import { useLearningAgenda } from './useLearningAgenda';
 import './learning-live.css';
 
-const date = (value: string) => new Date(value).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
-const time = (value: string) => new Date(value).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+type LearningSessionsProps = {
+  organizationSlug?: string;
+  organizationName?: string;
+  onSelect: (reference: LearningLiveSessionReference) => void;
+  onClose: () => void;
+  onOpenManagement?: (url: string) => Promise<void>;
+};
 
-export function LearningSessions({ organizationSlug, organizationName, onSelect, onClose }: {
-  organizationSlug?: string; organizationName?: string; onSelect: (reference: LearningLiveSessionReference) => void; onClose: () => void;
-}) {
-  const [result, setResult] = useState<{ key: string; catalog?: LiveCatalog; error?: string } | null>(null);
-  const [page, setPage] = useState(0);
-  const [view, setView] = useState<'student' | 'instructor'>('student');
-  const [revision, setRevision] = useState(0);
-  const requestKey = JSON.stringify([organizationSlug, page, view, revision]);
-  const catalog = result?.key === requestKey ? result.catalog : undefined;
-  const error = result?.key === requestKey ? result.error : undefined;
-  const loading = !!organizationSlug && result?.key !== requestKey;
-  useEffect(() => {
-    let disposed = false;
-    if (!organizationSlug) return;
-    void learningLiveService.catalog({ organization_slug: organizationSlug, page, view }).then((response) => {
-      if (disposed) return;
-      setResult(response.success ? { key: requestKey, catalog: response.catalog } : { key: requestKey, error: response.error });
-    }).catch(() => { if (!disposed) setResult({ key: requestKey, error: 'No se pudieron cargar tus sesiones.' }); });
-    return () => { disposed = true; };
-  }, [organizationSlug, page, view, requestKey]);
-  const sessions = [...(catalog?.sessions || [])].sort((a, b) => Number(b.status === 'live') - Number(a.status === 'live') || a.starts_at.localeCompare(b.starts_at));
-  const featured = page === 0 ? sessions[0] : undefined;
-  const select = (session: LiveCatalogSession) => { if (organizationSlug) onSelect({ organization_slug: organizationSlug, session_id: session.id }); };
-  return <main className="live-agenda" aria-labelledby="live-agenda-title">
-    <div className="live-agenda-inner">
-      <header className="live-agenda-top"><span className="live-brand"><LiveIcon name="book" /> SofLIA Learning <span>/</span> {organizationName || 'Tu espacio de aprendizaje'}</span><button className="live-icon-button" aria-label="Cerrar sesiones síncronas" onClick={onClose}><LiveIcon name="close" /></button></header>
-      <div className="live-agenda-heading"><div><span className="live-eyebrow">APRENDE EN COMPAÑÍA</span><h1 id="live-agenda-title">Sesiones síncronas<span>.</span></h1><p>Tu próxima conversación, idea o descubrimiento empieza aquí.</p></div><button className="live-secondary" disabled={loading || !organizationSlug} onClick={() => setRevision((value) => value + 1)}><LiveIcon name="refresh" />Actualizar</button></div>
-      <div className="live-agenda-toolbar"><span><LiveIcon name="calendar" /> Tu agenda <span className="live-count">{catalog?.total ?? '—'}</span></span><span className="live-muted">Horario local · {Intl.DateTimeFormat().resolvedOptions().timeZone}</span></div>
-      {(catalog?.can_teach || view === 'instructor') && <div className="live-segment" aria-label="Tipo de agenda"><button aria-pressed={view === 'student'} onClick={() => { setView('student'); setPage(0); }}>Mis cursos</button><button aria-pressed={view === 'instructor'} onClick={() => { setView('instructor'); setPage(0); }}>Clases que imparto</button></div>}
-      {loading && <div className="live-loading" role="status"><div className="live-skeleton" /><p>Buscando tus próximas sesiones…</p></div>}
-      {error && <div className="live-empty" role="alert"><LiveIcon name="calendar" /><h2>No pudimos cargar tu agenda</h2><p>{error}</p><button className="live-primary" onClick={() => setRevision((value) => value + 1)}>Reintentar</button></div>}
-      {!loading && !error && !sessions.length && <div className="live-empty"><div className="live-empty-icon"><LiveIcon name="calendar" /></div><h2>{organizationSlug ? 'Tu agenda está despejada' : 'Elige tu organización'}</h2><p>{organizationSlug ? 'Cuando se programe una sesión para tus cursos, aparecerá aquí.' : 'Selecciona una organización desde tu perfil para consultar tus clases.'}</p>{page > 0 && <button onClick={() => setPage(0)}>Volver al inicio</button>}</div>}
-      {featured && <section className="live-featured" aria-label="Sesión destacada"><div className="live-featured-main"><span className={`live-status ${featured.status === 'live' ? 'is-live' : ''}`}><i />{featured.status === 'live' ? 'En vivo ahora' : 'Tu próxima sesión'}</span><p className="live-course">{featured.course_title}</p><h2>{featured.title}</h2>{featured.description && <p className="live-description">{featured.description}</p>}<div className="live-session-meta"><span><LiveIcon name="calendar" />{date(featured.starts_at)}</span><span><LiveIcon name="clock" />{time(featured.starts_at)} · {featured.duration_minutes} min</span></div><div className="live-featured-footer"><span className="live-instructor"><span className="live-avatar">{featured.instructor_name.slice(0, 1)}</span><span><small>Tu instructor</small>{featured.instructor_name}</span></span><button className="live-primary" onClick={() => select(featured)}>{featured.status === 'live' ? 'Unirme a la sesión' : 'Ver sesión'}<LiveIcon name="arrow" /></button></div></div><div className="live-featured-art" aria-hidden="true"><div className="live-orbit orbit-one" /><div className="live-orbit orbit-two" /><div className="live-orbit orbit-three" /><div className="live-video-emblem"><LiveIcon name="video" /></div><span>Un espacio para aprender juntos</span></div></section>}
-      {sessions.length > (featured ? 1 : 0) && <section className="live-upcoming" aria-label="Próximas sesiones"><div className="live-section-heading"><h2>En tu agenda</h2><span className="live-muted">{catalog?.total} sesiones programadas</span></div>{sessions.filter((session) => session.id !== featured?.id).map((session) => <article className="live-session-row" key={session.id}><div className="live-date-tile"><span>{new Date(session.starts_at).toLocaleDateString('es-MX', { month: 'short' }).replace('.', '')}</span><strong>{new Date(session.starts_at).getDate()}</strong></div><div className="live-row-details"><span className="live-course">{session.course_title}</span><h3>{session.title}</h3><p>{time(session.starts_at)} · {session.duration_minutes} min <span>· {session.instructor_name}</span></p></div><span className="live-status"><i />{session.status === 'live' ? 'En vivo' : 'Programada'}</span><button className="live-secondary" onClick={() => select(session)} aria-label={`Ver sesión: ${session.title}`}>Ver sesión<LiveIcon name="arrow" /></button></article>)}</section>}
-      {!!catalog && catalog.total > 20 && <nav className="live-pagination" aria-label="Páginas de sesiones"><button disabled={page === 0 || loading} onClick={() => setPage(page - 1)}>Anterior</button><span>Página {page + 1} de {Math.ceil(catalog.total / 20)}</span><button disabled={(page + 1) * 20 >= catalog.total || loading} onClick={() => setPage(page + 1)}>Siguiente</button></nav>}
-      <footer className="live-agenda-footer"><LiveIcon name="video" /><p>Tu clase y tu espacio de colaboración, juntos en Soflia Hub.</p><span>Conecta. Participa. Aprende.</span></footer>
-    </div>
-  </main>;
+/** Cambiar organización también reinicia página, vista y permisos retenidos. */
+export function LearningSessions(props: LearningSessionsProps) {
+  return <OrganizationAgenda key={props.organizationSlug ? `org:${props.organizationSlug}` : 'none'} {...props} />;
+}
+
+function OrganizationAgenda({
+  organizationSlug,
+  organizationName,
+  onSelect,
+  onClose,
+  onOpenManagement,
+}: LearningSessionsProps) {
+  const agenda = useLearningAgenda(organizationSlug);
+  const [opening, setOpening] = useState(false);
+  const [navigationError, setNavigationError] = useState<string | null>(null);
+  const { catalog, loading, error, sessions, tab, page, permissions } = agenda;
+  const history = tab === 'history';
+  const managing = tab !== 'personal';
+  const featured = !history && page === 0 ? sessions[0] : undefined;
+  const remaining = sessions.filter((session) => session.id !== featured?.id);
+  const managementUrl = managementPageUrl(catalog, organizationSlug);
+  const roleLabels = {
+    platform_admin: 'Administración de plataforma',
+    organization_admin: 'Administración de organización',
+    instructor: 'Instructor',
+    student: 'Mi aprendizaje',
+  };
+  const admin = permissions.role === 'platform_admin' || permissions.role === 'organization_admin';
+  // Una respuesta antigua puede incluir vencidas; no inventar un total global corregido.
+  const total = catalog && sessions.length === catalog.sessions.length ? catalog.total : undefined;
+  const pages = Math.ceil((catalog?.total || 0) / LIVE_CATALOG_PAGE_SIZE);
+  const selectSession = (id: string) => {
+    if (organizationSlug) onSelect({ organization_slug: organizationSlug, session_id: id });
+  };
+  const openManagement = async (url: string) => {
+    if (!onOpenManagement || opening) return;
+    setOpening(true);
+    setNavigationError(null);
+    try {
+      await onOpenManagement(url);
+    } catch {
+      setNavigationError('No se pudo abrir Learning. Intenta de nuevo.');
+    } finally {
+      setOpening(false);
+    }
+  };
+
+  return (
+    <main className="live-agenda" aria-labelledby="live-agenda-title">
+      <div className="live-agenda-inner">
+        <header className="agenda-topbar">
+          <div className="agenda-breadcrumb">
+            <LiveIcon name="book" />
+            <span>Learning</span>
+            <span aria-hidden="true">/</span>
+            <strong>{organizationName || 'Tu organización'}</strong>
+          </div>
+          <button
+            type="button"
+            className="agenda-icon-button"
+            aria-label="Cerrar sesiones síncronas"
+            onClick={onClose}
+          >
+            <LiveIcon name="close" />
+          </button>
+        </header>
+        <div className="agenda-heading">
+          <div>
+            <span className="agenda-eyebrow">
+              {permissions.role
+                ? roleLabels[permissions.role]
+                : permissions.canManage
+                  ? 'Gestión de sesiones'
+                  : 'Mi aprendizaje'}
+            </span>
+            <h1 id="live-agenda-title">Sesiones</h1>
+            <p>
+              {permissions.canManage
+                ? 'Tu agenda, tus clases y su seguimiento, en un solo lugar.'
+                : 'Un espacio para tus próximas clases y conversaciones.'}
+            </p>
+          </div>
+          <div className="agenda-heading-actions">
+            <button
+              type="button"
+              className="agenda-button-secondary"
+              disabled={loading || !organizationSlug}
+              onClick={agenda.refresh}
+              aria-label="Actualizar sesiones"
+            >
+              <LiveIcon name="refresh" />
+              <span>Actualizar</span>
+            </button>
+            {managementUrl && onOpenManagement && (
+              <button
+                type="button"
+                className="agenda-button-primary"
+                disabled={opening}
+                onClick={() => void openManagement(managementUrl)}
+              >
+                Gestionar en Learning
+                <LiveIcon name="arrow" />
+              </button>
+            )}
+          </div>
+        </div>
+        <nav className="agenda-navigation" aria-label="Vista de sesiones">
+          <div className="agenda-tabs">
+            <button
+              type="button"
+              aria-pressed={tab === 'personal'}
+              onClick={() => agenda.selectTab('personal')}
+            >
+              Mi agenda
+            </button>
+            {permissions.canManage && (
+              <button
+                type="button"
+                aria-pressed={tab === 'management'}
+                onClick={() => agenda.selectTab('management')}
+              >
+                {admin ? 'Organización' : 'Clases que imparto'}
+              </button>
+            )}
+            {permissions.canViewHistory && (
+              <button
+                type="button"
+                aria-pressed={history}
+                onClick={() => agenda.selectTab('history')}
+              >
+                Historial
+              </button>
+            )}
+          </div>
+          <span className="agenda-timezone">
+            <LiveIcon name="clock" />
+            {Intl.DateTimeFormat().resolvedOptions().timeZone.replace(/_/g, ' ')}
+          </span>
+        </nav>
+        {navigationError && (
+          <p className="agenda-notice" role="alert">
+            {navigationError}
+          </p>
+        )}
+        <section
+          className="agenda-results"
+          aria-label={history ? 'Historial de sesiones' : 'Próximas sesiones'}
+          aria-busy={loading}
+        >
+          <div className="agenda-section-heading">
+            <h2>
+              {history
+                ? 'Historial'
+                : managing
+                  ? admin
+                    ? 'Próximas en tu organización'
+                    : 'Tus próximas clases'
+                  : 'Próximas sesiones'}
+            </h2>
+            {total !== undefined && (
+              <span>
+                {total} {total === 1 ? 'sesión' : 'sesiones'}
+              </span>
+            )}
+          </div>
+          {loading && (
+            <div className="agenda-loading" role="status">
+              <span className="sr-only">Buscando tus próximas sesiones…</span>
+              {[0, 1, 2].map((row) => (
+                <div className="agenda-skeleton" key={row}>
+                  <i />
+                  <span />
+                  <span />
+                </div>
+              ))}
+            </div>
+          )}
+          {error && (
+            <div className="agenda-empty" role="alert">
+              <LiveIcon name="calendar" />
+              <h2>No pudimos cargar tu agenda</h2>
+              <p>{error}</p>
+              <button type="button" className="agenda-button-secondary" onClick={agenda.refresh}>
+                Reintentar
+              </button>
+            </div>
+          )}
+          {!loading && !error && !sessions.length && (
+            <div className="agenda-empty">
+              <div className="agenda-empty-icon">
+                <LiveIcon name="calendar" />
+              </div>
+              <h2>
+                {!organizationSlug
+                  ? 'Elige tu organización'
+                  : history
+                    ? 'Aún no hay historial'
+                    : 'Tu agenda está despejada'}
+              </h2>
+              <p>
+                {!organizationSlug
+                  ? 'Selecciona una organización desde tu perfil para consultar tus clases.'
+                  : history
+                    ? 'Aquí encontrarás las sesiones anteriores que puedes gestionar.'
+                    : managing
+                      ? 'Las próximas sesiones que puedes gestionar aparecerán aquí.'
+                      : 'Cuando se programe una sesión para tus cursos, aparecerá aquí.'}
+              </p>
+              {page > 0 && (
+                <button
+                  type="button"
+                  className="agenda-button-secondary"
+                  onClick={() => agenda.selectPage(0)}
+                >
+                  Volver al inicio
+                </button>
+              )}
+            </div>
+          )}
+          {featured && (
+            <SessionAgendaCard
+              session={featured}
+              featured
+              managing={managing}
+              onSelect={() => selectSession(featured.id)}
+            />
+          )}
+          {remaining.length > 0 && (
+            <div className="agenda-list">
+              {featured && <h2 className="agenda-list-label">Después en tu agenda</h2>}
+              <ul>
+                {remaining.map((session) => {
+                  const detailsUrl = history
+                    ? managementPageUrl(catalog, organizationSlug, session.id)
+                    : null;
+                  return (
+                    <li key={session.id}>
+                      <SessionAgendaCard
+                        session={session}
+                        history={history}
+                        managing={managing}
+                        onSelect={() => selectSession(session.id)}
+                        onDetails={
+                          detailsUrl && onOpenManagement
+                            ? () => void openManagement(detailsUrl)
+                            : undefined
+                        }
+                      />
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </section>
+        {!!catalog && pages > 1 && (
+          <nav className="agenda-pagination" aria-label="Páginas de sesiones">
+            <button
+              type="button"
+              disabled={page === 0 || loading}
+              onClick={() => agenda.selectPage(page - 1)}
+            >
+              <LiveIcon name="back" />
+              Anterior
+            </button>
+            <span>
+              Página {page + 1} de {pages}
+            </span>
+            <button
+              type="button"
+              disabled={page + 1 >= pages || loading}
+              onClick={() => agenda.selectPage(page + 1)}
+            >
+              Siguiente
+              <LiveIcon name="arrow" />
+            </button>
+          </nav>
+        )}
+      </div>
+    </main>
+  );
 }

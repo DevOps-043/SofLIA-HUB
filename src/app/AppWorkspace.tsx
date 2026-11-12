@@ -64,7 +64,8 @@ export function AppWorkspace(props: AppWorkspaceProps) {
   const surface = useRef<HTMLElement>(null);
   const [floatingRevision, setFloatingRevision] = useState(0);
   const creatingFloating = useRef<{ key: string; promise: Promise<void> } | null>(null);
-  const floating = !!props.browserWorkspaceOpen || (props.activeView !== 'chat' && navigation?.section !== 'chat');
+  const floating = !props.browserWorkspaceOpen && !!navigation && navigation.section !== 'chat';
+  const compact = floating || !!props.browserWorkspaceOpen;
   const surfaceKey = `${props.userId}/${props.orgId}/${props.projectWorkspace?.key || ''}/${props.activeView}/${navigation?.section || ''}`;
   const readVisibleContext = useCallback((signal: AbortSignal) => props.browserWorkspaceOpen ? browserFloatingContext(signal) : appFloatingContext(() => surface.current, `${props.activeView} ${navigation?.name || ''} ${navigation?.section || ''}`)(signal), [props.browserWorkspaceOpen, props.activeView, navigation?.name, navigation?.section]);
   const prepareFloatingChat = async () => {
@@ -90,13 +91,13 @@ export function AppWorkspace(props: AppWorkspaceProps) {
   };
   const chatView = navigation && !props.projectWorkspace?.canShowChat ? floating ? <FloatingProjectChatStart key={surfaceKey} canCreate={navigation.canCreateChat} message={navigation.chatMessage} onStart={newFloatingChat} /> : <div className="grid h-full place-items-center p-6 text-sm text-secondary">{navigation.chatMessage || 'Selecciona o crea un chat de este proyecto.'}</div> : (
     <AppChatView
-      scopeKey={floating ? `${surfaceKey}/${floatingRevision}` : surfaceKey}
+      scopeKey={compact ? `${surfaceKey}/${floatingRevision}` : surfaceKey}
       floating={floating}
       browserOpen={!!props.browserWorkspaceOpen}
-      readVisibleContext={floating ? readVisibleContext : undefined}
+      readVisibleContext={compact ? readVisibleContext : undefined}
       onBackToProject={navigation ? () => navigation.onNavigate('chats') : undefined}
       canWriteProjectChat={navigation?.canCreateChat}
-      compact={floating}
+      compact={compact}
       avatarUrl={props.avatarUrl}
       canShareConversation={canShareConversation}
       chat={props.chat}
@@ -123,9 +124,6 @@ export function AppWorkspace(props: AppWorkspaceProps) {
         {props.liaDegraded && !props.userId && props.activeView !== 'chat' && <LiaDegradedNotice message={props.liaStatusMessage || undefined} />}
         <BrowserWorkspaceLayout
           key={surfaceKey}
-          floating
-          floatingTitle={props.currentConversation?.title || navigation?.name}
-          onPrepareFloating={prepareFloatingChat}
           projectTarget={navigation?.browserProject}
           chat={chatView}
           conversations={navigation?.conversations ?? props.chat.conversations}

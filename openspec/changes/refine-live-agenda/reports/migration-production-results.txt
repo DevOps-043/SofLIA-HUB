@@ -1,0 +1,12 @@
+comprobacion
+resultado
+Sesiones conservadas
+3 · huella 059b8e0e4cbd4dae63f021d00d228bfa
+Migración registrada
+20261111110000 · MD5 79472e7a34c92a34860ca29ec6088e19
+Acceso RPC
+{"anon": false, "service_role": true, "authenticated": false, "security_invoker": true}
+Clases por instructor
+[{"proximas": 0, "historial": 2}, {"proximas": 0, "historial": 1}]
+
+Cuerpo de la función idéntico al archivo versionado: true.

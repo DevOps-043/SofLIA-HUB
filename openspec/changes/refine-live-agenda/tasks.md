@@ -1,0 +1,6 @@
+- [x] Analizar permisos y causa de sesiones antiguas; documentar decisión del usuario.
+- [x] Separar consulta, política de presentación y tarjetas; reconstruir agenda responsive.
+- [x] Negociar capacidades y período; abrir gestión existente mediante origen validado.
+- [x] Filtrar fechas en Learning antes de paginar y verificar migración reentrante/aislamiento.
+- [x] Probar permisos, respuestas tardías, historial, fechas, sobretiempo en vivo, temas y ancho reducido.
+- [x] Reducir deuda local, actualizar documentación y registrar compuertas/excepciones en reports/verification.md.

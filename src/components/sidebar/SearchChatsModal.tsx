@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import type { Conversation } from '../../services/chat-service';
+import { SearchIcon, NewChatIcon } from '../ui/Icons';
 
 interface SearchChatsModalProps {
   isOpen: boolean;
@@ -106,10 +107,7 @@ export function SearchChatsModal({
       >
         {/* Header Search Input */}
         <div className="relative flex items-center border-b border-gray-200/60 dark:border-white/10 px-4 py-3.5 shrink-0">
-          <svg className="w-4 h-4 text-gray-400 dark:text-white/40 shrink-0 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <circle cx="11" cy="11" r="8" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35" />
-          </svg>
+          <SearchIcon size={16} className="text-gray-400 dark:text-white/40 shrink-0 mr-3" />
 
           <input
             ref={inputRef}
@@ -152,9 +150,7 @@ export function SearchChatsModal({
             className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-accent hover:bg-accent/10 border border-accent/20 bg-accent/5 transition-all duration-150 group"
           >
             <div className="flex h-5 w-5 items-center justify-center rounded-lg bg-accent text-on-accent font-bold shrink-0 group-hover:scale-105 transition-transform leading-none">
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
+              <NewChatIcon size={14} className="text-on-accent" />
             </div>
             <span className="leading-none">Crear nuevo chat</span>
           </button>

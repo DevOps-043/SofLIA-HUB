@@ -13,31 +13,28 @@ import {
   SparklesIcon,
   DocumentIcon,
   ToolsIcon,
-  PaperclipIcon
+  PaperclipIcon,
+  BrowserShortcutIcon,
+  TabsIcon,
+  AppsIcon,
+  PlusIcon,
+  ChevronRightIcon
 } from '../../../../components/ui/Icons';
 
 type ToolOption = { id: string; label: string; sub: string; active?: boolean };
 
 function getToolIcon(id: string, active: boolean) {
-  const size = 13.5;
+  const size = 18;
   const className = active
-    ? 'text-accent'
-    : 'text-gray-500 dark:text-white/40 group-hover:text-gray-700 dark:group-hover:text-white/80';
+    ? 'text-on-accent'
+    : 'text-gray-500 dark:text-white/60 group-hover:text-gray-800 dark:group-hover:text-white';
   switch (id) {
+    case 'browser_shortcuts':
+      return <BrowserShortcutIcon size={size} className={className} />;
     case 'attach_tabs':
-      return (
-        <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="4" width="18" height="16" rx="2" />
-          <line x1="3" y1="9" x2="21" y2="9" />
-        </svg>
-      );
+      return <TabsIcon size={size} className={className} />;
     case 'attach_apps':
-      return (
-        <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="4" width="18" height="14" rx="2" />
-          <path d="M8 20h8" />
-        </svg>
-      );
+      return <AppsIcon size={size} className={className} />;
     case 'image_gen':
       return <ImageIcon size={size} className={className} />;
     case 'prompt_opt':
@@ -49,7 +46,7 @@ function getToolIcon(id: string, active: boolean) {
     case 'attach_file':
       return <PaperclipIcon size={size} className={className} />;
     default:
-      return <span className={className}>+</span>;
+      return <PlusIcon size={size} className={className} />;
   }
 }
 
@@ -142,14 +139,14 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
         disabled={!controller.props.canSendMessages}
         className={`${compact ? 'h-8 w-8' : 'h-9 w-9'} flex items-center justify-center rounded-full transition-all ${
           controller.state.tools.isOpen || hasAttachedTabs || hasAttachedApps
-            ? 'bg-accent text-white shadow-md'
+            ? 'bg-accent text-on-accent shadow-md'
             : 'bg-white dark:bg-white/[0.04] text-gray-500 hover:text-gray-700 dark:hover:text-white/80 hover:shadow-sm border border-gray-200/60 dark:border-white/[0.06]'
         }`}
-        title="Mas opciones"
+        aria-label="Más opciones"
+        aria-expanded={controller.state.tools.isOpen}
+        title="Más opciones"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-        </svg>
+        <PlusIcon size={compact ? 15 : 17} className={controller.state.tools.isOpen || hasAttachedTabs || hasAttachedApps ? 'text-on-accent' : ''} />
       </button>
       {controller.state.tools.isOpen && menuPos && createPortal(
         <>
@@ -192,7 +189,7 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
                     <div
                       className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
                         tool.active
-                          ? 'bg-accent text-white shadow-[0_0_10px_rgba(0,212,179,0.25)]'
+                          ? 'bg-accent text-on-accent shadow-[0_0_10px_rgba(0,212,179,0.25)]'
                           : 'bg-gray-100 dark:bg-white/[0.06] text-gray-500'
                       }`}
                     >
@@ -207,9 +204,7 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
                       </div>
                     </div>
                     {(tool.id === 'attach_tabs' || tool.id === 'attach_apps') && (
-                      <svg className="h-4 w-4 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M9 18l6-6-6-6" />
-                      </svg>
+                      <ChevronRightIcon size={14} className="text-gray-400 shrink-0" />
                     )}
                   </button>
                 ))}
