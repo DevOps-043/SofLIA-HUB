@@ -43,6 +43,7 @@ Este indice separa documentacion vigente de material historico.
 
 - [Stack tecnologico](architecture/technology-stack.md)
 - [Frontend React](architecture/frontend.md)
+- [Agente visual tridimensional](architecture/soflia-visual-agent.md)
 - [Backend Electron](architecture/backend-electron.md)
 - [Presentaciones y producción audiovisual](architecture/presentation-audiovisual-production.md)
 - [Diseño de documentos generados](architecture/generated-documents.md)

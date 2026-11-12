@@ -1,0 +1,9 @@
+references/*.png
+blender/master/
+blender/optimized/
+assets/glb/
+assets/logos/
+animations/
+previews/
+build/
+*.blend1
