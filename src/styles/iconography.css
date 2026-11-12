@@ -1,0 +1,64 @@
+/* Cada control reinicia las variables: sus acciones anidadas se animan por separado. */
+:where(button, a[href], [role="button"], [role="menuitem"], .hub-icon-action) {
+  --hub-icon-lift: 0px;
+  --hub-icon-scale: 1;
+  --hub-icon-turn: 0deg;
+  --hub-icon-engaged: 0;
+}
+
+.hub-icon {
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: middle;
+  overflow: visible;
+}
+
+.hub-icon-art {
+  transform-box: view-box;
+  transform-origin: center;
+  translate: 0 var(--hub-icon-lift, 0px);
+  scale: var(--hub-icon-scale, 1);
+  rotate: var(--hub-icon-turn, 0deg);
+  transition: translate 180ms ease, scale 220ms cubic-bezier(.2, .8, .2, 1), rotate 220ms ease;
+}
+
+.hub-icon[data-motion="plus"] > .hub-icon-art {
+  rotate: calc(var(--hub-icon-engaged, 0) * 90deg);
+}
+
+.hub-icon[data-motion="send"] > .hub-icon-art {
+  translate: calc(var(--hub-icon-engaged, 0) * 1.5px) 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :where(button, a[href], [role="button"], [role="menuitem"], .hub-icon-action):hover:not(:disabled, [aria-disabled="true"]) {
+    --hub-icon-lift: -1px;
+    --hub-icon-scale: 1.1;
+    --hub-icon-turn: -5deg;
+    --hub-icon-engaged: 1;
+  }
+}
+
+:where(button, a[href], [role="button"], [role="menuitem"], .hub-icon-action):focus-visible:not(:disabled, [aria-disabled="true"]) {
+  --hub-icon-lift: -1px;
+  --hub-icon-scale: 1.1;
+  --hub-icon-turn: -5deg;
+  --hub-icon-engaged: 1;
+}
+
+:where(button, a[href], [role="button"], [role="menuitem"], .hub-icon-action):active:not(:disabled, [aria-disabled="true"]) {
+  --hub-icon-lift: 0px;
+  --hub-icon-scale: .88;
+  --hub-icon-turn: 0deg;
+  --hub-icon-engaged: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hub-icon[data-motion] > .hub-icon-art,
+  .hub-icon > .hub-icon-art {
+    transition: none;
+    translate: none;
+    scale: none;
+    rotate: none;
+  }
+}

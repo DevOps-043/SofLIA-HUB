@@ -1,4 +1,4 @@
-import { liveCatalogRequestSchema, liveCatalogResponseSchema, type LiveCatalogResult } from '../src/shared/learning-live-catalog';
+import { LIVE_CATALOG_CAPABILITIES_HEADER, liveCatalogRequestSchema, liveCatalogResponseSchema, type LiveCatalogResult } from '../src/shared/learning-live-catalog';
 import { learningLiveEndpoint, readLearningResponse } from './learning-live-http';
 import type { LearningWorkspaceDependencies } from './learning-workspace-access';
 import { createLogger } from './utils/logger';
@@ -35,16 +35,19 @@ export async function requestLearningLiveCatalog(input: unknown, deps: LearningW
     if (!identity) return { success: false, code: 'not_ready', error: 'Inicia sesión para consultar tus sesiones.' };
     const response = await (deps.fetcher || fetch)(endpoint, {
       method: 'POST', redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(15000),
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${identity.accessToken}` }, body: JSON.stringify(parsed.data),
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${identity.accessToken}`, [LIVE_CATALOG_CAPABILITIES_HEADER]: '1' }, body: JSON.stringify(parsed.data),
     });
     if (!response.ok) {
       const failure = await catalogHttpFailure(response);
       log.warn({ httpStatus: response.status, code: failure.code }, 'Learning rechazó la consulta de agenda');
       return failure;
     }
-    const catalog = liveCatalogResponseSchema.parse(await readLearningResponse(response, 256 * 1024));
+    const catalog = liveCatalogResponseSchema.omit({ management_url: true }).parse(await readLearningResponse(response, 256 * 1024));
     if (catalog.user_id !== identity.userId || (await deps.getIdentity())?.userId !== identity.userId)
       return { success: false, code: 'not_ready', error: 'La cuenta cambió durante la consulta.' };
-    return { success: true, catalog };
+    const managementUrl = catalog.can_teach && catalog.capabilities?.can_manage
+      ? new URL(`/${parsed.data.organization_slug}/instructor`, endpoint).toString()
+      : undefined;
+    return { success: true, catalog: { ...catalog, ...(managementUrl ? { management_url: managementUrl } : {}) } };
   } catch { return { success: false, code: 'unavailable', error: 'No se pudieron consultar tus sesiones. Puedes reintentar.' }; }
 }

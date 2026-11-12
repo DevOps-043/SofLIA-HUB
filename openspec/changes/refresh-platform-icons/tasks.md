@@ -1,0 +1,5 @@
+- [x] Analizar Proyectos y preservar cambios locales existentes.
+- [x] Compartir SVG y siluetas equivalentes; completar chat y navegación.
+- [x] Aplicar movimiento sin listeners y con reduced-motion, disabled y foco.
+- [x] Verificar componentes, tipos, lint y comportamiento visual en Chromium.
+- [x] Actualizar sistema visual y guardar evidencia de compuertas y excepciones previas en reports/verification.md.

@@ -257,7 +257,11 @@ export function AppContent() {
           theme={theme}
         />}
         {liveRoomVisible && liveWorkspace.reference && <LearningWorkspace key={`${user?.id}:${liveWorkspace.reference.organization_slug}:${liveWorkspace.reference.session_id}`} reference={liveWorkspace.reference} onClose={closeLiveRoom} onBackToSessions={closeLiveRoom} />}
-        {!liveWorkspace.reference && !browserWorkspaceVisible && activeView === 'live-sessions' && <LearningSessions key={`${user?.id}:${orgId}`} organizationSlug={sofiaContext?.currentOrganization?.slug} organizationName={sofiaContext?.currentOrganization?.name} onSelect={liveWorkspace.select} onClose={() => setActiveView('chat')} />}
+        {!liveWorkspace.reference && !browserWorkspaceVisible && activeView === 'live-sessions' && <LearningSessions key={`${user?.id}:${orgId}`} organizationSlug={sofiaContext?.currentOrganization?.slug} organizationName={sofiaContext?.currentOrganization?.name} onOpenManagement={async (url) => {
+          const response = await integratedBrowserService.createTab(url);
+          if (!response.success) throw new Error('No se pudo abrir Learning.');
+          setIsBrowserWorkspaceOpen(true);
+        }} onSelect={liveWorkspace.select} onClose={() => setActiveView('chat')} />}
         {!liveRoomVisible && (activeView !== 'live-sessions' || browserWorkspaceVisible) && <AppWorkspace key={(userId ?? '') + ':' + orgId}
           accessUserIds={accessUserIds}
           activeView={activeView}
@@ -292,7 +296,23 @@ export function AppContent() {
           userId={userId}
           userSettings={userSettings}
         />}
-        <AppModals folder={folder} movingChat={derived.movingChat} shareTarget={shareTarget} userId={userId} orgId={orgId} user={user} userSettings={userSettings} sofiaContext={sofiaContext} isUnifiedSettingsOpen={isUnifiedSettingsOpen} activeSettingsTab={activeSettingsTab} onSetShareTarget={setShareTarget} onSetUserSettings={setUserSettings} onSetUnifiedSettingsOpen={setIsUnifiedSettingsOpen} />
+        <AppModals
+          folder={folder}
+          movingChat={derived.movingChat}
+          shareTarget={shareTarget}
+          userId={userId}
+          orgId={orgId}
+          user={user}
+          userSettings={userSettings}
+          sofiaContext={sofiaContext}
+          isUnifiedSettingsOpen={isUnifiedSettingsOpen}
+          activeSettingsTab={activeSettingsTab}
+          onSetShareTarget={setShareTarget}
+          onSetUserSettings={setUserSettings}
+          onSetUnifiedSettingsOpen={setIsUnifiedSettingsOpen}
+          onConfirmDeleteFolder={handlers.handleConfirmDeleteFolder}
+          onCancelDeleteFolder={handlers.handleCancelDeleteFolder}
+        />
       </div>
       {/* En el navegador el panel flota dentro de su layout para reservar espacio a la vista nativa. */}
       {!browserWorkspaceVisible && !liveRoomVisible && <AgentActivityPanel className="absolute right-3 top-3 z-40 max-w-[calc(100%-24px)]" />}
