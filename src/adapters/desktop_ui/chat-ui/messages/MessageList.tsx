@@ -2,9 +2,10 @@ import { ChatLoadingIndicator } from '../ChatLoadingIndicator';
 import type { ChatUIController } from '../useChatUIController';
 import { ChatMessageItem } from './ChatMessageItem';
 
-export function MessageList({ controller, floating = false }: { controller: ChatUIController; floating?: boolean }) {
+export function MessageList({ controller }: { controller: ChatUIController }) {
   const messages = controller.props.messages;
   const chat = controller.runtime.chat;
+  const latestAssistantIndex = messages.map(message => message.role).lastIndexOf('model');
   const { messagesEndRef } = controller.refs;
 
   return (
@@ -14,9 +15,9 @@ export function MessageList({ controller, floating = false }: { controller: Chat
           if (chat.showLoadingUI && index === messages.length - 1 && message.role === 'model' && (!message.text || message.text === '...')) {
             return null;
           }
-          return <ChatMessageItem key={message.id} controller={controller} message={message} />;
+          return <ChatMessageItem key={message.id} controller={controller} message={message} activeAvatar={!chat.showLoadingUI && index === latestAssistantIndex} />;
         })}
-        {chat.showLoadingUI && <ChatLoadingIndicator activeToolCall={chat.activeToolCall} brandIcon={floating} />}
+        {chat.showLoadingUI && <ChatLoadingIndicator activeToolCall={chat.activeToolCall} />}
         <div ref={messagesEndRef} />
       </div>
     </div>

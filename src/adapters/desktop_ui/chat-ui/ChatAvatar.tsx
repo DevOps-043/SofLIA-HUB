@@ -1,7 +1,8 @@
+import avatarBadge from '../../../assets/soflia-avatar/badge-idle.png';
 import { type AudioFeatureRefs } from '../../../components/orb/useAudioFeatures';
 import { createContext, useContext, type ReactNode } from 'react';
 import { SofliaAvatar } from '../../../components/avatar/SofliaAvatar';
-import { EXPRESSION_LABELS, type AvatarExpression } from '../../../components/avatar/avatar-model';
+import { type AvatarExpression } from '../../../components/avatar/avatar-model';
 import { useAvatarPresence } from '../../../components/avatar/useAvatarPresence';
 import type { PresenceInput } from '../../../components/avatar/avatar-presence';
 
@@ -20,10 +21,9 @@ export function ChatAvatar({ className = '' }: { className?: string }) {
   return <SofliaAvatar state={expression} expression={expression} className={className} audioLevel={voice?.level} audioFeatures={voice} textActivity={expression === 'speaking'} />;
 }
 
-export function ChatComposerPresence() {
-  const expression = useContext(AvatarContext);
-  return <div className="chat-avatar-presence">
-    <ChatAvatar className="chat-avatar-presence__character" />
-    <span className="chat-avatar-presence__label">SofLIA <span aria-hidden="true">·</span> {EXPRESSION_LABELS[expression]}</span>
+/** La última respuesta concentra los gestos; el historial conserva una imagen ligera. */
+export function ChatProfileAvatar({ active = false }: { active?: boolean }) {
+  return <div className="chat-avatar-profile" data-live={active}>
+    {active ? <ChatAvatar /> : <img src={avatarBadge} alt="SofLIA" draggable={false} />}
   </div>;
 }

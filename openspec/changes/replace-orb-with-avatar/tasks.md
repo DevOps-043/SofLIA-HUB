@@ -21,3 +21,4 @@
 - [x] Fusionar en la rama de consolidación, preservar cambios pendientes, validar el merge y verificar su publicación remota.
 
 - [x] Separar la luz facial del acento del tema y reforzar trazos y opacidad, conservando gestos y pausa accesible.
+- [x] Trasladar las expresiones al perfil ampliado de la última respuesta o espera y retirar la presencia inferior duplicada de los chats de Hub.

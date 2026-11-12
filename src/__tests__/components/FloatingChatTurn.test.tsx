@@ -30,7 +30,7 @@ beforeEach(()=>{
   mocks.send.mockResolvedValue({stream:(async function*(){yield 'Veo las tareas de tu proyecto.';})(),sources:Promise.resolve(null)});
 });
 describe('Turno real del compositor flotante con proveedor simulado',()=>{
-  it('lee al enviar y muestra la respuesta en el mismo compositor sin avatar de Soflia',async()=>{
+  it('lee al enviar y muestra la respuesta con un único perfil reactivo',async()=>{
     const read=vi.fn(async()=>({text:'VISTA_NO_CONFIABLE: tareas visibles',images:[]}));
     render(<Chat read={read}/>);
     expect(read).not.toHaveBeenCalled();
@@ -41,8 +41,38 @@ describe('Turno real del compositor flotante con proveedor simulado',()=>{
     expect(mocks.send).toHaveBeenCalledWith(expect.stringContaining('tareas visibles'),expect.any(Array),expect.objectContaining({signal:expect.any(AbortSignal)}));
     expect(screen.queryByText('VISTA_NO_CONFIABLE: tareas visibles')).toBeNull();
     expect(document.querySelector('img[src$="/lia-avatar.png"]')).toBeNull();
-    expect(screen.getByAltText('SofLIA')).toHaveAttribute('src', expect.stringContaining('badge-idle.png'));
-    expect(document.querySelector('.soflia-avatar')).not.toBeNull();
+    expect(document.querySelectorAll('.chat-avatar-profile[data-live="true"] .soflia-avatar')).toHaveLength(1);
+    expect(document.querySelector('.chat-avatar-presence')).toBeNull();
+    expect(screen.queryByAltText('SofLIA')).toBeNull();
+  });
+  it('anima sólo el perfil de la última respuesta y reacciona al borrador ahí', async () => {
+    render(<ChatUI messages={[
+      { id: 'anterior', role: 'model', text: 'Respuesta anterior', timestamp: 1 },
+      { id: 'pregunta', role: 'user', text: 'Otra pregunta', timestamp: 2 },
+      { id: 'actual', role: 'model', text: 'Respuesta actual', timestamp: 3 },
+    ]} onMessagesChange={vi.fn()} />);
+    expect(document.querySelectorAll('.chat-avatar-profile')).toHaveLength(2);
+    expect(document.querySelectorAll('.chat-avatar-profile[data-live="true"]')).toHaveLength(1);
+    expect(document.querySelectorAll('.chat-avatar-profile[data-live="false"] img')).toHaveLength(1);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'No entiendo??' } });
+    await waitFor(() => expect(document.querySelector('.chat-avatar-profile .soflia-avatar')).toHaveAttribute('data-expression', 'confused'));
+    expect(document.querySelector('.chat-avatar-presence')).toBeNull();
+  });
+  it('la espera conserva un solo perfil animado junto al indicador y después pasa a la respuesta', async () => {
+    let finish!: () => void;
+    const wait = new Promise<void>(resolve => { finish = resolve; });
+    mocks.send.mockResolvedValue({ stream: (async function* () { await wait; yield 'Respuesta terminada'; })(), sources: Promise.resolve(null) });
+    render(<Chat />);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Ayúdame' } });
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
+    await waitFor(() => expect(mocks.send).toHaveBeenCalled());
+    expect(document.querySelectorAll('.chat-avatar-profile[data-live="true"]')).toHaveLength(1);
+    expect(document.querySelector('.chat-avatar-profile .soflia-avatar')).toHaveAttribute('data-expression', 'thinking');
+    expect(document.querySelector('.chat-avatar-presence')).toBeNull();
+    await act(async () => { finish(); await wait; });
+    await screen.findByText('Respuesta terminada');
+    expect(document.querySelectorAll('.chat-avatar-profile[data-live="true"]')).toHaveLength(1);
+    expect(document.querySelectorAll('.soflia-avatar')).toHaveLength(1);
   });
   it('no muestra controles de contexto y permite conversar cuando no hay lector contextual',async()=>{
     render(<Chat />);
