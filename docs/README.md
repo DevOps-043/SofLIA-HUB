@@ -63,6 +63,8 @@ Este indice separa documentacion vigente de material historico.
 - [Arquitectura de datos](data/data-architecture.md)
 - [Diccionario de datos](data/data-dictionary.md)
 
+- [Avatar SofLIA 2D interactivo](architecture/soflia-avatar.md)
+
 ## Experiencia, seguridad y operacion
 
 - [Arquitectura de informacion](ux/information-architecture.md)

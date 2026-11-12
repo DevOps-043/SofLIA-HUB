@@ -1,4 +1,6 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
+import { useAvatarPresence } from '../components/avatar/useAvatarPresence';
+import { avatarPermission } from '../services/avatar-permission';
 import { OrbCanvas } from '../components/orb/OrbCanvas';
 import { OrbInfoPanel } from '../components/orb/OrbInfoPanel';
 import { OrbTranscriptPanel } from '../components/orb/OrbTranscriptPanel';
@@ -134,6 +136,20 @@ export function OrbWindowRoot() {
 
   // `orbState` permite revisar las cinco fases en Vite sin alterar producción.
   const visualState = previewState ?? toVisualState(orb.state, orb.ttsPlaying);
+  const permission = useSyncExternalStore(avatarPermission.subscribe, avatarPermission.getSnapshot);
+  const presence = useAvatarPresence({
+    activation: orb.activationVersion, permission, error: Boolean(orb.errorMessage),
+    mode: visualState === 'acting' ? 'focused' : visualState,
+    busy: !['idle', 'listening'].includes(visualState),
+    activityKey: orb.transcript || orb.userText, outcome: orb.avatarOutcome,
+  });
+  const touchPresence = presence.touch;
+  // La amplitud de voz despierta el rostro sin reiniciar el reloj por cada fotograma.
+  useEffect(() => {
+    if (visualState !== 'listening') return;
+    const timer = setInterval(() => { if (audio.level.current > .08) touchPresence(); }, 250);
+    return () => clearInterval(timer);
+  }, [visualState, audio.level, touchPresence]);
   const glow = STATE_GLOWS[visualState];
   const compact = previewCompact || orb.infoVisible;
   const visibleMeetingState = previewMeeting ?? meetingLive.state;
@@ -156,14 +172,14 @@ export function OrbWindowRoot() {
   if (guidance.state.phase !== 'idle') return (
     <div className="h-screen w-screen overflow-hidden bg-transparent flex flex-col items-center px-2 select-none">
       <div className="h-[112px] w-[112px] shrink-0 pointer-events-none" aria-hidden="true">
-        <OrbCanvas visualState={guidance.state.phase === 'paused' ? 'idle' : 'acting'} audio={audio} motionEnabled={!guidance.state.reducedMotion} />
+        <OrbCanvas visualState={guidance.state.phase === 'paused' ? 'idle' : 'acting'} audio={audio} expression={guidance.error ? 'concerned' : guidance.state.phase === 'complete' ? 'success' : guidance.state.phase === 'paused' ? 'idle' : guidance.state.phase === 'practice' ? 'curious' : 'focused'} motionEnabled={!guidance.state.reducedMotion} />
       </div>
       <OrbGuidanceControls {...guidance} />
     </div>
   );
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-transparent flex flex-col select-none">
+    <div onPointerDown={presence.touch} onKeyDown={presence.touch} className="h-screen w-screen overflow-hidden bg-transparent flex flex-col select-none">
       {/* Handle nativo: mueve la ventana sin robar eventos al canvas. */}
       <div className="orb-drag-region relative flex h-10 shrink-0 items-center justify-center px-3 pt-2" title="Arrastra para mover SofLIA">
         <div className="pointer-events-none flex h-7 items-center gap-2 rounded-full border border-white/10 bg-black/45 px-3 shadow-lg backdrop-blur-xl">
@@ -212,7 +228,7 @@ export function OrbWindowRoot() {
           }}
         />
         <div className="orb-no-drag relative h-full w-full">
-          <OrbCanvas visualState={visualState} audio={audio} />
+          <OrbCanvas visualState={visualState} audio={audio} expression={previewState ? undefined : presence.expression} />
         </div>
       </div>
 

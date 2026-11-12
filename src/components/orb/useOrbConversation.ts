@@ -1,3 +1,5 @@
+import { responseExpression } from '../avatar/avatar-reactions';
+import type { AvatarExpression } from '../avatar/avatar-model';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { parseBrowserVoiceCommand } from '../../shared/browser-voice';
 import { MODELS } from '../../config';
@@ -42,6 +44,9 @@ export function useOrbConversation() {
   const { user } = useAuth();
   const userId = user?.id;
   const previousUserIdRef = useRef(userId);
+  const [activationVersion, setActivationVersion] = useState(0);
+  const [avatarOutcome, setAvatarOutcome] = useState<{ key: string; expression: AvatarExpression }>();
+  const pendingAvatarOutcome = useRef<{ turn: number; expression: AvatarExpression } | null>(null);
   const [state, setState] = useState<OrbConversationState>('idle');
   const [transcript, setTranscript] = useState('');
   const [userText, setUserText] = useState('');
@@ -86,6 +91,7 @@ export function useOrbConversation() {
     previousUserIdRef.current = userId;
     // El cambio de propietario también invalida el turno mediante el cleanup de listeners.
     historyRef.current = [];
+    pendingAvatarOutcome.current = null; setAvatarOutcome(undefined); setActivationVersion(value => value + 1);
     pendingWakeRequestRef.current = null;
     pendingAnnouncementRequestRef.current = null;
     listeningStartRef.current = null;
@@ -167,6 +173,10 @@ export function useOrbConversation() {
   const finishTurnAndListen = useCallback((turnId: number) => {
     if (activeTurnRef.current !== turnId) return;
     acknowledgeAnnouncement(turnId);
+    if (pendingAvatarOutcome.current?.turn === turnId) {
+      setAvatarOutcome({ key: String(turnId), expression: pendingAvatarOutcome.current.expression });
+      pendingAvatarOutcome.current = null;
+    }
     console.log('[Orb] Turno terminado: volviendo a escuchar.');
     activeTurnRef.current = null;
     abortRef.current = null;
@@ -371,6 +381,7 @@ export function useOrbConversation() {
     activeTurnRef.current = turnId;
     const isCurrent = () => activeTurnRef.current === turnId && !controller.signal.aborted;
 
+    pendingAvatarOutcome.current = null;
     setUserText(text);
     setResponseText('');
     setSources([]);
@@ -387,6 +398,7 @@ export function useOrbConversation() {
         const result = action ? await orbService.browserCommand(action) : { success: false, error: 'Di: navegador siguiente pestaña, pestaña anterior, estado, pausa, reanuda, detén o toma el control.' };
         if (!isCurrent()) return;
         const message = result.success ? result.message ?? 'Orden procesada.' : result.error ?? 'No se pudo aplicar la orden.';
+        pendingAvatarOutcome.current = { turn: turnId, expression: result.success ? 'success' : 'concerned' };
         setResponseText(message);
         await speakEntireResponse(message, turnId);
         return;
@@ -437,6 +449,7 @@ export function useOrbConversation() {
         pushSentence(block);
       }
 
+      pendingAvatarOutcome.current = { turn: turnId, expression: responseExpression(accumulated, result.toolCalls) };
       const resolvedSources = await result.sources.catch(() => null);
       if (!isCurrent()) return;
       if (resolvedSources && resolvedSources.length > 0) {
@@ -561,7 +574,7 @@ export function useOrbConversation() {
     });
     orbService.onWake(() => {
       if (!active) return;
-      if (stateRef.current === 'idle' || stateRef.current === 'info') void startListening();
+      if (stateRef.current === 'idle' || stateRef.current === 'info' || stateRef.current === 'listening') { setActivationVersion(value => value + 1); void startListening(); }
     });
     orbService.onAnnounce((announcement) => {
       if (!active || !announcement?.text) return;
@@ -574,7 +587,7 @@ export function useOrbConversation() {
     pendingWakeRequestRef.current = pendingWakeRequest;
     void pendingWakeRequest
       .then(({ wake }) => {
-        if (active && wake) void startListening();
+        if (active && wake) { setActivationVersion(value => value + 1); void startListening(); }
       })
       .catch(() => undefined);
 
@@ -609,6 +622,7 @@ export function useOrbConversation() {
   }, [finishTurnAndListen, handleDictationFinal, playAnnouncement, playback, startListening, updateState, windDown]);
 
   return {
+    activationVersion, avatarOutcome,
     state,
     transcript,
     userText,

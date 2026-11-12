@@ -40,8 +40,9 @@ describe('Turno real del compositor flotante con proveedor simulado',()=>{
     expect(read).toHaveBeenCalledOnce();
     expect(mocks.send).toHaveBeenCalledWith(expect.stringContaining('tareas visibles'),expect.any(Array),expect.objectContaining({signal:expect.any(AbortSignal)}));
     expect(screen.queryByText('VISTA_NO_CONFIABLE: tareas visibles')).toBeNull();
-    expect(document.querySelector('img[src*="lia-avatar"]')).toBeNull();
-    expect(screen.getByAltText('Soflia')).toHaveAttribute('src','./assets/Icono.png');
+    expect(document.querySelector('img[src$="/lia-avatar.png"]')).toBeNull();
+    expect(screen.getByAltText('SofLIA')).toHaveAttribute('src', expect.stringContaining('badge-idle.png'));
+    expect(document.querySelector('.soflia-avatar')).not.toBeNull();
   });
   it('no muestra controles de contexto y permite conversar cuando no hay lector contextual',async()=>{
     render(<Chat />);
@@ -79,7 +80,7 @@ describe('Turno real del compositor flotante con proveedor simulado',()=>{
     fireEvent.change(screen.getByRole('textbox'),{target:{value:'Revisa esto'}});
     fireEvent.keyDown(screen.getByRole('textbox'),{key:'Enter'});
     await waitFor(()=>expect(mocks.send).toHaveBeenCalled());
-    expect(document.querySelector('img[src*="lia-avatar"]')).toBeNull();
+    expect(document.querySelector('img[src$="/lia-avatar.png"]')).toBeNull();
     view.rerender(<ChatUI floating compact conversationId="b" messages={[]} onMessagesChange={change} readVisibleContext={read}/>);
     change.mockClear();
     await act(async()=>{finish();await wait;});

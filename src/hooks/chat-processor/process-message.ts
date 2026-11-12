@@ -1,3 +1,4 @@
+import { responseExpression, type AvatarActivity } from '../../components/avatar/avatar-reactions';
 import type { Dispatch, SetStateAction } from 'react';
 
 import type { ChatMessage } from '../../services/chat-service';
@@ -12,6 +13,7 @@ import { createAiPlaceholder, createUserMessage, PLACEHOLDER_TEXT } from './mess
 import { browserFragmentSources, browserSourcesContext } from '../../shared/browser-tab-context';
 
 interface ProcessChatMessageInput {
+  onAvatarActivity?: (activity: AvatarActivity) => void;
   organizationId?: string | null;
   /**
    * Fragmento de la pagina que el usuario adjunto. Viaja al modelo como
@@ -50,6 +52,8 @@ interface ProcessChatMessageInput {
   isCurrent?: () => boolean;
 }
 
+let avatarActivitySequence = 0;
+
 export async function processChatMessage(input: ProcessChatMessageInput) {
   const { text, images, currentHistory, isRegeneration, onMessagesChange } = input;
   const genId = crypto.randomUUID().slice(0, 8);
@@ -68,6 +72,11 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
 
   const isCurrent = input.isCurrent ?? (() => true);
 
+  const activity = (phase: AvatarActivity['phase'], expression?: AvatarActivity['expression']) => {
+    if (isCurrent()) input.onAvatarActivity?.({ phase, expression, version: ++avatarActivitySequence });
+  };
+  activity('thinking');
+
   // El placeholder "..." DEBE resolverse siempre (éxito, vacío, error, stop o
   // timeout). Si no, un turno que termina sin texto deja un "..." pegado que
   // bloquea la conversación de forma permanente (la carga es por-placeholder).
@@ -83,13 +92,13 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
   try {
     if (input.isPromptOptimizerMode) {
       const optimized = await optimizePrompt(text, input.optimizerTarget);
-      settle({ text: optimized });
+      settle({ text: optimized }); activity('complete', 'acknowledging');
       return;
     }
 
     if (input.isImageGenMode) {
       const result = await generateImage(text);
-      settle({ text: result.text, images: result.imageData ? [result.imageData] : undefined });
+      settle({ text: result.text, images: result.imageData ? [result.imageData] : undefined }); activity('complete', result.imageData ? 'success' : 'concerned');
       return;
     }
 
@@ -108,7 +117,7 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
       '',
     );
     log('contexto listo → llamando al modelo');
-    if (input.signal?.aborted || !isCurrent()) { settle({ text: '⏹️ Detenido.' }); return; }
+    if (input.signal?.aborted || !isCurrent()) { settle({ text: '⏹️ Detenido.' }); activity('cancelled'); return; }
     const context = [input.selectionContext, browserSourcesContext(browserSources)].filter(Boolean).join('\n\n');
     const result = await sendMessageStream(withSelectionContext(text, context), cleanHistory, {
       backgroundRequest: { task: text, conversationId: input.memorySessionScope, organizationId: input.organizationId ?? null, messageId: aiMessageId },
@@ -122,7 +131,7 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
       memoryContext: memoryContext || undefined,
       userId: input.sofiaUserId,
       activityOwnerId: input.activityOwnerId,
-      onToolCall: (toolCall) => { log(`herramienta: ${toolCall.name}`); input.setActiveToolCall(toolCall); },
+      onToolCall: (toolCall) => { log(`herramienta: ${toolCall.name}`); if (isCurrent()) { input.setActiveToolCall(toolCall); activity('executing'); } },
       signal: input.signal,
     });
     log('modelo respondió → leyendo stream');
@@ -133,6 +142,7 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
       if (input.signal?.aborted) break;
       // Superado por una edición/regeneración: abandonar sin escribir.
       if (!isCurrent()) { log('superado por otra generación → abandono'); return; }
+      if (chunk) activity('responding');
       fullText += chunk;
       updateAiMessage(updatedMessages, aiMessageId, { text: fullText || PLACEHOLDER_TEXT }, onMessagesChange);
     }
@@ -140,7 +150,7 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
     if (input.signal?.aborted) {
       // Cancelado por el usuario: resolver el placeholder (nunca dejar "...").
       log('cancelado por el usuario');
-      settle({ text: fullText.trim() || '⏹️ Detenido.' });
+      settle({ text: fullText.trim() || '⏹️ Detenido.' }); activity('cancelled');
       return;
     }
 
@@ -156,19 +166,20 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
       sources: browserSources.length || sources?.length ? [...browserSources, ...(sources ?? [])] : undefined,
       images: genImages?.length ? genImages : undefined,
     });
+    activity('complete', result.backgroundJobId ? 'focused' : fullText.trim() ? responseExpression(fullText, result.toolCalls) : 'concerned');
     log(`completado (${fullText.length} chars, ${sources?.length || 0} fuentes)`);
   } catch (error) {
     console.error(`[SofLIA-Gen ${genId}] error:`, error);
-    settle({ text: getPublicAiErrorMessage(error) });
+    settle({ text: getPublicAiErrorMessage(error) }); activity(input.signal?.aborted ? 'cancelled' : 'failed', input.signal?.aborted ? 'idle' : 'concerned');
   } finally {
     // Garantía final: si por CUALQUIER camino no se resolvió, quitar el "..."
     // (salvo que este turno haya sido superado por otra generación).
     if (!settled && isCurrent()) {
+      activity('failed', 'concerned');
       log('turno no resuelto → aplicando mensaje de seguridad');
       updateAiMessage(updatedMessages, aiMessageId, { text: 'No pude completar la respuesta. Intenta de nuevo.' }, onMessagesChange);
     }
-    input.setIsLoading(false);
-    input.setActiveToolCall(null);
+    if (isCurrent()) { input.setIsLoading(false); input.setActiveToolCall(null); }
   }
 }
 

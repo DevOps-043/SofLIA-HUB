@@ -1,0 +1,55 @@
+import { fileURLToPath } from 'node:url';
+/* global document, getComputedStyle, requestAnimationFrame, performance */
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import { chromium } from 'playwright-core';
+const reports = new URL('../../openspec/changes/replace-orb-with-avatar/reports/', import.meta.url);
+const checks = [];
+const browser = await chromium.launch({ headless: true, executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe' });
+try {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, colorScheme: 'dark' });
+  await page.route('https://fonts.googleapis.com/**', route => route.abort());
+  const errors = []; page.on('pageerror', error => errors.push(error.message));
+  await page.goto('http://127.0.0.1:4331/integration.html', { waitUntil: 'networkidle' });
+  await page.locator('.soflia-avatar__layer').evaluateAll(async images => { await Promise.all(images.map(image => image.decode())); });
+  const chat = page.locator('.qa-chat .soflia-avatar');
+  await page.getByLabel('Mensaje a SofLIA').fill('No entiendo??');
+  await page.waitForFunction(() => document.querySelector('.qa-chat .soflia-avatar').dataset.expression === 'confused');
+  await page.getByRole('searchbox').fill('wow!!');
+  await page.waitForFunction(() => document.querySelector('.qa-home .soflia-avatar').dataset.expression === 'surprised');
+  await page.getByLabel('Mensaje a SofLIA').fill('');
+  await page.screenshot({ path: fileURLToPath(new URL('integration-browser-chat.png', reports)) });
+  await page.getByLabel('Con conversación').check();
+  await page.getByLabel('Estado de prueba').selectOption('speaking');
+  const mouth = chat.locator('.avatar-face__mouth');
+  await mouth.waitFor(); const before = await mouth.getAttribute('d');
+  await page.waitForTimeout(350); assert.notEqual(await mouth.getAttribute('d'), before);
+  checks.push('Portada y chat reaccionan por separado; la boca del streaming escrito gesticula sin fingir audio');
+  await page.getByLabel('Estado de prueba').selectOption('acknowledging');
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: fileURLToPath(new URL('integration-conversation.png', reports)) });
+  const cadence = await page.evaluate(() => new Promise(resolve => {
+    const values = []; let previous = 0;
+    const sample = now => { if (previous) values.push(now - previous); previous = now; if (values.length < 120) requestAnimationFrame(sample); else resolve({ mean: values.reduce((a, b) => a + b, 0) / values.length, p95: values.sort((a, b) => a - b)[114] }); };
+    requestAnimationFrame(sample);
+  }));
+  checks.push('Tres superficies comparten recursos y animación de producción; cadencia de 120 fotogramas registrada');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: fileURLToPath(new URL('integration-narrow.png', reports)), fullPage: true });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+  checks.push('Portada, panel y compositor de proyecto sin desbordamiento horizontal a 390 px');
+  await page.goto('http://127.0.0.1:4331/native-home', { waitUntil: 'networkidle' });
+  await page.getByRole('searchbox').fill('Eliminar contraseña');
+  await page.waitForFunction(() => document.querySelector('#home-avatar').dataset.expression === 'warning');
+  await page.getByRole('searchbox').fill('No entiendo??');
+  await page.waitForFunction(() => document.querySelector('#home-avatar').dataset.expression === 'confused');
+  assert.ok(await page.locator('#home-avatar .soflia-avatar__rig img').first().evaluate(image => image.naturalWidth > 0));
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.waitForFunction(() => document.querySelector('#home-avatar').dataset.running === 'false');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.screenshot({ path: fileURLToPath(new URL('integration-native-home.png', reports)) });
+  checks.push('Documento nativo funciona con su CSP de hash, máscara embebida, borradores y movimiento reducido');
+  assert.deepEqual(errors, []);
+  await fs.writeFile(new URL('integration-browser-qa.json', reports), JSON.stringify({ checks, cadence, errors, scope: 'Componentes reales en fixture local y documento nativo con CSP; no sesión autenticada ni tareas externas reales.' }, null, 2));
+  console.log(JSON.stringify({ checks, cadence, errors }, null, 2));
+} finally { await browser.close(); }

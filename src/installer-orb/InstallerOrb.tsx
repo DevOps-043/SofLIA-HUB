@@ -12,7 +12,7 @@ export class OrbBoundary extends Component<{ children: ReactNode }, { failed: bo
   static getDerivedStateFromError() { return { failed: true }; }
   render() {
     return this.state.failed
-      ? <p role="status" className="orb-error">No se pudo iniciar la orbe 3D. La instalación sigue disponible.</p>
+      ? <p role="status" className="orb-error">No se pudo mostrar el avatar de SofLIA. La instalación sigue disponible.</p>
       : this.props.children;
   }
 }
@@ -32,6 +32,6 @@ export function InstallerOrb() {
   }, []);
   return <OrbBoundary>
     <OrbCanvas visualState={state.visualState} audio={audio} motionEnabled={state.motion} />
-    <p className="orb-hint">Arrastra para girar · Doble clic para centrar</p>
+    <p className="orb-hint">SofLIA sigue tu cursor · Doble clic para restablecer</p>
   </OrbBoundary>;
 }

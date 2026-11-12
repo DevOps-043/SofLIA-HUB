@@ -82,3 +82,10 @@ Object.defineProperty(window, 'screenCapture', {
 process.env.VITE_GEMINI_API_KEY = 'test-gemini-key';
 process.env.VITE_SUPABASE_URL = 'https://test.supabase.co';
 process.env.VITE_SUPABASE_ANON_KEY = 'test-anon-key';
+
+// Chromium ofrece matchMedia; JSDOM necesita este sustituto para las superficies animadas.
+Object.defineProperty(window, 'matchMedia', {
+  configurable: true, writable: true,
+  value: vi.fn((query: string) => ({ matches: false, media: query, onchange: null,
+    addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: vi.fn(() => true) })),
+});
