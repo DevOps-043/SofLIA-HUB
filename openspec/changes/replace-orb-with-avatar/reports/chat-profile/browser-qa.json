@@ -1,0 +1,9 @@
+{
+  "checks": [
+    "Un único perfil de 72 px en chat flotante, sin personaje inferior, reactivo al borrador",
+    "Pensamiento, respuesta, advertencia, concentración y reposo ocurren en el perfil superior",
+    "Perfil de 88 px en chat amplio con columna de respuesta flexible",
+    "A 390 px no hay desbordamiento y el perfil respeta movimiento reducido"
+  ],
+  "errors": []
+}

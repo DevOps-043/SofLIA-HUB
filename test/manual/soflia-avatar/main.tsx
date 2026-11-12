@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { SofliaAvatar, type SofliaAvatarHandle } from '../../../src/components/avatar/SofliaAvatar';
 import { AVATAR_EXPRESSIONS, EXPRESSION_LABELS, type AvatarExpression } from '../../../src/components/avatar/avatar-model';
 import { useAudioFeatures, type AudioFeatureSource } from '../../../src/components/orb/useAudioFeatures';
+import '../../../src/styles/theme-light.css';
 import './preview.css';
 
 export function Preview() {

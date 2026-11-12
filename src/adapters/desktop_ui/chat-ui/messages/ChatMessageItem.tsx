@@ -1,4 +1,4 @@
-import avatarBadge from '../../../../assets/soflia-avatar/badge-idle.png';
+import { ChatProfileAvatar } from '../ChatAvatar';
 import { UserAvatar } from '../../../../components/chat/MarkdownRenderer';
 import type { ChatMessage } from '../../../../services/chat-service';
 import type { ChatUIController } from '../useChatUIController';
@@ -8,24 +8,22 @@ import { UserMessageBubble } from './UserMessageBubble';
 export function ChatMessageItem({
   controller,
   message,
+  activeAvatar = false,
 }: {
   controller: ChatUIController;
   message: ChatMessage;
+  activeAvatar?: boolean;
 }) {
   const isEditing = controller.state.editing.messageId === message.id;
   const isUser = message.role === 'user';
 
   return (
     <div className={`flex min-w-0 gap-4 ${isUser && !isEditing ? 'justify-end' : ''}`}>
-      {message.role === 'model' && (
-        <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 rounded-full overflow-hidden">
-          <img src={avatarBadge} alt="SofLIA" className="h-full w-full object-contain" />
-        </div>
-      )}
+      {message.role === 'model' && <ChatProfileAvatar active={activeAvatar} />}
       {/* min-w-0 evita que el tamano minimo automatico del item flex (tablas,
           codigo o URLs largas) desborde el panel flotante del navegador: sin el,
           el contenido se sale y el contenedor superior lo recorta. */}
-      <div className={`flex min-w-0 flex-col ${isEditing ? 'w-full' : 'max-w-[85%]'} ${isUser && !isEditing ? 'items-end' : 'items-start'}`}>
+      <div className={`flex min-w-0 flex-col ${isEditing ? 'w-full' : isUser ? 'max-w-[85%]' : 'flex-1'} ${isUser && !isEditing ? 'items-end' : 'items-start'}`}>
         {isUser ? <UserMessageBubble controller={controller} message={message} /> : <ModelMessageContent controller={controller} message={message} />}
       </div>
       {isUser && (

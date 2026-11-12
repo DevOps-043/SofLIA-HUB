@@ -15,7 +15,7 @@ export function MessagesViewport({ controller }: { controller: ChatUIController 
       {messages.length === 0 && !chat.showLoadingUI ? (
         <EmptyChatState />
       ) : (
-        <MessageList controller={controller} floating={controller.props.floating} />
+        <MessageList controller={controller} />
       )}
     </div>
   );

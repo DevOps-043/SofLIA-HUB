@@ -1,5 +1,5 @@
 import { useChatBackgroundPresence } from './chat-ui/useChatBackgroundPresence';
-import { ChatAvatarProvider, ChatComposerPresence } from './chat-ui/ChatAvatar';
+import { ChatAvatarProvider } from './chat-ui/ChatAvatar';
 import '../../components/avatar/chat-avatar.css';
 import { ChatInputArea } from './chat-ui/ChatInputArea';
 import { ChatModals } from './chat-ui/ChatModals';
@@ -40,7 +40,6 @@ export const ChatUI = (props: ChatUIProps) => {
   return (
     <ChatAvatarProvider input={avatarInput} audioFeatures={recording ? controller.dictation.audioFeatures : undefined}><div data-floating-has-messages={props.floating && controller.props.messages.length > 0 ? 'true' : undefined} className={`relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${props.floating ? 'soflia-floating-chat-ui' : 'h-full bg-background dark:bg-background-dark'}`}>
       <MessagesViewport controller={controller} />
-      {controller.props.messages.length > 0 && <ChatComposerPresence />}
       <ChatInputArea controller={controller} />
       <input
         ref={controller.refs.fileInputRef}

@@ -68,6 +68,10 @@ El cambio SHALL entregar recursos PNG transparentes, máscaras SVG, demostració
 ### Requirement: Presencia reactiva en Hub
 El personaje SHALL sustituir al asistente femenino en chat general, navegador y proyectos, y reaccionar a eventos reales del turno sin alterar permisos.
 
+#### Scenario: Un único perfil reactivo en la conversación
+- **WHEN** el chat presenta respuestas o un turno en espera
+- **THEN** el perfil de la última respuesta o del indicador de espera concentra las expresiones, con tamaño de 88 px en chat amplio y 72 px en móvil/flotante, sin un personaje adicional encima del compositor; los perfiles del historial permanecen estáticos
+
 #### Scenario: Activación y reposo
 - **WHEN** se activa el personaje y después transcurren 20 segundos sin interacción ni tarea activa
 - **THEN** saluda con alegría, vuelve a espera y entra en reposo con Zzz exteriores
@@ -87,3 +91,10 @@ El personaje SHALL sustituir al asistente femenino en chat general, navegador y 
 #### Scenario: Generación superada
 - **WHEN** el usuario cambia conversación o cancela una generación
 - **THEN** los callbacks anteriores no alteran el gesto ni el estado de carga del turno vigente y no celebran éxito
+
+### Requirement: Rostro luminoso independiente del tema
+El visor SHALL conservar señales cian luminosas y advertencias ámbar claras tanto en tema claro como oscuro, sin heredar el color de las acciones de interfaz.
+
+#### Scenario: Escritorio transparente y tema claro
+- **WHEN** el personaje se presenta sobre el escritorio o una superficie clara con acento de interfaz azul oscuro
+- **THEN** ojos, boca y símbolos conservan su luz y trazos legibles sobre el visor oscuro, incluidos reposo y movimiento reducido

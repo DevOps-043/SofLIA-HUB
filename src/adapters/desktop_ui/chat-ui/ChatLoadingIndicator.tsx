@@ -1,4 +1,4 @@
-import avatarBadge from '../../../assets/soflia-avatar/badge-idle.png';
+import { ChatProfileAvatar } from './ChatAvatar';
 import { getToolDisplayName } from './tool-display-names';
 
 type ActiveToolCall = {
@@ -9,18 +9,15 @@ type ActiveToolCall = {
   };
 };
 
-export function ChatLoadingIndicator({ activeToolCall }: { activeToolCall?: ActiveToolCall | null; brandIcon?: boolean }) {
+export function ChatLoadingIndicator({ activeToolCall }: { activeToolCall?: ActiveToolCall | null }) {
   return (
-    <div className="flex gap-3.5 select-none animate-in fade-in duration-300">
-      {/* El compositor flotante conserva la marca también durante la espera. */}
-      <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 rounded-full overflow-hidden border border-border/60 shadow-sm ring-2 ring-background">
-        <img src={avatarBadge} alt="SofLIA" className="h-full w-full object-contain" />
-      </div>
+    <div className="flex min-w-0 gap-3.5 select-none animate-in fade-in duration-300">
+      <ChatProfileAvatar active />
 
-      <div className="flex flex-col gap-2 pt-0.5">
+      <div className="flex min-w-0 flex-1 flex-col gap-2 pt-0.5">
         {activeToolCall ? (
           /* Globo de Acción de Herramienta Elegante y Profesional */
-          <div className="flex items-center gap-2.5 px-3.5 py-1.5 bg-accent/[0.06] dark:bg-accent/[0.12] border border-accent/25 dark:border-accent/30 rounded-2xl rounded-tl-sm shadow-sm backdrop-blur-md animate-in zoom-in-95 duration-200">
+          <div className="flex min-w-0 max-w-full items-center gap-2.5 px-3.5 py-1.5 bg-accent/[0.06] dark:bg-accent/[0.12] border border-accent/25 dark:border-accent/30 rounded-2xl rounded-tl-sm shadow-sm backdrop-blur-md animate-in zoom-in-95 duration-200">
             {/* Spinner con halo de brillo */}
             <div className="relative flex items-center justify-center w-3.5 h-3.5 shrink-0">
               <span className="absolute w-full h-full rounded-full bg-accent/20 animate-ping opacity-75" />
@@ -28,7 +25,7 @@ export function ChatLoadingIndicator({ activeToolCall }: { activeToolCall?: Acti
             </div>
             
             <div className="flex items-center gap-2 min-w-0">
-              <span className="text-[12px] font-semibold text-accent leading-none tracking-tight">
+              <span className="min-w-0 truncate text-[12px] font-semibold text-accent leading-none tracking-tight">
                 {getToolDisplayName(activeToolCall.name)}
               </span>
               
