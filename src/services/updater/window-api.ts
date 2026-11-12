@@ -7,10 +7,10 @@ declare global {
       downloadUpdate: () => Promise<{ success: boolean; error?: string }>;
       installUpdate: () => Promise<{ success: boolean; error?: string }>;
       getStatus: () => Promise<UpdaterStatus>;
-      onUpdateAvailable: (cb: (info: UpdateAvailableInfo) => void) => void;
-      onDownloadProgress: (cb: (progress: DownloadProgress) => void) => void;
-      onUpdateDownloaded: (cb: (info: { version: string; releaseNotes: string | null }) => void) => void;
-      onError: (cb: (err: { message: string }) => void) => void;
+      onUpdateAvailable: (cb: (info: UpdateAvailableInfo) => void) => (() => void) | void;
+      onDownloadProgress: (cb: (progress: DownloadProgress) => void) => (() => void) | void;
+      onUpdateDownloaded: (cb: (info: { version: string; releaseNotes: string | null }) => void) => (() => void) | void;
+      onError: (cb: (err: { message: string }) => void) => (() => void) | void;
       removeListeners: () => void;
     };
   }

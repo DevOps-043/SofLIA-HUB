@@ -1,3 +1,4 @@
+import { HubGlyph } from '../ui/HubGlyph';
 import { useEffect, useRef, useState } from 'react';
 import type { BrowserFavorite } from './use-browser-bookmarks';
 import { integratedBrowserService, type BrowserHistoryEntry } from '../../services/integrated-browser-service';
@@ -101,22 +102,7 @@ export function BrowserAppGridMenu({ open, onOpenChange, onNavigate, favorites =
         }`}
       >
         {/* Icono de rejilla 3x3 (Waffle / Apps Menu Icon) */}
-        <svg
-          className="h-4 w-4 transition-transform duration-200 group-hover:scale-110"
-          viewBox="0 0 24 24"
-          fill="currentColor"
-          aria-hidden="true"
-        >
-          <circle cx="6" cy="6" r="2" />
-          <circle cx="12" cy="6" r="2" />
-          <circle cx="18" cy="6" r="2" />
-          <circle cx="6" cy="12" r="2" />
-          <circle cx="12" cy="12" r="2" />
-          <circle cx="18" cy="12" r="2" />
-          <circle cx="6" cy="18" r="2" />
-          <circle cx="12" cy="18" r="2" />
-          <circle cx="18" cy="18" r="2" />
-        </svg>
+        <HubGlyph name="summary" size={20} />
       </button>
 
       {open && (

@@ -1,3 +1,6 @@
+import { HubGlyph, type HubGlyphName } from '../ui/HubGlyph';
+import { IconGlyph } from '../ui/IconGlyph';
+import './browser-iconography.css';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { BrowserAgentTaskControls } from './BrowserAgentTaskControls';
 import { BROWSER_HOME_URL, BROWSER_HOME_TITLE, browserAddressValue, isBrowserHomeUrl } from '../../shared/browser-home';
@@ -662,13 +665,14 @@ export function IntegratedBrowserPanel(props: {
         )}
         <div className="flex min-w-0 items-start gap-2">
           <div className="flex shrink-0 items-center gap-0.5 rounded-xl border border-gray-200/80 bg-gray-50/80 p-1 shadow-xs backdrop-blur-md dark:border-white/[0.08] dark:bg-white/[0.03]">
-            <BrowserIconButton label="Atras" disabled={!state.canGoBack} onClick={() => void run(integratedBrowserService.goBack)}>
+            <BrowserIconButton glyph="back" label="Atras" disabled={!state.canGoBack} onClick={() => void run(integratedBrowserService.goBack)}>
               <path d="M15 18l-6-6 6-6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </BrowserIconButton>
-            <BrowserIconButton label="Adelante" disabled={!state.canGoForward} onClick={() => void run(integratedBrowserService.goForward)}>
+            <BrowserIconButton glyph="arrow" label="Adelante" disabled={!state.canGoForward} onClick={() => void run(integratedBrowserService.goForward)}>
               <path d="M9 18l6-6-6-6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </BrowserIconButton>
             <BrowserIconButton
+              glyph={state.isLoading ? 'close' : 'refresh'}
               label={state.isLoading ? 'Detener carga' : 'Recargar'}
               onClick={() => void run(state.isLoading ? integratedBrowserService.stop : integratedBrowserService.reload)}
             >
@@ -712,6 +716,7 @@ export function IntegratedBrowserPanel(props: {
               )}
             </BrowserIconButton>
             <BrowserIconButton
+              glyph="files"
               label={readingContent ? 'Cerrar modo lectura' : 'Abrir modo lectura'}
               active={Boolean(readingContent)}
               disabled={!state.activeTabId || state.url === 'about:blank' || isBrowserHomeUrl(state.url)}
@@ -735,29 +740,29 @@ export function IntegratedBrowserPanel(props: {
               }}
               sections={[
                 [
-                  { id: 'ecosystem-connect', label: 'Usar mi cuenta de Soflia Hub', icon: <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 21v-2a8 8 0 0 1 16 0v2" /></svg>, onSelect: () => void run(integratedBrowserService.reconnectEcosystemSession) },
-                  { id: 'new-tab', label: 'Nueva pestaña', shortcut: shortcut('new-tab'), icon: <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>, onSelect: () => void run(() => integratedBrowserService.createTab(undefined, { waitForLoad: false })) },
-                  { id: 'reopen-tab', label: 'Reabrir pestaña cerrada', shortcut: shortcut('reopen-tab'), icon: <svg viewBox="0 0 24 24"><path d="M4 4v6h6M5 15a8 8 0 1 0 2-8" /></svg>, onSelect: () => void run(integratedBrowserService.reopenClosedTab) },
+                  { id: 'ecosystem-connect', label: 'Usar mi cuenta de Soflia Hub', icon: <HubGlyph name="identity" size={18} />, onSelect: () => void run(integratedBrowserService.reconnectEcosystemSession) },
+                  { id: 'new-tab', label: 'Nueva pestaña', shortcut: shortcut('new-tab'), icon: <HubGlyph name="plus" size={18} />, onSelect: () => void run(() => integratedBrowserService.createTab(undefined, { waitForLoad: false })) },
+                  { id: 'reopen-tab', label: 'Reabrir pestaña cerrada', shortcut: shortcut('reopen-tab'), icon: <HubGlyph name="history" size={18} />, onSelect: () => void run(integratedBrowserService.reopenClosedTab) },
                 ],
                 [
-                  { id: 'history', label: 'Historial', shortcut: shortcut('history'), active: managementTab === 'history', icon: <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>, onSelect: () => void toggleManagement('history') },
-                  { id: 'downloads', label: 'Descargas', shortcut: shortcut('downloads'), active: managementTab === 'downloads', icon: <svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 21h16" /></svg>, onSelect: () => void toggleManagement('downloads') },
-                  { id: 'bookmarks', label: utilityBarVisible ? 'Ocultar barra de marcadores' : 'Mostrar barra de marcadores', shortcut: shortcut('bookmarks-bar'), active: utilityBarVisible, icon: <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>, onSelect: toggleUtilityBar },
-                  { id: 'manage-bookmarks', label: 'Administrar marcadores', shortcut: shortcut('bookmark-manager'), active: managementTab === 'bookmarks', icon: <svg viewBox="0 0 24 24"><path d="M6 4h12v17l-6-4-6 4zM9 8h6" /></svg>, onSelect: () => void toggleManagement('bookmarks') },
-                  { id: 'credentials', label: 'Contraseñas', active: managementTab === 'credentials', icon: <svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4" /><path d="M11 12l8-8M15 8l2 2M17 6l2 2" /></svg>, onSelect: () => void toggleManagement('credentials') },
-                  { id: 'extensions', label: 'Extensiones', active: managementTab === 'extensions', icon: <svg viewBox="0 0 24 24"><path d="M8 3h5v5a2 2 0 104 0V3h4v7h-5a2 2 0 100 4h5v7h-7v-5a2 2 0 10-4 0v5H3v-7h5a2 2 0 100-4H3V3h5z" /></svg>, onSelect: () => void toggleManagement('extensions') },
-                  { id: 'privacy', label: 'Borrar datos de navegación', shortcut: shortcut('clear-data'), active: managementTab === 'privacy', icon: <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v5M14 11v5" /></svg>, onSelect: () => void toggleManagement('privacy') },
+                  { id: 'history', label: 'Historial', shortcut: shortcut('history'), active: managementTab === 'history', icon: <HubGlyph name="history" size={18} />, onSelect: () => void toggleManagement('history') },
+                  { id: 'downloads', label: 'Descargas', shortcut: shortcut('downloads'), active: managementTab === 'downloads', icon: <HubGlyph name="download" size={18} />, onSelect: () => void toggleManagement('downloads') },
+                  { id: 'bookmarks', label: utilityBarVisible ? 'Ocultar barra de marcadores' : 'Mostrar barra de marcadores', shortcut: shortcut('bookmarks-bar'), active: utilityBarVisible, icon: <HubGlyph name="bookmark" size={18} />, onSelect: toggleUtilityBar },
+                  { id: 'manage-bookmarks', label: 'Administrar marcadores', shortcut: shortcut('bookmark-manager'), active: managementTab === 'bookmarks', icon: <HubGlyph name="bookmark" size={18} />, onSelect: () => void toggleManagement('bookmarks') },
+                  { id: 'credentials', label: 'Contraseñas', active: managementTab === 'credentials', icon: <HubGlyph name="lock" size={18} />, onSelect: () => void toggleManagement('credentials') },
+                  { id: 'extensions', label: 'Extensiones', active: managementTab === 'extensions', icon: <HubGlyph name="summary" size={18} />, onSelect: () => void toggleManagement('extensions') },
+                  { id: 'privacy', label: 'Borrar datos de navegación', shortcut: shortcut('clear-data'), active: managementTab === 'privacy', icon: <HubGlyph name="shield" size={18} />, onSelect: () => void toggleManagement('privacy') },
                 ],
                 [
-                  { id: 'print', label: 'Imprimir', shortcut: shortcut('print'), icon: <svg viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v7H6z" /></svg>, onSelect: () => void run(integratedBrowserService.printPage) },
-                  { id: 'pdf', label: 'Guardar como PDF', icon: <svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6zM14 2v6h6M9 14h6M9 18h4" /></svg>, onSelect: savePdf },
-                  { id: 'find', label: 'Buscar en la página', shortcut: shortcut('find'), active: findVisible, icon: <svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M16 16l5 5" /></svg>, onSelect: () => setFindVisible(true) },
+                  { id: 'print', label: 'Imprimir', shortcut: shortcut('print'), icon: <HubGlyph name="files" size={18} />, onSelect: () => void run(integratedBrowserService.printPage) },
+                  { id: 'pdf', label: 'Guardar como PDF', icon: <HubGlyph name="files" size={18} />, onSelect: savePdf },
+                  { id: 'find', label: 'Buscar en la página', shortcut: shortcut('find'), active: findVisible, icon: <HubGlyph name="search" size={18} />, onSelect: () => setFindVisible(true) },
                 ],
                 [
-                  { id: 'tab-layout', label: state.tabLayout === 'vertical' ? 'Pestañas horizontales' : 'Pestañas verticales', active: state.tabLayout === 'vertical', icon: <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 3v18M3 9h6M3 15h6" /></svg>, onSelect: () => void run(() => integratedBrowserService.setTabLayout(state.tabLayout === 'vertical' ? 'horizontal' : 'vertical')) },
-                  { id: 'agent-policy', label: 'Permisos de SofLIA', active: managementTab === 'agent', icon: <svg viewBox="0 0 24 24"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2zM18 16l1 2 2 1-2 1-1 2-1-2-2-1 2-1z" /></svg>, onSelect: () => void toggleManagement('agent') },
-                  { id: 'devtools', label: 'Herramientas para desarrolladores', shortcut: shortcut('devtools'), icon: <svg viewBox="0 0 24 24"><path d="M8 9l-4 3 4 3M16 9l4 3-4 3M13 6l-2 12" /></svg>, onSelect: () => void run(integratedBrowserService.toggleDevTools) },
-                  { id: 'support', label: 'Diagnóstico', active: managementTab === 'support', icon: <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 8h.01M11 11h1v5h1" /></svg>, onSelect: () => void toggleManagement('support') },
+                  { id: 'tab-layout', label: state.tabLayout === 'vertical' ? 'Pestañas horizontales' : 'Pestañas verticales', active: state.tabLayout === 'vertical', icon: <HubGlyph name="summary" size={18} />, onSelect: () => void run(() => integratedBrowserService.setTabLayout(state.tabLayout === 'vertical' ? 'horizontal' : 'vertical')) },
+                  { id: 'agent-policy', label: 'Permisos de SofLIA', active: managementTab === 'agent', icon: <HubGlyph name="shield" size={18} />, onSelect: () => void toggleManagement('agent') },
+                  { id: 'devtools', label: 'Herramientas para desarrolladores', shortcut: shortcut('devtools'), icon: <HubGlyph name="settings" size={18} />, onSelect: () => void run(integratedBrowserService.toggleDevTools) },
+                  { id: 'support', label: 'Diagnóstico', active: managementTab === 'support', icon: <HubGlyph name="activity" size={18} />, onSelect: () => void toggleManagement('support') },
                 ],
               ]}
             />
@@ -857,6 +862,7 @@ function readStoredUtilityBarVisible(): boolean {
 
 
 function BrowserIconButton(props: {
+  glyph?: HubGlyphName;
   label: string;
   disabled?: boolean;
   danger?: boolean;
@@ -872,7 +878,7 @@ function BrowserIconButton(props: {
       disabled={props.disabled}
       onClick={props.onClick}
       aria-pressed={props.active}
-      className={`group relative grid h-8.5 w-8.5 shrink-0 place-items-center rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:scale-100 ${
+      className={`browser-glyph-action group relative grid h-8.5 w-8.5 shrink-0 place-items-center rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:scale-100 ${
         props.active
           ? 'bg-accent/15 text-accent shadow-xs shadow-accent/20 font-semibold'
           : props.danger
@@ -880,9 +886,7 @@ function BrowserIconButton(props: {
           : 'text-gray-600 hover:bg-white hover:text-accent hover:shadow-xs dark:text-white/70 dark:hover:bg-white/[0.1] dark:hover:text-accent'
       }`}
     >
-      <svg className="h-4 w-4 transition-transform duration-200 group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-        {props.children}
-      </svg>
+      {props.glyph ? <HubGlyph name={props.glyph} size={20} /> : <IconGlyph className="h-5 w-5">{props.children}</IconGlyph>}
       {props.active && (
         <span aria-hidden="true" className="absolute right-1 top-1 h-2 w-2 animate-pulse rounded-full bg-emerald-400 ring-2 ring-white/90 dark:ring-[#0d1117]" />
       )}

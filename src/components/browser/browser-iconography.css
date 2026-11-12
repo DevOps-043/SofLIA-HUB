@@ -1,0 +1,21 @@
+@import "../../styles/iconography.css";
+.browser-glyph-action {
+  transition:
+    background 160ms,
+    color 160ms,
+    box-shadow 160ms;
+}
+.browser-glyph-action:hover:not(:disabled) {
+  transform: none;
+}
+.browser-glyph-action:active:not(:disabled) {
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .browser-glyph-action {
+    transition: none;
+  }
+  .browser-glyph-action:active {
+    transform: none;
+  }
+}

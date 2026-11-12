@@ -1,3 +1,5 @@
+import { HubGlyph } from '../ui/HubGlyph';
+import { IconGlyph } from '../ui/IconGlyph';
 import { useEffect, useRef, type ReactNode } from 'react';
 
 export interface BrowserToolsMenuItem {
@@ -67,9 +69,7 @@ export function BrowserToolsMenu(props: {
         onClick={() => onOpenChange(!open)}
         className={`group relative grid h-8.5 w-8.5 place-items-center rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${open || activeCount > 0 ? 'bg-accent/15 text-accent shadow-xs shadow-accent/20 font-semibold' : 'text-gray-600 hover:bg-white hover:text-accent hover:shadow-xs dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-accent'}`}
       >
-        <svg className="h-4 w-4 transition-transform duration-200 group-hover:scale-110" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />
-        </svg>
+        <HubGlyph name="settings" size={20} />
       </button>
       {open && (
         <div
@@ -103,7 +103,7 @@ export function BrowserToolsMenu(props: {
   );
 }
 
-const MENU_ICON_CLASS = '[&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0 [&_svg]:fill-none [&_svg]:stroke-current [&_svg]:stroke-2 [&_svg]:[stroke-linecap:round] [&_svg]:[stroke-linejoin:round]';
+const MENU_ICON_CLASS = '[&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0 [&_svg]:stroke-current [&_svg]:[stroke-linecap:round] [&_svg]:[stroke-linejoin:round]';
 
 function MenuSeparator() {
   return <div role="separator" className="mx-2 my-1 h-px bg-gray-200/80 dark:bg-white/8" />;
@@ -118,11 +118,11 @@ function ZoomRow({ zoom }: { zoom: BrowserToolsMenuZoom }) {
       <div role="group" aria-label="Zoom" className="flex items-center gap-1 px-2.5 py-1 text-[13px] font-medium text-primary dark:text-white/85">
         <span className="flex-1">Zoom</span>
         <button type="button" role="menuitem" aria-label={`Alejar (${zoom.zoomOutShortcut})`} title={`Alejar · ${zoom.zoomOutShortcut}`} onClick={zoom.onZoomOut} className={buttonClass}>
-          <svg viewBox="0 0 24 24"><path d="M5 12h14" /></svg>
+          <IconGlyph viewBox="0 0 24 24"><path d="M5 12h14" /></IconGlyph>
         </button>
         <output aria-live="polite" className="w-12 text-center tabular-nums">{zoom.percent}%</output>
         <button type="button" role="menuitem" aria-label={`Acercar (${zoom.zoomInShortcut})`} title={`Acercar · ${zoom.zoomInShortcut}`} onClick={zoom.onZoomIn} className={buttonClass}>
-          <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+          <IconGlyph viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></IconGlyph>
         </button>
         <span className="mx-1 h-5 w-px bg-gray-200/80 dark:bg-white/8" aria-hidden="true" />
         <button
@@ -134,7 +134,7 @@ function ZoomRow({ zoom }: { zoom: BrowserToolsMenuZoom }) {
           onClick={zoom.onToggleFullscreen}
           className={`${buttonClass} ${zoom.fullscreen ? 'text-accent' : ''}`}
         >
-          <svg viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" /></svg>
+          <IconGlyph viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" /></IconGlyph>
         </button>
       </div>
     </>

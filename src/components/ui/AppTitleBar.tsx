@@ -1,11 +1,12 @@
 import { AgentActivityButton } from '../agents/AgentActivityButton';
 import { WindowControls } from './WindowControls';
+import '../../styles/window-chrome.css';
 
 export function AppTitleBar() {
   return (
     <header
       aria-label="Barra de título"
-      className="flex h-9 shrink-0 select-none items-center justify-between border-b border-gray-200/70 bg-white/85 px-3.5 shadow-xs backdrop-blur-xl saturate-[140%] dark:border-white/[0.08] dark:bg-[#0a0d12]/85 [app-region:drag] [-webkit-app-region:drag]"
+      className="flex h-[var(--app-titlebar-height)] shrink-0 select-none items-center justify-between border-b border-gray-200/70 bg-white/85 px-3.5 shadow-xs backdrop-blur-xl saturate-[140%] dark:border-white/[0.08] dark:bg-[#0a0d12]/85 [app-region:drag] [-webkit-app-region:drag]"
       style={{ fontFamily: 'var(--font-system-ui)' }}
     >
       <div className="flex items-center [app-region:no-drag] [-webkit-app-region:no-drag]">

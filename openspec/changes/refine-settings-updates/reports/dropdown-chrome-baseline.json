@@ -1,0 +1,8 @@
+{
+  "src/components/update-panel/ChangelogFeatures.tsx": "9d3e5a5ecd8dc58d16bb6c80e592496fb5a8e6c93e520e2e7c5e0f03d8b40dd2",
+  "src/components/update-panel/updates.css": "aba2c9d698a7955e597ea84fd02aebef0b30fc468049c637372b56746df45f7c",
+  "src/components/unified-settings/settings.css": "77627e2a701387a605353144878841a7014b0c0d0a0c1ae2a696d53457ebba63",
+  "src/components/ui/AppTitleBar.tsx": "a88f5da38b0bdccd1ace42406f10d3e4abf365eef0dcf225b7fb770489902a1f",
+  "src/__tests__/components/settings-interaction.test.tsx": "a3452a886349af330428da96aa6fab2673453f44ab238b4d816dc294300f18d2",
+  "src/__tests__/components/update-release-history.test.tsx": "3efe3e415bab432028dc2ac2e0a1e18fc321852c1f6540ff50f1f12053e75840"
+}
