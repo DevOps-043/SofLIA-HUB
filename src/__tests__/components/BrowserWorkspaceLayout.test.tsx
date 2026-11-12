@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserWorkspaceLayout } from '../../components/browser/BrowserWorkspaceLayout';
 import { orbService } from '../../services/orb-service';
@@ -30,27 +30,16 @@ vi.mock('../../components/browser/IntegratedBrowserPanel', () => ({
 }));
 
 describe('BrowserWorkspaceLayout', () => {
-  it('el modo flotante abre desde el icono sin activar el orbe ni desplegar el panel lateral', async () => {
-    render(<BrowserWorkspaceLayout floating chat={<textarea aria-label="Escribe a Soflia" />} conversations={[]} currentConversationId={null} onClose={vi.fn()} onNewChat={vi.fn(async()=>{})} onSelectConversation={vi.fn(async()=>{})} />);
-    expect(screen.getByTestId('browser-floating-workspace')).toBeInTheDocument();
-    expect(screen.queryByRole('separator')).toBeNull();
-    expect(screen.queryByRole('textbox')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir chat flotante con Soflia' }));
-    expect(await screen.findByRole('textbox')).toBeVisible();
-    expect(orbService.show).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Minimizar chat flotante' }));
-    await waitFor(() => expect(screen.queryByRole('textbox')).toBeNull());
-  });
-  it('el modo compacto conserva el acceso a nuevo chat y conversaciones existentes', async () => {
-    const create = vi.fn(async()=>{}), select=vi.fn(async()=>{});
-    render(<BrowserWorkspaceLayout floating chat={<textarea aria-label="Compositor" />} conversations={[{id:'a',title:'Chat del proyecto',updated_at:''}]} currentConversationId={null} onClose={vi.fn()} onNewChat={create} onSelectConversation={select}/>);
-    fireEvent.click(screen.getByRole('button',{name:'Abrir chat flotante con Soflia'}));
-    await screen.findByRole('textbox');
-    fireEvent.click(screen.getByRole('button',{name:'Nuevo chat'}));
-    await waitFor(()=>expect(create).toHaveBeenCalledOnce());
-    fireEvent.click(screen.getByRole('button',{name:'Abrir conversaciones'}));
-    fireEvent.click(screen.getByRole('button',{name:/Chat del proyecto/}));
-    await waitFor(()=>expect(select).toHaveBeenCalledWith('a'));
+  it('muestra el chat lateral sin lanzador ni franja inferior y libera el espacio al minimizar', () => {
+    renderLayout();
+    expect(screen.getByRole('region', { name: 'Chat flotante con SofLIA' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Abrir chat flotante con Soflia' })).not.toBeInTheDocument();
+    expect(document.querySelector('.soflia-floating-dock')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Minimizar panel de SofLIA' }));
+    expect(screen.getByTestId('viewport-insets')).toHaveTextContent('0:0');
+    fireEvent.click(screen.getByRole('button', { name: 'Alternar chat' }));
+    expect(screen.getByRole('region', { name: 'Chat flotante con SofLIA' })).toBeVisible();
+    expect(screen.getByTestId('viewport-insets')).toHaveTextContent('400:0');
   });
   it('transmite el proyecto actual al navegador sin depender de la conversación elegida', () => {
     render(<BrowserWorkspaceLayout projectTarget={{ workspaceId: 'w', projectId: 'p', organizationId: 'org', name: 'Proyecto activo', canWrite: true }} chat={<div>Chat</div>} conversations={[]} currentConversationId={null} onClose={vi.fn()} onNewChat={vi.fn(async () => {})} onSelectConversation={vi.fn(async () => {})} />);
