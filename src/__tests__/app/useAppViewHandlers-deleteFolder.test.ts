@@ -16,7 +16,7 @@ describe('useAppViewHandlers - eliminación de carpetas con modal en la app', ()
       handleDeleteFolder,
       currentFolderId: null,
       setCurrentFolderId: vi.fn(),
-    } as FolderState;
+    } as unknown as FolderState;
 
     const { result } = renderHook(() =>
       useAppViewHandlers({
@@ -51,7 +51,7 @@ describe('useAppViewHandlers - eliminación de carpetas con modal en la app', ()
       handleDeleteFolder: handleDeleteFolderMock,
       currentFolderId: 'f-1',
       setCurrentFolderId,
-    } as FolderState;
+    } as unknown as FolderState;
 
     const { result } = renderHook(() =>
       useAppViewHandlers({
@@ -84,7 +84,7 @@ describe('useAppViewHandlers - eliminación de carpetas con modal en la app', ()
       handleDeleteFolder: handleDeleteFolderMock,
       currentFolderId: null,
       setCurrentFolderId: vi.fn(),
-    } as FolderState;
+    } as unknown as FolderState;
 
     const { result } = renderHook(() =>
       useAppViewHandlers({
