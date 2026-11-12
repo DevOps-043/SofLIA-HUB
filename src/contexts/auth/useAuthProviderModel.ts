@@ -107,6 +107,7 @@ export function useAuthProviderModel(): AuthContextType {
     ssoPending: learningSso.ssoPending,
     ssoError: learningSso.ssoError,
     setCurrentOrganization: selection.setCurrentOrganization,
+    updateOrganizationProfile: selection.updateOrganizationProfile,
     setCurrentTeam: selection.setCurrentTeam,
   };
 }

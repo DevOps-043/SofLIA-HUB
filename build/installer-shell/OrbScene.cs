@@ -70,7 +70,7 @@ namespace PulseInstaller {
             if (view != null) { view.Dispose(); view = null; }
             host.Children.Clear();
             host.Children.Add(new TextBlock {
-                Text = "No se pudo cargar la orbe original. Requiere WebView2 y aceleración WebGL.\n\nPuedes continuar con la instalación.\n\nCódigo: " + code,
+                Text = "No se pudo cargar el avatar de SofLIA. Requiere WebView2.\n\nPuedes continuar con la instalación.\n\nCódigo: " + code,
                 TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(Color.FromRgb(172, 195, 206)),
                 Margin = new Thickness(40), VerticalAlignment = VerticalAlignment.Center
             });

@@ -1,0 +1,10 @@
+{
+  "base": "db0827f8",
+  "dependencies": [
+    "src/components/ui/Icons.tsx",
+    "src/components/ui/HubGlyph.tsx",
+    "src/components/ui/IconGlyph.tsx",
+    "src/styles/iconography.css",
+    "src/index.css"
+  ]
+}

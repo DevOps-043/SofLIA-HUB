@@ -1,6 +1,6 @@
 # Aula de sesiones de Learning
 
-Estado: implementación local para pruebas; despliegue pendiente. Actualizado: 2026-11-03.
+Estado: implementación local para pruebas; despliegue pendiente. Actualizado: 2026-11-11.
 
 <!-- evidence: src/components/learning-live/LearningWorkspace.tsx -->
 <!-- evidence: src/components/learning-live/ConnectedStudio.tsx -->
@@ -22,6 +22,40 @@ o Video SDK según el grant de Learning; las sesiones anteriores siguen con Meet
 Video ofrece controles de audio, cámara y pantalla en español y recursos locales
 versionados. El aula no muestra el bloque informativo de grabación automática; la preferencia
 de disponibilidad posterior se administra exclusivamente en Learning.
+
+## Agenda y acceso a gestión
+
+La agenda separa Mi agenda de Organización/Clases que imparto e Historial.
+Learning confirma permisos por organización; el rol global de plataforma solo
+identifica la etiqueta y no sustituye la membresía ni concede permisos académicos.
+El usuario alumno solo recibe próximas sesiones de cursos asignados; historial
+requiere vista instructor y permiso académico, con denegación antes de consultar.
+Los gestores abren el panel existente de Learning mediante una acción explícita;
+la programación y sus confirmaciones no se duplican en Hub. La preparación del
+aula sigue en Hub. El navegador de Learning conserva su autenticación propia.
+
+El catálogo negocia `capabilities` mediante `X-Soflia-Catalog-Capabilities: 1` y
+acepta `period: past` opcional. Sin esa cabecera conserva el cuerpo v1 anterior.
+Main construye el destino de gestión desde el origen Learning configurado y el
+slug validado; no acepta URLs remotas ni transporta credenciales por parámetros.
+Renderer solo ofrece rutas de gestión o detalles de sesiones de ese catálogo.
+En servidores anteriores se mantienen próximas/clases autorizadas y se ocultan
+historial y gestión web que no hayan sido confirmados.
+
+La función `live_catalog` de SOFIA Learning filtra inicio más duración de las
+programadas antes de contar y paginar. Las sesiones que siguen en vivo permanecen
+visibles aunque superen la duración prevista, hasta que Learning las cierre. Las sesiones vencidas sin cierre permanecen en historial como
+«Sin cierre registrado», sin cambiar su estado. Su migración canónica es
+`supabase/migrations/20261111110000_live_catalog_session_periods.sql` en el repositorio
+Learning; requiere aplicación y publicación antes de habilitar todo el flujo.
+El hook de Hub aísla solicitudes, reinicia página/permisos al cambiar organización,
+revalida al recuperar visibilidad y programa un solo vencimiento sin polling continuo.
+
+La fixture `test/manual/live-agenda` verifica cuatro perfiles con datos ficticios,
+temas, historial, estados vacíos/error y ancho reducido, sin credenciales ni llamadas
+multimedia. Ejecutar `node test/manual/live-agenda/verify.mjs`; guarda las capturas
+en el directorio temporal. El diseño y la evidencia están en el
+[cambio de agenda](../../openspec/changes/refine-live-agenda/design.md).
 
 ## Estado y autorización
 

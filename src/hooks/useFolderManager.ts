@@ -21,6 +21,7 @@ export function useFolderManager({ userId, orgId, accessUserIds, conversations, 
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
   const [movingChatId, setMovingChatId] = useState<string | null>(null);
+  const [deletingFolderId, setDeletingFolderId] = useState<string | null>(null);
   /** Carpeta en edicion inline desde la barra lateral (null = ninguna). */
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState('');
@@ -91,6 +92,8 @@ export function useFolderManager({ userId, orgId, accessUserIds, conversations, 
     setIsFolderModalOpen,
     movingChatId,
     setMovingChatId,
+    deletingFolderId,
+    setDeletingFolderId,
     renamingFolderId,
     editingFolderName,
     setEditingFolderName,

@@ -1,0 +1,180 @@
+[
+  {
+    "file": "src/components/UnifiedSettingsModal.tsx",
+    "before": {
+      "@typescript-eslint/no-explicit-any": 1,
+      "react-hooks/set-state-in-effect": 1
+    },
+    "after": {}
+  },
+  {
+    "file": "src/components/UpdatePanel.tsx",
+    "before": {},
+    "after": {}
+  },
+  {
+    "file": "src/components/browser/BrowserAddressBar.tsx",
+    "before": {
+      "react-hooks/refs": 1
+    },
+    "after": {}
+  },
+  {
+    "file": "src/components/browser/BrowserAppGridMenu.tsx",
+    "before": {
+      "react-refresh/only-export-components": 3,
+      "react-hooks/set-state-in-effect": 1
+    },
+    "after": {
+      "react-refresh/only-export-components": 3,
+      "react-hooks/set-state-in-effect": 1
+    }
+  },
+  {
+    "file": "src/components/browser/BrowserConversationMenu.tsx",
+    "before": {
+      "react-hooks/set-state-in-effect": 1
+    },
+    "after": {
+      "react-hooks/set-state-in-effect": 1
+    }
+  },
+  {
+    "file": "src/components/browser/BrowserTabStrip.tsx",
+    "before": {},
+    "after": {}
+  },
+  {
+    "file": "src/components/browser/BrowserToolsMenu.tsx",
+    "before": {},
+    "after": {}
+  },
+  {
+    "file": "src/components/browser/IntegratedBrowserPanel.tsx",
+    "before": {
+      "react-hooks/refs": 1,
+      "react-hooks/exhaustive-deps": 2,
+      "react-hooks/set-state-in-effect": 2
+    },
+    "after": {
+      "react-hooks/refs": 1,
+      "react-hooks/exhaustive-deps": 2,
+      "react-hooks/set-state-in-effect": 2
+    }
+  },
+  {
+    "file": "src/components/settings-modal/IdentityCard.tsx",
+    "before": {},
+    "after": {}
+  },
+  {
+    "file": "src/components/settings-modal/PersonalityCards.tsx",
+    "before": {},
+    "after": {}
+  },
+  {
+    "file": "src/components/sidebar/UserMenu.tsx",
+    "before": {
+      "react-hooks/set-state-in-effect": 1
+    },
+    "after": {}
+  },
+  {
+    "file": "src/components/unified-settings/sections/AppearanceVoiceSection.tsx",
+    "before": {},
+    "after": {}
+  },
+  {
+    "file": "src/components/unified-settings/sections/IdentityPrivacySection.tsx",
+    "before": {},
+    "after": {}
+  },
+  {
+    "file": "src/components/unified-settings/sections/IntegrationsSkillsSection.tsx",
+    "before": {},
+    "after": {}
+  },
+  {
+    "file": "src/components/unified-settings/sections/SystemUpdateSection.tsx",
+    "before": {},
+    "after": {}
+  },
+  {
+    "file": "src/components/unified-settings/sections/TeamProductivitySection.tsx",
+    "before": {},
+    "after": {}
+  },
+  {
+    "file": "src/components/unified-settings/settings-tabs.tsx",
+    "before": {},
+    "after": {}
+  },
+  {
+    "file": "src/components/update-panel/ChangelogFeatures.tsx",
+    "before": {
+      "react-refresh/only-export-components": 1
+    },
+    "after": {}
+  },
+  {
+    "file": "src/components/update-panel/useUpdatePanel.ts",
+    "before": {
+      "@typescript-eslint/no-explicit-any": 1
+    },
+    "after": {}
+  },
+  {
+    "file": "src/components/update-panel/useUpdaterPanel.ts",
+    "before": {
+      "@typescript-eslint/no-explicit-any": 1
+    },
+    "after": {}
+  },
+  {
+    "file": "src/services/updater/window-api.ts",
+    "before": {},
+    "after": {}
+  },
+  {
+    "file": "src/__tests__/components/settings-interaction.test.tsx",
+    "before": {},
+    "after": {}
+  },
+  {
+    "file": "src/__tests__/components/update-release-history.test.tsx",
+    "before": {},
+    "after": {}
+  },
+  {
+    "file": "src/components/ui/HubGlyph.tsx",
+    "before": {},
+    "after": {}
+  },
+  {
+    "file": "src/components/update-panel/release-history.ts",
+    "before": {},
+    "after": {}
+  },
+  {
+    "file": "src/shared/app-version.ts",
+    "before": {},
+    "after": {}
+  },
+  {
+    "file": "test/manual/settings-updates/fixture-content.tsx",
+    "before": {},
+    "after": {}
+  },
+  {
+    "file": "test/manual/settings-updates/fixture-stubs.tsx",
+    "before": {},
+    "after": {}
+  },
+  {
+    "file": "test/manual/settings-updates/main.tsx",
+    "before": {},
+    "after": {
+      "react-refresh/only-export-components": 1
+    }
+  }
+]

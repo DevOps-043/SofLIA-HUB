@@ -1,82 +1,170 @@
-import { useCallback, useEffect, useState } from 'react';
-import type { DownloadProgress, UpdateAvailableInfo, UpdaterStatus } from '../../services/updater-service';
-import { installUpdate } from '../../services/updater-service';
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { UpdaterStatus } from "../../services/updater-service";
+import { installUpdate } from "../../services/updater-service";
+import { APP_VERSION } from "../../shared/app-version";
+
+const errorMessage = (error: unknown) =>
+  error instanceof Error
+    ? error.message
+    : "No se pudo consultar el servicio de actualizaciones.";
+const boundedProgress = (value: number) =>
+  Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : 0;
 
 export function useUpdatePanel() {
   const [status, setStatus] = useState<UpdaterStatus | null>(null);
   const [checking, setChecking] = useState(false);
-  const [version, setVersion] = useState('');
-  const [releaseNotes, setReleaseNotes] = useState<string | null>(null);
-  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (typeof window.updater === 'undefined') return;
-
-    window.updater.getStatus().then(setStatus);
-    window.updater.onUpdateAvailable((info: UpdateAvailableInfo) => {
-      setVersion(info.version);
-      setReleaseNotes(info.releaseNotes);
-      setChecking(false);
-      setStatus(prev => prev ? { ...prev, state: 'available', availableVersion: info.version, releaseNotes: info.releaseNotes } : prev);
-    });
-    window.updater.onDownloadProgress((prog: DownloadProgress) => {
-      setProgress(prog.percent);
-      setStatus(prev => prev ? { ...prev, state: 'downloading', downloadProgress: prog.percent } : prev);
-    });
-    window.updater.onUpdateDownloaded(() => {
-      setStatus(prev => prev ? { ...prev, state: 'downloaded', downloadProgress: 100 } : prev);
-    });
-    window.updater.onError((err) => {
-      setError(err.message);
-      setChecking(false);
-      setStatus(prev => prev ? { ...prev, state: 'error', error: err.message } : prev);
-    });
-
-    return () => window.updater.removeListeners();
+  const [lastCheckedAt, setLastCheckedAt] = useState<Date | null>(null);
+  const mounted = useRef(false);
+  const request = useRef(0);
+  const busy = useRef(false);
+  const isAvailable = typeof window.updater !== "undefined";
+  const patch = useCallback((next: Partial<UpdaterStatus>) => {
+    if (!mounted.current) return;
+    request.current += 1;
+    setStatus((current) => ({
+      state: "idle",
+      currentVersion: APP_VERSION,
+      availableVersion: null,
+      releaseNotes: null,
+      downloadProgress: null,
+      error: null,
+      ...current,
+      ...next,
+    }));
   }, []);
 
+  useEffect(() => {
+    mounted.current = true;
+    if (!isAvailable)
+      return () => {
+        mounted.current = false;
+      };
+    const bridge = window.updater;
+    const id = ++request.current;
+    void bridge
+      .getStatus()
+      .then((value) => {
+        if (mounted.current && id === request.current) setStatus(value);
+      })
+      .catch((reason: unknown) => {
+        if (mounted.current && id === request.current)
+          setError(errorMessage(reason));
+      });
+    const unsubscribers = [
+      bridge.onUpdateAvailable((info) => {
+        if (!mounted.current) return;
+        setError(null);
+        patch({
+          state: "available",
+          availableVersion: info.version,
+          releaseNotes: info.releaseNotes,
+          error: null,
+        });
+      }),
+      bridge.onDownloadProgress((info) =>
+        patch({
+          state: "downloading",
+          downloadProgress: boundedProgress(info.percent),
+        }),
+      ),
+      bridge.onUpdateDownloaded((info) =>
+        patch({
+          state: "downloaded",
+          availableVersion: info.version,
+          releaseNotes: info.releaseNotes,
+          downloadProgress: 100,
+        }),
+      ),
+      bridge.onError((info) => {
+        if (mounted.current) setError(info.message);
+        patch({ state: "error", error: info.message });
+      }),
+    ];
+    return () => {
+      mounted.current = false;
+      request.current += 1;
+      unsubscribers.forEach((unsubscribe) => {
+        if (typeof unsubscribe === "function") unsubscribe();
+      });
+    };
+  }, [isAvailable, patch]);
+
   const handleCheck = useCallback(async () => {
-    if (typeof window.updater === 'undefined') return;
+    if (!isAvailable || busy.current) return;
+    busy.current = true;
     setChecking(true);
     setError(null);
     try {
-      const result = await window.updater.checkForUpdates();
-      if (!result.success) {
-        setError(result.error || 'No se pudieron buscar actualizaciones.');
-        return;
-      }
-      const nextStatus = await window.updater.getStatus();
-      setStatus(nextStatus);
-      if (nextStatus.state === 'error') setError(nextStatus.error || 'No se pudieron buscar actualizaciones.');
-    } catch (err: any) {
-      setError(err.message);
+      const response = await window.updater.checkForUpdates();
+      if (!response.success)
+        throw new Error(
+          response.error || "No se pudieron buscar actualizaciones.",
+        );
+      const id = ++request.current;
+      const value = await window.updater.getStatus();
+      if (!mounted.current || id !== request.current) return;
+      setStatus(value);
+      if (value.state === "error")
+        setError(value.error || "No se pudieron buscar actualizaciones.");
+      if (
+        value.state === "not-available" ||
+        value.state === "available" ||
+        value.state === "downloaded"
+      )
+        setLastCheckedAt(new Date());
+    } catch (reason) {
+      if (mounted.current) setError(errorMessage(reason));
+      patch({ state: "error" });
     } finally {
-      setChecking(false);
+      busy.current = false;
+      if (mounted.current) setChecking(false);
     }
-  }, []);
+  }, [isAvailable, patch]);
 
   const handleDownload = useCallback(async () => {
-    if (typeof window.updater === 'undefined') return;
-    setProgress(0);
-    await window.updater.downloadUpdate();
-  }, []);
+    if (!isAvailable || busy.current) return;
+    busy.current = true;
+    setError(null);
+    patch({ state: "downloading", downloadProgress: 0 });
+    try {
+      const response = await window.updater.downloadUpdate();
+      if (!response.success)
+        throw new Error(
+          response.error || "No se pudo descargar la actualización.",
+        );
+    } catch (reason) {
+      if (mounted.current) setError(errorMessage(reason));
+      patch({ state: "error" });
+    } finally {
+      busy.current = false;
+    }
+  }, [isAvailable, patch]);
 
   const handleInstall = useCallback(async () => {
+    if (busy.current) return;
+    busy.current = true;
     setError(null);
-    try { await installUpdate(); }
-    catch (error) { setError(error instanceof Error ? error.message : 'No se pudo instalar la actualización.'); }
+    try {
+      await installUpdate();
+    } catch (reason) {
+      if (mounted.current) setError(errorMessage(reason));
+    } finally {
+      busy.current = false;
+    }
   }, []);
 
   return {
     status,
     checking,
-    progress,
     error,
-    state: status?.state || 'idle',
-    currentVersion: status?.currentVersion || '0.0.0',
-    availableVersion: version || status?.availableVersion,
-    notes: releaseNotes || status?.releaseNotes,
+    lastCheckedAt,
+    isAvailable,
+    state: status?.state ?? "idle",
+    currentVersion: status?.currentVersion || APP_VERSION,
+    availableVersion: status?.availableVersion,
+    notes: status?.releaseNotes,
+    progress: boundedProgress(status?.downloadProgress ?? 0),
     handleCheck,
     handleDownload,
     handleInstall,

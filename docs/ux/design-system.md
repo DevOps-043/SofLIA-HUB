@@ -101,6 +101,24 @@ interpreta como sistema SOFIA actual; no existe ADR de branding versionado.
 - Integraciones muestran disconnected/pairing/degraded para no confundir ausencia
   de credenciales con error de producto.
 
+## Identidad de organización en el menú
+
+El acceso inferior de la barra muestra el logo y el nombre de la organización
+activa con texto de 15 px, sin foto personal ni flecha. El modo compacto
+mantiene el nombre accesible. El pie es transparente y sólo conserva la línea
+superior que lo separa de los chats; no añade otra superficie. El selector conserva
+los nombres para distinguir organizaciones. [OrganizationLogo](../../src/components/sidebar/OrganizationLogo.tsx)
+recibe `brand_logo_url` o el logo heredado `logo_url`, intenta `brand_favicon_url` si falta o falla y finalmente
+muestra una inicial de la organización. Sin organización se conserva la identidad
+personal del usuario.
+
+Las imágenes se ajustan completas con `object-contain` en 32 × 32 px, reservando
+espacio al nombre de la organización incluso si falla la imagen. No llevan fondo, borde,
+sombra ni máscara circular. El archivo original puede contener márgenes o fondo;
+el renderer no lo modifica. La [prueba visual local](../../test/manual/organization-menu/main.tsx)
+cubre marcas sintéticas verticales, horizontales, cuadradas y fallidas en temas
+claro y oscuro, sin credenciales ni consultas remotas.
+
 ## Prohibiciones
 
 - No hardcodear un nuevo color de marca si ya existe token.
@@ -108,3 +126,32 @@ interpreta como sistema SOFIA actual; no existe ADR de branding versionado.
 - No implementar custom dropdown sin teclado, roles y foco.
 - No copiar el antiguo standard SOFIA Web: mencionaba rutas inexistentes en este
   repositorio y fue sustituido por este catalogo basado en codigo.
+
+## Iconografía e interacción
+
+El catálogo [HubGlyph](../../src/components/ui/HubGlyph.tsx) reutiliza las
+siluetas de Proyectos para chats, carpetas, archivos y navegador. Los demás
+iconos locales se exportan desde [Icons](../../src/components/ui/Icons.tsx).
+Todos usan [IconGlyph](../../src/components/ui/IconGlyph.tsx): SVG decorativo,
+trazo redondeado y planos de `currentColor` con opacidad baja. Los controles
+conservan su texto, nombre accesible y eventos; no se crean botones en el SVG.
+
+[iconography.css](../../src/styles/iconography.css) eleva y gira ligeramente
+el dibujo al hover o foco visible y lo comprime durante la pulsación. El signo
+más gira 90 grados y la flecha de envío avanza. El movimiento afecta al grupo
+interior, sin desplazar etiquetas ni alterar rotaciones exteriores. Cada control
+reinicia las variables para aislar acciones anidadas. Se respetan `:disabled`
+(incluido fieldset), `aria-disabled` y `prefers-reduced-motion`. Filas existentes
+sin rol de botón pueden delimitar esta herencia con `hub-icon-action`.
+Los iconos estáticos no se animan por sí solos; los spinners de carga mantienen
+su comportamiento existente. Logos de proveedores y avatares quedan fuera del catálogo.
+
+## Configuración y selector de versiones
+
+El historial de actualizaciones usa [SelectDropdown](../../src/components/ui/SelectDropdown.tsx),
+con lista propia, fechas como descripción y marca de versión instalada o disponible.
+El teclado y Escape conservan el comportamiento del selector compartido.
+
+[window-chrome.css](../../src/styles/window-chrome.css) define la altura de la barra
+estándar y del navegador. El fondo de Configuración comienza debajo de esta fila;
+no oculta ni intercepta los controles de minimizar, maximizar y cerrar.

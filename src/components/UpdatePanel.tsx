@@ -1,208 +1,160 @@
-import { useUpdatePanel } from './update-panel/useUpdatePanel';
-import { ChangelogFeatures } from './update-panel/ChangelogFeatures';
-import { DevUnavailable } from './update-panel/DevUnavailable';
+import { useUpdatePanel } from "./update-panel/useUpdatePanel";
+import { ChangelogFeatures } from "./update-panel/ChangelogFeatures";
+import { HubGlyph, type HubGlyphName } from "./ui/HubGlyph";
+import "./update-panel/updates.css";
 
 export function UpdatePanel() {
   const update = useUpdatePanel();
-
-  if (typeof window.updater === 'undefined') return <DevUnavailable />;
-
-  const {
-    state,
-    checking,
-    progress,
-    error,
-    currentVersion,
-    availableVersion,
-    notes,
-    handleCheck,
-    handleDownload,
-    handleInstall
-  } = update;
-
-  const isChecking = checking || state === 'checking';
-
-  // Configuración dinámica de la esfera de estado
-  let sphereColor = 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500';
-  let glowColor = 'bg-emerald-500/20';
-  let statusTitle = 'Sistema al día';
-  let statusDesc = `Soflia Hub v${currentVersion} es la versión más reciente.`;
-  let buttonLabel = 'Buscar actualizaciones';
-  let buttonAction: () => void = () => {
-    handleCheck();
-  };
-  let isButtonDisabled = isChecking;
-  let strokeDashoffset = 440; // 0%
-  let showLoader = false;
-  let centerElement = null;
-
-  if (isChecking) {
-    sphereColor = 'bg-accent/10 border-accent/30 text-accent';
-    glowColor = 'bg-accent/20';
-    statusTitle = 'Buscando actualizaciones';
-    statusDesc = 'Conectando con el servidor de Soflia Hub...';
-    buttonLabel = 'Buscando...';
-    isButtonDisabled = true;
-    showLoader = true;
-    strokeDashoffset = 330; // 25% loader circle
-  } else if (state === 'available') {
-    sphereColor = 'bg-accent/10 border-accent/40 text-accent';
-    glowColor = 'bg-accent/35';
-    statusTitle = 'Actualización disponible';
-    statusDesc = `Una nueva versión v${availableVersion} está lista para descargar.`;
-    buttonLabel = 'Descargar ahora';
-    buttonAction = () => { handleDownload(); };
-    isButtonDisabled = false;
-    centerElement = (
-      <svg className="w-8 h-8 text-accent animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M19 13l-7 7-7-7m14-6l-7 7-7-7" />
-      </svg>
-    );
-  } else if (state === 'downloading') {
-    sphereColor = 'bg-accent/10 border-accent/40 text-accent';
-    glowColor = 'bg-accent/30';
-    statusTitle = 'Descargando';
-    statusDesc = `Descargando actualización en segundo plano.`;
-    buttonLabel = `Descargando (${Math.round(progress)}%)`;
-    isButtonDisabled = true;
-    strokeDashoffset = 440 - (440 * progress) / 100;
-    centerElement = (
-      <span className="text-xl font-bold font-mono tracking-tighter text-accent tabular-nums">
-        {Math.round(progress)}%
-      </span>
-    );
-  } else if (state === 'downloaded') {
-    sphereColor = 'bg-success/10 border-success/40 text-success';
-    glowColor = 'bg-success/35';
-    statusTitle = 'Lista para instalar';
-    statusDesc = 'Soflia Hub ha descargado los nuevos archivos con éxito.';
-    buttonLabel = 'Reiniciar e instalar';
-    buttonAction = () => { handleInstall(); };
-    isButtonDisabled = false;
-    strokeDashoffset = 0; // 100%
-    centerElement = (
-      <svg className="w-8 h-8 text-success animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-      </svg>
-    );
-  } else if (state === 'error' || error) {
-    sphereColor = 'bg-danger/10 border-danger/30 text-danger';
-    glowColor = 'bg-danger/25';
-    statusTitle = 'Error al verificar';
-    statusDesc = error || 'No se pudo establecer la conexión.';
-    buttonLabel = 'Reintentar búsqueda';
-    buttonAction = () => { handleCheck(); };
-    isButtonDisabled = false;
-    centerElement = (
-      <svg className="w-7 h-7 text-danger" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-      </svg>
-    );
-  } else {
-    // Al día (default)
-    centerElement = (
-      <svg className="w-8 h-8 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    );
-    strokeDashoffset = 0; // 100% circle completed in success
+  const failed = Boolean(update.error) || update.state === "error";
+  const checking = !failed && (update.checking || update.state === "checking");
+  let title = "Listo para comprobar";
+  let description = "Consulta si hay una nueva versión para tu aplicación.";
+  let icon: HubGlyphName = "refresh";
+  let label = "Buscar actualizaciones";
+  let action = update.handleCheck;
+  if (!update.isAvailable) {
+    title = "Vista previa de escritorio";
+    description =
+      "La búsqueda y la instalación están disponibles en SofLIA Hub.";
+  } else if (checking) {
+    title = "Buscando actualizaciones";
+    description = "Consultando la publicación más reciente de SofLIA Hub.";
+    label = "Comprobando…";
+  } else if (failed) {
+    title = "Necesitamos volver a intentarlo";
+    description =
+      update.error ||
+      update.status?.error ||
+      "El servicio de actualizaciones no respondió.";
+    icon = "warning";
+    label = "Reintentar";
+  } else if (update.state === "available") {
+    title = "Una nueva versión te espera";
+    description = update.availableVersion
+      ? "La versión v" +
+        update.availableVersion +
+        " está disponible para descargar."
+      : "Hay una actualización disponible.";
+    icon = "download";
+    label = "Descargar actualización";
+    action = update.handleDownload;
+  } else if (update.state === "downloading") {
+    title = "Descargando actualización";
+    description = "Puedes seguir trabajando mientras termina la descarga.";
+    icon = "download";
+    label = "Descargando…";
+  } else if (update.state === "downloaded") {
+    title = "Todo listo para actualizar";
+    description = "Reinicia la aplicación para instalar la nueva versión.";
+    icon = "check";
+    label = "Reiniciar e instalar";
+    action = update.handleInstall;
+  } else if (update.state === "not-available") {
+    title = "Tienes la última versión";
+    description = "No hay una versión más reciente disponible en este momento.";
+    icon = "check";
   }
-
+  const busy = checking || (update.state === "downloading" && !failed);
   return (
-    <div className="h-full flex divide-x divide-border overflow-hidden select-none">
-      
-      {/* Columna Izquierda: Consola de Control de Estado (40% de ancho) */}
-      <div className="w-[40%] flex flex-col items-center justify-between p-8 text-center shrink-0">
-        
-        {/* Título de la consola */}
-        <div className="space-y-1 w-full text-left">
-          <h3 className="text-sm font-bold text-gray-900 dark:text-white tracking-tight uppercase">Consola de Estado</h3>
-          <p className="text-[10px] text-secondary">Control de versiones de Soflia Hub</p>
-        </div>
-
-        {/* Orbe Visual de Estado */}
-        <div className="relative w-44 h-44 flex items-center justify-center">
-          {/* Brillo dinámico de fondo (glow) */}
-          <div className={`absolute inset-2 rounded-full blur-xl opacity-30 transition-all duration-700 ${glowColor}`} />
-          
-          {/* Esfera / Anillo exterior */}
-          <svg className="w-full h-full transform -rotate-90">
-            <circle
-              cx="88"
-              cy="88"
-              r="78"
-              className="text-border/20 stroke-current"
-              strokeWidth="2.5"
-              fill="transparent"
-            />
-            <circle
-              cx="88"
-              cy="88"
-              r="78"
-              className={`transition-all duration-500 stroke-current ${
-                isChecking ? 'text-accent animate-pulse' : state === 'downloading' ? 'text-accent' : state === 'downloaded' ? 'text-success' : state === 'error' ? 'text-danger' : 'text-emerald-500'
-              }`}
-              strokeWidth="3.5"
-              strokeDasharray={490}
-              strokeDashoffset={strokeDashoffset}
-              strokeLinecap="round"
-              fill="transparent"
-            />
-          </svg>
-          
-          {/* Centro de la esfera */}
-          <div className={`absolute inset-4 rounded-full border shadow-lg flex flex-col items-center justify-center bg-card ${sphereColor}`}>
-            {showLoader && (
-              <svg className="w-8 h-8 text-accent animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-            )}
-            {!showLoader && centerElement}
+    <div className="updates-layout settings-enter">
+      <div className="updates-overview">
+        <section
+          className="update-build-card"
+          aria-labelledby="installed-version-title"
+        >
+          <div className="update-build-top">
+            <span className="settings-eyebrow">Tu aplicación</span>
+            <span className="settings-tag">
+              <span className="update-status-dot" /> Instalada
+            </span>
           </div>
-        </div>
-
-        {/* Información de Estado */}
-        <div className="space-y-2 max-w-xs">
-          <h4 className="text-sm font-semibold text-gray-900 dark:text-white leading-tight">
-            {statusTitle}
-          </h4>
-          <p className="text-[11px] text-secondary leading-relaxed">
-            {statusDesc}
-          </p>
-        </div>
-
-        {/* Botón de Acción Principal (Ultra-Minimalista / Premium) */}
-        <div className="w-full space-y-4">
-          <button
-            onClick={buttonAction}
-            disabled={isButtonDisabled}
-            className={`w-full py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all select-none active:scale-[0.98] border ${
-              state === 'available'
-                ? 'bg-accent text-on-accent border-accent/20 hover:brightness-110 shadow-lg shadow-accent/20'
-                : state === 'downloaded'
-                  ? 'bg-success text-white border-success/20 hover:brightness-110 shadow-lg shadow-success/20'
-                  : 'bg-surface-2 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] border-border text-gray-900 dark:text-white'
-            } disabled:opacity-40 disabled:hover:bg-surface-2 disabled:active:scale-100`}
+          <div className="update-build-version">
+            <div>
+              <h3 id="installed-version-title">SofLIA Hub</h3>
+              <p>v{update.currentVersion}</p>
+            </div>
+            <span className="update-build-icon">
+              <HubGlyph name="summary" size={34} />
+            </span>
+          </div>
+          <div className="update-build-caption">
+            <HubGlyph name="monitor" size={16} /> Aplicación de escritorio
+          </div>
+        </section>
+        <section
+          className={
+            "update-status-card" + (failed ? " update-status-card--error" : "")
+          }
+          aria-label="Estado de actualizaciones"
+          aria-busy={busy}
+        >
+          <div
+            className={
+              "update-state-icon" +
+              (checking ? " update-state-icon--checking" : "")
+            }
           >
-            {buttonLabel}
+            <HubGlyph name={icon} size={24} />
+          </div>
+          <div role={failed ? "alert" : "status"} aria-live="polite">
+            <h3>{title}</h3>
+            <p>{description}</p>
+          </div>
+          {update.state === "downloading" && !failed && (
+            <div className="update-download">
+              <div className="update-download-label">
+                <span>Progreso de descarga</span>
+                <strong>{Math.round(update.progress)}%</strong>
+              </div>
+              <progress
+                max={100}
+                value={update.progress}
+                aria-label="Progreso de descarga"
+              />
+            </div>
+          )}
+          <button
+            type="button"
+            className="settings-primary-action"
+            onClick={() => void action()}
+            disabled={!update.isAvailable || busy}
+          >
+            <HubGlyph
+              name={
+                update.state === "downloaded" && !failed
+                  ? "check"
+                  : checking
+                    ? "refresh"
+                    : icon
+              }
+              size={18}
+            />
+            {label}
+            <HubGlyph name="arrow" size={16} />
           </button>
-
-          <p className="text-[9px] text-secondary/60 leading-normal max-w-[200px] mx-auto">
-            Las actualizaciones se verifican automáticamente en segundo plano.
+          <p className="update-check-time">
+            {update.lastCheckedAt
+              ? "Última comprobación · " +
+                new Intl.DateTimeFormat("es", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }).format(update.lastCheckedAt)
+              : "Las nuevas versiones se comprueban en segundo plano."}
+          </p>
+        </section>
+        <div className="update-trust-note">
+          <HubGlyph name="shield" size={20} />
+          <p>
+            La instalación conserva la protección de guardado y cierre de SofLIA
+            Hub.
           </p>
         </div>
-
       </div>
-
-      {/* Columna Derecha: Línea de tiempo interactiva (60% de ancho) */}
-      <div className="w-[60%] flex flex-col p-8 overflow-hidden bg-black/[0.005] dark:bg-white/[0.002]">
-        <ChangelogFeatures
-          releaseNotes={notes || undefined}
-          newVersion={availableVersion}
-        />
-      </div>
-
+      <ChangelogFeatures
+        currentVersion={update.currentVersion}
+        releaseNotes={update.notes}
+        newVersion={update.availableVersion}
+      />
     </div>
   );
 }

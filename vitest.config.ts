@@ -24,7 +24,7 @@ export default defineConfig({
           name: 'main',
           // El documento nativo consume estos CSS como texto; no sustituirlos
           // por los módulos vacíos que Vitest usa para estilos de componentes.
-          css: { include: /(?:home|theme-light|theme-dark)\.css(?:\?raw)?$/ },
+          css: { include: /(?:home|avatar|theme-light|theme-dark)\.css(?:\?raw)?$/ },
           environment: 'node',
           include: ['electron/__tests__/**/*.test.ts'],
           setupFiles: ['./test/setup-main.ts'],

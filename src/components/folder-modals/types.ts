@@ -13,3 +13,11 @@ export interface MoveChatModalProps {
   currentFolderId: string | null | undefined;
   onMove: (folderId: string | null) => void;
 }
+
+export interface DeleteFolderModalProps {
+  isOpen: boolean;
+  folder: Folder | null;
+  onClose: () => void;
+  onConfirm: () => void | Promise<void>;
+  isDeleting?: boolean;
+}

@@ -2,14 +2,20 @@ import type { CustomScheme, Protocol } from 'electron';
 import { BROWSER_HOME_URL, isBrowserHomeUrl } from '../../../src/shared/browser-home';
 import lightTheme from '../../../src/styles/theme-light.css?raw';
 import darkTheme from '../../../src/styles/theme-dark.css?raw';
-import logo from '../../../public/assets/Icono.png?inline';
+import { createHash } from 'node:crypto';
+import { browserHomeAvatar } from './avatar-markup';
+import avatarStyles from '../../../src/components/avatar/avatar.css?raw';
+import visor from '../../../src/assets/soflia-avatar/visor.svg?raw';
+import avatarRuntime from '../../../src/shared/browser-home/avatar-runtime.js?raw';
+const trustedScript = avatarRuntime.replace(/\r\n/g, '\n');
+const scriptHash = createHash('sha256').update(trustedScript).digest('base64');
 import template from './home.html?raw';
 import styles from '../../../src/shared/browser-home/home.css?raw';
 import content from '../../../src/shared/browser-home/home-content.html?raw';
 
 export const BROWSER_HOME_SCHEME = new URL(BROWSER_HOME_URL).protocol.slice(0, -1);
 export const BROWSER_HOME_CSP = [
-  "default-src 'none'", "script-src 'none'", "style-src 'unsafe-inline'",
+  "default-src 'none'", `script-src 'sha256-${scriptHash}'`, "style-src 'unsafe-inline'",
   'img-src data:', "connect-src 'none'", "frame-src 'none'", "object-src 'none'",
   "base-uri 'none'", 'form-action https://www.google.com', "frame-ancestors 'none'",
 ].join('; ');
@@ -17,8 +23,9 @@ export const BROWSER_HOME_CSP = [
 // La preferencia nativa ya sigue el tema de la aplicación. Sólo cambia el
 // selector; los valores provienen de la misma fuente que el renderer.
 const themeStyles = `${lightTheme}\n@media (prefers-color-scheme: dark) { ${darkTheme.replace(/\.dark\s*\{/, ':root {')} }`;
-const document = template.replace('__HOME_STYLES__', () => `${themeStyles}\n${styles}`)
-  .replace('__HOME_CONTENT__', () => content.replace('__HOME_LOGO__', () => logo));
+const document = template.replace('__HOME_STYLES__', () => `${themeStyles}\n${styles}\n${avatarStyles.replace("url('../../assets/soflia-avatar/visor.svg')", () => `url("data:image/svg+xml,${encodeURIComponent(visor)}")`)}`)
+  .replace('__HOME_CONTENT__', () => content.replace('__HOME_AVATAR__', browserHomeAvatar))
+  .replace('__HOME_SCRIPT__', () => `<script>${trustedScript}</script>`);
 
 /** Se agrega al registro único antes de app.whenReady; conserva CSP y aislamiento. */
 export const BROWSER_HOME_SCHEME_REGISTRATION: CustomScheme = {

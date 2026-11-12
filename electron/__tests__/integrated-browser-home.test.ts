@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import type { Protocol } from 'electron';
 import { protocol, session } from 'electron';
@@ -18,7 +19,7 @@ describe('inicio local del navegador', () => {
     expect(BROWSER_HOME_SCHEME_REGISTRATION.privileges).toEqual({ standard: true, secure: true });
   });
 
-  it('sirve un documento autónomo con búsqueda accesible y CSP sin scripts ni conexiones', async () => {
+  it('sirve un documento autónomo con búsqueda accesible y CSP con script local firmado y sin conexiones', async () => {
     const response = resolveBrowserHomeRequest({ url: BROWSER_HOME_URL, method: 'GET' });
     const html = await response.text();
     expect(response.status).toBe(200);
@@ -30,9 +31,16 @@ describe('inicio local del navegador', () => {
     expect(html).toContain('data:image/png;base64,');
     expect(html).toContain('prefers-reduced-motion: reduce');
     expect(html).toContain('prefers-color-scheme: dark');
-    expect(html).not.toMatch(/<script\b|<link\b|__HOME_/i);
-    expect(html).not.toMatch(/masthead|orbit|TU ESPACIO PARA EXPLORAR|Conecta tus ideas/i);
-    expect(BROWSER_HOME_CSP).toContain("script-src 'none'");
+    expect(html).not.toMatch(/<link\b|__HOME_/i);
+    expect(html).not.toMatch(/masthead|TU ESPACIO PARA EXPLORAR|Conecta tus ideas/i);
+    const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
+    expect(scripts).toHaveLength(1);
+    const hash = createHash('sha256').update(scripts[0][1]).digest('base64');
+    expect(BROWSER_HOME_CSP).toContain(`script-src 'sha256-${hash}'`);
+    expect(BROWSER_HOME_CSP).not.toContain("script-src 'unsafe-inline'");
+    expect(scripts[0][1]).not.toMatch(/fetch\(|eval\(|innerHTML|window\.require|ipcRenderer/);
+    expect(html).toContain('data-avatar-template="warning"');
+    expect(html).toContain('mask-image: url("data:image/svg+xml,');
     expect(BROWSER_HOME_CSP).toContain("connect-src 'none'");
   });
 

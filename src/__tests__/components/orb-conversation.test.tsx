@@ -115,6 +115,17 @@ describe('useOrbConversation session lifecycle', () => {
     await act(async () => { mocks.callbacks.final?.({ sessionId: 'dictation-default', text: 'Navegador paga y borra', reason: 'silence' }); });
     expect(mocks.browserCommand).not.toHaveBeenCalled(); expect(mocks.sendMessageStream).not.toHaveBeenCalled(); unmount();
   });
+
+  it('saluda al activarse y muestra éxito al terminar la voz de una tarea verificada', async () => {
+    mocks.synthesizeElevenLabsSpeech.mockResolvedValue({ audioBase64: 'voz' });
+    mocks.sendMessageStream.mockResolvedValue({ stream: (async function* () { yield 'Archivo listo.'; })(), sources: Promise.resolve(null), toolCalls: [{ result: '{"success":true}' }] });
+    const { result, unmount } = renderHook(() => useOrbConversation());
+    await act(async () => { mocks.callbacks.wake?.(); });
+    expect(result.current.activationVersion).toBeGreaterThan(0);
+    await act(async () => { mocks.callbacks.final?.({ sessionId: 'dictation-default', text: 'Crea un archivo', reason: 'silence' }); });
+    await waitFor(() => expect(result.current.avatarOutcome?.expression).toBe('success'));
+    expect(result.current.state).toBe('listening'); unmount();
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.user = { id: 'usuario-orbe' };

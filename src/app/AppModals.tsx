@@ -1,4 +1,4 @@
-import { CreateFolderModal, MoveChatModal } from "../components/FolderModals";
+import { CreateFolderModal, DeleteFolderModal, MoveChatModal } from "../components/FolderModals";
 import { ShareModal } from "../components/ShareModal";
 import { UnifiedSettingsModal, type SettingsTab } from "../components/UnifiedSettingsModal";
 import type { ShareTargetType } from "../services/share-service";
@@ -17,9 +17,15 @@ interface AppModalsProps {
   onSetShareTarget: (target: AppModalsProps["shareTarget"]) => void;
   onSetUserSettings: (settings: any) => void;
   onSetUnifiedSettingsOpen: (open: boolean) => void;
+  onConfirmDeleteFolder?: () => void | Promise<void>;
+  onCancelDeleteFolder?: () => void;
 }
 
 export function AppModals(props: AppModalsProps) {
+  const deletingFolder = props.folder.deletingFolderId
+    ? props.folder.folders.find((item: any) => item.id === props.folder.deletingFolderId) ?? null
+    : null;
+
   return (
     <>
       <CreateFolderModal
@@ -33,6 +39,16 @@ export function AppModals(props: AppModalsProps) {
         folders={props.folder.folders.filter((item: any) => item.can_edit)}
         currentFolderId={props.movingChat?.folder_id}
         onMove={(folderId) => props.folder.handleMoveChat(props.folder.movingChatId!, folderId)}
+      />
+      <DeleteFolderModal
+        isOpen={props.folder.deletingFolderId !== null}
+        folder={deletingFolder}
+        onClose={props.onCancelDeleteFolder ?? (() => props.folder.setDeletingFolderId(null))}
+        onConfirm={props.onConfirmDeleteFolder ?? (() => {
+          const id = props.folder.deletingFolderId;
+          props.folder.setDeletingFolderId(null);
+          if (id) void props.folder.handleDeleteFolder(id);
+        })}
       />
       {props.userId && props.orgId && props.shareTarget && (
         <ShareModal

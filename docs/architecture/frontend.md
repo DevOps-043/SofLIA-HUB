@@ -8,7 +8,26 @@ Estado: vigente. Actualizado: 2026-10-25.
 
 ## Entrada y composicion
 
-El [chat flotante contextual](../../openspec/changes/floating-soflia-chat/design.md) reutiliza el ChatUI principal en presentación compacta desde las demás secciones y el navegador. El icono oficial abre un compositor interno de 380 px, con cabecera de 28 px sin marca/título, botones de icono para nuevo chat y modelos, asa de arrastre y minimización. El campo vacío mide 28 px y abrir con ratón no lo enfoca ni activa el resaltado de escritura; el acceso por teclado conserva el foco útil. El asa permite arrastrar o mover con flechas dentro de la superficie de la aplicación; posición y borrador sobreviven a minimizar, y los cambios de tamaño reajustan los límites. Sin selección activa de proyecto se ofrece una entrada compacta para preparar su chat autorizado, sin habilitar envíos en otra conversación. No crea una ventana del SO ni monta dos controladores de conversación. El ámbito de usuario/organización/proyecto y el cambio de conversación cancelan turnos obsoletos; la primera persistencia del borrador no corta su respuesta. El navegador mantiene el layout lateral compatible y usa el dock inferior inicialmente. Al moverlo reserva el mayor rectángulo nativo disponible que no intersecta el panel mediante los insets renderer existentes y un desplazamiento superior opcional; durante el arrastre, o si no queda una región operable en una ventana pequeña, retira temporalmente WebContentsView con la guarda de overlays existente. Las vistas previas de archivos usan el diálogo interno sin desmontar el chat.
+### Ajustes de organización
+
+La sección Organización de Ajustes se ofrece sólo a propietarios o administradores
+activos de la organización seleccionada. [OrganizationSettingsSection](../../src/components/unified-settings/sections/OrganizationSettingsSection.tsx)
+edita datos generales, logo, icono y colores mediante un formulario con guardado
+explícito. El [servicio](../../src/services/org/settings.ts) usa una RPC SOFIA
+cerrada por actor, organización y campos permitidos; no concede UPDATE directo.
+Las imágenes PNG/JPEG/WebP de hasta 2 MiB usan un bucket específico, con rutas
+inmutables y políticas administrativas. Cambiar de organización/sesión descarta
+resultados tardíos. El contexto incorpora las confirmaciones sólo para la sesión
+que guardó, actualiza nombre e imagen del menú y conserva la selección actual.
+
+La [migración](../../database/sofia-learning/migrations/desktop-organization-settings.sql)
+y su [rollback](../../database/sofia-learning/rollbacks/desktop-organization-settings.sql)
+requieren aplicación remota autorizada. Sin la RPC se muestra un error accionable,
+sin permitir cargas ni afirmar un guardado. El rollback bloquea el bucket nuevo
+y retira la RPC conservando datos e imágenes existentes. Ver
+[diseño y alcance](../../openspec/changes/configure-organization-settings/design.md).
+
+El [chat flotante contextual](../../openspec/changes/floating-soflia-chat/design.md) reutiliza el ChatUI principal en presentación compacta únicamente desde las secciones de proyectos que no muestran su chat. El icono oficial abre un compositor interno de 380 px, con cabecera de 28 px sin marca/título, botones de icono para nuevo chat y modelos, asa de arrastre y minimización. El campo vacío mide 28 px y abrir con ratón no lo enfoca ni activa el resaltado de escritura; el acceso por teclado conserva el foco útil. El asa permite arrastrar o mover con flechas dentro de la superficie de la aplicación; posición y borrador sobreviven a minimizar, y los cambios de tamaño reajustan los límites. Sin selección activa de proyecto se ofrece una entrada compacta para preparar su chat autorizado, sin habilitar envíos en otra conversación. No crea una ventana del SO ni monta dos controladores de conversación. El ámbito de usuario/organización/proyecto y el cambio de conversación cancelan turnos obsoletos; la primera persistencia del borrador no corta su respuesta. El navegador usa exclusivamente su panel lateral ajustable y minimizable: no monta el lanzador ni el compositor inferior de proyectos y no reserva una franja inferior. Al minimizar el lateral devuelve ese espacio a la página; las selecciones externas vuelven a abrirlo. El chat lateral conserva el contexto visible del navegador, las conversaciones y el modelo seleccionado. Las vistas previas de archivos usan el diálogo interno sin desmontar el chat.
 
 `src/main.tsx` monta `App`; `src/App.tsx` envuelve la aplicacion en
 `AuthProvider`, renderiza `AppContent` y mantiene `UpdateNotification` global.

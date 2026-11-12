@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { estimateVoicePitch } from './voice-pitch';
 
 export interface AudioFeatureRefs {
   /** Energía de la voz 0..1 (RMS con ataque rápido y caída suave). */
@@ -7,10 +8,14 @@ export interface AudioFeatureRefs {
   tone: React.MutableRefObject<number>;
   /** 8 bandas de frecuencia 0..1 (tipo ecualizador LED). */
   bands: React.MutableRefObject<Float32Array>;
+  /** Registro vocal normalizado y confianza; opcionales para consumidores antiguos. */
+  pitch?: React.MutableRefObject<number>;
+  pitchConfidence?: React.MutableRefObject<number>;
 }
 
 export type AudioFeatureSource =
   | { kind: 'mic' }
+  | { kind: 'stream'; stream: MediaStream }
   | { kind: 'node'; context: AudioContext; node: AudioNode }
   | null;
 
@@ -58,19 +63,22 @@ function createBandRanges(sampleRate: number, binCount: number): BandBinRange[] 
 
 /**
  * Analiza el micrófono o la salida TTS con un único AnalyserNode nativo.
- * Las métricas viven en refs para que React Three Fiber pueda leerlas en cada
+ * Las métricas viven en refs para que el avatar pueda leerlas en cada
  * frame sin provocar renders adicionales.
  */
-export function useAudioFeatures(source: AudioFeatureSource): AudioFeatureRefs {
+export function useAudioFeatures(source: AudioFeatureSource, onError?: (message: string) => void): AudioFeatureRefs {
   const level = useRef(0);
   const tone = useRef(0.4);
   const bands = useRef(new Float32Array(NUM_BANDS));
+  const pitch = useRef(.4);
+  const pitchConfidence = useRef(0);
 
   useEffect(() => {
     if (!source) {
       level.current = 0;
       tone.current = 0.4;
       bands.current.fill(0);
+      pitch.current = .4; pitchConfidence.current = 0;
       return undefined;
     }
 
@@ -83,11 +91,12 @@ export function useAudioFeatures(source: AudioFeatureSource): AudioFeatureRefs {
     let bandRanges: BandBinRange[] = [];
     let cancelled = false;
     let rafId: number | null = null;
-    let noiseFloor = source.kind === 'mic' ? 0.008 : MIN_NOISE_FLOOR;
+    let noiseFloor = source.kind !== 'node' ? 0.008 : MIN_NOISE_FLOOR;
     let peakEnvelope = INITIAL_PEAK_ENVELOPE;
     let spectralPeak = INITIAL_SPECTRAL_PEAK;
     const bandValues = bands.current;
     const rawBandLevels = new Float32Array(NUM_BANDS);
+    let lastPitchAt = 0;
 
     const releaseAudioResources = () => {
       if (rafId !== null) {
@@ -111,7 +120,7 @@ export function useAudioFeatures(source: AudioFeatureSource): AudioFeatureRefs {
       }
     };
 
-    const updateFeatures = () => {
+    const updateFeatures = (now: number) => {
       if (cancelled || !analyserNode || !frequencyData || !timeDomainData) return;
 
       analyserNode.getByteTimeDomainData(timeDomainData);
@@ -126,7 +135,7 @@ export function useAudioFeatures(source: AudioFeatureSource): AudioFeatureRefs {
 
       // En micrófono el piso se adapta lentamente solo durante señal baja.
       // En TTS se mantiene casi fijo para conservar pausas y consonantes suaves.
-      if (source.kind === 'mic' && rms < noiseFloor * 2.2) {
+      if (source.kind !== 'node' && rms < noiseFloor * 2.2) {
         noiseFloor = clamp(noiseFloor + (rms - noiseFloor) * 0.015, MIN_NOISE_FLOOR, MAX_NOISE_FLOOR);
       }
       const gatedRms = rms > noiseFloor * 1.45 ? rms - noiseFloor : 0;
@@ -139,6 +148,12 @@ export function useAudioFeatures(source: AudioFeatureSource): AudioFeatureRefs {
         ? Math.pow(clamp(gatedRms / (levelReference * 0.9), 0, 1), 0.82)
         : 0;
       level.current = smooth(level.current, normalizedLevel, LEVEL_ATTACK, LEVEL_RELEASE);
+      if (now - lastPitchAt >= 50) {
+        lastPitchAt = now;
+        const voice = normalizedLevel > .015 ? estimateVoicePitch(timeDomainData, analyserNode.context.sampleRate) : null;
+        pitchConfidence.current = voice?.confidence ?? 0;
+        if (voice && voice.confidence >= .7) pitch.current = smooth(pitch.current, voice.normalized, .3, .3);
+      }
 
       let totalSpectralEnergy = 0;
       let weightedFrequency = 0;
@@ -191,6 +206,7 @@ export function useAudioFeatures(source: AudioFeatureSource): AudioFeatureRefs {
 
     const start = async () => {
       try {
+        onError?.('');
         let context: AudioContext;
         if (source.kind === 'mic') {
           const stream = await navigator.mediaDevices.getUserMedia({
@@ -209,6 +225,11 @@ export function useAudioFeatures(source: AudioFeatureSource): AudioFeatureRefs {
           ownedContext = new AudioContext();
           context = ownedContext;
           sourceNode = context.createMediaStreamSource(stream);
+        } else if (source.kind === 'stream') {
+          // El dictado conserva la propiedad de sus pistas: no capturar ni detenerlas aquí.
+          ownedContext = new AudioContext();
+          context = ownedContext;
+          sourceNode = context.createMediaStreamSource(source.stream);
         } else {
           context = source.context;
           sourceNode = source.node;
@@ -233,6 +254,7 @@ export function useAudioFeatures(source: AudioFeatureSource): AudioFeatureRefs {
       } catch (error) {
         releaseAudioResources();
         if (!cancelled) console.warn('[Orb] Análisis de audio no disponible:', error);
+        if (!cancelled) onError?.('No se pudo analizar el audio. Revisa el permiso de micrófono o usa un archivo local.');
       }
     };
 
@@ -244,8 +266,9 @@ export function useAudioFeatures(source: AudioFeatureSource): AudioFeatureRefs {
       level.current = 0;
       tone.current = 0.4;
       bandValues.fill(0);
+      pitch.current = .4; pitchConfidence.current = 0;
     };
-  }, [source]);
+  }, [source, onError]);
 
-  return { level, tone, bands };
+  return { level, tone, bands, pitch, pitchConfidence };
 }

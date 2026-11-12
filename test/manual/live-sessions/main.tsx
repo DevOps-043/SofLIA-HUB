@@ -10,10 +10,11 @@ import '../../../src/index.css';
 
 // Datos de ejemplo exclusivos de esta prueba visual; no se usan en la aplicación.
 const user = '00000000-0000-4000-8000-000000000013';
+const exampleNow = Date.now();
 const sessions = [
-  { id: '00000000-0000-4000-8000-000000000031', title: 'De una idea a un flujo de trabajo', course_title: 'IA aplicada al trabajo', instructor_name: 'Mariana López', description: 'Transforma una tarea de tu día a día en un flujo de trabajo con inteligencia artificial. Vamos a construirlo juntos.', starts_at: '2026-10-11T18:00:00Z', duration_minutes: 60, status: 'live' as const, session_type: 'meeting' as const },
-  { id: '00000000-0000-4000-8000-000000000032', title: 'Prompts que hacen la diferencia', course_title: 'IA aplicada al trabajo', instructor_name: 'Mariana López', description: '', starts_at: '2026-10-13T18:00:00Z', duration_minutes: 45, status: 'scheduled' as const, session_type: 'meeting' as const },
-  { id: '00000000-0000-4000-8000-000000000033', title: 'Del primer borrador al resultado final', course_title: 'Productividad y creatividad', instructor_name: 'Daniel Ruiz', description: '', starts_at: '2026-10-15T20:00:00Z', duration_minutes: 60, status: 'scheduled' as const, session_type: 'webinar' as const },
+  { id: '00000000-0000-4000-8000-000000000031', title: 'De una idea a un flujo de trabajo', course_title: 'IA aplicada al trabajo', instructor_name: 'Mariana López', description: 'Transforma una tarea de tu día a día en un flujo de trabajo con inteligencia artificial. Vamos a construirlo juntos.', starts_at: new Date(exampleNow - 600_000).toISOString(), duration_minutes: 60, status: 'live' as const, session_type: 'meeting' as const },
+  { id: '00000000-0000-4000-8000-000000000032', title: 'Prompts que hacen la diferencia', course_title: 'IA aplicada al trabajo', instructor_name: 'Mariana López', description: '', starts_at: new Date(exampleNow + 172_800_000).toISOString(), duration_minutes: 45, status: 'scheduled' as const, session_type: 'meeting' as const },
+  { id: '00000000-0000-4000-8000-000000000033', title: 'Del primer borrador al resultado final', course_title: 'Productividad y creatividad', instructor_name: 'Daniel Ruiz', description: '', starts_at: new Date(exampleNow + 345_600_000).toISOString(), duration_minutes: 60, status: 'scheduled' as const, session_type: 'webinar' as const },
 ];
 window.learningLive = {
   catalog: async () => ({ success: true, catalog: { version: 1, user_id: user, can_teach: true, total: sessions.length, sessions } }),

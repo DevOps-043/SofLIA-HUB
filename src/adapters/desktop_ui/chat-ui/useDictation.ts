@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from 'react';
+import { useAudioFeatures } from '../../../components/orb/useAudioFeatures';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { transcribeAudio } from '../../../services/flow-service';
 import { getPublicAiErrorMessage } from '../../../services/gemini-chat/public-error';
 
@@ -6,6 +7,7 @@ const MIN_AUDIO_BYTES = 512;
 const DEFAULT_AUDIO_MIME_TYPE = 'audio/webm';
 
 export function useDictation(setInput: (updater: (current: string) => string) => void) {
+  const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -15,9 +17,13 @@ export function useDictation(setInput: (updater: (current: string) => string) =>
   const audioMimeTypeRef = useRef(DEFAULT_AUDIO_MIME_TYPE);
   const shouldProcessRef = useRef(true);
 
+  const featureSource = useMemo(() => isRecording && audioStream ? { kind: 'stream' as const, stream: audioStream } : null, [isRecording, audioStream]);
+  const audioFeatures = useAudioFeatures(featureSource);
+
   const stopAudioStream = useCallback(() => {
     audioStreamRef.current?.getTracks().forEach((track) => track.stop());
     audioStreamRef.current = null;
+    setAudioStream(null);
   }, []);
 
   const stopDictation = useCallback((process: boolean) => {
@@ -53,6 +59,7 @@ export function useDictation(setInput: (updater: (current: string) => string) =>
       });
       const mimeType = getSupportedAudioMimeType();
       audioStreamRef.current = stream;
+      setAudioStream(stream);
       audioMimeTypeRef.current = mimeType || DEFAULT_AUDIO_MIME_TYPE;
       const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
       mediaRecorderRef.current = recorder;
@@ -119,7 +126,7 @@ export function useDictation(setInput: (updater: (current: string) => string) =>
     else void startDictation();
   }, [isRecording, startDictation, stopDictation]);
 
-  return { errorMessage, isRecording, isTranscribing, stopDictation, toggleDictation };
+  return { audioFeatures, errorMessage, isRecording, isTranscribing, stopDictation, toggleDictation };
 }
 
 function getSupportedAudioMimeType(): string {

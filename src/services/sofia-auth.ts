@@ -7,6 +7,7 @@ import { INVALID_CREDENTIALS_MESSAGE, mapSupabaseAuthError, resolveLoginEmail } 
 import type { SofiaLoginUserRow } from './sofia-auth/login';
 import { fetchSofiaUserProfile } from './sofia-auth/profile';
 import { saveSofiaSession } from './sofia-auth/session-storage';
+import { mergeOrganizationProfile } from './org/settings-context';
 import type { SofiaAuthResult, SofiaContext } from './sofia-auth/types';
 import { throwIfAuthCancelled } from './auth-cancellation';
 
@@ -169,6 +170,10 @@ class SofiaAuthService {
 
   getSofiaContext(): SofiaContext | null {
     return this.sofiaContext;
+  }
+
+  updateOrganizationProfile(organization: SofiaOrganization, actorId: string) {
+    this.sofiaContext = mergeOrganizationProfile(this.sofiaContext, organization, actorId);
   }
 
   setCurrentOrganization(org: SofiaOrganization) {

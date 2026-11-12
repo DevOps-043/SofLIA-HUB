@@ -1,5 +1,6 @@
 import type { Session } from '@supabase/supabase-js';
 import type { SofiaAuthResult, SofiaAuthUser, SofiaContext } from '../../services/sofia-auth';
+import type { SofiaOrganization } from '../../lib/sofia-client';
 
 export type AuthUser = SofiaAuthUser | null;
 
@@ -48,5 +49,6 @@ export interface AuthContextType {
   ssoPending: boolean;
   ssoError: string | null;
   setCurrentOrganization: (orgId: string) => void;
+  updateOrganizationProfile?: (organization: SofiaOrganization, actorId: string) => void;
   setCurrentTeam: (teamId: string) => void;
 }

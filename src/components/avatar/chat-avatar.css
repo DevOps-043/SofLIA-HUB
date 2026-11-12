@@ -1,0 +1,9 @@
+.chat-avatar-presence { display: flex; align-items: center; gap: 8px; width: min(100% - 32px, 1024px); margin: 0 auto -5px; min-height: 72px; padding-inline: 8px; pointer-events: none; }
+.chat-avatar-presence__character { width: 88px; height: 88px; flex-shrink: 0; }
+.chat-avatar-presence__label { font-size: 11px; letter-spacing: .02em; color: var(--text-secondary, #8eaaa9); }
+.chat-avatar-presence__label span { color: #00bfa9; margin-inline: 4px; }
+.chat-avatar-hero { width: 180px; height: 180px; margin: 0 auto 20px; }
+.soflia-floating-chat-ui .chat-avatar-hero { width: 136px; height: 136px; margin-bottom: 14px; }
+.soflia-floating-chat-ui .chat-avatar-presence { min-height: 64px; margin-bottom: -4px; }
+.soflia-floating-chat-ui .chat-avatar-presence__character { width: 76px; height: 76px; }
+@media (max-height: 560px) { .chat-avatar-hero { width: 108px; height: 108px; margin-bottom: 10px; } }
