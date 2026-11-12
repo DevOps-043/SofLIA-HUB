@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import type { ThemeMode } from '../../hooks/useTheme';
 import type { SofiaOrganization } from '../../lib/sofia-client';
+import { OrganizationLogo } from './OrganizationLogo';
 
 interface UserMenuProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface UserMenuProps {
   avatarUrl: string | undefined;
   orgName: string | undefined;
   orgLogoUrl: string | undefined;
+  orgFaviconUrl?: string;
   organizations?: SofiaOrganization[];
   currentOrgId?: string;
   onSelectOrganization?: (orgId: string) => void;
@@ -38,6 +40,7 @@ export function UserMenu({
   avatarUrl,
   orgName,
   orgLogoUrl,
+  orgFaviconUrl,
   organizations = [],
   currentOrgId,
   onSelectOrganization,
@@ -53,6 +56,11 @@ export function UserMenu({
   const [orgDropdownOpen, setOrgDropdownOpen] = useState(false);
   const [retryingOrgs, setRetryingOrgs] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const currentOrganization = organizations.find(org => org.id === currentOrgId);
+  const organizationName = currentOrganization?.name || orgName;
+  const organizationLogo = currentOrganization?.logo_url?.trim() || orgLogoUrl;
+  const organizationFavicon = currentOrganization?.brand_favicon_url?.trim() || orgFaviconUrl;
+  const hasOrganization = Boolean(currentOrgId || organizationName || orgLogoUrl);
 
   // Close sub-dropdowns when main menu closes
   useEffect(() => {
@@ -69,8 +77,8 @@ export function UserMenu({
   };
 
   return (
-    <div className="relative flex-shrink-0 border-t border-gray-200/60 dark:border-white/10 p-2" style={{ fontFamily: 'var(--font-system-ui)' }}>
-      {/* Trigger button */}
+    <div className="relative flex-shrink-0 p-2" style={{ fontFamily: 'var(--font-system-ui)' }}>
+      {/* Acceso a la identidad activa. */}
       <button
         type="button"
         onClick={() => {
@@ -81,17 +89,21 @@ export function UserMenu({
         }}
         aria-haspopup="menu"
         aria-expanded={isMenuOpen}
-        aria-label={`Menú de usuario. Usuario actual: ${displayName}`}
-        className={`flex min-h-[2.25rem] w-full items-center rounded-xl text-left transition-all duration-150 hover:bg-gray-100/80 dark:hover:bg-white/[0.06] focus:outline-none ${
+        aria-label={hasOrganization ? `Menú de organización. Organización actual: ${organizationName || 'Soflia Hub'}` : `Menú de usuario. Usuario actual: ${displayName}`}
+        className={`flex min-h-12 w-full items-center rounded-xl text-left transition-opacity duration-150 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
           sidebarOpen ? 'gap-2.5 px-2 py-1' : 'justify-center px-0 py-1'
         }`}
-        title={orgName || displayName}
+        title={organizationName || displayName}
       >
-        <OrgAvatar avatarUrl={avatarUrl} displayName={displayName} initials={initials} orgLogoUrl={orgLogoUrl} />
-        {sidebarOpen && (
+        {hasOrganization ? (
+          <OrganizationLogo key={currentOrgId} name={organizationName || 'Soflia Hub'} logoUrl={organizationLogo} faviconUrl={organizationFavicon} expanded={sidebarOpen} />
+        ) : (
+          <UserAvatar avatarUrl={avatarUrl} displayName={displayName} initials={initials} />
+        )}
+        {sidebarOpen && !hasOrganization && (
           <div className="flex min-w-0 flex-1 items-center gap-1">
             <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[#0A2540] dark:text-white/90">
-              {orgName || displayName}
+              {displayName}
             </span>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 text-gray-400 dark:text-white/40 transition-transform duration-200 ${isMenuOpen ? 'rotate-180 text-accent' : ''}`}>
               <polyline points="6 9 12 15 18 9" />
@@ -150,8 +162,8 @@ export function UserMenu({
                   onClick={(e) => { e.stopPropagation(); setOrgDropdownOpen((open) => !open); }}
                   className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:text-white/80 dark:hover:bg-white/[0.06] dark:hover:text-white"
                 >
-                  <OrgListIcon name={orgName || 'Soflia Hub'} logoUrl={orgLogoUrl} active={true} />
-                  <span className="min-w-0 flex-1 truncate text-left">{orgName || 'Soflia Hub'}</span>
+                  <OrganizationLogo key={currentOrgId} name={organizationName || 'Soflia Hub'} logoUrl={organizationLogo} faviconUrl={organizationFavicon} />
+                  <span className="min-w-0 flex-1 truncate text-left">{organizationName || 'Soflia Hub'}</span>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`text-gray-400 transition-transform duration-150 dark:text-white/30 shrink-0 ${orgDropdownOpen ? 'rotate-180' : ''}`}>
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
@@ -172,7 +184,7 @@ export function UserMenu({
                               : 'text-gray-600 hover:bg-gray-100 dark:text-white/60 dark:hover:bg-white/[0.05]'
                           }`}
                         >
-                          <OrgListIcon name={org.name} logoUrl={org.brand_favicon_url} active={active} />
+                          <OrganizationLogo name={org.name} logoUrl={org.logo_url} faviconUrl={org.brand_favicon_url} />
                           <span className="min-w-0 flex-1 truncate text-left">{org.name}</span>
                           {active && (
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="ml-auto text-accent shrink-0">
@@ -259,25 +271,15 @@ export function UserMenu({
 
 /* ─── Sub-components ────────────────────────────────────────────────── */
 
-function OrgAvatar({
+function UserAvatar({
   avatarUrl,
   displayName,
   initials,
-  orgLogoUrl,
 }: {
   avatarUrl: string | undefined;
   displayName: string;
   initials: string;
-  orgLogoUrl: string | undefined;
 }) {
-  if (orgLogoUrl) {
-    return (
-      <div className="grid h-9.5 w-9.5 shrink-0 place-items-center overflow-hidden rounded-full bg-white ring-1 ring-gray-200 dark:bg-white/[0.08] dark:ring-white/15">
-        <img src={orgLogoUrl} alt="Logo organizacion" className="h-full w-full object-contain p-1" />
-      </div>
-    );
-  }
-
   return (
     <div
       className="grid h-9.5 w-9.5 shrink-0 place-items-center overflow-hidden rounded-full bg-accent/15 text-[12.5px] font-bold text-accent dark:bg-accent/20 dark:text-accent ring-1 ring-accent/30"
@@ -285,23 +287,6 @@ function OrgAvatar({
       title={displayName}
     >
       {avatarUrl ? <img src={avatarUrl} alt="Usuario" className="h-full w-full object-cover" /> : initials}
-    </div>
-  );
-}
-
-function OrgListIcon({ name, logoUrl, active }: { name: string; logoUrl?: string; active: boolean }) {
-  if (logoUrl) {
-    return (
-      <div className="grid h-7 w-7 shrink-0 place-items-center overflow-hidden rounded-lg bg-white shadow-[inset_0_0_0_1px_rgba(10,37,64,0.08)] dark:bg-white/[0.05] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]">
-        <img src={logoUrl} alt="" className="h-full w-full object-contain p-0.5" />
-      </div>
-    );
-  }
-  return (
-    <div className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg text-[11px] font-bold ${
-      active ? 'bg-accent/15 text-accent' : 'bg-[#0A2540]/10 text-[#0A2540] dark:bg-white/[0.06] dark:text-white/70'
-    }`}>
-      {name.trim().charAt(0).toUpperCase() || '?'}
     </div>
   );
 }

@@ -101,6 +101,22 @@ interpreta como sistema SOFIA actual; no existe ADR de branding versionado.
 - Integraciones muestran disconnected/pairing/degraded para no confundir ausencia
   de credenciales con error de producto.
 
+## Identidad de organización en el menú
+
+El acceso inferior de la barra muestra el logo de la organización activa, con
+nombre accesible y sin foto personal ni nombre duplicado. El selector conserva
+los nombres para distinguir organizaciones. [OrganizationLogo](../../src/components/sidebar/OrganizationLogo.tsx)
+prefiere `logo_url`, intenta `brand_favicon_url` si falta o falla y finalmente
+muestra una inicial de la organización. Sin organización se conserva la identidad
+personal del usuario.
+
+Las imágenes se ajustan completas con `object-contain`: hasta 144 × 40 px en el
+acceso expandido y 32 × 32 px en el compacto y las filas. No llevan fondo, borde,
+sombra ni máscara circular. El archivo original puede contener márgenes o fondo;
+el renderer no lo modifica. La [prueba visual local](../../test/manual/organization-menu/main.tsx)
+cubre marcas sintéticas verticales, horizontales, cuadradas y fallidas en temas
+claro y oscuro, sin credenciales ni consultas remotas.
+
 ## Prohibiciones
 
 - No hardcodear un nuevo color de marca si ya existe token.
