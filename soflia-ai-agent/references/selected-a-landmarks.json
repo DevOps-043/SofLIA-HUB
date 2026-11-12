@@ -1,0 +1,9 @@
+{
+  "selection": "A — Núcleo horizontal",
+  "source": "selected-a.png",
+  "sourceDimensions": [1774, 887],
+  "method": "Trazado manual aproximado del frente de la lámina conceptual; no es una medición fotogramétrica ni un dato de profundidad.",
+  "body": [[350,257],[414,262],[476,279],[526,307],[563,343],[602,394],[630,447],[644,490],[641,533],[629,568],[610,594],[562,622],[490,640],[389,647],[285,645],[183,637],[107,615],[58,580],[36,536],[35,489],[48,438],[76,383],[111,338],[163,302],[224,276],[286,262]],
+  "display": [[340,300],[404,301],[462,312],[510,330],[550,358],[578,394],[589,431],[578,469],[552,495],[513,517],[469,531],[428,537],[375,541],[329,540],[276,534],[229,522],[191,508],[161,493],[137,475],[121,453],[110,414],[121,373],[143,351],[170,335],[209,319],[249,310],[292,302]],
+  "unobserved": ["Distribución exacta de curvatura posterior", "Correspondencia métrica entre los tres dibujos generados", "Sección interior y espesor técnico", "Trayectoria cromática de futuros flujos turquesa"]
+}

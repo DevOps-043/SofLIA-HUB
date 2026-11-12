@@ -1,0 +1,13 @@
+{
+  "name": "soflia-visual-agent",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "node build.mjs",
+    "preview": "vite --config demo/vite.config.mts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test tests/base-assets.test.mjs",
+    "test:browser": "node tests/base-browser.mjs"
+  },
+  "peerDependencies": { "three": ">=0.185.0", "react": ">=19.0.0" }
+}
