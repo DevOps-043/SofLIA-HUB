@@ -18,3 +18,4 @@
 - [x] Verificar integración en navegador con CSP, resolución estrecha, voz prestada y cancelación.
 - [x] Completar compuerta final con 6034 pruebas aprobadas y revisión adversarial local.
 - [x] Publicar la rama autorizada con commits de alcance propio y comprobar el SHA remoto.
+- [x] Fusionar en la rama de consolidación, preservar cambios pendientes, validar el merge y verificar su publicación remota.

@@ -152,3 +152,22 @@ Implementación publicada en `origin/codex/soflia-avatar-2d`, commit
 devuelve el mismo SHA que el commit local. La actualización documental posterior
 registra esta comprobación; no modifica el código verificado. El cambio sigue
 abierto en OpenSpec y no se publicó instalador ni release.
+
+## Merge en consolidación — 2026-11-12
+
+Por solicitud expresa del usuario, `codex/soflia-avatar-2d` se fusionó mediante
+merge no fast-forward en `codex/consolidacion-cambios-20261026`.
+
+- Commit de merge: `a523e3c9edcb733af30d6d7cbff0b4de4b3d2f1a`.
+- Padres: `db0827f8` (consolidación) y `b9f2575f` (avatar y evidencia).
+- Sin conflictos. El árbol del merge coincide exactamente con el árbol de la rama del avatar; sus dos commits quedan en la historia de consolidación.
+- Antes del merge se respaldaron 302 rutas pendientes. Después se restauraron y se comprobaron sus bytes y eliminaciones frente al respaldo. Los cambios de otros trabajos permanecen locales y no se incluyeron en la publicación.
+- Se retiró el stash temporal después de comprobar la restauración; se conserva un respaldo local fuera del árbol versionado.
+- `npm run typecheck` pasó en el workspace principal después del merge.
+- `npm run verify:pr` pasó sobre el commit fusionado en `.worktrees/verify-avatar-merge`, checkout limpio: 530 archivos aprobados, 2 omitidos; 6034 pruebas aprobadas, 5 omitidas. Incluye documentación, arnés, typecheck y lint incremental.
+- El push a `origin/codex/consolidacion-cambios-20261026` se completó y `git ls-remote --heads` confirmó el SHA del merge.
+
+Esta actualización añade sólo evidencia de integración. La rama del avatar sigue
+publicada y sus cambios están incorporados a consolidación. El resto de ramas y
+worktrees de tareas ajenas se conservaron intactos. Para revertir el merge se debe
+usar su primer padre, preservando primero los cambios locales pendientes.
