@@ -1,5 +1,10 @@
 # Identidad de Soflia Hub
 
+En la pantalla de acceso la marca se escribe **SofLIA Hub**. El botón de acceso
+federado muestra **Continuar con SofLIA Academy** y reutiliza el isotipo
+`public/assets/Icono.png`, compartido con Academy, en lugar del icono de entrada.
+La denominación visible no cambia los identificadores internos de la integración.
+
 Estado: vigente. Actualizado: 2026-10-13.
 
 El nombre público del producto es **Soflia Hub**. Se aplica al renderer, ventanas,
