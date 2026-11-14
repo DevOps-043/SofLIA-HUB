@@ -92,6 +92,30 @@ La continuidad empieza al admitir el trabajo en main; la captura previa de
 aplicaciones vivas sigue supervisada. Cerrar la aplicación interrumpe el proceso
 local y exige reanudar; no se promete ejecución con el equipo apagado.
 
+## Integración en el checkout principal
+
+El parche se aplicó tras `git apply --check`, sin reemplazar archivos completos
+con trabajo ajeno. Se comprobaron huellas de 60 archivos ajenos antes/después;
+ninguno cambió. Las adiciones a los tres documentos compartidos preservan sus
+párrafos de voz. El inventario se regeneró en el checkout combinado.
+
+- Pruebas dirigidas integradas, incluyendo Auth y los archivos de regresión
+  modificados: **19 archivos y 176 casos aprobados**, 11.50 s.
+- Arnés y OpenSpec aprobados; enlaces válidos en 1109 documentos y sistema
+  válido con 850 archivos de pruebas (incluye las pruebas de voz preexistentes).
+- Typecheck reproduce únicamente los tres errores Calendar descritos arriba.
+  `verify:pr` se detiene en la misma incompatibilidad Electron.
+- El lint del checkout combinado encuentra 11 incidencias en
+  `electron-builder.windows.cjs`, archivo del trabajo de voz que ya estaba
+  presente y cuya huella no se modificó. El lint del cambio aislado pasa;
+  no se altera ese archivo ni la configuración para ocultar sus incidencias.
+- El cambio visual adicional del acceso muestra `SofLIA Hub`,
+  `Continuar con SofLIA Academy` y reutiliza `public/assets/Icono.png` en
+  lugar del icono de entrada. Las pruebas Auth pasan dentro de los 176 casos.
+
+La suite completa citada arriba corresponde al cambio aislado; no se atribuye
+esa cobertura al conjunto del trabajo de voz no relacionado.
+
 ## Reversión
 
 Revertir exclusivamente el diff de este cambio, preservando los cambios de voz
