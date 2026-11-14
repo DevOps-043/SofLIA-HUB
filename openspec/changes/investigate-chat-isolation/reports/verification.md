@@ -105,11 +105,18 @@ párrafos de voz. El inventario se regeneró en el checkout combinado.
   válido con 850 archivos de pruebas (incluye las pruebas de voz preexistentes).
 - Typecheck reproduce únicamente los tres errores Calendar descritos arriba.
   `verify:pr` se detiene en la misma incompatibilidad Electron.
+<<<<<<< HEAD
 - El primer lint del checkout combinado encontró 11 incidencias en
   `electron-builder.windows.cjs`, archivo del trabajo de voz cuya huella no
   se modificó. La consolidación posterior en main incorporó ese archivo al
   ámbito Node CommonJS existente de ESLint: 109 archivos pasan sin deuda nueva.
   Véase [evidencia de consolidación](main-integration.md).
+=======
+- El lint del checkout combinado encuentra 11 incidencias en
+  `electron-builder.windows.cjs`, archivo del trabajo de voz que ya estaba
+  presente y cuya huella no se modificó. El lint del cambio aislado pasa;
+  no se altera ese archivo ni la configuración para ocultar sus incidencias.
+>>>>>>> origin/codex/chat-isolation-audit
 - El cambio visual adicional del acceso muestra `SofLIA Hub`,
   `Continuar con SofLIA Academy` y reutiliza `public/assets/Icono.png` en
   lugar del icono de entrada. Las pruebas Auth pasan dentro de los 176 casos.

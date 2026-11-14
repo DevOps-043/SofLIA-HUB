@@ -45,7 +45,11 @@ secretos y cuatro capas. El renderer distingue revisión local nativa de otras
 rutas. Usa servicios/puertos sustituidos y pruebas existentes de herramientas;
 no ejecuta GUI, shell, correo ni recursos del usuario para esta verificación.
 
+<<<<<<< HEAD
 El inventario del cambio contiene 850 archivos de prueba: 538 para main y 291
+=======
+El inventario del cambio contiene 847 archivos de prueba: 536 para main y 290
+>>>>>>> origin/codex/chat-isolation-audit
 para renderer, además de los archivos de prueba de scripts. El validador documental recalcula estas cifras; el numero de casos
 ejecutados se registra en el reporte de evidencia de cada cambio, no aqui.
 
