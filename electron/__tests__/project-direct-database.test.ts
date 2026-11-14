@@ -16,6 +16,7 @@ let calls: Array<{ url: URL; method: string; body?: Row | Row[] }>;
 let failTable: string | undefined;
 let failCode = '42501';
 let afterQuery: ((table: string) => void) | undefined;
+let beforeAccountInsert: (() => Promise<void>) | undefined;
 const auth = { userId: actor, assertCurrent: () => {}, signal: new AbortController().signal };
 
 function client(host: string) {
@@ -37,6 +38,19 @@ function client(host: string) {
     let rows = tables[table].filter(matches);
     if (method === 'POST') {
       const values = Array.isArray(body) ? body : [body!];
+      if (table === 'account_users') {
+        const prefer = new Headers(init?.headers).get('prefer') ?? '';
+        if (url.searchParams.has('on_conflict') || url.searchParams.has('select') || prefer.includes('return=representation')) {
+          return Response.json({ code: '42501' }, { status: 401 });
+        }
+        await beforeAccountInsert?.();
+        if (values.some(value => tables.account_users.some(row => row.user_id === value.user_id ||
+          row.sofia_user_id === value.sofia_user_id || row.email === value.email))) {
+          return Response.json({ code: '23505' }, { status: 409 });
+        }
+        tables.account_users.push(...values);
+        return new Response(null, { status: 201 });
+      }
       rows = values.map(value => ({ updated_at: '2026-10-24T12:00:00Z', archived_at: null, ...value }));
       tables[table].push(...rows);
     } else if (method === 'PATCH') rows.forEach(row => Object.assign(row, body));
@@ -52,11 +66,13 @@ beforeEach(() => {
   resetAuthStateForTests(); setAuthState({ authenticated: true, userId: actor });
   selection = { userId: actor, organizationId: organization, revision: 1 }; identity = actor;
   calls = []; failTable = undefined; failCode = '42501'; afterQuery = undefined;
+  beforeAccountInsert = undefined;
   tables = {
     organization_users: [{ organization_id: organization, user_id: actor, role: 'member', status: 'active' }],
     organizations: [{ id: organization, name: 'Organización de Learning', slug: 'org-learning', is_active: true }],
     workspaces: [{ workspace_id: workspace, sofia_org_id: organization, name: 'Organización de Learning', slug: 'org-learning', is_active: true }],
     account_users: [{ user_id: actor, sofia_user_id: actor }],
+    users: [{ id: actor, username: 'cuenta-qa', email: 'cuenta-qa@example.invalid' }],
     workspace_members: [{ workspace_id: workspace, user_id: actor, iris_role: 'member', is_active: true }],
     pm_projects: [{ project_id: projectId, workspace_id: workspace, project_name: 'Proyecto propio', created_by_user_id: actor, archived_at: null, team_id: null, updated_at: '2026-10-24T12:00:00Z' }],
     pm_project_members: [],
@@ -69,6 +85,60 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllGlobals(); resetAuthStateForTests(); });
 
 describe('Proyectos mediante la base de datos directa', () => {
+  it('vincula la cuenta en el primer acceso y después la reutiliza', async () => {
+    tables.account_users = [];
+    tables.workspace_members = [];
+    const input = { workspaceId: workspace };
+    expect(await api.listProjects(input, auth)).toMatchObject({ success: true, data: [{ project_id: projectId }] });
+    expect(await api.listProjects(input, auth)).toMatchObject({ success: true });
+    expect(tables.account_users).toMatchObject([{ user_id: actor, sofia_user_id: actor }]);
+    const accountCalls = calls.filter(call => call.url.pathname.endsWith('/account_users'));
+    const insertIndex = accountCalls.findIndex(call => call.method === 'POST');
+    expect(accountCalls.filter(call => call.method === 'POST')).toHaveLength(1);
+    expect(accountCalls[insertIndex + 1].url.searchParams.get('sofia_user_id')).toBe(`eq.${actor}`);
+  });
+
+  it('dos altas concurrentes recuperan la misma cuenta tras el conflicto', async () => {
+    tables.account_users = [];
+    let pendingInserts = 0;
+    let releaseInserts!: () => void;
+    const insertsReady = new Promise<void>(resolve => { releaseInserts = resolve; });
+    beforeAccountInsert = () => {
+      pendingInserts++;
+      if (pendingInserts === 2) releaseInserts();
+      return insertsReady;
+    };
+    const results = await Promise.all([api.getStatus(auth), api.getStatus(auth)]);
+    expect(results.map(result => result.authenticated)).toEqual([true, true]);
+    expect(pendingInserts).toBe(2);
+    expect(tables.account_users).toHaveLength(1);
+  });
+
+  it('un conflicto con una cuenta ajena no vincula ni sobrescribe sus datos', async () => {
+    const existing = { user_id: other, sofia_user_id: other, email: tables.users[0].email };
+    tables.account_users = [existing];
+    expect(await api.listProjects({ workspaceId: workspace }, auth)).toMatchObject({ success: false, code: 'CONFLICT' });
+    expect(tables.account_users).toEqual([existing]);
+    expect(calls.some(call => call.url.pathname.endsWith('/pm_projects'))).toBe(false);
+  });
+
+  it('un rechazo RLS al dar de alta la cuenta conserva el error de permisos', async () => {
+    tables.account_users = [];
+    afterQuery = table => { if (table === 'users') failTable = 'account_users'; };
+    expect(await api.listProjects({ workspaceId: workspace }, auth)).toMatchObject({ success: false, code: 'DATABASE_FORBIDDEN' });
+    expect(tables.account_users).toHaveLength(0);
+  });
+
+  it('descarta el alta al cambiar el ámbito mientras la inserción está en curso', async () => {
+    tables.account_users = [];
+    tables.workspace_members = [];
+    beforeAccountInsert = async () => { selection = { ...selection, revision: 2 }; };
+    expect(await api.listProjects({ workspaceId: workspace }, auth)).toMatchObject({ success: false, code: 'SESSION_CHANGED' });
+    expect(tables.account_users).toHaveLength(1);
+    const insertIndex = calls.findIndex(call => call.method === 'POST');
+    expect(calls.slice(insertIndex + 1)).toEqual([]);
+  });
+
   function taskTeam(owner = actor) {
     tables.pm_projects[0].team_id = other;
     tables.teams = [{ team_id: other, workspace_id: workspace, owner_id: owner, status: 'active' }];

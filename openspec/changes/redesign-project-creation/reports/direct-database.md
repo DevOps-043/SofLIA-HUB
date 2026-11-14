@@ -32,4 +32,33 @@ La autorización de main no equivale a una remediación global de RLS/grants. La
 
 ## Reversión
 
+La corrección de alta inicial puede revertirse de forma independiente en
+`electron/project-hub/direct-context.ts`. No requiere cambios de esquema, permisos
+ni filas existentes.
+
 La unidad de composición de producción es `getProjectHubApiService()` en `electron/project-hub/service.ts`; revertir este cambio restaura el backend previo y el canje. No hay cambios de esquema que revertir. Los proyectos ya insertados y carpetas preparadas se conservan; no se borran como parte de una reversión de código.
+
+## Alta inicial de cuenta IRIS · 2026-11-14
+
+Los logs de IRIS registraron `42501` por RLS al hacer POST a `account_users`
+durante la carga de Proyectos. El upsert con objetivo de conflicto exige que
+la fila propuesta cumpla la política de lectura, cuyo actor depende de una
+cuenta activa existente. Main usa ahora un INSERT sin retorno de fila y relee
+por `sofia_user_id`. Sólo un conflicto de unicidad permite esa misma relectura
+como recuperación. Otros rechazos se conservan y el cambio de ámbito detiene
+las consultas posteriores.
+
+`npm exec --no -- vitest run electron/__tests__/project-direct-database.test.ts`
+pasó 46 pruebas. El SDK real con transporte simulado verifica la solicitud sin
+upsert ni retorno, la reutilización, dos altas concurrentes, la colisión con
+una cuenta ajena, el rechazo RLS y la invalidación del contexto durante el alta.
+Pasaron lint incremental, OpenSpec, documentación y arnés. TypeScript aprobó
+con un límite de heap de 6 GiB después de que la compuerta agotara el límite
+predeterminado. La suite de cobertura registró 7607 pruebas aprobadas y cinco
+omitidas, pero terminó con tres timeouts de arranque de workers. La comprobación
+independiente de los umbrales de cobertura aprobó. Los dos archivos del navegador
+identificados en la salida final y la suite de Proyectos pasaron al repetirlos
+en serie (62 pruebas). La compuerta completa queda sin certificación.
+
+Queda pendiente el primer acceso desde el Hub actualizado con una cuenta de
+prueba real sin vínculo en IRIS.

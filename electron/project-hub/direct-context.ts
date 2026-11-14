@@ -100,8 +100,18 @@ export async function captureDirectProjectContext(dependencies: DirectProjectDep
       const profile = await directData(sofia.from('users').select('id,username,email,first_name,last_name,display_name').eq('id', lease.userId).maybeSingle(), guard);
       if (!profile) throw new ProjectHubError('NOT_AUTHENTICATED', 'No se pudo comprobar el perfil de Learning.');
       const { mapSofiaUserToIrisAccountUser } = await import('../iris/user-sync/user-mapper');
-      await directData(iris.from('account_users').upsert({ ...mapSofiaUserToIrisAccountUser(profile), sofia_user_id: lease.userId }, { onConflict: 'user_id', ignoreDuplicates: true }), guard);
-      account = await directData(iris.from('account_users').select('user_id').eq('user_id', lease.userId).maybeSingle(), guard);
+      let conflict: ProjectHubError | undefined;
+      try {
+        // La política de lectura necesita que la cuenta ya exista.
+        await directData(iris.from('account_users').insert({ ...mapSofiaUserToIrisAccountUser(profile), sofia_user_id: lease.userId }), guard);
+      } catch (error) {
+        if (!(error instanceof ProjectHubError) || error.code !== 'CONFLICT') throw error;
+        conflict = error;
+      }
+      account = await directData(iris.from('account_users').select('user_id,sofia_user_id').eq('sofia_user_id', lease.userId).maybeSingle(), guard);
+      if (!account?.user_id || account.sofia_user_id !== lease.userId) {
+        throw conflict ?? new ProjectHubError('NOT_AUTHENTICATED', 'No se pudo comprobar la identidad del proyecto.');
+      }
     }
     if (!account?.user_id) throw new ProjectHubError('NOT_AUTHENTICATED', 'No se pudo comprobar la identidad del proyecto.');
     const mirrored = await directData(iris.from('workspace_members').select('iris_role,is_active').eq('workspace_id', workspace.workspace_id).eq('user_id', account.user_id).maybeSingle(), guard);

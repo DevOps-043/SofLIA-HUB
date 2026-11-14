@@ -18,6 +18,14 @@ Cada operación MUST comprobar identidad SOFIA, organización activa, membresía
 - **WHEN** una solicitud contiene un workspace o proyecto ajeno a la organización activa
 - **THEN** se rechaza antes de escribir datos y no se usa una lista global de proyectos como sustituto.
 
+#### Scenario: Primer acceso sin cuenta IRIS vinculada
+- **WHEN** la membresía activa de Learning está verificada y la cuenta falta en IRIS
+- **THEN** main inserta la cuenta sin solicitar la fila insertada y la relee por `sofia_user_id` antes de continuar, bajo las políticas RLS vigentes.
+
+#### Scenario: Conflicto al vincular la cuenta
+- **WHEN** el alta devuelve un conflicto de unicidad
+- **THEN** main continúa únicamente si puede releer la cuenta de la misma identidad verificada. En otro caso devuelve el conflicto sin actualizar registros ni repetir el alta.
+
 ### Requirement: Compatibilidad de interfaz
 El cambio MUST conservar los canales IPC, validación de payload, controles humanos existentes y destinos locales/Drive/OneDrive.
 

@@ -33,3 +33,8 @@
 - [x] Conservar el contrato de la interfaz, destinos de archivos y recuperación de creación.
 - [x] Probar creación sin equipos y sin API web, aislamiento, cambios de sesión y errores parciales.
 - [x] Actualizar documentación y registrar comprobaciones y límites reales.
+
+## Alta inicial de cuenta IRIS
+
+- [x] Corregir el alta desde main y resolver conflictos únicamente por identidad verificada.
+- [x] Verificar el primer acceso, la concurrencia y los rechazos. Registrar el alcance de la validación.

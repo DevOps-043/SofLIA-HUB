@@ -51,6 +51,7 @@ Este indice separa documentacion vigente de material historico.
 - [Plataforma del navegador integrado](architecture/integrated-browser-platform.md)
 - [IPC e integraciones](architecture/ipc-and-integrations.md)
 - [Aula de sesiones de Learning](architecture/learning-live-workspace.md)
+- [Integración de cursos asíncronos de CourseForge con Hub (propuesta)](architecture/courseforge-async-courses-integration.md)
 - [Operación del estudio síncrono](operations/live-studio-runtime.md)
 - [Entrega coordinada y recorrido de pruebas síncronas](operations/synchronous-testing-release.md)
 - [Grabación y repeticiones de webinars](operations/webinar-recordings.md)

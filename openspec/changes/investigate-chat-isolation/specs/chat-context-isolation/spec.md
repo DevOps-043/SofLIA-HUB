@@ -3,6 +3,10 @@
 ### Requirement: Identidad y persistencia de origen
 El sistema SHALL mantener una identidad estable por borrador y guardar localmente conversación y mensaje antes de inferencia, aunque la respuesta tenga un placeholder o falle la red.
 
+#### Scenario: Guardar el borrador durante el primer turno
+- **WHEN** el primer mensaje asigna al chat el ID de conversación reservado en el borrador
+- **THEN** la vista y el turno permanecen activos con el mismo ámbito hasta que finaliza la respuesta o se solicita su cancelación
+
 #### Scenario: Navegar durante el primer turno
 - **WHEN** se envía el primer mensaje de A y se abre B antes de terminar el modelo
 - **THEN** A sigue en el historial con su mensaje, y ningún mensaje o workspace de A se publica en B

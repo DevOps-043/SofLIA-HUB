@@ -8,9 +8,11 @@ const mocks = vi.hoisted(() => ({
   request: (() => {}) as (value: LearningLiveSessionReference) => void,
   browserOpen: () => {},
   scopedMessages: vi.fn(),
+  chatScopeId: 'borrador',
+  currentConversationId: null as string | null,
 }));
 vi.mock('../../contexts/AuthContext', () => ({ useAuth: () => ({ user: { id: 'learner' }, dataUserId: 'learner', loading: false, sofiaContext: { currentOrganization: { id: 'org', slug: 'acme' }, teams: [] } }) }));
-vi.mock('../../hooks/useChatManager', () => ({ useChatManager: () => ({ conversations: [], chatScopeId: 'chat-de-prueba', getScopedMessagesHandler: () => mocks.scopedMessages }) }));
+vi.mock('../../hooks/useChatManager', () => ({ useChatManager: () => ({ conversations: [], chatScopeId: mocks.chatScopeId, currentConversationId: mocks.currentConversationId, getScopedMessagesHandler: () => mocks.scopedMessages }) }));
 vi.mock('../../hooks/useFolderManager', () => ({ useFolderManager: () => ({}) }));
 vi.mock('../../hooks/useIrisData', () => ({ useIrisData: () => ({}) }));
 vi.mock('../../hooks/useTheme', () => ({ useTheme: () => ({ theme: 'dark', setTheme: vi.fn() }) }));
@@ -49,12 +51,37 @@ vi.mock('../../components/agents/AgentActivityPanel', () => ({ AgentActivityPane
 vi.mock('../../components/agents/AgentActivityProvider', () => ({ AgentActivityProvider: ({ children }: { children: React.ReactNode }) => children }));
 vi.mock('../../components/artifacts/ArtifactViewerProvider', () => ({ ArtifactViewerProvider: ({ children }: { children: React.ReactNode }) => children }));
 
-beforeEach(() => { vi.useFakeTimers(); localStorage.clear(); });
+beforeEach(() => {
+  vi.useFakeTimers();
+  localStorage.clear();
+  mocks.chatScopeId = 'borrador';
+  mocks.currentConversationId = null;
+});
 afterEach(() => vi.useRealTimers());
 function openApp() {
-  render(<AppContent />);
+  const app = render(<AppContent />);
   act(() => { vi.advanceTimersByTime(6000); });
+  return app;
 }
+
+describe('ciclo de vida del chat en la aplicación', () => {
+  it('conserva la vista durante el primer guardado y la reinicia al navegar', () => {
+    const app = openApp();
+    const draftView = screen.getByTestId('old-chat');
+
+    mocks.currentConversationId = mocks.chatScopeId;
+    app.rerender(<AppContent />);
+
+    expect(screen.getByTestId('old-chat')).toBe(draftView);
+
+    mocks.chatScopeId = 'otro-borrador';
+    mocks.currentConversationId = null;
+    app.rerender(<AppContent />);
+
+    expect(screen.getByTestId('old-chat')).not.toBe(draftView);
+  });
+});
+
 describe('el aula tiene una vista exclusiva', () => {
   it.each(['Volver a mis sesiones', 'Cerrar aula'])('sustituye el navegador y el chat al recibir una sesión, y %s regresa a la agenda', (exit) => {
     openApp();

@@ -4,6 +4,7 @@ Estado: vigente. Actualizado: 2026-11-14.
 
 <!-- evidence: src/hooks/chat-manager/useScopedMessagesHandler.ts -->
 <!-- evidence: src/hooks/chat-manager/useChatManagerState.ts -->
+<!-- evidence: src/app/AppContent.tsx -->
 <!-- evidence: electron/background-teams/presentation-workspace.ts -->
 <!-- evidence: electron/background-teams/legacy-workspace-owner.ts -->
 <!-- evidence: src/services/gemini-chat/background-admission.ts -->
@@ -14,6 +15,10 @@ El gestor reserva un UUID antes del primer envío. Es el futuro identificador
 de la conversación y no cambia cuando ésta se guarda. Nuevo chat y selección
 de otra conversación cambian el ámbito; usuario y organización invalidan las
 publicaciones anteriores.
+
+El proveedor del visor de artefactos, que envuelve la vista de chat, usa ese
+mismo ámbito estable. El primer guardado conserva la vista y su generación.
+El cambio de chat o identidad reinicia el visor junto con la vista anterior.
 
 Cada destino tiene su handler, último snapshot y debounce. Un render no los
 reemplaza y flush recorre los destinos pendientes. Conversación y mensaje del
