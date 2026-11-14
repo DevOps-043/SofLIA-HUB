@@ -316,6 +316,12 @@ simulados para comprobar fallos, herramientas prohibidas y cancelación.
 
 ## Monitor de equipos
 
+La [continuidad y el aislamiento de chats](chat-context-isolation.md) define el
+guardado anterior a inferencia, la generación de presentaciones de Skill en main
+y la custodia de sus workspaces. El monitor identifica la conversación de origen
+y distingue preparación de turno de ejecución durable. Modo directo puede usar
+un ejecutor único en segundo plano, sin convocar especialistas.
+
 Cuando comienza un equipo nuevo, el Hub despliega la ventana flotante «Equipo de
 SofLIA» dentro de la propia ventana, sin abrir ventanas adicionales. En el chat
 se superpone a la derecha sin reducir el ancho del canvas, con borde redondeado,

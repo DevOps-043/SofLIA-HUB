@@ -37,6 +37,7 @@ export function useChatManager({ userId, orgId, accessUserIds }: UseChatManagerO
 
   return {
     activeMenuChatId: state.activeMenuChatId,
+    chatScopeId: state.chatScopeId,
     conversations: state.conversations,
     createScopedMessagesHandler: scoped.createScopedMessagesHandler,
     currentConversationId: state.currentConversationId,

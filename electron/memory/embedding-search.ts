@@ -52,7 +52,7 @@ export function loadMemoryChunksFromDB(
   try {
     const rows = db.prepare(`
       SELECT id, embedding, source_start_time FROM memory_chunks
-      WHERE session_key = ? OR phone_number = ?
+      WHERE ${sessionKey.startsWith('chat:') ? 'session_key = ? AND phone_number = ?' : 'session_key = ? OR phone_number = ?'}
       ORDER BY source_start_time DESC
       LIMIT 5000
     `).all(sessionKey, phoneNumber) as Array<{ id: number; embedding: string; source_start_time: number | null }>;

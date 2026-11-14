@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import './chat-service.setup';
 import { mockFrom, mockOrder, mockSelect, mockEq } from './chat-service.setup';
 
@@ -10,7 +10,7 @@ describe('chat-service conversations', () => {
     expect(result?.user_id).toBe('user-123');
     expect(result?.title).toBe('Test Chat');
     expect(result?.id).toBeTruthy();
-    expect(mockFrom).toHaveBeenCalled();
+    await vi.waitFor(() => expect(mockFrom).toHaveBeenCalled());
   });
 
   it('RS-001A: migrateLegacyChatCache moves cached conversations to the Lia user id', async () => {

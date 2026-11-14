@@ -13,6 +13,9 @@ import { OpenAIBackgroundProvider } from './providers';
 import { registerBackgroundTeamHandlers } from './handlers';
 import { ArtifactViewerService, registerArtifactViewerHandlers } from '../artifact-viewer';
 import { prepareOrganizationDocument } from '../organization-branding/document-branding';
+import { getSkillWorkspaceService } from '../skill-workspace/shared-instance';
+import { WorkspaceBackgroundPresentation } from './presentation-workspace';
+import { verifyLegacyWorkspaceOwner } from './legacy-workspace-owner';
 
 export async function initializeBackgroundTeams(input: { getWindow(): BrowserWindow | null }): Promise<() => void> {
   const { app, safeStorage } = await import('electron');
@@ -35,6 +38,7 @@ export async function initializeBackgroundTeams(input: { getWindow(): BrowserWin
     if (after.userId !== scope.userId || after.dataUserId !== scope.dataUserId) throw new Error('La sesión cambió.');
   };
   const service = new BackgroundTeamService({
+    presentation: new WorkspaceBackgroundPresentation(getSkillWorkspaceService, job => verifyLegacyWorkspaceOwner(getHubDbClient(), job, authorize)),
     documentBranding: (job, disabled, guard) => prepareOrganizationDocument({ scope: job.scope, disabled, guard }),
     repository: new BackgroundRepository(path.join(app.getPath('userData'), 'background-teams'), {
       isEncryptionAvailable: () => safeStorage.isEncryptionAvailable() && (process.platform !== 'linux' || safeStorage.getSelectedStorageBackend() !== 'basic_text'),

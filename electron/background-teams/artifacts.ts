@@ -3,7 +3,7 @@ import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { documentDesignSchema } from '../../src/shared/document-design';
-import { BACKGROUND_LIMITS, type BackgroundArtifact, type BackgroundJob } from '../../src/shared/background-teams';
+import { BACKGROUND_LIMITS, BACKGROUND_PRESENTATION_ARTIFACT_BYTES, type BackgroundArtifact, type BackgroundJob } from '../../src/shared/background-teams';
 import type { BackgroundRepository } from './repository';
 import { createEditablePptx } from '../presentation-export/pptx';
 import { presentationDeckSchema } from '../../src/shared/presentations/deck-schema';
@@ -30,7 +30,8 @@ export class ArtifactStore {
     const folder = await this.folder(job, artifact.role);
     const file = path.join(folder, artifact.id + '-' + artifact.name);
     const stat = await fs.lstat(file);
-    if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || stat.size > BACKGROUND_LIMITS.artifactBytes) throw new Error('Archivo fuera de alcance o demasiado grande.');
+    const maxBytes = job.presentationWorkspaceId && artifact.format === 'pptx' ? BACKGROUND_PRESENTATION_ARTIFACT_BYTES : BACKGROUND_LIMITS.artifactBytes;
+    if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || stat.size > maxBytes) throw new Error('Archivo fuera de alcance o demasiado grande.');
     return file;
   }
   async read(job: BackgroundJob, artifact: BackgroundArtifact): Promise<string> {
@@ -52,7 +53,7 @@ export class ArtifactStore {
     }
     return buffer.toString('utf8').slice(0, 30000);
   }
-  async create(job: BackgroundJob, role: string, kind: 'text' | 'slides' | 'sheet', args: unknown, guard: () => Promise<void>): Promise<BackgroundArtifact> {
+  async create(job: BackgroundJob, role: string, kind: 'text' | 'slides' | 'sheet', args: unknown, guard: () => Promise<void>, presentation?: { imagePath(relative: string): Promise<string | null>; theme?: unknown }): Promise<BackgroundArtifact> {
     const parsed = kind === 'text' ? textArtifactInput.parse(args) : kind === 'slides' ? slidesInput.parse(args) : sheetInput.parse(args);
     const inputHash = createHash('sha256').update(JSON.stringify({ kind, input: parsed })).digest('hex');
     const previous = job.artifacts.find(item => item.role === role && item.name === parsed.name && item.inputHash === inputHash);
@@ -80,7 +81,7 @@ export class ArtifactStore {
           await fs.writeFile(temporary, parsed.content, { flag: 'wx', mode: 0o600 });
         }
       } else if ('slides' in parsed || 'deck' in parsed) {
-        const output = await createEditablePptx('deck' in parsed ? parsed.deck : parsed.slides, 'Presentación');
+        const output = await createEditablePptx('deck' in parsed ? parsed.deck : parsed.slides, 'Presentación', presentation?.theme, presentation?.imagePath);
         await fs.writeFile(temporary, output.buffer, { flag: 'wx', mode: 0o600 });
       } else {
         const ExcelJS = (await import('exceljs')).default;
@@ -102,7 +103,8 @@ export class ArtifactStore {
       }
       await guard();
       const buffer = await fs.readFile(temporary);
-      if (!buffer.length || buffer.length > BACKGROUND_LIMITS.artifactBytes) throw new Error('Tamaño de archivo fuera de límite.');
+      const maxBytes = job.presentationWorkspaceId && format === 'pptx' ? BACKGROUND_PRESENTATION_ARTIFACT_BYTES : BACKGROUND_LIMITS.artifactBytes;
+      if (!buffer.length || buffer.length > maxBytes) throw new Error('Tamaño de archivo fuera de límite.');
       await fs.rename(temporary, file);
       const artifact: BackgroundArtifact = { id, role, name: parsed.name, format, bytes: buffer.length, hash: createHash('sha256').update(buffer).digest('hex'), inputHash, verified: false, ...(designNotice ? { designNotice } : {}) };
       await guard(); await this.read(job, artifact); await guard();

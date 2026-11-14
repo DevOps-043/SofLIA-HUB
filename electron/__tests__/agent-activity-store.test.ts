@@ -3,6 +3,14 @@ import { ActivityStore, activitySchema } from '../agent-activity/store';
 import type { AgentActivity } from '../../src/shared/agent-activity';
 const item = (): AgentActivity => ({ id: crypto.randomUUID(), sequence: 1, surface: 'chat', kind: 'document', status: 'running', agents: [{ role: 'contenido', status: 'running' }], durationMs: 0 });
 describe('Monitor efímero de equipos', () => {
+  it('conserva el origen durante toda la ejecución y rechaza un traslado de metadatos', () => {
+    const store = new ActivityStore();
+    const run = { ...item(), origin: { conversationId: 'presentacion', messageId: crypto.randomUUID() } };
+    expect(store.accept('renderer', run)).toBe(true);
+    expect(store.accept('renderer', { ...run, sequence: 2, origin: { ...run.origin, conversationId: 'apoyo-emocional' } })).toBe(false);
+    expect(store.accept('renderer', { ...run, sequence: 2, status: 'completed' })).toBe(true);
+    expect(store.snapshot()[0].origin).toEqual(run.origin);
+  });
   it('ignora eventos atrasados y no modifica ejecuciones terminadas', () => {
     const store = new ActivityStore(); const run = item();
     expect(store.accept('renderer', run)).toBe(true);

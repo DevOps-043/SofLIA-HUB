@@ -24,6 +24,8 @@ export interface ChatUIProps {
   compact?: boolean;
   /** Conversacion activa; asocia el espacio de trabajo de una Skill a ella. */
   conversationId?: string | null;
+  /** UUID del origen, estable también antes de guardar el primer mensaje. */
+  conversationScopeId?: string;
   /**
    * El navegador integrado esta abierto. Una Skill puede leer la pagina en
    * vez de preguntarle al usuario de que trata.

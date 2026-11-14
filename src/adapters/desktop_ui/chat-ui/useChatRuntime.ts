@@ -23,7 +23,7 @@ export function useChatRuntime(
   const model = useModelSelector();
   const { user, dataUserId, sofiaContext } = useAuth();
   const [draftMemoryScope] = useState(() => `borrador:${crypto.randomUUID()}`);
-  const memorySessionScope = props.conversationId?.trim() || draftMemoryScope;
+  const memorySessionScope = props.conversationScopeId ?? (props.conversationId?.trim() || draftMemoryScope);
   // Informa al main quién es el usuario activo (memoria unificada cross-superficie).
   useEffect(() => { syncCurrentOwner(dataUserId ?? null); }, [dataUserId]);
   const chat = useChatProcessor({
@@ -41,15 +41,15 @@ export function useChatRuntime(
     activeSkill,
     memorySessionScope,
   });
-  const previousConversation = useRef(props.conversationId);
+  const previousConversation = useRef(memorySessionScope);
   const cancelScope = chat.cancelScope;
   useEffect(() => {
-    // Persistir el primer borrador (null -> id) no cambia el turno activo.
-    // Abrir otro chat o volver a un borrador sí cancela la generación anterior.
+    // Guardar conserva el UUID reservado. Otro origen cancela sólo su turno
+    // supervisado; un trabajo ya admitido pertenece a main.
     const previous = previousConversation.current;
-    previousConversation.current = props.conversationId;
-    if ((previous && previous !== props.conversationId) || props.canSendMessages === false) cancelScope();
-  }, [props.conversationId, props.canSendMessages, cancelScope]);
+    previousConversation.current = memorySessionScope;
+    if (previous !== memorySessionScope || props.canSendMessages === false) cancelScope();
+  }, [memorySessionScope, props.canSendMessages, cancelScope]);
   useEffect(() => { processMessageRef.current = chat.processMessage; }, [chat.processMessage]);
   // Los avisos de "ya procesado" viajan por ref para que un callback recreado en
   // cada render no vuelva a disparar los efectos de abajo.

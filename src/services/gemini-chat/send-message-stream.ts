@@ -26,8 +26,8 @@ import { preparePresentationSourceVisuals } from './presentation-source-visuals'
 import { PRESENTACIONES_SKILL_ID } from '../../shared/skills/presentaciones-skill';
 import { resolveAttachedSourceToolGroups } from '../gemini-tools/turn-catalog';
 import { prepareChatTeam } from './agent-team';
-import { wantsBackgroundTeam, BACKGROUND_LIMITS } from '../../shared/background-teams';
-import { backgroundTeamsService } from '../background-teams';
+import { wantsBackgroundTeam } from '../../shared/background-teams';
+import { admitBackgroundTurn } from './background-admission';
 import { executeSingleApplicationOpen, singleApplicationOpenRequest } from './application-open-request';
 
 /**
@@ -72,20 +72,7 @@ async function sendMessageForTurn(
     || hasBrowserInteractionCommand(backgroundIntent)
     || isActiveDocumentSummaryFollowUp(background.task, conversationHistory));
   if (background && !needsSupervisedContext && window.backgroundTeams && !options?.activeSkill && !options?.images?.length && wantsBackgroundTeam(background.task, options?.teamMode)) {
-    if (options?.signal?.aborted) return stoppedStreamResult([], []);
-    const routed = resolveRoutedModel({ options });
-    const source = JSON.stringify({ mensajeConAdjuntosNoConfiables: message, fuentes: options?.sourcesContext,
-      contextoReciente: conversationHistory.slice(-6) }).slice(0, BACKGROUND_LIMITS.sourceChars);
-    const job = await backgroundTeamsService.start({
-      requestId: crypto.randomUUID(), conversationId: background.conversationId, task: background.task.slice(0, 8000),
-      messageId: background.messageId,
-      source, model: routed.modelId, effort: options?.thinking?.level && ['low', 'medium', 'high', 'xhigh', 'max'].includes(options.thinking.level) ? options.thinking.level : 'medium',
-      allowResearch: options?.browserSourceMode !== 'attached-fragments' && !message.startsWith('Material adjunto elegido por el usuario.'),
-    }, background.organizationId);
-    if (routed.consumesSofliaMaxQuota) consumeSofliaMaxUse(options?.userId);
-    return { stream: singleChunkStream('Tu equipo ya está trabajando. Puedes seguir conversando; sus aportes y archivos aparecerán aquí.'),
-      backgroundJobId: job.id,
-      sources: Promise.resolve(null) };
+    return admitBackgroundTurn(message, conversationHistory, options!);
   }
   let finalMessage = options?.context ? buildPrimaryChatPrompt(options.context, message) : message;
   let systemInstruction = buildSystemInstruction(message, options);
@@ -187,6 +174,10 @@ async function sendMessageForTurn(
     finalMessage = `${finalMessage}\n\n${activeDocument.context}`;
   } else if (activeDocumentRequest) {
     systemInstruction = `${systemInstruction}\n\nLa solicitud depende del documento activo, pero la extracción automática no produjo contenido. Usa read_active_document antes de responder. Si también falla, informa que no pudiste leer el documento; no uses recuerdos, historial ni otra pestaña como sustituto.`;
+  }
+  if (background && window.backgroundTeams && options?.activeSkill?.id === PRESENTACIONES_SKILL_ID && options.activeSkill.workspaceId
+    && !requiresBrowserCapabilities && !hasExecutableAction && !inspectsLocalResource && !hybridSurfaceRequest && !options.media?.length) {
+    return admitBackgroundTurn(finalMessage, conversationHistory, options, options.activeSkill.workspaceId);
   }
   if (hybridSurfaceRequest && !attachedSourcesOnly) {
     systemInstruction = `${systemInstruction}\n\nEsta es una tarea hibrida por superficies. Conserva el modelo actual como orquestador: primero usa use_computer con backend desktop solo para observar la aplicacion externa; despues utiliza read_browser_dom y el controlador del navegador integrado (o backend browser si el DOM no basta) sobre la sesion visible. Verifica el resultado de cada fase. No incluyas el envio dentro de la observacion desktop y solicita confirmacion humana antes de enviar o publicar.`;

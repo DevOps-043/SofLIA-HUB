@@ -35,11 +35,11 @@ export function useChatProcessor({
   // Token de generación: solo la más reciente puede escribir en el chat. Al
   // editar/regenerar/enviar se incrementa y la generación anterior queda superada.
   const genTokenRef = useRef(0);
-  useLayoutEffect(() => () => { ++genTokenRef.current; abortRef.current?.abort(); }, [sofiaUserId, organizationId]);
+  useLayoutEffect(() => () => { ++genTokenRef.current; abortRef.current?.abort({ kind: 'navigation' }); }, [sofiaUserId, organizationId]);
   const cancelScope = useCallback(() => {
     // Un cambio de destino descarta incluso el acuse de Stop del turno anterior.
     ++genTokenRef.current;
-    abortRef.current?.abort();
+    abortRef.current?.abort({ kind: 'navigation' });
     abortRef.current = null;
     setIsLoading(false); setActiveToolCall(null); setAvatarActivity({ phase: 'idle', version: 0 });
   }, []);
@@ -73,11 +73,11 @@ export function useChatProcessor({
     text: string,
     images: string[],
     history: ChatMessage[],
-    isRegeneration: boolean,
+    isRegeneration = false,
     selectionContext?: string,
     browserSources?: ChatMessage['sources'],
   ) => {
-    abortRef.current?.abort();
+    abortRef.current?.abort({ kind: 'superseded' });
     const token = ++genTokenRef.current;
     const controller = new AbortController();
     abortRef.current = controller;
@@ -88,10 +88,10 @@ export function useChatProcessor({
     }
   }, [processMessage]);
 
-  // Detiene TODO lo que SofLIA esté ejecutando: el stream/loop de texto y
-  // cualquier tarea de Computer Use / Desktop Agent en curso.
+  // Detiene el turno y su Computer Use. Los trabajos ya admitidos tienen
+  // controles propios; una admisión pendiente recibe la razón de Stop.
   const stopGeneration = useCallback(() => {
-    abortRef.current?.abort();
+    abortRef.current?.abort({ kind: 'stop' });
     const desktopAgent = (window as unknown as { desktopAgent?: { abort?: () => Promise<unknown> } }).desktopAgent;
     void desktopAgent?.abort?.();
   }, []);
@@ -147,5 +147,5 @@ export function useChatProcessor({
     )));
   };
 
-  return { avatarActivity: avatarActivity.scope === memorySessionScope || avatarActivity.scope?.startsWith('borrador:') ? avatarActivity : undefined, isLoading, showLoadingUI, activeToolCall, copiedId, messagesRef, processMessage, handleSend, handleRegenerate, handleEditMessage, handleCopy, handleFeedback, stopGeneration, cancelScope };
+  return { avatarActivity: avatarActivity.scope === memorySessionScope ? avatarActivity : undefined, isLoading, showLoadingUI, activeToolCall, copiedId, messagesRef, processMessage: runWithAbort, handleSend, handleRegenerate, handleEditMessage, handleCopy, handleFeedback, stopGeneration, cancelScope };
 }

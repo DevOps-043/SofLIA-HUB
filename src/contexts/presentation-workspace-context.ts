@@ -8,20 +8,21 @@ import { createContext, useContext } from 'react';
  * herramientas del encabezado del chat.
  */
 export interface PresentationWorkspaceValue {
+  conversationId?: string | null;
   workspaceId: string | null;
   /** Skill del sistema duena de ese espacio de trabajo. */
   skillId: string | null;
   visible: boolean;
   /** Verdadero cuando hay una presentacion que el menu puede reabrir. */
   hasPresentation: boolean;
-  activate: (workspace: { id: string; skillId: string }) => void;
+  activate: (workspace: { id: string; skillId: string; conversationId?: string }) => void;
   /**
    * Recupera la presentacion de una conversacion ya existente SIN abrir el
    * panel. Abrirlo solo por cambiar de chat seria intrusivo; lo que importa es
    * que el menu pueda reabrirla, que antes no podia porque el identificador se
    * perdia al cerrar el panel o al cambiar de conversacion.
    */
-  restore: (workspace: { id: string; skillId: string } | null) => void;
+  restore: (workspace: { id: string; skillId: string; conversationId?: string } | null) => void;
   hide: () => void;
   show: () => void;
 }

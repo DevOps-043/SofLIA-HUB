@@ -26,7 +26,8 @@ export function useBackgroundTeams(ownerId: string | undefined, organizationId: 
     return () => { active = false; remove(); };
   }, [ownerId, organizationId]);
   const activities: AgentActivity[] = [...jobs].reverse().map(job => ({
-    id: 'background:' + job.id, sequence: job.sequence, surface: 'chat', kind: 'document',
+    id: 'background:' + job.id, sequence: job.sequence, surface: 'chat', kind: job.presentationWorkspaceId ? 'presentation' : 'document',
+    origin: { conversationId: job.conversationId, messageId: job.messageId },
     status: ['queued', 'running', 'verifying'].includes(job.status) ? 'running' : job.status === 'completed' ? 'completed' : job.status === 'cancelled' ? 'cancelled' : 'partial',
     durationMs: job.activeMs,
     agents: job.agents.map(agent => ({ role: agent.role, status: agent.status, operation: agent.operation })),

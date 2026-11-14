@@ -1,19 +1,20 @@
-import { removeConversationFromAllCaches, saveConversationToCache, updateConversationInCache } from '../cache';
+import { loadConversationsFromCache, removeConversationFromAllCaches, saveConversationToCache, updateConversationInCache } from '../cache';
 import { normalizeConversation } from '../normalize';
 import {
   purgeConversationFromAllPendingStates,
   queueConversationDelete,
   queueConversationUpsert,
+  getPendingConversationUpserts,
 } from '../pending-state';
 import { syncPendingChatState } from '../sync';
 import { recordConversationTombstoneForAllIdentities } from '../tombstones';
 import type { Conversation } from '../types';
 
-export async function createConversation(userId: string, title: string, folderId?: string, orgId?: string): Promise<Conversation | null> {
+export async function createConversation(userId: string, title: string, folderId?: string, orgId?: string, conversationId: string = crypto.randomUUID()): Promise<Conversation | null> {
   if (!userId) return null;
   const now = new Date().toISOString();
   const conversation: Conversation = {
-    id: crypto.randomUUID(),
+    id: conversationId,
     user_id: userId,
     title: title.trim() || 'Nueva conversacion',
     folder_id: folderId || undefined,
@@ -25,9 +26,16 @@ export async function createConversation(userId: string, title: string, folderId
 
   saveConversationToCache(userId, conversation);
   queueConversationUpsert(userId, conversation);
-  await syncPendingChatState(userId, [conversation.id]);
-  const { loadConversationsFromCache } = await import('../cache');
-  return normalizeConversation(loadConversationsFromCache(userId).find((item) => item.id === conversation.id) || conversation);
+  if (!loadConversationsFromCache(userId).some(item => item.id === conversation.id)
+    && !getPendingConversationUpserts(userId).some(item => item.id === conversation.id)) {
+    throw new Error('No se pudo conservar la conversación en el almacenamiento local.');
+  }
+  // La identidad y la cola ya son durables antes de inferencia. La red no
+  // retiene el primer guardado ni decide si el chat existe en este equipo.
+  void syncPendingChatState(userId, [conversation.id]).catch(() => {
+    console.warn('[Chat] La conversación quedó pendiente de sincronización.');
+  });
+  return normalizeConversation(conversation);
 }
 
 export async function deleteConversation(userId: string, conversationId: string): Promise<boolean> {

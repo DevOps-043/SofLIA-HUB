@@ -19,8 +19,10 @@ export const backgroundTeamsService = {
     if (!result.success) throw new Error(result.error);
     return result.data;
   },
-  async start(input: Omit<BackgroundStart, 'expectedOwnerId' | 'expectedOrganizationId'>, organizationId: string | null): Promise<BackgroundJob> {
+  async start(input: Omit<BackgroundStart, 'expectedOwnerId' | 'expectedOrganizationId'>, organizationId: string | null, expectedOwnerId?: string): Promise<BackgroundJob> {
     const state = await this.context(organizationId);
+    if (state.scope.organizationId !== organizationId) throw new Error('La organización cambió durante la preparación del trabajo.');
+    if (expectedOwnerId && state.scope.userId !== expectedOwnerId) throw new Error('El propietario cambió durante la preparación del trabajo.');
     const result = await bridge().start({ ...input, expectedOwnerId: state.scope.userId, expectedOrganizationId: state.scope.organizationId });
     if (!result.success) throw new Error(result.error);
     return result.data;

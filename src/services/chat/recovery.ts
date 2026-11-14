@@ -29,6 +29,7 @@ import type { ChatMessage, PendingChatState } from './types';
 export function recoverPendingConversationsFromCache(
   userId: string,
   remoteConversationIds: Set<string>,
+  orgId?: string,
 ): string[] {
   const recovered: string[] = [];
   const state = readPendingChatState(userId);
@@ -44,6 +45,7 @@ export function recoverPendingConversationsFromCache(
 
   for (const cached of loadConversationsFromCache(userId)) {
     if (cached.user_id !== userId) continue;
+    if (orgId && cached.org_id !== orgId) continue;
 
     if (
       remoteConversationIds.has(cached.id) ||

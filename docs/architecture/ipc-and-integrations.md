@@ -1058,6 +1058,13 @@ libre, y comprueba hash antes de invocar la apertura local.
 No hay canal para ejecutar shell, enviar correos o conceder herramientas arbitrarias.
 Véase [contrato funcional](runtime-multiagent-harness.md#equipos-ejecutores-locales-en-segundo-plano).
 
+Presentaciones extiende `start` con `presentationWorkspaceId` y `executionMode`
+opcionales. Main valida custodia y reserva el workspace; `skill-workspace:create`
+recibe la organización seleccionada y deriva el propietario desde su sesión.
+Los eventos de actividad pueden incluir conversación/mensaje de origen, como
+metadatos informativos inmutables. Contratos, compatibilidad y límites de
+recuperación: [aislamiento de chats](chat-context-isolation.md).
+
 
 ## Visor de archivos y entregables
 

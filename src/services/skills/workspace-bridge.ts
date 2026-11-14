@@ -48,6 +48,7 @@ interface WorkspaceApi {
     skillId: string;
     title: string;
     conversationId?: string | null;
+    organizationId?: string | null;
     policy: SkillWorkspacePolicy;
   }) => Promise<{ success: boolean; error?: string; workspace?: WorkspaceRecord }>;
   findByConversation: (conversationId: string) => Promise<{ success: boolean; workspace?: WorkspaceRecord | null }>;

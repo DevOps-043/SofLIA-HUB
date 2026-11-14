@@ -5,6 +5,15 @@ Estado: vigente. Actualizado: 2026-10-30.
 Inventario de defaults y topes con impacto operativo. Los overrides guardados en
 `userData` pueden cambiar el valor efectivo de un host.
 
+Las presentaciones de la Skill ejecutadas en segundo plano conservan el tope
+del visor (20 MB) para su PowerPoint; otros artefactos siguen limitados a 2 MB.
+La observación de imágenes del workspace admite PNG, JPEG o WebP de hasta
+4 MiB y 20 millones de píxeles. La generación nativa consume presupuesto del
+trabajo y usa su señal de cancelación, con plazo de 120 segundos por imagen.
+Fuentes: `src/shared/background-teams.ts`,
+`electron/background-teams/presentation-workspace.ts` y
+`electron/background-teams/providers.ts`.
+
 El chat flotante contextual lee al enviar: 12000 caracteres de texto renderer, recorrido de hasta 8000 nodos de texto, sin campos editables, panel ni regiones privadas. Navegador: 8000 ms por preparación, 16000 caracteres de DOM y hasta 60 nombres/refs de controles (200 caracteres por nombre), una captura de imagen de hasta 8 MiB si está disponible. No añade polling. El dock mide 460 px como máximo de ancho y se adapta al contenedor; vacío muestra sólo cabecera y compositor, con respuestas ocupa hasta 520 px o 70vh. El selector abierto sin historial ocupa hasta 360 px. En el navegador acota su altura para conservar un área web operable de al menos 120 px. Fuentes: `src/services/floating-chat-context.ts`, `src/components/browser/BrowserFloatingWorkspace.tsx` y [diseño](../../openspec/changes/floating-soflia-chat/design.md).
 
 <!-- evidence: electron/desktop-agent/agent-config.ts -->

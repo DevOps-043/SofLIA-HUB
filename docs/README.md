@@ -43,6 +43,7 @@ Este indice separa documentacion vigente de material historico.
 
 - [Stack tecnologico](architecture/technology-stack.md)
 - [Frontend React](architecture/frontend.md)
+- [Aislamiento de chats y continuidad de entregables](architecture/chat-context-isolation.md)
 - [Agente visual tridimensional](architecture/soflia-visual-agent.md)
 - [Backend Electron](architecture/backend-electron.md)
 - [Presentaciones y producción audiovisual](architecture/presentation-audiovisual-production.md)

@@ -38,6 +38,12 @@ export interface ChatMessage {
   feedback?: 'like' | 'dislike';
 }
 
+/** Actualización de un origen; los acuses tardíos sólo parchean su mensaje. */
+export type ChatMessagesChange = ((messages: ChatMessage[]) => void) & {
+  patchMessage?: (messageId: string, patch: Partial<ChatMessage>) => void;
+  ensurePersisted?: () => Promise<void>;
+};
+
 /**
  * Estado pendiente de sincronización con Supabase.
  * Persiste en localStorage para sobrevivir cierres de la app.
