@@ -123,7 +123,7 @@ export function useOrbConversation() {
       setTtsPlaying(false);
       setErrorMessage(null);
       setTranscript('');
-      updateState('listening');
+      updateState('preparing');
 
       const result = await orbService.startDictation().catch((error: unknown) => ({
         success: false,
@@ -147,6 +147,7 @@ export function useOrbConversation() {
 
       activeDictationSessionRef.current = result.sessionId;
       latestDictationSessionRef.current = result.sessionId;
+      updateState('listening');
     })();
 
     listeningStartRef.current = operation;

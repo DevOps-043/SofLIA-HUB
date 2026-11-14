@@ -12,8 +12,10 @@ module.exports = async function verifyPackagedPython(context) {
   const executable = pythonExecutable(runtimeDir, platform);
   const sidecar = path.join(resourcesDir, 'python-sidecar', 'main.py');
   const toolsSidecar = path.join(resourcesDir, 'python-tools', 'main.py');
+  const model = path.join(resourcesDir, 'models', 'vosk-model-small-es-0.42');
 
-  for (const requiredPath of [executable, sidecar, ...TOOLS_RUNTIME_FILES.map(file => path.join(path.dirname(toolsSidecar), file))]) {
+  for (const requiredPath of [executable, sidecar, ...TOOLS_RUNTIME_FILES.map(file => path.join(path.dirname(toolsSidecar), file)),
+    ...['conf/model.conf', 'am/final.mdl', 'graph/HCLr.fst'].map(file => path.join(model, file))]) {
     const stat = fs.existsSync(requiredPath) ? fs.statSync(requiredPath) : null;
     if (!stat?.isFile() || stat.size === 0) {
       throw new Error(`[Instalador] Recurso Python ausente o incompleto: ${requiredPath}`);

@@ -14,12 +14,11 @@ export async function loadConversations(
   if (!userId) return [];
   // Antes de sincronizar: lo que el usuario borro en otro equipo no debe
   // volver a subirse desde el cache de este.
-  await reconcileRemoteConversationDeletions(userId);
-  await syncPendingChatState(userId);
-
   try {
+    await reconcileRemoteConversationDeletions(userId);
+    await syncPendingChatState(userId);
     let remote = await fetchRemoteConversations(userId, orgId, accessUserIds);
-    const recovered = recoverPendingConversationsFromCache(userId, new Set(remote.map((conversation) => conversation.id)));
+    const recovered = recoverPendingConversationsFromCache(userId, new Set(remote.map((conversation) => conversation.id)), orgId);
     if (recovered.length > 0) {
       await syncPendingChatState(userId, recovered);
       remote = await retryFetchAfterRecovery(userId, orgId, accessUserIds, remote);
@@ -27,10 +26,10 @@ export async function loadConversations(
     // Lo que este equipo borro pero sigue activo en Supabase: se termina de
     // borrar ahora, para que deje de aparecer tambien en los demas equipos.
     await pushLocalTombstonesToRemote(userId, remote);
-    return buildConversationList(userId, remote);
+    return buildConversationList(userId, remote, orgId);
   } catch (err) {
     console.error('[chat-service] loadConversations exception:', err);
-    return buildLocalConversationList(userId);
+    return buildLocalConversationList(userId, orgId);
   }
 }
 

@@ -18,8 +18,10 @@ import { workspaceApi } from '../../../services/skills/workspace-bridge';
 export function useSkillWorkspaceLink(input: {
   conversationId: string | null;
   workspaceId: string | null;
+  /** Identidad explícita del borrador que produjo este workspace. */
+  draftConversationId?: string;
 }): void {
-  const { conversationId, workspaceId } = input;
+  const { conversationId, workspaceId, draftConversationId } = input;
   // Presentacion en pantalla mientras el chat aun no tenia identificador.
   const pendiente = useRef<string | null>(null);
   const atada = useRef<string | null>(null);
@@ -36,7 +38,7 @@ export function useSkillWorkspaceLink(input: {
     // Sin nada pendiente no hay nada que atar: se llego a este chat navegando,
     // no guardandolo.
     const suelta = pendiente.current;
-    if (!suelta || suelta !== workspaceId || atada.current === suelta) return;
+    if (!suelta || suelta !== workspaceId || atada.current === suelta || conversationId !== draftConversationId) return;
     atada.current = suelta;
     pendiente.current = null;
 
@@ -49,5 +51,5 @@ export function useSkillWorkspaceLink(input: {
     }).catch((error) => {
       console.warn('[Skills] No se pudo atar el espacio de trabajo a la conversacion:', error);
     });
-  }, [conversationId, workspaceId]);
+  }, [conversationId, workspaceId, draftConversationId]);
 }

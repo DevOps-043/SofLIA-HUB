@@ -177,6 +177,7 @@ describe('useOrbConversation session lifecycle', () => {
       second = result.current.startListening();
     });
     await waitFor(() => expect(mocks.startDictation).toHaveBeenCalledTimes(1));
+    expect(result.current.state).toBe('preparing');
     await act(async () => {
       startResult.resolve({ success: true, sessionId: 'dictation-1' });
       await Promise.all([first, second]);

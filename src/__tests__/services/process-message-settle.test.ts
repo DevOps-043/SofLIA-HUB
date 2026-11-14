@@ -60,6 +60,35 @@ function lastAiText(messages: ChatMessage[]): string | undefined {
 }
 
 describe('process-message settle guarantee', () => {
+  it('no inicia inferencia si no se confirma el primer guardado local y muestra el fallo', async () => {
+    let current: ChatMessage[] = [];
+    const change = Object.assign((messages: ChatMessage[]) => { current = messages; }, {
+      ensurePersisted: async () => { throw new Error('Almacenamiento no disponible'); },
+      patchMessage: (id: string, patch: Partial<ChatMessage>) => { current = current.map(message => message.id === id ? { ...message, ...patch } : message); },
+    });
+    const { input } = baseInput({ onMessagesChange: change });
+    await processChatMessage(input as never);
+    expect(mocks.sendMessageStream).not.toHaveBeenCalled();
+    expect(current[current.length - 1]?.text).toContain('No pude guardar');
+    expect(input.setIsLoading).toHaveBeenLastCalledWith(false);
+  });
+
+  it('una admisión tardía parchea sólo su mensaje de origen después de navegar', async () => {
+    let release!: (result: unknown) => void;
+    mocks.sendMessageStream.mockImplementation(() => new Promise(resolve => { release = resolve; }));
+    let current = true;
+    const change = Object.assign(vi.fn<(messages: ChatMessage[]) => void>(), { patchMessage: vi.fn() });
+    const controller = new AbortController();
+    const { input } = baseInput({ onMessagesChange: change, isCurrent: () => current, signal: controller.signal });
+    const processing = processChatMessage(input as never);
+    await vi.waitFor(() => expect(mocks.sendMessageStream).toHaveBeenCalledOnce());
+    current = false; controller.abort({ kind: 'navigation' });
+    release({ backgroundJobId: '11111111-1111-4111-8111-111111111111', backgroundNotice: 'Equipo admitido en el origen', stream: singleChunk('Acuse'), sources: Promise.resolve(null) });
+    await processing;
+    expect(change).toHaveBeenCalledOnce();
+    expect(change.patchMessage).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ backgroundJobId: '11111111-1111-4111-8111-111111111111' }));
+  });
+
   it('conserva fragmentos reales en el turno, respuesta y reapertura, también al regenerar', async () => {
     const source = { kind: 'browser' as const, citationId: 'P1:F1', title: 'Documento', uri: 'https://example.com/p', snippet: 'Evidencia textual', capturedAt: '2026-09-09T12:00:00.000Z' };
     mocks.sendMessageStream.mockResolvedValue({ stream: singleChunk('Conclusión [P1:F1]'), sources: Promise.resolve([{ title: 'Fuente web', uri: 'https://web.example/' }]) });

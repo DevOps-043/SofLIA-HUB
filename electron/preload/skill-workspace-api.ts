@@ -15,6 +15,7 @@ export function exposeSkillWorkspaceApi(bridge: PreloadBridge, ipc: SafeIpc): vo
       skillId: string;
       title: string;
       conversationId?: string | null;
+      organizationId?: string | null;
       policy: {
         rootFolder: string;
         allowedExtensions: readonly string[];

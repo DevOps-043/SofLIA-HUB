@@ -16,12 +16,16 @@ import https from 'node:https';
 import path from 'node:path';
 import fs from 'node:fs';
 import { SidecarConnection, SidecarConnectionError, sidecarLaunchError, sidecarStopError } from './python/sidecar-connection';
+import { preparePrivatePython } from './python/automatic-setup';
+import { ensureSignedVoiceEngine } from './python/signed-engine';
 
 import type { VoicePassiveConfig as PublicVoicePassiveConfig, TtsVoiceInfo, MicDeviceInfo } from '../src/shared/local-voice';
 export type { TtsVoiceInfo, MicDeviceInfo } from '../src/shared/local-voice';
 
 export interface VoicePassiveConfig extends PublicVoicePassiveConfig { modelPath?: string }
 export interface PythonRuntimeStatus {
+  setupState?: 'idle' | 'runtime' | 'model' | 'ready' | 'error';
+  setupErrorCode?: 'voice_setup_failed' | 'voice_runtime_blocked' | 'voice_engine_untrusted';
   runtimeAvailable: boolean;
   sidecarRunning: boolean;
   listening: boolean;
@@ -118,6 +122,53 @@ export class PythonRuntimeService extends EventEmitter {
   private activeSpeechId: string | null = null;
   private speechSequence = 0;
   private captureAuthorization: (command: string, params: Record<string, unknown>) => void = () => { throw new Error('voice_approval_required'); };
+  private setupPromise: Promise<void> | null = null;
+  private setupState: NonNullable<PythonRuntimeStatus['setupState']> = 'idle';
+  private setupErrorCode: PythonRuntimeStatus['setupErrorCode'];
+  private windowsEngineRoot: string | null = null;
+
+  /** Instalar dependencias nunca abre el micrófono ni modifica la preferencia enabled. */
+  async prepareVoice(): Promise<void> {
+    if (this.setupPromise) return this.setupPromise;
+    const operation = this.prepareVoiceDependencies();
+    this.setupPromise = operation;
+    try { await operation; }
+    finally { if (this.setupPromise === operation) this.setupPromise = null; }
+  }
+
+  private async prepareVoiceDependencies(): Promise<void> {
+    this.setupErrorCode = undefined;
+    try {
+      if (app.isPackaged && process.platform === 'win32') {
+        if (this.setupState === 'ready') return;
+        this.setupState = 'runtime';
+        this.windowsEngineRoot = await ensureSignedVoiceEngine();
+      }
+      if (!this.isRuntimeAvailable()) {
+        this.setupState = 'runtime';
+        await preparePrivatePython();
+        this.assertRuntimeAvailable();
+      }
+      if (!this.resolveModelPathFor('small')) {
+        if (app.isPackaged && process.platform === 'win32') throw new Error('voice_setup_failed');
+        this.setupState = 'model';
+        const result = await this.installModel('small', false);
+        if (!result.success) throw new Error('voice_setup_failed');
+      }
+      this.setupState = 'ready';
+      this.lastError = null;
+    } catch (error) {
+      this.setupState = 'error';
+      this.setupErrorCode = error instanceof Error && error.message === 'voice_engine_untrusted' ? 'voice_engine_untrusted'
+        : error instanceof Error && error.message === 'voice_runtime_blocked' ? 'voice_runtime_blocked' : 'voice_setup_failed';
+      this.lastError = this.setupErrorCode === 'voice_engine_untrusted'
+        ? 'No se pudo verificar el motor de voz. Actualiza SofLIA desde su instalador oficial.'
+        : this.setupErrorCode === 'voice_runtime_blocked'
+        ? 'Windows bloqueó un componente de voz. La política de Control de aplicaciones debe permitir el runtime de SofLIA.'
+        : 'No se pudo preparar la voz. Comprueba tu conexión e inténtalo de nuevo.';
+      throw Object.assign(new Error(this.setupErrorCode), { cause: error });
+    }
+  }
 
   /** Guardia exclusiva de main; no forma parte del catálogo IPC. */
   configureCaptureAuthorization(authorize: (command: string, params: Record<string, unknown>) => void): void {
@@ -135,11 +186,7 @@ export class PythonRuntimeService extends EventEmitter {
 
   async init(): Promise<void> {
     this.loadConfig();
-    if (!this.isRuntimeAvailable()) {
-      console.log('[PythonRuntime] Runtime Python no encontrado. Ejecuta "npm run python:setup" (dev) o reinstala la app.');
-      return;
-    }
-    console.log(`[PythonRuntime] Runtime Python disponible: ${this.getPythonPath()}`);
+    void this.prepareVoice().catch(() => console.warn('[PythonRuntime] Preparación automática pendiente de reintento.'));
     // enabled es una preferencia; el coordinador main revisa la sesión antes de activar.
   }
 
@@ -243,6 +290,8 @@ export class PythonRuntimeService extends EventEmitter {
 
   getStatus(): PythonRuntimeStatus {
     return {
+      setupState: this.setupState,
+      setupErrorCode: this.setupErrorCode,
       runtimeAvailable: this.isRuntimeAvailable(),
       sidecarRunning: this.proc !== null,
       listening: this.listening,
@@ -539,14 +588,14 @@ export class PythonRuntimeService extends EventEmitter {
   }
 
   /** Descarga el modelo Vosk español indicado (small ~39MB / large ~1.4GB). */
-  async installModel(size: VoskModelSize = 'small'): Promise<{ success: boolean; error?: string }> {
+  async installModel(size: VoskModelSize = 'small', activate = true): Promise<{ success: boolean; error?: string }> {
     const version = this.lifecycleVersion;
     const modelDir = VOSK_MODELS[size]?.dir;
     if (!modelDir) return { success: false, error: `Modelo desconocido: ${String(size)}` };
     // El wake word SIEMPRE necesita el modelo pequeño (el grande no soporta
     // gramaticas en runtime): asegurarlo antes de traer el grande.
     if (size === 'large' && !this.resolveModelPathFor('small')) {
-      const smallResult = await this.installModel('small');
+      const smallResult = await this.installModel('small', activate);
       if (!smallResult.success) return smallResult;
     }
     if (this.resolveModelPathFor(size)) return { success: true };
@@ -573,7 +622,7 @@ export class PythonRuntimeService extends EventEmitter {
       console.log(`[PythonRuntime] Modelo Vosk (${size}) instalado correctamente.`);
       // Reiniciar la escucha para que tome el modelo recien instalado (el
       // grande tiene prioridad en resolveModelPath).
-      if (this.config.enabled && version === this.lifecycleVersion && !this.stopping) {
+      if (activate && this.config.enabled && version === this.lifecycleVersion && !this.stopping) {
         await this.stopPassiveListening();
         if (this.config.enabled && version === this.lifecycleVersion && !this.stopping) void this.startPassiveListening();
       }
@@ -653,12 +702,16 @@ export class PythonRuntimeService extends EventEmitter {
 
   private getPythonPath(): string {
     const executable = process.platform === 'win32' ? ['python.exe'] : ['bin', 'python3'];
-    return app.isPackaged
-      ? path.join(process.resourcesPath, 'python', ...executable)
-      : path.join(app.getAppPath(), 'python-runtime', ...executable);
+    if (this.windowsEngineRoot) return path.join(this.windowsEngineRoot, 'python', ...executable);
+    if (app.isPackaged) {
+      const bundled = path.join(process.resourcesPath, 'python', ...executable);
+      return fs.existsSync(bundled) ? bundled : path.join(app.getPath('userData'), 'python-runtime', ...executable);
+    }
+    return path.join(app.getAppPath(), 'python-runtime', ...executable);
   }
 
   private getSidecarPath(): string {
+    if (this.windowsEngineRoot) return path.join(this.windowsEngineRoot, 'python-sidecar/main.py');
     return app.isPackaged
       ? path.join(process.resourcesPath, 'python-sidecar', 'main.py')
       : path.join(app.getAppPath(), 'python', 'sidecar', 'main.py');
@@ -691,6 +744,8 @@ export class PythonRuntimeService extends EventEmitter {
   private resolveModelPathFor(size: VoskModelSize): string | null {
     const dir = VOSK_MODELS[size].dir;
     const candidates = [
+      ...(this.windowsEngineRoot ? [path.join(this.windowsEngineRoot, 'models', dir)] : []),
+      ...(app.isPackaged ? [path.join(process.resourcesPath, 'models', dir)] : []),
       path.join(app.getPath('userData'), 'models', dir),
       path.join(app.getAppPath(), 'models', dir),
     ];

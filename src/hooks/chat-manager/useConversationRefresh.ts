@@ -1,5 +1,6 @@
-import { useCallback } from 'react';
+import { useCallback, useLayoutEffect, useRef } from 'react';
 import { loadConversations, loadMessages } from '../../services/chat-service';
+import { buildLocalConversationList } from '../../services/chat/builders';
 import { areConversationListsEqual, areMessageListsEqual, hasActivePlaceholder } from './helpers';
 import type { ChatManagerState, ChatStorageKeyResolver, UseChatManagerOptions } from './types';
 
@@ -9,6 +10,8 @@ type ConversationRefreshDeps = UseChatManagerOptions & {
 };
 
 export function useConversationRefresh({ accessUserIds, getCurrentChatStorageKey, orgId, state, userId }: ConversationRefreshDeps) {
+  const initialLoad = useRef(0);
+  useLayoutEffect(() => { ++initialLoad.current; }, [userId, orgId]);
   const refreshCurrentConversationMessages = useCallback(
     async (conversationId: string, capturedScopeVersion: number = state.scopeVersionRef.current) => {
       if (!userId) return;
@@ -25,17 +28,24 @@ export function useConversationRefresh({ accessUserIds, getCurrentChatStorageKey
 
   const loadInitialConversations = useCallback(async () => {
     if (!userId) return [];
+    const ticket = ++initialLoad.current;
+    const version = state.scopeVersionRef.current;
+    const local = buildLocalConversationList(userId, orgId);
+    if (local.length) state.setConversations(local);
     state.setLoadingConversations(true);
     try {
       const convs = await loadConversations(userId, orgId, accessUserIds);
+      if (version !== state.scopeVersionRef.current) return [];
       state.setConversations(convs);
       
       // Siempre iniciar con una nueva conversación vacía al iniciar sesión
-      clearActiveChat(state);
-      localStorage.removeItem(getCurrentChatStorageKey(userId));
+      if (!state.currentConvIdRef.current && !state.currentMessagesRef.current.length) {
+        localStorage.removeItem(getCurrentChatStorageKey(userId));
+      }
       return convs;
     } finally {
-      state.setLoadingConversations(false);
+      // Navegar invalida el resultado, pero no debe dejar el historial cargando.
+      if (ticket === initialLoad.current) state.setLoadingConversations(false);
     }
   }, [accessUserIds, getCurrentChatStorageKey, orgId, state, userId]);
 
@@ -62,6 +72,10 @@ export function useConversationRefresh({ accessUserIds, getCurrentChatStorageKey
 }
 
 function clearActiveChat(state: ChatManagerState): void {
+  state.scopeVersionRef.current += 1;
+  const scopeId = crypto.randomUUID();
+  state.chatScopeIdRef.current = scopeId;
+  state.setChatScopeId(scopeId);
   state.setCurrentConversationId(null);
   state.currentConvIdRef.current = null;
   state.setCurrentMessages([]);

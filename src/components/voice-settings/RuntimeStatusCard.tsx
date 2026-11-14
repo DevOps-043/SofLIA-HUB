@@ -1,12 +1,9 @@
-import { useState } from 'react';
-
+import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { Card } from '../ui/Card';
 import { SectionHeader } from '../ui/SectionHeader';
 import { cn } from '../ui/cn';
 import type { VoicePassivePanel } from './useVoicePassivePanel';
-
-const SETUP_COMMAND = 'npm run python:setup';
 
 /**
  * Diagnostico del pipeline local: runtime Python, modelo Vosk y escucha. Es lo
@@ -16,16 +13,17 @@ const SETUP_COMMAND = 'npm run python:setup';
 export function RuntimeStatusCard({ panel }: { panel: VoicePassivePanel }) {
   const { status, modelInstalled } = panel;
   const runtimeReady = Boolean(status?.runtimeAvailable);
+  const preparing = status?.setupState === 'runtime' || status?.setupState === 'model';
 
   return (
     <Card className="space-y-4">
       <SectionHeader
         title="Estado del pipeline local"
-        subtitle="Todo se ejecuta en tu equipo: sin runtime no hay escucha ni dictado."
+        subtitle="SofLIA prepara automáticamente los recursos de voz en tu equipo."
         icon={<ChipIcon className="w-4.5 h-4.5" />}
         action={(
           <Badge tone={runtimeReady && modelInstalled ? 'success' : 'warning'}>
-            {runtimeReady && modelInstalled ? 'Listo' : 'Incompleto'}
+            {runtimeReady && modelInstalled ? 'Listo' : preparing ? 'Preparando…' : status?.setupState === 'error' ? 'Pendiente de reintento' : 'Preparando…'}
           </Badge>
         )}
       />
@@ -35,13 +33,13 @@ export function RuntimeStatusCard({ panel }: { panel: VoicePassivePanel }) {
           label="Runtime Python"
           state={runtimeReady ? 'ok' : 'pending'}
           okText="Instalado"
-          pendingText="No instalado"
+          pendingText={status?.setupState === 'runtime' ? 'Instalando automáticamente…' : 'Preparación automática'}
         />
         <StatusRow
           label="Modelo de voz (español)"
           state={modelInstalled ? 'ok' : 'pending'}
           okText={status?.largeModelInstalled ? 'Grande — máxima precisión' : 'Small — precisión estándar'}
-          pendingText="Pendiente de descarga (~39 MB)"
+          pendingText={status?.setupState === 'model' ? 'Descargando automáticamente…' : 'Preparación automática (~39 MB)'}
         />
         <StatusRow
           label="Escucha pasiva"
@@ -51,19 +49,24 @@ export function RuntimeStatusCard({ panel }: { panel: VoicePassivePanel }) {
         />
       </div>
 
-      {!runtimeReady && (
+      {(!runtimeReady || !modelInstalled) && (
         <div className="rounded-2xl border border-warning/25 bg-warning/[0.07] p-4 space-y-3">
           <div className="flex items-start gap-2.5">
             <WarningIcon className="w-4 h-4 shrink-0 mt-0.5 text-warning" />
             <div className="text-xs leading-relaxed text-gray-900 dark:text-white">
-              <p className="font-medium">Falta el runtime de Python.</p>
+              <p className="font-medium">{status?.setupState === 'error' ? 'No se pudo completar la preparación.' : 'Estamos preparando la voz.'}</p>
               <p className="text-secondary mt-0.5">
-                Viene incluido en el instalador: reinstala Soflia Hub o, si trabajas desde el
-                repositorio, genera el runtime con este comando en la raíz del proyecto.
+                {status?.setupErrorCode === 'voice_runtime_blocked'
+                  ? 'Windows ha bloqueado un componente del runtime. La preparación podrá continuar cuando la política de Control de aplicaciones lo permita.'
+                  : 'Los recursos necesarios se instalan automáticamente. La primera vez puede tardar unos minutos y requiere conexión a internet.'}
               </p>
             </div>
           </div>
-          <CommandRow command={SETUP_COMMAND} />
+          {status?.setupState === 'error' && (
+            <Button variant="secondary" disabled={panel.busy} onClick={() => panel.installModel('small')}>
+              Reintentar preparación
+            </Button>
+          )}
         </div>
       )}
 
@@ -109,33 +112,6 @@ function StatusRow({ label, state, okText, pendingText, detail }: {
         />
         {state === 'ok' ? okText : pendingText}
       </span>
-    </div>
-  );
-}
-
-function CommandRow({ command }: { command: string }) {
-  const [copied, setCopied] = useState(false);
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(command);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2_000);
-    } catch {
-      setCopied(false);
-    }
-  }
-
-  return (
-    <div className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2">
-      <code className="flex-1 text-[11px] font-mono text-gray-900 dark:text-white truncate">{command}</code>
-      <button
-        type="button"
-        onClick={() => void copy()}
-        className="shrink-0 text-[11px] font-medium text-accent hover:underline focus:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/15 rounded px-1"
-      >
-        {copied ? 'Copiado' : 'Copiar'}
-      </button>
     </div>
   );
 }

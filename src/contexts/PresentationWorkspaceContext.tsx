@@ -5,10 +5,10 @@ import {
 } from './presentation-workspace-context';
 
 export function PresentationWorkspaceProvider(props: { children: ReactNode }) {
-  const [workspace, setWorkspace] = useState<{ id: string; skillId: string } | null>(null);
+  const [workspace, setWorkspace] = useState<{ id: string; skillId: string; conversationId?: string } | null>(null);
   const [visible, setVisible] = useState(false);
 
-  const activate = useCallback((next: { id: string; skillId: string }) => {
+  const activate = useCallback((next: { id: string; skillId: string; conversationId?: string }) => {
     setWorkspace(next);
     // Abrir el panel al empezar a generar es lo que hace visible el proceso;
     // el usuario puede ocultarlo despues y el trabajo continua.
@@ -20,12 +20,13 @@ export function PresentationWorkspaceProvider(props: { children: ReactNode }) {
    * esto el identificador de la conversacion anterior seguia vivo y el menu
    * reabria una presentacion que no era la de este chat.
    */
-  const restore = useCallback((next: { id: string; skillId: string } | null) => {
+  const restore = useCallback((next: { id: string; skillId: string; conversationId?: string } | null) => {
     setWorkspace(next);
     if (!next) setVisible(false);
   }, []);
 
   const value = useMemo<PresentationWorkspaceValue>(() => ({
+    conversationId: workspace?.conversationId ?? null,
     workspaceId: workspace?.id ?? null,
     skillId: workspace?.skillId ?? null,
     visible: visible && Boolean(workspace),

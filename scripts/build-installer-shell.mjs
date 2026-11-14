@@ -7,8 +7,10 @@ import console from 'node:console';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, URL } from 'node:url';
+import { createRequire } from 'node:module';
 import { prepareOrbAssets } from './installer-orb-assets.mjs';
 import { buildEnvironment } from './quality/smoke-app-build.mjs';
+const { runSigning } = createRequire(import.meta.url)('./windows-signing.cjs');
 
 export const shellRoot = fileURLToPath(new URL('../', import.meta.url));
 export function artifactNames(version) {
@@ -30,7 +32,7 @@ export function compilerConfiguration() {
 }
 
 /** Compila una entrada distinta; jamás reemplaza el EXE/hash del actualizador. */
-export async function buildInstallerShell({ root = shellRoot, preview = false, enginePath, outputDirectory } = {}) {
+export async function buildInstallerShell({ root = shellRoot, preview = false, enginePath, outputDirectory, unsignedQa = false } = {}) {
   const { version } = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
   const names = artifactNames(version);
   const source = path.join(root, 'build/installer-shell');
@@ -40,6 +42,7 @@ export async function buildInstallerShell({ root = shellRoot, preview = false, e
   if (!preview) {
     const stat = fs.lstatSync(engine);
     assert.ok(stat.isFile() && !stat.isSymbolicLink() && stat.size > 0, 'Falta el motor NSIS regular.');
+    if (!unsignedQa) runSigning('VerifyFile', engine, { requirePublisher: true });
     hash = await sha256(engine);
   }
   const generated = path.join(stage, 'BuildInfo.cs');
@@ -64,10 +67,11 @@ export async function buildInstallerShell({ root = shellRoot, preview = false, e
   if (preview) args.push('/define:PREVIEW');
   else args.push(`/resource:${engine},Pulse.Payload`);
   execFileSync(compiler, args, { cwd: root, windowsHide: true, stdio: 'pipe', timeout: 120000, env: buildEnvironment(process.env) });
+  if (!preview && !unsignedQa) runSigning('SignFile', destination, { requirePublisher: true });
   if (!preview) assert.equal(await sha256(engine), hash, 'El motor cambió durante la compilación. No distribuir el resultado.');
   const report = { file: destination, preview, engine: preview ? null : engine, payloadSha256: preview ? null : hash,
     sha256: await sha256(destination), bytes: fs.statSync(destination).size, logoSha256: await sha256(path.join(root, 'public/assets/Icono.png')),
-    sdkSha256: orbAssets.sdkSha256, originalOrb: true, installed: false, published: false, signedByScript: false };
+    sdkSha256: orbAssets.sdkSha256, originalOrb: true, installed: false, published: false, signedByScript: !preview && !unsignedQa };
   fs.writeFileSync(path.join(stage, 'shell-report.json'), JSON.stringify(report, null, 2), { flag: 'wx' });
   return { ...report, report: path.join(stage, 'shell-report.json') };
 }

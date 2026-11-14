@@ -21,6 +21,7 @@ app.whenReady().then(async () => {
     return { response: accept ? 1 : 0, checkboxChecked: false };
   };
   const runtime = Object.assign(new EventEmitter(), {
+    prepareVoice: async () => {},
     configureCaptureAuthorization: fn => { permission = fn; },
     getConfig: () => ({ ...config, wakeWords: [...config.wakeWords] }),
     getStatus: () => ({ runtimeAvailable: true, sidecarRunning: false, listening, enabled: config.enabled, pythonPath: 'privado-python', modelPath: 'privado-modelo',
@@ -79,6 +80,7 @@ app.whenReady().then(async () => {
   setAuthState({ authenticated: true, userId: 'otra-cuenta' }); setAuthState({ authenticated: true, userId: 'usuario-qa' });
   assert.equal(voice.isApproved(), false); assert.throws(() => permission('start_wake', {})); checks.push('cambio-aba-revoca');
   let release, entered;
+  await invoke(window, 'window.voicePassive.stop()');
   const approval = new Promise(resolve => { entered = resolve; });
   dialog.showMessageBox = async () => { entered(); return new Promise(resolve => { release = resolve; }); };
   const before = captures; const pending = invoke(window, 'window.voicePassive.start()'); await approval;

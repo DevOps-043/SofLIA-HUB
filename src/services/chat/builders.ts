@@ -31,25 +31,27 @@ function deletedConversationIds(userId: string): Set<string> {
 export function buildConversationList(
   userId: string,
   remoteConversations: Conversation[],
+  orgId?: string,
 ): Conversation[] {
   const deleted = deletedConversationIds(userId);
   const merged = dedupeConversations([
     ...remoteConversations,
     ...getPendingConversationUpserts(userId),
+    ...loadConversationsFromCache(userId).filter(conversation => conversation.user_id === userId),
   ]).filter((conversation) => !deleted.has(conversation.id) && !conversation.deleted_at);
 
   saveConversationsToCache(userId, merged);
-  return merged;
+  return merged.filter(conversation => !orgId || conversation.org_id === orgId);
 }
 
-export function buildLocalConversationList(userId: string): Conversation[] {
+export function buildLocalConversationList(userId: string, orgId?: string): Conversation[] {
   const cached = loadConversationsFromCache(userId);
   const deleted = deletedConversationIds(userId);
 
   return dedupeConversations([
     ...cached,
     ...getPendingConversationUpserts(userId),
-  ]).filter((conversation) => !deleted.has(conversation.id) && !conversation.deleted_at);
+  ]).filter((conversation) => !deleted.has(conversation.id) && !conversation.deleted_at && (!orgId || conversation.org_id === orgId));
 }
 
 export function buildMessageList(

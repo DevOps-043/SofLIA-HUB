@@ -5,9 +5,37 @@ import { wantsBackgroundTeam } from '../../shared/background-teams';
 import type { BackgroundTeamsBridge } from '../../shared/background-teams';
 import type { NativeGeminiConversationApi } from '../../shared/native-gemini-conversation';
 import { collectStreamText } from '../../services/gemini-chat/streams';
+import { PRESENTACIONES_SKILL } from '../../shared/skills/presentaciones-skill';
 vi.mock('../../services/model-routing', () => ({ resolveRoutedModel: () => ({ modelId: 'gemini-3.8-flash' }) }));
 vi.mock('../../services/gemini-chat/client', () => ({ getGenAiClient: vi.fn(() => { throw new Error('No debe usar el modelo del renderer para este trabajo.'); }) }));
 afterEach(() => { delete window.backgroundTeams; delete window.geminiConversation; vi.restoreAllMocks(); });
+it('no admite datos del propietario anterior si cambió durante la preparación del contexto', async () => {
+  const start = vi.fn();
+  window.backgroundTeams = { context: vi.fn(async () => ({ success: true, data: { scope: { userId: 'nuevo', organizationId: null } } })), start } as unknown as BackgroundTeamsBridge;
+  await expect(backgroundTeamsService.start({} as never, null, 'anterior')).rejects.toThrow('propietario cambió');
+  expect(start).not.toHaveBeenCalled();
+});
+it.each(['navigation', 'stop'] as const)('la presentación conserva el origen cuando la admisión termina tras %s', async reason => {
+  let release!: (value: unknown) => void;
+  const start = vi.fn(() => new Promise(resolve => { release = resolve; }));
+  const control = vi.fn(async () => ({ success: true, data: {} }));
+  window.backgroundTeams = { context: vi.fn(async () => ({ success: true, data: { scope: { userId: 'actor', organizationId: null } } })), start, control } as unknown as BackgroundTeamsBridge;
+  const controller = new AbortController();
+  const messageId = '4bc25420-46e1-4a93-9886-faf34152758a';
+  const task = 'Crea una presentación sobre calidad y normalización de software';
+  const pending = sendMessageStream(task, [], { signal: controller.signal,
+    activeSkill: { ...PRESENTACIONES_SKILL, workspaceId: 'presentacion-calidad' },
+    backgroundRequest: { task, messageId, conversationId: 'presentacion', organizationId: null } });
+  await vi.waitFor(() => expect(start).toHaveBeenCalledOnce());
+  controller.abort({ kind: reason });
+  release({ success: true, data: { id: 'equipo-presentacion' } });
+  const result = await pending;
+  expect(start).toHaveBeenCalledWith(expect.objectContaining({ requestId: messageId, messageId, conversationId: 'presentacion', presentationWorkspaceId: 'presentacion-calidad' }));
+  expect(result.backgroundJobId).toBe('equipo-presentacion');
+  if (reason === 'stop') expect(control).toHaveBeenCalledWith({ jobId: 'equipo-presentacion', action: 'cancel' });
+  else expect(control).not.toHaveBeenCalled();
+});
+
 it('admite un trabajo y termina el turno sin esperar a los agentes', async () => {
   const context = vi.fn(async () => ({ success: true, data: { scope: { userId: 'actor', organizationId: null }, jobs: [], persistence: 'encrypted' } }));
   const start = vi.fn(async () => ({ success: true, data: { id: 'equipo-real', status: 'running' } }));

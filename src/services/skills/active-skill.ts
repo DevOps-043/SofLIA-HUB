@@ -13,6 +13,8 @@ import { presentationApi, workspaceApi } from './workspace-bridge';
  */
 
 export interface ActiveSkillState {
+  /** Origen de la activación; no se deduce del chat visible al terminar. */
+  conversationId?: string | null;
   skill: Skill;
   workspaceId: string | null;
   /** Aviso para el usuario cuando la identidad corporativa no se aplico. */
@@ -83,6 +85,7 @@ export async function prepareSkillWorkspace(input: {
     skillId: skill.id,
     title: input.title?.trim() || skill.name,
     conversationId: input.conversationId,
+    organizationId: input.organizationId,
     policy,
   });
   if (!created.success || !created.workspace) {

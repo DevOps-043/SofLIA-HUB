@@ -18,6 +18,7 @@ export {
   migrateLegacyChatCache,
   PENDING_MODEL_TITLE,
   saveMessages,
+  stageMessages,
   saveMessagesToCache,
   syncPendingChatState,
   toggleConversationPin,

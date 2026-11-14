@@ -29,6 +29,7 @@ describe('enlace del espacio de trabajo con la conversacion', () => {
       (props: { conversationId: string | null }) => useSkillWorkspaceLink({
         conversationId: props.conversationId,
         workspaceId: 'ws-1',
+        draftConversationId: 'conv-nueva',
       }),
       { initialProps: { conversationId: null as string | null } },
     );
@@ -71,6 +72,7 @@ describe('enlace del espacio de trabajo con la conversacion', () => {
       (props: { conversationId: string | null }) => useSkillWorkspaceLink({
         conversationId: props.conversationId,
         workspaceId: 'ws-1',
+        draftConversationId: 'conv-1',
       }),
       { initialProps: { conversationId: null as string | null } },
     );
@@ -106,6 +108,7 @@ describe('enlace del espacio de trabajo con la conversacion', () => {
       (props: { conversationId: string | null }) => useSkillWorkspaceLink({
         conversationId: props.conversationId,
         workspaceId: 'ws-1',
+        draftConversationId: 'conv-1',
       }),
       { initialProps: { conversationId: null as string | null } },
     );

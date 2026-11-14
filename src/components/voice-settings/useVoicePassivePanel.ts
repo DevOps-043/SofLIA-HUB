@@ -78,7 +78,7 @@ export function useVoicePassivePanel() {
     }
   }, [available]);
 
-  const downloading = (status?.modelDownloadProgress ?? null) !== null;
+  const downloading = (status?.modelDownloadProgress ?? null) !== null || status?.setupState === 'runtime' || status?.setupState === 'model';
 
   useEffect(() => {
     if (!available) return;

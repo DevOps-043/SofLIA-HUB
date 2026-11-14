@@ -19,7 +19,8 @@ await fs.symlink(path.join(projectRoot, 'node_modules'), path.join(sandbox, 'nod
 const version = JSON.parse(await fs.readFile(path.join(projectRoot, 'package.json'), 'utf8')).devDependencies.electron;
 const sources = [
   'electron/voice-passive-handlers', 'electron/orb-ipc-handlers', 'electron/voice/session', 'electron/voice/contract', 'electron/voice/event-owner', 'electron/voice/synthesis-queue',
-  'electron/main/auth-state', 'electron/ipc/caller-authorization', 'electron/orb-tts', 'electron/elevenlabs-tts', 'electron/speech-text-normalizer',
+  'electron/voice/consent-store',
+  'electron/main/auth-state', 'electron/ipc/caller-authorization', 'electron/ipc/renderer-source', 'electron/orb-tts', 'electron/elevenlabs-tts', 'electron/speech-text-normalizer',
   'electron/integrated-browser/voice', 'electron/integrated-browser/voice-commands', 'src/shared/browser-voice',
 ];
 for (const name of sources) {

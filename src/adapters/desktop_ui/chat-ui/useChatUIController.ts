@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ConfirmationDecision } from '../../../shared/command-approval';
 import { assertBrowserShortcutTurn, type PreparedBrowserShortcut } from './browser-shortcut-turn';
 import type { BrowserAgentShortcut } from '../../../shared/browser-agent-shortcuts';
@@ -23,31 +23,42 @@ import { APP_CONTEXT_LIMITS, buildAppContextBlock, resolveAppAttachments } from 
 import { hasActivePlaceholder } from '../../../hooks/chat-manager/helpers';
 
 export function useChatUIController(props: ChatUIProps) {
+  const [draftId] = useState(() => crypto.randomUUID());
+  const originId = props.conversationScopeId ?? props.conversationId ?? draftId;
   const canSendMessages = props.canSendMessages ?? true;
   // Al remontar no hay una generación propietaria de los marcadores heredados.
   // Se omiten en la vista, sin escribir ni trasladar mensajes entre ámbitos.
   const [orphanedPlaceholders] = useState(() => new Set(props.messages.filter(message => hasActivePlaceholder([message])).map(message => message.id)));
   const visibleMessages = useMemo(() => orphanedPlaceholders.size ? props.messages.filter(message => !orphanedPlaceholders.has(message.id) || !hasActivePlaceholder([message])) : props.messages, [props.messages, orphanedPlaceholders]);
-  const normalizedProps = { ...props, canSendMessages, messages: visibleMessages };
+  const normalizedProps = { ...props, conversationScopeId: originId, canSendMessages, messages: visibleMessages };
   const state = useChatUIState();
   const files = useChatFileHandlers(canSendMessages, state.images.setSelected);
   const dictation = useDictation(state.input.set);
   const { sofiaContext, dataUserId } = useAuth();
-  const contextKey = JSON.stringify([props.conversationId, dataUserId, sofiaContext?.currentOrganization?.id, canSendMessages]);
+  const contextKey = JSON.stringify([originId, dataUserId, sofiaContext?.currentOrganization?.id, canSendMessages]);
   const preparation = useAttachmentPreparation(contextKey);
   const [preparedShortcut, setPreparedShortcut] = useState<PreparedBrowserShortcut | null>(null);
   const presentation = usePresentationWorkspaceContext();
+  const { activate, restore } = presentation;
+  const activeSkill = state.skillModals.activeSkill?.conversationId === originId ? state.skillModals.activeSkill : null;
+  const ownsPresentation = presentation.conversationId === originId;
+  const activateWorkspace = useCallback((workspace: { id: string; skillId: string }) => {
+    activate({ ...workspace, conversationId: originId });
+  }, [originId, activate]);
+  const restoreWorkspace = useCallback((workspace: { id: string; skillId: string } | null) => {
+    restore(workspace ? { ...workspace, conversationId: originId } : null);
+  }, [originId, restore]);
   // La Skill del turno se deriva del espacio de trabajo resuelto por la
   // conversacion, no solo del estado del compositor: ese estado no sobrevive a
   // un remonte y el modelo se quedaba sin herramientas de archivo.
   const turnSkill = resolveTurnSkill({
-    activeSkill: state.skillModals.activeSkill,
-    workspaceId: presentation.workspaceId,
-    skillId: presentation.skillId,
+    activeSkill,
+    workspaceId: ownsPresentation ? presentation.workspaceId : null,
+    skillId: ownsPresentation ? presentation.skillId : null,
   });
   const runtime = useChatRuntime(normalizedProps, state, turnSkill);
   const tools = useChatTools(canSendMessages, state, {
-    conversationId: props.conversationId ?? null,
+    conversationId: originId,
     organizationId: sofiaContext?.currentOrganization?.id ?? null,
     organizationName: sofiaContext?.currentOrganization?.name ?? null,
     // Senales que deciden por que rama del protocolo arranca la Skill: sin
@@ -58,23 +69,24 @@ export function useChatUIController(props: ChatUIProps) {
       hasAttachments: state.images.selected.length > 0 || state.selection.value !== null,
       organizationName: sofiaContext?.currentOrganization?.name ?? null,
     },
-    onWorkspaceReady: presentation.activate,
+    onWorkspaceReady: activateWorkspace,
   });
   // Una conversacion que ya tiene entregable recupera su Skill sola: sin esto,
   // pedir un cambio sobre la presentacion llegaba al modelo sin herramientas
   // de workspace y respondia que no tenia acceso a los archivos.
   useSkillWorkspaceResume({
-    conversationId: props.conversationId ?? null,
-    activeSkill: state.skillModals.activeSkill,
+    conversationId: originId,
+    activeSkill,
     setActiveSkill: state.skillModals.setActiveSkill,
-    onWorkspaceResolved: presentation.restore,
+    onWorkspaceResolved: restoreWorkspace,
   });
   // Y al reves: un chat nuevo no tiene conversacion cuando se activa la Skill,
   // asi que el workspace nace suelto. Se ata en cuanto el chat se guarda; sin
   // esto la presentacion no se podia reabrir al volver a la conversacion.
   useSkillWorkspaceLink({
     conversationId: props.conversationId ?? null,
-    workspaceId: presentation.workspaceId,
+    workspaceId: ownsPresentation ? presentation.workspaceId : null,
+    draftConversationId: originId,
   });
   // Comandos `/skill`: al activarlos se limpia el compositor, porque el
   // comando no es un mensaje que deba viajar al modelo.

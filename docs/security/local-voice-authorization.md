@@ -1,6 +1,6 @@
 # Autorización de voz local
 
-Estado: vigente en el worktree. Cambio: secure-local-voice-authorization.
+Estado: vigente en el worktree. Cambios: secure-local-voice-authorization y fix-voice-automatic-setup.
 
 <!-- evidence: electron/voice/session.ts -->
 <!-- evidence: electron/voice-passive-handlers.ts -->
@@ -25,19 +25,25 @@ sintetizar/reproducir voz admite main y Orbe. Navegación, cambio de marco/venta
 cierre de sesión y A/B/A invalidan llamadas anteriores. Payloads tienen aridad
 y campos cerrados, sin coerciones de objetos ni selección inválida como default.
 
-`enabled` es preferencia, nunca autorización. Init carga configuración sin
-activar el micrófono. Tras autenticar, main puede presentar una revisión nativa
-de la configuración guardada; cancelar conserva voz inactiva y ajustes ofrece
-**Autorizar voz en esta sesión**. No se fabrica un evento IPC para restaurar.
-El consentimiento no se persiste: queda vinculado a la sesión y al dispositivo,
-modelo configurado y palabras revisadas. La escucha pasiva aprobada cubre
-dictado y reanudación de esa misma sesión. Un cambio relevante mientras escucha
-requiere nueva revisión; durante dictado se rechaza cambiar su configuración.
+`enabled` es preferencia, nunca autorización. Init carga configuración y prepara
+dependencias en segundo plano, sin activar el micrófono. Tras autenticar, main
+restaura sólo una aprobación explícita recordada de la misma cuenta y firma de
+dispositivo, modelo configurado y palabras. Si no existe, presenta revisión
+nativa; cancelar conserva la voz inactiva. No se fabrica un evento IPC para
+restaurar. La aprobación se recuerda en archivos versionados bajo
+`userData/voice-consents`, nombrados con SHA256 del identificador de cuenta,
+exclusivamente después de confirmar e iniciar correctamente. Una preferencia
+enabled heredada no se migra a consentimiento. El grant activo sigue siendo
+efímero y se invalida al cerrar sesión o cambiar cuenta A/B/A. La escucha pasiva
+aprobada cubre dictado; dictado aprobado no concede escucha pasiva. Cambiar la
+configuración exige aprobación correspondiente; durante dictado se rechaza cambiarla.
 
 Las pruebas de micrófono requieren revisión temporal de 3 segundos; no conceden
-escucha ni dictado. Instalar modelos o voces siempre pide revisión antes de
-descargar/extractar. Detener/deshabilitar revoca la intención pendiente sin
-esperar aprobación. Los controles muestran **Detener captura de voz** incluso
+escucha ni dictado. Python privado y Vosk pequeño se preparan automáticamente,
+sin abrir el micrófono; modelo grande y voces opcionales mantienen revisión
+nativa antes de descargar. Detener/deshabilitar revoca intención pendiente y
+elimina el consentimiento recordado de la cuenta actual sin esperar aprobación.
+Los controles muestran **Detener captura de voz** incluso
 durante una solicitud pendiente. Preferencias reversibles sin captura y
 reproducción local no agregan diálogos de autorización.
 
@@ -73,6 +79,23 @@ La respuesta indica `uncertain`/`recoveryRequired`, sin repetir ni afirmar
 rollback de archivos. Un cierre físico sin confirmar conserva las barreras de
 reemplazo del transporte Python. No se certifica la terminación de descendientes
 del SO ni la integridad criptográfica/atomicidad de los instaladores existentes.
+
+La preparación automática comparte una promesa entre consumidores. Captura la
+espera y revalida caller/cancelación antes del diálogo y del comando nativo.
+Orbe muestra «Preparando voz…» hasta confirmar el inicio del dictado, en vez de
+«Escuchando…»; el analizador de micrófono renderer tampoco se abre durante esa espera.
+Python reutiliza el preparador con SHA256 fijado, staging y validación de imports;
+se invoca en un proceso separado, sin shell ni hooks/credenciales heredados.
+En desarrollo instala en `python-runtime`; la reparación empaquetada instala en
+`userData/python-runtime`, sin escribir en resources ni usar Python del sistema.
+El instalador incluye los inputs mínimos del preparador. Ajustes muestra
+`setupState` (idle/runtime/model/ready/error), progreso de modelo y reintento.
+`setupErrorCode` distingue `voice_setup_failed` de `voice_runtime_blocked`, sin
+exponer stderr ni rutas. Una política de Control de aplicaciones de Windows
+puede impedir cargar el runtime aun con archivo íntegro; la app lo informa y no
+modifica esa política. No hay bucle de reintentos ni descargas de modelo grande
+automáticas. La preparación ya iniciada puede terminar tras cancelar, pero nunca
+concede captura tardía. El Vosk pequeño conserva su política de integridad previa.
 
 La síntesis remota revalida caller antes/después de esperas y aborta la lectura
 al invalidarse; limita bytes reales, incluidos errores. Conserva prefetch de
