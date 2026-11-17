@@ -1,24 +1,25 @@
-import { MeetingOpsPanel } from '../components/meetings/MeetingOpsPanel';
-import { ProductivityDashboard } from '../components/ProductivityDashboard';
 import { BrowserWorkspaceLayout } from '../components/browser/BrowserWorkspaceLayout';
 import { PresentationWorkspacePanel } from '../components/presentation/PresentationWorkspacePanel';
 import { ArtifactViewerPanel } from '../components/artifacts/ArtifactViewerPanel';
 import { useArtifactViewer } from '../components/artifacts/artifact-viewer-context';
 import { usePresentationWorkspaceContext } from '../contexts/presentation-workspace-context';
-import { useCallback, useRef, useState, type MouseEvent } from 'react';
+import { lazy, Suspense, useCallback, useRef, useState, type MouseEvent } from 'react';
 import { FloatingSofliaChat } from '../components/floating-chat/FloatingSofliaChat';
 import { FloatingProjectChatStart } from '../components/floating-chat/FloatingProjectChatStart';
 import { FloatingArtifactPreview } from '../components/floating-chat/FloatingArtifactPreview';
 import { appFloatingContext, browserFloatingContext } from '../services/floating-chat-context';
 import { LiaDegradedNotice, ShareLinkNoticeBanner } from './AppNotices';
 import { AppChatView } from './AppChatView';
-import { FolderProjectPanel } from '../components/project-workspace/FolderProjectPanel';
 import type { useProjectWorkspace } from './useProjectWorkspace';
 import { Button } from '../components/ui/Button';
-import { UnifiedProjectHub } from '../components/project-hub/UnifiedProjectHub';
 import type { ActiveView, ChatState, FolderState, ShareLinkNotice, ShareTarget } from './app-types';
 import type { UserAISettings } from '../services/settings-service';
 import type { BrowserSelectionActionRequest } from '../services/integrated-browser-service';
+
+const ProductivityDashboard = lazy(() => import('../components/ProductivityDashboard').then(module => ({ default: module.ProductivityDashboard })));
+const MeetingOpsPanel = lazy(() => import('../components/meetings/MeetingOpsPanel').then(module => ({ default: module.MeetingOpsPanel })));
+const FolderProjectPanel = lazy(() => import('../components/project-workspace/FolderProjectPanel').then(module => ({ default: module.FolderProjectPanel })));
+const UnifiedProjectHub = lazy(() => import('../components/project-hub/UnifiedProjectHub').then(module => ({ default: module.UnifiedProjectHub })));
 
 interface AppWorkspaceProps {
   projectWorkspace?: ReturnType<typeof useProjectWorkspace>;
@@ -162,16 +163,16 @@ export function AppWorkspace(props: AppWorkspaceProps) {
           )}
         </div>
       )}
-      {props.activeView === 'productivity' && props.userId && <ProductivityDashboard userId={props.userId} />}
+      {props.activeView === 'productivity' && props.userId && <Suspense fallback={<div role="status">Cargando productividad…</div>}><ProductivityDashboard userId={props.userId} /></Suspense>}
       {props.activeView === 'meetings' && props.userId && (
         <div className="flex-1 min-h-0 overflow-hidden animate-view-in">
-          <MeetingOpsPanel userId={props.userId} organizationId={props.orgId || null} accessUserIds={props.accessUserIds} />
+          <Suspense fallback={<div role="status">Cargando reuniones…</div>}><MeetingOpsPanel userId={props.userId} organizationId={props.orgId || null} accessUserIds={props.accessUserIds} /></Suspense>
         </div>
       )}
       {(props.activeView === 'project' || props.activeView === 'project-hub') && !navigation && <div className="grid h-full place-items-center p-6"><div><p className="text-sm text-secondary">Selecciona un proyecto de la organización actual.</p><Button size="sm" variant="ghost" onClick={props.projectWorkspace?.exit}>Volver a proyectos</Button></div></div>}
       {navigation?.section === 'chat' && <div className="flex min-h-0 flex-1 flex-col">{chatView}</div>}
-      {props.activeView === 'project' && props.currentFolder && props.userId && navigation && navigation.section !== 'chat' && <FolderProjectPanel key={props.currentFolder.id} folder={props.currentFolder} navigation={navigation} userId={props.userId} orgId={props.orgId} />}
-      {props.activeView === 'project-hub' && props.unifiedProject && navigation && navigation.section !== 'chat' && <UnifiedProjectHub workspaceId={props.unifiedProject.workspaceId} projectId={props.unifiedProject.projectId} section={navigation?.section} navigation={navigation} onNavigate={navigation?.onNavigate} onProjectReady={props.projectWorkspace?.onProjectReady} onOpenWeb={props.projectWorkspace?.onOpenWeb} />}
+      {props.activeView === 'project' && props.currentFolder && props.userId && navigation && navigation.section !== 'chat' && <Suspense fallback={<div role="status">Cargando proyecto…</div>}><FolderProjectPanel key={props.currentFolder.id} folder={props.currentFolder} navigation={navigation} userId={props.userId} orgId={props.orgId} /></Suspense>}
+      {props.activeView === 'project-hub' && props.unifiedProject && navigation && navigation.section !== 'chat' && <Suspense fallback={<div role="status">Cargando proyecto…</div>}><UnifiedProjectHub workspaceId={props.unifiedProject.workspaceId} projectId={props.unifiedProject.projectId} section={navigation?.section} navigation={navigation} onNavigate={navigation?.onNavigate} onProjectReady={props.projectWorkspace?.onProjectReady} onOpenWeb={props.projectWorkspace?.onOpenWeb} /></Suspense>}
       {floating && props.userId && <FloatingSofliaChat key={surfaceKey} title={props.currentConversation?.title || navigation?.name} onPrepare={prepareFloatingChat} onNewChat={!navigation || navigation.canCreateChat ? newFloatingChat : undefined}>{chatView}</FloatingSofliaChat>}
       {floating && props.userId && <FloatingArtifactPreview />}
     </main>

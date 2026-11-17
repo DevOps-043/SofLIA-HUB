@@ -17,7 +17,7 @@ export const mockWriteFileSync = vi.fn();
 export const mockLoadConnections = vi.fn();
 export const mockSaveConnections = vi.fn();
 
-vi.doMock('googleapis', () => ({
+vi.doMock('../../google-apis', () => ({
   google: {
     calendar: vi.fn(() => ({ events: { list: mockEventsList, insert: mockEventsInsert, patch: mockEventsPatch, delete: mockEventsDelete } })),
     auth: { OAuth2: MockOAuth2 },

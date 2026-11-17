@@ -1,6 +1,6 @@
 import * as fsPromises from 'node:fs/promises';
 import * as path from 'node:path';
-import { EXCLUDED_DIRS, EXCLUDED_PREFIXES, MAX_DEPTH, MAX_ENTRIES_PER_DIR } from './constants';
+import { EXCLUDED_DIRS, EXCLUDED_PREFIXES, MAX_DEPTH, MAX_ENTRIES_PER_DIR, METADATA_CONCURRENCY } from './constants';
 import type { DirEntry, ScannedDir } from './types';
 
 export async function scanDirectory(
@@ -9,8 +9,9 @@ export async function scanDirectory(
   label: string,
   maxDepth: number,
   currentDepth = 0,
+  current: () => boolean = () => true,
 ): Promise<void> {
-  if (currentDepth > maxDepth || currentDepth > MAX_DEPTH) return;
+  if (!current() || currentDepth > maxDepth || currentDepth > MAX_DEPTH) return;
 
   const normalizedPath = path.normalize(dirPath);
   const dirName = path.basename(normalizedPath);
@@ -19,20 +20,29 @@ export async function scanDirectory(
 
   try {
     const rawEntries = await fsPromises.readdir(normalizedPath, { withFileTypes: true });
+    if (!current()) return;
     const entries: DirEntry[] = [];
     const subdirs: string[] = [];
 
-    for (const entry of rawEntries.slice(0, MAX_ENTRIES_PER_DIR)) {
-      const nextEntry = await collectEntry(normalizedPath, entry);
-      if (!nextEntry) continue;
-      entries.push(nextEntry.entry);
-      if (nextEntry.subdir) subdirs.push(nextEntry.subdir);
+    const selected = rawEntries.slice(0, MAX_ENTRIES_PER_DIR);
+    for (let offset = 0; offset < selected.length; offset += METADATA_CONCURRENCY) {
+      if (!current()) return;
+      const batch = await Promise.all(selected.slice(offset, offset + METADATA_CONCURRENCY).map(entry => collectEntry(normalizedPath, entry)));
+      if (!current()) return;
+      for (const nextEntry of batch) {
+        if (!nextEntry) continue;
+        entries.push(nextEntry.entry);
+        if (nextEntry.subdir) subdirs.push(nextEntry.subdir);
+      }
     }
 
     entries.sort(sortEntries);
     scannedDirs.set(normalizedPath, { path: normalizedPath, label: currentDepth === 0 ? label : '', entries, lastScanMs: Date.now() });
 
-    for (const subdir of subdirs) await scanDirectory(scannedDirs, subdir, '', maxDepth, currentDepth + 1);
+    for (const subdir of subdirs) {
+      if (!current()) return;
+      await scanDirectory(scannedDirs, subdir, '', maxDepth, currentDepth + 1, current);
+    }
   } catch (err: any) {
     if (!['EPERM', 'EACCES', 'ENOENT'].includes(err.code)) {
       console.warn(`[PathMemory] Error escaneando ${normalizedPath}:`, err.message);

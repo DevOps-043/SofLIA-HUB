@@ -1,8 +1,9 @@
 import type React from 'react';
+import { memo } from 'react';
 import { formatInline } from './inline-format';
 import { readNextBlock } from './block-readers';
 
-export function MarkdownRenderer({ text }: { text: string }) {
+export const MarkdownRenderer = memo(function MarkdownRenderer({ text }: { text: string }) {
   if (!text) return null;
 
   const lines = text.split('\n');
@@ -23,4 +24,4 @@ export function MarkdownRenderer({ text }: { text: string }) {
   }
 
   return <div className="min-w-0 space-y-1 break-words">{elements}</div>;
-}
+});

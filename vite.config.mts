@@ -3,8 +3,9 @@ import path from "node:path";
 import electron from "vite-plugin-electron/simple";
 import react from "@vitejs/plugin-react";
 import pkg from "./package.json" with { type: "json" };
-import { createElectronExternals, onElectronRollupWarning } from "./config/vite/electron-build.mjs";
+import { createDevMainExternals, createElectronExternals, onElectronRollupWarning } from "./config/vite/electron-build.mjs";
 import { startElectronDevProcess } from "./config/vite/dev-electron-process.mjs";
+import { createMainProcessRestart } from "./config/vite/dev-main-restart.mjs";
 import { createMainProcessEnvDefines, createPublicEnvDefines, createPreloadEnvDefines } from "./config/vite/env-defines.mjs";
 import { zoomVideoAssets } from './config/vite/zoom-video-assets.mjs';
 
@@ -18,7 +19,12 @@ const OPTIMIZE_DEP_EXCLUDES = [
   "docx",
 ];
 
-export default defineConfig(({ mode }) => {
+// Anclar al checkout actual: un checkout dentro de .worktrees o tmp también
+// debe recibir HMR; sólo se ignoran sus propios directorios generados.
+const GENERATED_WATCH_IGNORES = ['.worktrees', 'python-runtime', 'media-runtime', 'release', 'coverage', 'tmp']
+  .map(directory => `${path.resolve(import.meta.dirname, directory).replaceAll('\\', '/')}/**`);
+
+export default defineConfig(({ command, mode }) => {
   const env = { ...loadEnv("audiovisual", process.cwd(), "VITE_"), ...loadEnv(mode, process.cwd(), "VITE_") };
   // Las credenciales ElevenLabs solo se incrustan en el bundle main. No usan
   // el prefijo VITE_ y por tanto no forman parte de import.meta.env ni del
@@ -26,6 +32,12 @@ export default defineConfig(({ mode }) => {
   const elevenLabsEnv = loadEnv(mode, process.cwd(), "ELEVENLABS_");
   const mainProcessEnvDefines = createMainProcessEnvDefines({ ...env, ...elevenLabsEnv });
   const preloadEnvDefines = createPreloadEnvDefines(env);
+  const mainRestart = createMainProcessRestart(async () => {
+    await startElectronDevProcess(['.', '--no-sandbox'], {
+      // El plugin publica la URL antes de pedir el arranque del hijo.
+      devServerUrl: process.env.VITE_DEV_SERVER_URL,
+    });
+  });
 
   return {
     // Publicación explícita: OpenAI sólo se incrusta en main, nunca en renderer/preload.
@@ -53,7 +65,8 @@ export default defineConfig(({ mode }) => {
         // Las capturas HAR se escriben por streaming y Windows las mantiene
         // bloqueadas. Chokidar intentaba observarlas y derribaba `npm run dev`
         // con EBUSY justo despues de reproducir una llamada de Meet.
-        ignored: ["**/dist/**", "**/dist-electron/**", "**/*.har", "**/mailsoflia*.google.com"],
+        ignored: ["**/dist/**", "**/dist-electron/**", "**/*.har", "**/mailsoflia*.google.com",
+          ...GENERATED_WATCH_IGNORES],
       },
     },
     preview: {
@@ -73,22 +86,23 @@ export default defineConfig(({ mode }) => {
         main: {
           entry: "electron/main.ts",
           onstart: async () => {
-            await startElectronDevProcess(['.', '--no-sandbox'], {
-              // vite-plugin-electron publica este valor antes de ejecutar
-              // `onstart`; lo pasamos de forma explicita al hijo Electron.
-              devServerUrl: process.env.VITE_DEV_SERVER_URL,
-            });
+            await mainRestart.startIfChanged();
           },
           vite: {
             define: mainProcessEnvDefines,
+            plugins: command === 'serve' ? [mainRestart.plugin] : [],
             build: {
+              // Comprimir sólo para informar tamaños retrasa cada rebuild de dev.
+              reportCompressedSize: command !== 'serve',
               lib: {
                 entry: "electron/main.ts",
                 formats: ["cjs"],
                 fileName: () => "[name].js",
               },
               rolldownOptions: {
-                external: createElectronExternals(pkg.dependencies),
+                external: command === 'serve'
+                  ? createDevMainExternals(pkg.dependencies)
+                  : createElectronExternals(pkg.dependencies),
                 onwarn: onElectronRollupWarning,
               },
             },
@@ -96,9 +110,14 @@ export default defineConfig(({ mode }) => {
         },
         preload: {
           input: path.join(import.meta.dirname, "electron/preload.ts"),
+          onstart: async ({ reload }) => {
+            await mainRestart.startIfChanged();
+            reload();
+          },
           vite: {
             define: preloadEnvDefines,
             build: {
+              reportCompressedSize: command !== 'serve',
               rolldownOptions: {
                 external: createElectronExternals(pkg.dependencies),
                 onwarn: onElectronRollupWarning,

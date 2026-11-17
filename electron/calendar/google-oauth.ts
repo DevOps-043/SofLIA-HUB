@@ -58,7 +58,7 @@ export async function connectGoogle(service: CalendarServiceCore, beforeSave: ()
     const context = calendarSession(service);
     const assert = () => { context(); beforeSave(); if (userId !== service.userId || service.config.google !== config) throw new Error('El contexto de autorización cambió.'); };
     assert();
-    const { google, Auth } = await import('googleapis');
+    const { google, Auth } = await import('../google-apis');
     assert();
     const oauth2Client = new google.auth.OAuth2(
       config.clientId,

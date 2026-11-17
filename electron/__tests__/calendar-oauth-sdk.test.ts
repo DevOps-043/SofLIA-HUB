@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PublicClientApplication, ResponseMode, type INetworkModule, type NetworkRequestOptions, type NetworkResponse } from '@azure/msal-node';
-import { google, Auth } from 'googleapis';
+import { google, Auth } from '../google-apis';
 import { createOAuthProof, validateOAuthDestination } from '../calendar/oauth-proof';
 import { OAUTH_REDIRECT_URI } from '../calendar/constants';
 

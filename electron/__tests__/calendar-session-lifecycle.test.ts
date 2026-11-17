@@ -7,10 +7,10 @@ import { createGmailClient } from '../gmail/client';
 import { getDriveClient } from '../drive/google-client';
 import { GChatService } from '../gchat-service';
 // La carga fría del SDK se completa durante recolección; los casos prueban transporte y sesión.
-import { google } from 'googleapis';
+import { google } from '../google-apis';
 
-vi.mock('googleapis', async () => {
-  const { google } = await vi.importActual<typeof import('googleapis')>('googleapis');
+vi.mock('../google-apis', async () => {
+  const { google } = await vi.importActual<typeof import('../google-apis')>('../google-apis');
   return { google: { auth: google.auth, gmail: vi.fn(() => ({})), drive: vi.fn(() => ({})) } };
 });
 

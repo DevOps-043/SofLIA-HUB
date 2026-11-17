@@ -49,6 +49,12 @@ export function createElectronExternals(dependencies: Record<string, string> = {
   };
 }
 
+/** En dev, Node carga el SDK instalado mediante import() al usar WhatsApp. */
+export function createDevMainExternals(dependencies: Record<string, string>): (id: string) => boolean {
+  const productionExternal = createElectronExternals(dependencies);
+  return (id) => id === '@whiskeysockets/baileys' || productionExternal(id);
+}
+
 /**
  * Directorios `node_modules` que Node consultaria al resolver desde este
  * archivo, del mas cercano al mas lejano. Un worktree de Git tiene su propio

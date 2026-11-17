@@ -1,5 +1,5 @@
 import { EMBEDDING_MODEL } from '../ai-provider/embeddings';
-import { MEMORY_EMBEDDING_DIMENSIONS, SEMANTIC_MIN_SCORE } from './constants';
+import { EMBEDDING_CACHE_MAX_CHUNKS, EMBEDDING_CACHE_MAX_SESSIONS, MEMORY_EMBEDDING_DIMENSIONS, SEMANTIC_MIN_SCORE } from './constants';
 import { cosineSimilarity } from './math';
 
 export function searchMemoryEmbeddings(
@@ -14,8 +14,11 @@ export function searchMemoryEmbeddings(
     let chunks = service.embeddingCache.get(sessionKey);
     if (!chunks) {
       chunks = service.loadChunksFromDB(sessionKey, phoneNumber);
-      service.embeddingCache.set(sessionKey, chunks);
     }
+    // Promover el acceso y expulsar sólo datos recargables, nunca filas SQLite.
+    service.embeddingCache.delete(sessionKey);
+    service.embeddingCache.set(sessionKey, chunks);
+    trimEmbeddingCache(service.embeddingCache);
     if (chunks.length === 0) return [];
     const topResults = chunks
       .map((chunk: any) => ({ id: chunk.id, score: cosineSimilarity(queryEmbedding, chunk.embedding), startTime: chunk.startTime }))
@@ -27,6 +30,16 @@ export function searchMemoryEmbeddings(
   } catch (err: any) {
     console.error('[MemoryService] semanticSearch error:', err.message);
     return [];
+  }
+}
+
+function trimEmbeddingCache(cache: Map<string, ReadonlyArray<unknown>>): void {
+  let count = [...cache.values()].reduce((total, chunks) => total + chunks.length, 0);
+  while (cache.size > EMBEDDING_CACHE_MAX_SESSIONS || count > EMBEDDING_CACHE_MAX_CHUNKS) {
+    const oldest = cache.keys().next().value;
+    if (oldest === undefined) break;
+    count -= cache.get(oldest)!.length;
+    cache.delete(oldest);
   }
 }
 

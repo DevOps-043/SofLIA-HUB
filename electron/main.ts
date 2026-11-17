@@ -6,7 +6,9 @@ import { registerPresentationScheme } from './skill-workspace/protocol';
 import { BROWSER_HOME_SCHEME_REGISTRATION } from './integrated-browser/home';
 import { configureChromiumUserAgentFallback } from './integrated-browser/user-agent';
 import { ZOOM_RUNTIME_SCHEME } from './main/zoom-protocol';
+import { markBoot } from './main/boot-timeline';
 
+markBoot('main:entrada');
 configureApplicationBrand(app);
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { loadFolders, type Folder } from '../../services/folder-service';
+import { createVisibleRefresh } from '../../services/visible-refresh';
 
 interface FolderRefreshConfig {
   userId: string | undefined;
@@ -23,25 +24,20 @@ export function useFolderRefresh({
   useEffect(() => {
     if (!userId) return;
 
-    const refreshFolders = () => {
-      void loadFolders(userId, orgId, accessUserIds)
-        .then((nextFolders) => {
-          setFolders((prev) => (areFolderListsEqual(prev, nextFolders) ? prev : nextFolders));
-          if (currentFolderId && !nextFolders.some((folder) => folder.id === currentFolderId)) {
-            setCurrentFolderId(null);
-          }
-        })
-        .catch((error) => {
-          console.warn('[useFolderManager] refreshFolders FAILED:', error);
-        });
-    };
-
-    const intervalId = window.setInterval(refreshFolders, 30000);
-    window.addEventListener('focus', refreshFolders);
+    let disposed = false;
+    const refresh = createVisibleRefresh(async () => {
+      const nextFolders = await loadFolders(userId, orgId, accessUserIds);
+      if (!disposed) {
+        setFolders((prev) => (areFolderListsEqual(prev, nextFolders) ? prev : nextFolders));
+        if (currentFolderId && !nextFolders.some((folder) => folder.id === currentFolderId)) {
+          setCurrentFolderId(null);
+        }
+      }
+    }, 30000, error => console.warn('[Carpetas] No se pudieron actualizar las carpetas:', error));
 
     return () => {
-      window.clearInterval(intervalId);
-      window.removeEventListener('focus', refreshFolders);
+      disposed = true;
+      refresh.dispose();
     };
   }, [accessUserIds, currentFolderId, orgId, setCurrentFolderId, setFolders, userId]);
 }

@@ -5,7 +5,7 @@ export async function sendMessage(this: GChatService, spaceName: string, text: s
     if (!auth) return { success: false, error: 'Google no conectado' };
 
     try {
-      const { google } = await import('googleapis');
+      const { google } = await import('../google-apis');
       const chat = google.chat({ version: 'v1', auth });
       const resolved = await this.resolveSpaceReference(chat, spaceName);
 

@@ -2,8 +2,10 @@ import { afterEach, beforeEach, vi } from 'vitest';
 import * as waFixtures from '../whatsapp-service.fixtures';
 
 let WhatsAppService: any;
+let services: Array<{ disconnect(): Promise<void> }> = [];
 
 beforeEach(async () => {
+  services = [];
   vi.clearAllMocks();
   waFixtures.mockSockEvents.removeAllListeners();
   waFixtures.mockFsMkdir.mockResolvedValue(undefined);
@@ -16,16 +18,20 @@ beforeEach(async () => {
   WhatsAppService = mod.WhatsAppService;
 });
 
-afterEach(() => {
+afterEach(async () => {
+  vi.useRealTimers();
+  for (const service of services) await service.disconnect();
   vi.restoreAllMocks();
 });
 
 export function createService(): any {
-  return new WhatsAppService();
+  const service = new WhatsAppService();
+  services.push(service);
+  return service;
 }
 
 export async function createConnectedService(): Promise<any> {
-  const service = new WhatsAppService();
+  const service = createService();
   await service.init();
   await service.connect();
   return service;

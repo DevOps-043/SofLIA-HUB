@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import './index.css'
+import { isOrbWindow } from './app/window-mode'
 
 const isPresentationRuntime = new URLSearchParams(window.location.search).get('view') === 'presentation'
   || window.location.pathname.startsWith('/presentacion/')
@@ -32,7 +33,7 @@ async function bootstrap() {
   }
 
   const [{ default: App }, { registerMainProcessMessages }] = await Promise.all([
-    import('./App.tsx'),
+    isOrbWindow() ? import('./app/OrbApp') : import('./App.tsx'),
     import('./app/registerMainProcessMessages'),
   ])
   root.render(

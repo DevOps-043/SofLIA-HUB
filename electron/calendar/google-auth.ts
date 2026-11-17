@@ -11,7 +11,7 @@ export async function getGoogleAuth(service: CalendarServiceCore) {
   const assert = calendarSession(service, conn);
   try {
     assert();
-    const { google } = await import('googleapis');
+    const { google } = await import('../google-apis');
     assert();
     const oauth2Client = new google.auth.OAuth2(service.config.google?.clientId, service.config.google?.clientSecret, OAUTH_REDIRECT_URI);
     // También protege clientes de Gmail/Drive/Chat conservados antes del logout.

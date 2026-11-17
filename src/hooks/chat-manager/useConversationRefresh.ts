@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { loadConversations, loadMessages } from '../../services/chat-service';
 import { areConversationListsEqual, areMessageListsEqual, hasActivePlaceholder } from './helpers';
 import type { ChatManagerState, ChatStorageKeyResolver, UseChatManagerOptions } from './types';
@@ -9,25 +9,42 @@ type ConversationRefreshDeps = UseChatManagerOptions & {
 };
 
 export function useConversationRefresh({ accessUserIds, getCurrentChatStorageKey, orgId, state, userId }: ConversationRefreshDeps) {
+  const latestState = useRef(state);
+  useLayoutEffect(() => { latestState.current = state; });
+  const generation = useRef(0);
+  useEffect(() => {
+    const revision = ++generation.current;
+    return () => { generation.current = revision + 1; };
+  }, [orgId, userId]);
+  const pendingMessages = useRef(new Map<string, Promise<void>>());
+  const pendingConversations = useRef(new Map<string, Promise<void>>());
   const refreshCurrentConversationMessages = useCallback(
-    async (conversationId: string, capturedScopeVersion: number = state.scopeVersionRef.current) => {
-      if (!userId) return;
-      const refreshedMessages = await loadMessages(conversationId, userId);
-      if (
-        state.scopeVersionRef.current !== capturedScopeVersion ||
-        state.currentConvIdRef.current !== conversationId ||
-        hasActivePlaceholder(state.currentMessagesRef.current)
-      ) return;
-      state.setCurrentMessages((prev) => (areMessageListsEqual(prev, refreshedMessages) ? prev : refreshedMessages));
+    (conversationId: string, capturedScopeVersion: number = latestState.current.scopeVersionRef.current) => {
+      const state = latestState.current;
+      const revision = generation.current;
+      const key = JSON.stringify([userId, orgId, revision, capturedScopeVersion, conversationId]);
+      return joinRequest(pendingMessages.current, key, async () => {
+        if (!userId) return;
+        const refreshedMessages = await loadMessages(conversationId, userId);
+        if (
+          generation.current !== revision || state.scopeVersionRef.current !== capturedScopeVersion ||
+          state.currentConvIdRef.current !== conversationId ||
+          hasActivePlaceholder(state.currentMessagesRef.current)
+        ) return;
+        state.setCurrentMessages((prev) => (areMessageListsEqual(prev, refreshedMessages) ? prev : refreshedMessages));
+      });
     },
-    [state, userId],
+    [orgId, userId],
   );
 
   const loadInitialConversations = useCallback(async () => {
+    const state = latestState.current;
     if (!userId) return [];
+    const revision = generation.current;
     state.setLoadingConversations(true);
     try {
       const convs = await loadConversations(userId, orgId, accessUserIds);
+      if (generation.current !== revision) return [];
       state.setConversations(convs);
       
       // Siempre iniciar con una nueva conversación vacía al iniciar sesión
@@ -35,30 +52,43 @@ export function useConversationRefresh({ accessUserIds, getCurrentChatStorageKey
       localStorage.removeItem(getCurrentChatStorageKey(userId));
       return convs;
     } finally {
-      state.setLoadingConversations(false);
+      if (generation.current === revision) state.setLoadingConversations(false);
     }
-  }, [accessUserIds, getCurrentChatStorageKey, orgId, state, userId]);
+  }, [accessUserIds, getCurrentChatStorageKey, orgId, userId]);
 
-  const refreshConversationsFromRemote = useCallback(async () => {
-    if (!userId) return;
-    const capturedScopeVersion = state.scopeVersionRef.current;
-    const convs = await loadConversations(userId, orgId, accessUserIds);
-    if (state.scopeVersionRef.current !== capturedScopeVersion) return;
-    state.setConversations((prev) => (areConversationListsEqual(prev, convs) ? prev : convs));
+  const refreshConversationsFromRemote = useCallback(() => {
+    const state = latestState.current;
+    const revision = generation.current;
+    const key = JSON.stringify([userId, orgId, revision, state.scopeVersionRef.current]);
+    return joinRequest(pendingConversations.current, key, async () => {
+      if (!userId) return;
+      const capturedScopeVersion = state.scopeVersionRef.current;
+      const convs = await loadConversations(userId, orgId, accessUserIds);
+      if (generation.current !== revision || state.scopeVersionRef.current !== capturedScopeVersion) return;
+      state.setConversations((prev) => (areConversationListsEqual(prev, convs) ? prev : convs));
 
-    const activeConversationId = state.currentConvIdRef.current;
-    if (!activeConversationId) return;
-    if (!convs.some((conversation) => conversation.id === activeConversationId)) {
-      clearActiveChat(state);
-      localStorage.removeItem(getCurrentChatStorageKey(userId));
-      return;
-    }
-    if (!hasActivePlaceholder(state.currentMessagesRef.current)) {
-      await refreshCurrentConversationMessages(activeConversationId, capturedScopeVersion);
-    }
-  }, [accessUserIds, getCurrentChatStorageKey, orgId, refreshCurrentConversationMessages, state, userId]);
+      const activeConversationId = state.currentConvIdRef.current;
+      if (!activeConversationId) return;
+      if (!convs.some((conversation) => conversation.id === activeConversationId)) {
+        clearActiveChat(state);
+        localStorage.removeItem(getCurrentChatStorageKey(userId));
+        return;
+      }
+      if (!hasActivePlaceholder(state.currentMessagesRef.current)) {
+        await refreshCurrentConversationMessages(activeConversationId, capturedScopeVersion);
+      }
+    });
+  }, [accessUserIds, getCurrentChatStorageKey, orgId, refreshCurrentConversationMessages, userId]);
 
   return { loadInitialConversations, refreshConversationsFromRemote, refreshCurrentConversationMessages };
+}
+
+function joinRequest(pending: Map<string, Promise<void>>, key: string, task: () => Promise<void>): Promise<void> {
+  const active = pending.get(key);
+  if (active) return active;
+  const promise = task().finally(() => { if (pending.get(key) === promise) pending.delete(key); });
+  pending.set(key, promise);
+  return promise;
 }
 
 function clearActiveChat(state: ChatManagerState): void {

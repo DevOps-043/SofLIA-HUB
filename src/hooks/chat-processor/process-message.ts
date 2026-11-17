@@ -72,7 +72,10 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
 
   const isCurrent = input.isCurrent ?? (() => true);
 
+  let previousActivity: { phase: AvatarActivity['phase']; expression?: AvatarActivity['expression'] } | undefined;
   const activity = (phase: AvatarActivity['phase'], expression?: AvatarActivity['expression']) => {
+    if (previousActivity?.phase === phase && previousActivity.expression === expression) return;
+    previousActivity = { phase, expression };
     if (isCurrent()) input.onAvatarActivity?.({ phase, expression, version: ++avatarActivitySequence });
   };
   activity('thinking');
@@ -138,13 +141,18 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
 
     if (browserSources.length) aiPlaceholder.sources = browserSources;
     let fullText = '';
+    let lastPublication = Number.NEGATIVE_INFINITY;
     for await (const chunk of result.stream) {
       if (input.signal?.aborted) break;
       // Superado por una edición/regeneración: abandonar sin escribir.
       if (!isCurrent()) { log('superado por otra generación → abandono'); return; }
       if (chunk) activity('responding');
       fullText += chunk;
-      updateAiMessage(updatedMessages, aiMessageId, { text: fullText || PLACEHOLDER_TEXT }, onMessagesChange);
+      const now = performance.now();
+      if (now - lastPublication >= STREAM_PUBLICATION_INTERVAL_MS) {
+        updateAiMessage(updatedMessages, aiMessageId, { text: fullText || PLACEHOLDER_TEXT }, onMessagesChange);
+        lastPublication = now;
+      }
     }
 
     if (input.signal?.aborted) {
@@ -153,6 +161,9 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
       settle({ text: fullText.trim() || '⏹️ Detenido.' }); activity('cancelled');
       return;
     }
+    if (!isCurrent()) return;
+    // Vaciar el texto acumulado antes de esperar fuentes o persistencia.
+    updateAiMessage(updatedMessages, aiMessageId, { text: fullText || PLACEHOLDER_TEXT }, onMessagesChange);
 
     // Registra el turno para que SofLIA aprenda (resumen + skills autonomos).
     recordChatTurn(input.sofiaUserId, text, fullText, input.memorySessionScope);
@@ -185,6 +196,7 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
 }
 
 const CONTEXT_TIMEOUT_MS = 15_000;
+const STREAM_PUBLICATION_INTERVAL_MS = 50;
 
 /**
  * Espera una promesa pero devuelve `fallback` si tarda más de `timeoutMs`, para

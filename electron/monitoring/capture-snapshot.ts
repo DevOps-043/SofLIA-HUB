@@ -8,6 +8,7 @@ interface CaptureMonitoringSnapshotInput {
   emitError: (message: string) => void;
   getIdleSeconds: () => number;
   isRunning: boolean;
+  current?: () => boolean;
   takeScreenshot: (timestamp: Date, displayId?: string) => Promise<string | undefined>;
 }
 
@@ -21,10 +22,12 @@ export interface CaptureMonitoringSnapshotResult {
 export async function captureMonitoringSnapshot(
   input: CaptureMonitoringSnapshotInput,
 ): Promise<CaptureMonitoringSnapshotResult | null> {
-  if (!input.isRunning) return null;
+  const current = input.current ?? (() => input.isRunning);
+  if (!current()) return null;
 
   const timestamp = new Date();
   const windowInfo = await getActiveWindowInfo();
+  if (!current()) return null;
   if (windowInfo) {
     input.diagnostics.activeWinAvailable = true;
   } else {
@@ -42,8 +45,11 @@ export async function captureMonitoringSnapshot(
   const screenshotPath = needsScreenshot && !idle
     ? await input.takeScreenshot(timestamp, input.config.targetDisplayId)
     : undefined;
+  if (!current()) { deleteTransientScreenshot(screenshotPath, false); return null; }
   const ocrText = await readOcrText(input.config.ocrEnabled, screenshotPath);
+  if (!current()) { deleteTransientScreenshot(screenshotPath, false); return null; }
   const semanticSnapshot = await readSemanticSnapshot(input.config.semanticSnapshotEnabled, idle, screenshotPath);
+  if (!current()) { deleteTransientScreenshot(screenshotPath, false); return null; }
   deleteTransientScreenshot(screenshotPath, input.config.screenshotEnabled);
 
   return {

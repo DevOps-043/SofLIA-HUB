@@ -10,13 +10,16 @@ import { fileURLToPath, URL } from 'node:url';
 const rootFiles = new Set([
   'package.json', 'package-lock.json', 'tsconfig.json', 'tsconfig.node.json',
   'vite.config.mts', 'vite.presentation.config.mts', 'vite.audiovisual.config.mts', 'vite.zoom.config.mts',
-  'vitest.config.ts', 'postcss.config.js', 'tailwind.config.js', 'index.html',
+  'vitest.config.ts', 'postcss.config.js', 'tailwind.config.js', 'index.html', 'CHANGELOG.md',
 ]);
 // Sólo entradas versionadas del runtime; no copiar su perfil ni configuración local.
 const zoomSourceFiles = new Set([
   'packages/zoom-runtime/package.json', 'packages/zoom-runtime/package-lock.json',
   'packages/zoom-runtime/tsconfig.json', 'packages/zoom-runtime/index.html',
   'packages/zoom-runtime/runtime.ts', 'packages/zoom-runtime/share-lifecycle.ts',
+  'packages/zoom-runtime/academic-rooms.ts', 'packages/zoom-runtime/call-devices.ts',
+  'packages/zoom-runtime/meeting-runtime.ts', 'packages/zoom-runtime/program-audio.ts',
+  'packages/zoom-runtime/video-client.ts', 'packages/zoom-runtime/video-runtime.ts',
 ]);
 const sourceRoots = new Set(['src', 'electron', 'config', 'public', 'resources', 'scripts', 'test']);
 export const projectRoot = fileURLToPath(new URL('../../', import.meta.url));

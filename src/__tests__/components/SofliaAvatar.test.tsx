@@ -40,6 +40,21 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); removedMedia.mockClear(); disconnected.mockClear(); });
 
 describe('avatar original compuesto en 2D', () => {
+  it('acota actualizaciones visuales en dos núcleos sin apagar voz ni expresiones', () => {
+    vi.spyOn(navigator, 'hardwareConcurrency', 'get').mockReturnValue(2);
+    render(<SofliaAvatar state="speaking" audioLevel={{ current: .7 }} />);
+    advance(16);
+    const first = css('sweep');
+    advance(16);
+    expect(css('sweep')).toBe(first);
+    advance(18);
+    expect(css('sweep')).not.toBe(first);
+    advanceFrames(90);
+    expect(css('energy')).toBeCloseTo(.7, 2);
+    expect(avatar()).toHaveAttribute('data-expression', 'speaking');
+    expect(pending.size).toBe(1);
+  });
+
   it('muestra las letras de sueño fuera del cuerpo y del visor sólo al dormir', () => {
     const { rerender } = render(<SofliaAvatar state="sleeping" />);
     const cues = avatar().querySelector('.soflia-avatar__sleep-cues')!;

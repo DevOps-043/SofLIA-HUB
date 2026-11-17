@@ -16,7 +16,7 @@ export async function fetchGoogleEvents(
   end: Date,
   assert: () => void = () => {},
 ): Promise<CalendarEvent[]> {
-  const { google } = await import('googleapis');
+  const { google } = await import('../google-apis');
   const oauth2Client = await service.getGoogleAuth();
   if (!oauth2Client) throw new Error('Google no conectado.');
   assert();

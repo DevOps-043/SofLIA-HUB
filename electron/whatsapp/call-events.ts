@@ -14,8 +14,13 @@ import { isOrgAdminRole } from '../communication-hub/authorization';
  */
 export function registerCallEvents(service: WhatsAppServiceCore): void {
   service.sock!.ev.on('call', async (events: any[]) => {
-    for (const event of events || []) {
-      await processCallEvent(service, event);
+    if (!Array.isArray(events)) {
+      console.warn('[WhatsApp] Lote de llamadas inválido.');
+      return;
+    }
+    for (const event of events) {
+      try { await processCallEvent(service, event); }
+      catch { console.error('[WhatsApp] No se pudo procesar una llamada entrante.'); }
     }
   });
 }

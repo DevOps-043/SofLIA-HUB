@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import type { desktopCapturer } from 'electron';
 import { composeMonitorBuffers, renderMarkedScreenBuffer } from './screenshot-processing';
@@ -49,7 +50,7 @@ export async function takeMonitoringScreenshot(options: TakeMonitoringScreenshot
     }
 
     const safeId = displayId ? displayId.replace(/[^a-zA-Z0-9]/g, '') : 'combined';
-    const filePath = path.join(screenshotDir, `snap_${timestamp.getTime()}_${safeId}.png`);
+    const filePath = path.join(screenshotDir, `snap_${timestamp.getTime()}_${safeId}_${randomUUID()}.png`);
     await fs.writeFile(filePath, finalBuffer);
     return filePath;
   } catch (error: any) {

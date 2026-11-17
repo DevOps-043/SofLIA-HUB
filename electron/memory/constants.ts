@@ -4,6 +4,8 @@ import path from 'node:path';
 export const DB_PATH = path.join(app.getPath('userData'), 'soflia-memory.db');
 export const OLD_MEMORIES_PATH = path.join(app.getPath('userData'), 'whatsapp-memories.json');
 export const MEMORY_EMBEDDING_DIMENSIONS = 768;
+export const EMBEDDING_CACHE_MAX_SESSIONS = 4;
+export const EMBEDDING_CACHE_MAX_CHUNKS = 5000;
 export const CHUNK_TOKENS = 400;
 export const CHUNK_OVERLAP = 80;
 export const CHARS_PER_TOKEN = 4;

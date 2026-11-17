@@ -13,6 +13,7 @@ interface UseAppBootstrapOptions {
 export function useAppBootstrap({ chat, folder, orgId, setUserSettings, userId }: UseAppBootstrapOptions) {
   useEffect(() => {
     if (!userId) return;
+    let disposed = false;
 
     const init = async () => {
       const cached = getCachedSettings();
@@ -23,9 +24,12 @@ export function useAppBootstrap({ chat, folder, orgId, setUserSettings, userId }
         folder.loadInitialFolders(),
         loadSettings(userId),
       ]);
-      setUserSettings(settings);
+      if (!disposed) setUserSettings(settings);
     };
 
-    init();
+    void init().catch(() => {
+      if (!disposed) console.warn('[Inicio] No se pudieron cargar todos los datos iniciales.');
+    });
+    return () => { disposed = true; };
   }, [orgId, userId]);
 }

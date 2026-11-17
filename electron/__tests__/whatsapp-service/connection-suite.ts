@@ -4,6 +4,27 @@ import * as waFixtures from '../whatsapp-service.fixtures';
 import { createConnectedService, createService } from './setup';
 
 describe('WhatsApp Service - conexion', () => {
+  it('continúa con mensajes válidos después de un elemento malformado del lote', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const service = await createConnectedService();
+    const message = vi.fn(); service.on('message', message);
+    waFixtures.mockSockEvents.emit('messages.upsert', { messages: [null,
+      { key: { remoteJid: '123@s.whatsapp.net', fromMe: false }, message: { conversation: 'Mensaje válido' } }] });
+    await vi.waitFor(() => expect(message).toHaveBeenCalledOnce());
+    expect(error).toHaveBeenCalled();
+  });
+
+  it('contiene rechazo de autorización remota y procesa el siguiente mensaje', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const service = await createConnectedService();
+    service.setCommunicationHubService({ resolvePrincipalFromWhatsApp: vi.fn().mockRejectedValueOnce(new Error('Sin red')).mockResolvedValue({ active: true, capabilities: ['personal_agent'] }) } as never);
+    const message = vi.fn(); service.on('message', message);
+    const item = { key: { remoteJid: '123@s.whatsapp.net', fromMe: false }, message: { conversation: 'Mensaje válido' } };
+    waFixtures.mockSockEvents.emit('messages.upsert', { messages: [item, item] });
+    await vi.waitFor(() => expect(message).toHaveBeenCalledOnce());
+    expect(error).toHaveBeenCalled();
+  });
+
   it('WA-001: service is an EventEmitter', () => {
     expect(createService()).toBeInstanceOf(EventEmitter);
   });
@@ -63,7 +84,7 @@ describe('WhatsApp Service - conexion', () => {
     const service = await createConnectedService();
     const connectSpy = vi.spyOn(service, 'connect');
     waFixtures.mockSockEvents.emit('connection.update', { connection: 'close', lastDisconnect: { error: { output: { statusCode: 428 } } } });
-    vi.advanceTimersByTime(3000);
+    await vi.advanceTimersByTimeAsync(3000);
     expect(connectSpy).toHaveBeenCalled();
     vi.useRealTimers();
   });

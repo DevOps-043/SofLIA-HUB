@@ -2,7 +2,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { google } from 'googleapis';
+import { google } from '../google-apis';
 import { mailboxFixture } from './gmail-mailbox/fixtures';
 import type { GmailClient } from '../gmail/types';
 

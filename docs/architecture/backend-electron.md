@@ -11,8 +11,8 @@ Estado: vigente. Actualizado: 2026-08-06.
 `electron/main.ts` configura autoplay, impide bootstrap duplicado y obtiene el
 single-instance lock. `runBootstrap` despues:
 
-1. importa modulos de servicio de forma dinamica;
-2. configura entorno y parsea protocolo `soflia:`;
+1. configura entorno antes de evaluar los módulos dinámicos;
+2. solicita módulos en paralelo, espera el conjunto y parsea `soflia:`;
 3. construye servicios y estado runtime;
 4. conecta dependencias entre servicios y eventos;
 5. registra handlers que no requieren ventana;
@@ -20,7 +20,51 @@ single-instance lock. `runBootstrap` despues:
 7. inicializa subsistemas con `runOptionalStep`;
 8. crea ventana/tray y conecta WhatsApp si corresponde.
 
+Las solicitudes de imports concurrentes conservan las 67 exportaciones y el
+registro completo de handlers antes de crear ventanas. Un fallo rechaza el
+bootstrap sin publicar servicios parciales. Los hitos `main:entrada`,
+`modulos:inicio/fin`, `entorno:inicio/fin` y `servicios:construir:inicio/fin`
+separan evaluación estática, carga, entorno y constructores. El reloj incluye
+el tiempo anterior a importar `boot-timeline`, desde el origen de Node main;
+no incluye compilación de Vite ni representa tiempo de lectura de `.env`.
+
 ## Servicios construidos
+
+Monitoreo mantiene un pipeline periódico en vuelo por servicio. Las revisiones
+de sesión/configuración descartan resultados anteriores y detienen etapas aún
+no iniciadas; una sesión nueva solicita captura fresca al liberarse la anterior.
+Las capturas explícitas siguen disponibles. Los archivos incorporan UUID para
+evitar colisiones entre capturas del mismo milisegundo. Errores sin receptor del
+evento `error` se registran y no lanzan una excepción adicional.
+
+PathMemory conserva un intervalo/watchers por instancia y serializa las
+actualizaciones, agrupando invalidaciones. El escáner mantiene sus límites de
+entradas/profundidad y consulta hasta cuatro metadatos a la vez. Stop cancela
+timers/etapas nuevas y publicaciones antiguas; IO ya iniciado puede terminar.
+
+La caché de embeddings de MemoryService expulsa por LRU al superar cuatro
+sesiones o 5000 vectores acumulados. Las filas SQLite y el alcance de búsqueda
+se conservan y se recargan al volver a consultar. Las invalidaciones delete/clear
+existentes siguen vigentes. Ver [evidencia y límites](../../openspec/changes/bound-background-work-and-memory/reports/verification.md).
+
+`WhatsAppService` conserva estado/configuración sin importar el SDK de transporte.
+`whatsapp/connection-runtime.ts` se carga al conectar, también en autoconexión.
+Las llamadas simultáneas comparten un intento; desconexión o cambio de sesión lo
+revocan y cada espera revalida antes de crear socket. No cambia permisos ni
+funciones de QR, envíos, medios o agente. La conversión de documentos del hub
+heredado carga su descargador al recibir un documento compatible.
+
+`whatsapp/reconnect.ts` mantiene un reintento cancelable por servicio y retira su
+listener de sesión al ejecutarse/cancelarse. Inicio manual, desconexión y cambio
+de identidad lo invalidan. Eventos de sockets retirados se descartan y los
+rechazos de conexión/credenciales se registran sin escapar del callback. La
+desconexión retira la referencia al socket antes de esperar logout y libera el
+transporte incluso si falla; no vuelve a borrar el estado de un socket nuevo.
+Los lotes de mensajes y llamadas aíslan los errores por elemento, incluida una
+resolución de identidad que rechace por falta de red, y continúan con los demás.
+El fallo de autorización no habilita el mensaje ni provoca envíos automáticos.
+
+Ver [evidencia y límites](../../openspec/changes/optimize-connection-and-stream-lifecycle/reports/verification.md).
 
 | Servicio | Dependencias directas | Estado/persistencia |
 |---|---|---|

@@ -1,6 +1,7 @@
 export const SCAN_INTERVAL_MS = 15 * 60 * 1000;
 export const WATCH_DEBOUNCE_MS = 5000;
 export const MAX_ENTRIES_PER_DIR = 200;
+export const METADATA_CONCURRENCY = 4;
 export const MAX_DEPTH = 4;
 export const MAX_PATHS_MD_SIZE = 8000;
 

@@ -17,7 +17,7 @@ export async function updateEvent(
   if (!auth) return { success: false, error: 'Google no conectado' };
 
   try {
-    const { google } = await import('googleapis');
+    const { google } = await import('../google-apis');
     const calendar = google.calendar({ version: 'v3', auth });
     const requestBody: { summary?: string; description?: string; location?: string; start?: { dateTime: string }; end?: { dateTime: string } } = {};
     if (updates.title) requestBody.summary = updates.title;
@@ -40,7 +40,7 @@ export async function deleteEvent(service: CalendarServiceCore, eventId: string,
   if (!auth) return { success: false, error: 'Google no conectado' };
 
   try {
-    const { google } = await import('googleapis');
+    const { google } = await import('../google-apis');
     const calendar = google.calendar({ version: 'v3', auth });
     beforeExecute();
     await calendar.events.delete({ calendarId: calendarId || 'primary', eventId });

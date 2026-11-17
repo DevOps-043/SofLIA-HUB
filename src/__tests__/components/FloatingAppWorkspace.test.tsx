@@ -24,9 +24,9 @@ describe('Integración del chat flotante en la aplicación',()=>{
     fireEvent.click(screen.getByRole('button',{name:'Preparar chat del proyecto para escribir'}));fireEvent.click(screen.getByRole('button',{name:'Nuevo chat'}));
     expect(create).toHaveBeenCalledOnce();await act(async()=>finish());
   });
-  it('la sección general de productividad no monta el compositor de proyectos',()=>{
+  it('la sección general de productividad no monta el compositor de proyectos',async()=>{
     render(<AppWorkspace {...props()}/>);
-    expect(screen.getByText('Tareas visibles')).toBeVisible();
+    expect(await screen.findByText('Tareas visibles')).toBeVisible();
     expect(screen.queryByTestId('actual-chat')).toBeNull();
     expect(screen.queryByRole('button',{name:'Abrir chat flotante con Soflia'})).toBeNull();
   });

@@ -10,7 +10,7 @@ export const mockFilesGet = vi.fn();
 export const mockFilesList = vi.fn();
 export const mockGetGoogleAuth = vi.fn();
 
-vi.doMock('googleapis', () => ({
+vi.doMock('../../google-apis', () => ({
   google: {
     drive: vi.fn(() => ({
       files: {

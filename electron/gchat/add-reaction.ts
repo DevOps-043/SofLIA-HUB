@@ -5,7 +5,7 @@ export async function addReaction(this: GChatService, messageName: string, emoji
     if (!auth) return { success: false, error: 'Google no conectado' };
 
     try {
-      const { google } = await import('googleapis');
+      const { google } = await import('../google-apis');
       const chat = google.chat({ version: 'v1', auth });
 
       await chat.spaces.messages.reactions.create({

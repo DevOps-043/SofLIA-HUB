@@ -1,6 +1,6 @@
 import { addToGroupContext, getGroupHistory } from './group-context';
 import { botIdentifiers, shouldRespondInGroup } from './group-activation';
-import { emitMediaIfPresent } from './media-events';
+import { emitMediaIfPresent, type DownloadMediaMessage } from './media-events';
 import {
   cleanGroupText,
   extractRawText,
@@ -14,15 +14,24 @@ import { detectJailbreak, isAllowedGroupSender, isAllowedNumber } from './securi
 import type { WhatsAppServiceCore } from './types';
 import { isOrgAdminRole } from '../communication-hub/authorization';
 
-export function registerMessageEvents(service: WhatsAppServiceCore): void {
+export function registerMessageEvents(service: WhatsAppServiceCore, downloadMediaMessage: DownloadMediaMessage): void {
   service.sock!.ev.on('messages.upsert', async (messageBatch) => {
+    if (!Array.isArray(messageBatch?.messages)) {
+      console.warn('[WhatsApp] Lote de mensajes inválido.');
+      return;
+    }
     for (const msg of messageBatch.messages) {
-      await processIncomingMessage(service, msg);
+      try { await processIncomingMessage(service, msg, downloadMediaMessage); }
+      catch { console.error('[WhatsApp] No se pudo procesar un mensaje entrante.'); }
     }
   });
 }
 
-async function processIncomingMessage(service: WhatsAppServiceCore, msg: any): Promise<void> {
+async function processIncomingMessage(
+  service: WhatsAppServiceCore,
+  msg: any,
+  downloadMediaMessage: DownloadMediaMessage,
+): Promise<void> {
   if (msg.key.remoteJid === 'status@broadcast' || msg.key.fromMe || !msg.message) return;
   const jid = msg.key.remoteJid!;
   const isGroup = jid.endsWith('@g.us');
@@ -69,7 +78,7 @@ async function processIncomingMessage(service: WhatsAppServiceCore, msg: any): P
 
   const history = isGroup ? getGroupHistory(service, jid) : '';
   try {
-    if (await emitMediaIfPresent(service, msg, jid, senderNumber, cleanText, isGroup, history)) return;
+    if (await emitMediaIfPresent(service, msg, jid, senderNumber, cleanText, isGroup, history, downloadMediaMessage)) return;
   } catch (err) {
     console.error('[WhatsApp] Error downloading media:', err);
   }

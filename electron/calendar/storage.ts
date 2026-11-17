@@ -12,7 +12,7 @@ export async function restoreGoogleSession(service: CalendarServiceCore): Promis
   const identity = calendarSession(service);
   try {
     assert();
-    const { google } = await import('googleapis');
+    const { google } = await import('../google-apis');
     assert();
     const oauth2Client = new google.auth.OAuth2(service.config.google.clientId, service.config.google.clientSecret, OAUTH_REDIRECT_URI);
     oauth2Client.setCredentials({ refresh_token: conn.refreshToken });

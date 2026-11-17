@@ -9,7 +9,7 @@ export const mockMembersList = vi.fn();
 export const mockGetGoogleAuth = vi.fn();
 export const mockGetConnections = vi.fn();
 
-vi.mock('googleapis', () => ({
+vi.mock('../../google-apis', () => ({
   google: {
     chat: vi.fn(() => ({
       spaces: {

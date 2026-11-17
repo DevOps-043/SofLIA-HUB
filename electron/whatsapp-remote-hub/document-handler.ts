@@ -1,4 +1,3 @@
-import { downloadMediaMessage } from '@whiskeysockets/baileys';
 import type { WAMessage, WASocket } from '@whiskeysockets/baileys';
 import fs from 'fs';
 import os from 'os';
@@ -35,6 +34,7 @@ export async function handleIncomingDocument(options: IncomingDocumentOptions): 
     }
 
     await sendMessage(jid, `Descargando documento \`${fileName}\` para Quick-Conversion...`);
+    const { downloadMediaMessage } = await import('@whiskeysockets/baileys');
     const buffer = await downloadMediaMessage(message, 'buffer', {});
     const tempPath = path.join(os.tmpdir(), `wa_doc_${Date.now()}_${fileName}`);
     fs.writeFileSync(tempPath, buffer as Buffer);

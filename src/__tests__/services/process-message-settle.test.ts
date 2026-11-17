@@ -5,7 +5,7 @@
  * que falla, o que se cancela, jamás debe dejar un "..." pegado — porque la carga
  * es por-placeholder y un "..." residual bloquea la conversación para siempre.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChatMessage } from '../../services/chat-service';
 
 const mocks = vi.hoisted(() => ({
@@ -59,7 +59,33 @@ function lastAiText(messages: ChatMessage[]): string | undefined {
   return [...messages].reverse().find((message) => message.role === 'model')?.text;
 }
 
+afterEach(() => vi.restoreAllMocks());
+
 describe('process-message settle guarantee', () => {
+  it('agrupa mil fragmentos conservando texto, fuentes, imágenes y actividad', async () => {
+    vi.spyOn(performance, 'now').mockReturnValue(0);
+    const chunks = Array.from({ length: 1000 }, (_, index) => `${index},`);
+    const activity = vi.fn(), publications = vi.fn();
+    const source = { title: 'Fuente', uri: 'https://example.test/' };
+    mocks.sendMessageStream.mockResolvedValue({ stream: (async function* () { for (const chunk of chunks) yield chunk; })(),
+      sources: Promise.resolve([source]), generatedImages: ['imagen-ficticia'] });
+    const { input } = baseInput({ onMessagesChange: publications, onAvatarActivity: activity });
+    await processChatMessage(input as never);
+    expect(publications).toHaveBeenCalledTimes(4);
+    const final = publications.mock.lastCall![0].at(-1);
+    expect(final).toMatchObject({ text: chunks.join(''), sources: [source], images: ['imagen-ficticia'] });
+    expect(activity.mock.calls.map(([value]) => value.phase)).toEqual(['thinking', 'responding', 'complete']);
+  });
+
+  it('Stop conserva todo el texto recibido aunque hubiera publicaciones agrupadas', async () => {
+    vi.spyOn(performance, 'now').mockReturnValue(0);
+    const abort = new AbortController();
+    mocks.sendMessageStream.mockResolvedValue({ stream: (async function* () { yield 'primero '; yield 'segundo'; abort.abort(); })(), sources: Promise.resolve(null) });
+    const { input, lastMessages } = baseInput({ signal: abort.signal });
+    await processChatMessage(input as never);
+    expect(lastAiText(lastMessages())).toBe('primero segundo');
+  });
+
   it('conserva fragmentos reales en el turno, respuesta y reapertura, también al regenerar', async () => {
     const source = { kind: 'browser' as const, citationId: 'P1:F1', title: 'Documento', uri: 'https://example.com/p', snippet: 'Evidencia textual', capturedAt: '2026-09-09T12:00:00.000Z' };
     mocks.sendMessageStream.mockResolvedValue({ stream: singleChunk('Conclusión [P1:F1]'), sources: Promise.resolve([{ title: 'Fuente web', uri: 'https://web.example/' }]) });

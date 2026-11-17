@@ -12,7 +12,7 @@ import { openOAuthWindow } from '../calendar/oauth-window';
 
 const calls = vi.hoisted(() => ({ insert: vi.fn(), patch: vi.fn(), remove: vi.fn(), getToken: vi.fn(), generateAuthUrl: vi.fn(() => 'https://example.test') }));
 vi.mock('../calendar/oauth-window', () => ({ openOAuthWindow: vi.fn(async () => 'codigo-ficticio') }));
-vi.mock('googleapis', () => ({ Auth: { CodeChallengeMethod: { S256: 'S256' } }, google: {
+vi.mock('../google-apis', () => ({ Auth: { CodeChallengeMethod: { S256: 'S256' } }, google: {
   calendar: () => ({ events: { insert: calls.insert, patch: calls.patch, delete: calls.remove } }),
   auth: { OAuth2: vi.fn(function () { return { generateAuthUrl: calls.generateAuthUrl, getToken: calls.getToken, setCredentials: vi.fn() }; }) },
   oauth2: () => ({ userinfo: { get: async () => ({ data: { email: 'cuenta@example.test' } }) } }),

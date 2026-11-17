@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Auth } from '../components/Auth';
 import { AppLoadingScreen, type StartupLogoExitTarget } from './AppLoadingScreen';
 import { AppModals } from './AppModals';
@@ -6,7 +6,6 @@ import { AppSidebar } from './AppSidebar';
 import { AppTitleBar } from '../components/ui/AppTitleBar';
 import { AppWorkspace } from './AppWorkspace';
 import { useProjectWorkspace } from './useProjectWorkspace';
-import { OrbWindowRoot } from './OrbWindowRoot';
 import type { ActiveView, ShareLinkNotice, ShareTarget } from './app-types';
 import type { SettingsTab } from '../components/UnifiedSettingsModal';
 import type { UserAISettings } from '../services/settings-service';
@@ -19,8 +18,6 @@ import { useCloseActiveChatMenu } from './useCloseActiveChatMenu';
 import { useLegacyUserMigration } from './useLegacyUserMigration';
 import { useMeetingTriggerNotice } from './useMeetingTriggerNotice';
 import { useLearningLiveSession } from './useLearningLiveSession';
-import { LearningWorkspace } from '../components/learning-live/LearningWorkspace';
-import { LearningSessions } from '../components/learning-live/LearningSessions';
 import { useShareLinkRouting } from './useShareLinkRouting';
 import { useAuth } from '../contexts/AuthContext';
 import { useChatManager } from '../hooks/useChatManager';
@@ -32,8 +29,12 @@ import { improveBrowserSelection } from '../services/browser-writing';
 import { AgentActivityPanel } from '../components/agents/AgentActivityPanel';
 import { ArtifactViewerProvider } from '../components/artifacts/ArtifactViewerProvider';
 import { AgentActivityProvider } from '../components/agents/AgentActivityProvider';
+import { isOrbWindow as detectOrbWindow } from './window-mode';
 
 const STARTUP_INTRO_DURATION_MS = 4200;
+const OrbWindowRoot = lazy(() => import('./OrbWindowRoot').then(module => ({ default: module.OrbWindowRoot })));
+const LearningWorkspace = lazy(() => import('../components/learning-live/LearningWorkspace').then(module => ({ default: module.LearningWorkspace })));
+const LearningSessions = lazy(() => import('../components/learning-live/LearningSessions').then(module => ({ default: module.LearningSessions })));
 const STARTUP_AUTH_GRACE_MS = 700;
 const STARTUP_OVERLAY_EXIT_MS = 1250;
 
@@ -41,12 +42,6 @@ type SidebarPosition = 'left' | 'right' | 'bottom';
 
 function resolveStoredSidebarPosition(value: string | null): SidebarPosition {
   return value === 'right' || value === 'bottom' || value === 'left' ? value : 'left';
-}
-
-function getWindowArgv(): string[] {
-  const maybeProcess = (window as Window & { process?: { argv?: unknown } }).process;
-  if (!Array.isArray(maybeProcess?.argv)) return [];
-  return maybeProcess.argv.filter((arg): arg is string => typeof arg === 'string');
 }
 
 export function AppContent() {
@@ -89,7 +84,7 @@ export function AppContent() {
   const folder = useFolderManager({ userId, orgId, accessUserIds, conversations: chat.conversations, setConversations: chat.setConversations });
   const iris = useIrisData(orgTeamIds);
   const { theme, setTheme } = useTheme();
-  const isOrbWindow = window.location.href.includes('view=orb') || getWindowArgv().includes('--view-mode=orb');
+  const isOrbWindow = detectOrbWindow();
   const [showStartupIntro, setShowStartupIntro] = useState(() => !isOrbWindow);
   const [startupAuthGraceElapsed, setStartupAuthGraceElapsed] = useState(() => isOrbWindow);
   const [renderStartupOverlay, setRenderStartupOverlay] = useState(() => !isOrbWindow);
@@ -214,7 +209,7 @@ export function AppContent() {
   const appShell = !user && !isOrbWindow ? (
     <Auth key="auth" />
   ) : isOrbWindow ? (
-    <OrbWindowRoot key="orb-window" />
+    <Suspense fallback={<div role="status">Cargando avatar…</div>}><OrbWindowRoot key="orb-window" /></Suspense>
   ) : (
     <AgentActivityProvider><ArtifactViewerProvider key={(user?.id ?? "") + ":" + orgId + ":" + (chat.currentConversationId ?? "")}>
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background dark:bg-background-dark">
@@ -256,12 +251,12 @@ export function AppContent() {
           setTheme={setTheme}
           theme={theme}
         />}
-        {liveRoomVisible && liveWorkspace.reference && <LearningWorkspace key={`${user?.id}:${liveWorkspace.reference.organization_slug}:${liveWorkspace.reference.session_id}`} reference={liveWorkspace.reference} onClose={closeLiveRoom} onBackToSessions={closeLiveRoom} />}
-        {!liveWorkspace.reference && !browserWorkspaceVisible && activeView === 'live-sessions' && <LearningSessions key={`${user?.id}:${orgId}`} organizationSlug={sofiaContext?.currentOrganization?.slug} organizationName={sofiaContext?.currentOrganization?.name} onOpenManagement={async (url) => {
+        {liveRoomVisible && liveWorkspace.reference && <Suspense fallback={<div role="status">Cargando aula…</div>}><LearningWorkspace key={`${user?.id}:${liveWorkspace.reference.organization_slug}:${liveWorkspace.reference.session_id}`} reference={liveWorkspace.reference} onClose={closeLiveRoom} onBackToSessions={closeLiveRoom} /></Suspense>}
+        {!liveWorkspace.reference && !browserWorkspaceVisible && activeView === 'live-sessions' && <Suspense fallback={<div role="status">Cargando sesiones…</div>}><LearningSessions key={`${user?.id}:${orgId}`} organizationSlug={sofiaContext?.currentOrganization?.slug} organizationName={sofiaContext?.currentOrganization?.name} onOpenManagement={async (url) => {
           const response = await integratedBrowserService.createTab(url);
           if (!response.success) throw new Error('No se pudo abrir Learning.');
           setIsBrowserWorkspaceOpen(true);
-        }} onSelect={liveWorkspace.select} onClose={() => setActiveView('chat')} />}
+        }} onSelect={liveWorkspace.select} onClose={() => setActiveView('chat')} /></Suspense>}
         {!liveRoomVisible && (activeView !== 'live-sessions' || browserWorkspaceVisible) && <AppWorkspace key={(userId ?? '') + ':' + orgId}
           accessUserIds={accessUserIds}
           activeView={activeView}

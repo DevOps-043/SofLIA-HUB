@@ -23,6 +23,11 @@ export function useAvatarMotion(expression: AvatarExpression,
     const element = root.current;
     if (!element) return;
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const memoryGb = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+    // Conservar expresiones y voz; reducir sólo escrituras visuales en equipos modestos.
+    const constrained = (typeof memoryGb === 'number' && Number.isFinite(memoryGb) && memoryGb > 0 && memoryGb <= 4)
+      || (navigator.hardwareConcurrency > 0 && navigator.hardwareConcurrency <= 2);
+    const minFrameMs = constrained ? 1000 / 30 : 0;
     let intersecting = true;
     let disposed = false;
     let frame: number | null = null;
@@ -65,6 +70,10 @@ export function useAvatarMotion(expression: AvatarExpression,
       frame = null;
       if (disposed) return;
       if (!running()) { reconcile(); return; }
+      if (previous > 0 && now - previous < minFrameMs - 1) {
+        frame = requestAnimationFrame(update);
+        return;
+      }
       const delta = previous ? Math.min(64, now - previous) : 16;
       previous = now; elapsed += delta;
       if (lastReset !== signals.current.resetToken) {

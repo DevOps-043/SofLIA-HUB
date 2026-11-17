@@ -5,7 +5,7 @@ export async function listSpaces(this: GChatService): Promise<{ success: boolean
     if (!auth) return { success: false, error: 'Google no conectado' };
 
     try {
-      const { google } = await import('googleapis');
+      const { google } = await import('../google-apis');
       const chat = google.chat({ version: 'v1', auth });
 
       const spaces = await this.listSpacesInternal(chat);

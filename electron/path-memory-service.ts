@@ -21,6 +21,10 @@ export class PathMemoryService extends EventEmitter {
   private keyPaths: Map<string, string> = new Map();
   private changedDirs: Set<string> = new Set();
   private initialized = false;
+  private running = false;
+  private revision = 0;
+  private updatePromise: Promise<void> | null = null;
+  private updateRequested = false;
   async init(): Promise<void> {
     try { await fsPromises.mkdir(this.knowledgePath, { recursive: true }); } catch {}
     if (!fs.existsSync(this.pathsFilePath)) {
@@ -33,14 +37,21 @@ export class PathMemoryService extends EventEmitter {
     this.initialized = true;
   }
   start(): void {
-    if (!this.initialized) return;
+    if (!this.initialized || this.running) return;
+    this.running = true;
+    this.revision++;
     this.setupWatchers();
     this.scanInterval = setInterval(() => {
-      this.incrementalUpdate().catch((err) => console.error('[PathMemory] Error en actualizacion incremental:', err.message));
+      void this.requestUpdate().catch(() => console.error('[PathMemory] No se pudo actualizar el índice de rutas.'));
     }, SCAN_INTERVAL_MS);
+    this.scanInterval.unref();
+    void this.requestUpdate().catch(() => console.error('[PathMemory] No se pudo recuperar el índice inicial.'));
     console.log('[PathMemory] Servicio iniciado - watchers activos + intervalo de 15 min.');
   }
   stop(): void {
+    this.running = false;
+    this.revision++;
+    this.updateRequested = false;
     if (this.scanInterval) clearInterval(this.scanInterval);
     this.scanInterval = null;
     stopPathWatchers(this.watchers);
@@ -63,17 +74,40 @@ export class PathMemoryService extends EventEmitter {
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`[PathMemory] Escaneo completo terminado en ${elapsed}s - ${this.scannedDirs.size} directorios indexados.`);
   }
-  private async incrementalUpdate(): Promise<void> {
+  private requestUpdate(): Promise<void> {
+    if (!this.running) return Promise.resolve();
+    this.updateRequested = true;
+    if (this.updatePromise) return this.updatePromise;
+    const pending = (async () => {
+      while (this.running && this.updateRequested) {
+        this.updateRequested = false;
+        const revision = this.revision;
+        await this.incrementalUpdate(() => this.running && this.revision === revision);
+      }
+    })().finally(() => {
+      if (this.updatePromise !== pending) return;
+      this.updatePromise = null;
+      if (this.running && this.updateRequested) {
+        void this.requestUpdate().catch(() => console.error('[PathMemory] No se pudo recuperar una actualización pendiente.'));
+      }
+    });
+    this.updatePromise = pending;
+    return pending;
+  }
+  private async incrementalUpdate(current: () => boolean): Promise<void> {
     await markChangedKeyDirs(this.keyPaths, this.scannedDirs, this.changedDirs);
+    if (!current()) return;
     if (this.changedDirs.size === 0) return;
     console.log(`[PathMemory] Actualizacion incremental - ${this.changedDirs.size} directorio(s) con cambios.`);
     const dirsToUpdate = [...this.changedDirs];
     this.changedDirs.clear();
     for (const dirPath of dirsToUpdate) {
+      if (!current()) { dirsToUpdate.forEach(dir => this.changedDirs.add(dir)); return; }
       const existing = this.scannedDirs.get(path.normalize(dirPath));
-      await scanDirectory(this.scannedDirs, dirPath, existing?.label || '', 1);
+      await scanDirectory(this.scannedDirs, dirPath, existing?.label || '', 1, 0, current);
     }
-    await this.writePathsMd();
+    if (!current()) { dirsToUpdate.forEach(dir => this.changedDirs.add(dir)); return; }
+    await this.writePathsMd(current);
   }
   private setupWatchers(): void {
     setupPathWatchers({
@@ -81,13 +115,16 @@ export class PathMemoryService extends EventEmitter {
       watchers: this.watchers,
       timers: this.watchDebounceTimers,
       changedDirs: this.changedDirs,
-      onChanged: () => this.incrementalUpdate().catch((err) => console.error('[PathMemory] Error en actualizacion por watch:', err.message)),
+      isActive: () => this.running,
+      onChanged: () => { void this.requestUpdate().catch(() => console.error('[PathMemory] No se pudo actualizar el índice por cambios.')); },
     });
     console.log(`[PathMemory] ${this.watchers.length} watcher(s) activos.`);
   }
-  private async writePathsMd(): Promise<void> {
+  private async writePathsMd(current: () => boolean = () => true): Promise<void> {
     try {
-      this.emit('updated', await writePathsMarkdownFile(this.pathsFilePath, this.keyPaths, this.scannedDirs));
+      if (!current()) return;
+      const result = await writePathsMarkdownFile(this.pathsFilePath, this.keyPaths, this.scannedDirs);
+      if (current()) this.emit('updated', result);
     } catch (err: any) { console.error('[PathMemory] Error escribiendo PATHS.md:', err.message); }
   }
 }

@@ -22,7 +22,7 @@ export async function googleProjectStorage(calendar: CalendarService, authorizat
   assert();
   const auth = await calendar.getGoogleAuth(); assert();
   if (!auth) throw new Error('Vuelve a conectar Google Drive.');
-  const { google } = await import('googleapis'); assert();
+  const { google } = await import('../google-apis'); assert();
   const drive = google.drive({ version: 'v3', auth });
   const options = { retry: false, timeout: 30_000, ...(authorization.signal ? { signal: authorization.signal } : {}) };
   const folder = async (id = 'root', _driveId?: string, readOnly = false) => {

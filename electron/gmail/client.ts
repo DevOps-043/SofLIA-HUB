@@ -7,6 +7,6 @@ export async function createGmailClient(
   const auth = await calendarService.getGoogleAuth();
   if (!auth) return { error: 'Google no conectado' };
 
-  const { google } = await import('googleapis');
+  const { google } = await import('../google-apis');
   return { client: google.gmail({ version: 'v1', auth }) as GmailClient };
 }

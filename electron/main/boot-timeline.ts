@@ -5,7 +5,9 @@
 // (ver docs/architecture/runtime-parameters.md). No incluye datos personales ni
 // secretos: solo nombres de fase y milisegundos.
 
-const startedAt = performance.now();
+// performance.now() ya parte del origen del proceso. Tomar una marca al
+// importar este archivo ocultaba el tiempo de evaluación de imports previos.
+const startedAt = 0;
 let lastAt = startedAt;
 
 /** Registra un hito de arranque con su tiempo relativo y la duracion desde el hito previo. */

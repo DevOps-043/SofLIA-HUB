@@ -5,6 +5,49 @@ Estado: vigente. Actualizado: 2026-10-30.
 Inventario de defaults y topes con impacto operativo. Los overrides guardados en
 `userData` pueden cambiar el valor efectivo de un host.
 
+Trabajo de fondo: un pipeline periódico de monitoreo en vuelo por servicio,
+invalidado por revisión de sesión/configuración. Las solicitudes explícitas no
+se deshabilitan. Capturas con nombre único UUID; descarte/limpieza de una captura
+no publicada cuando se revoca su revisión. No se cancela físicamente una
+operación nativa/IO que ya empezó.
+
+Índice de rutas: un intervalo por instancia (15 min, existente), debounce de
+watchers de 5 s y actualizaciones seriales con un bit de recuperación pendiente.
+Concurrencia de metadatos por escaneo: cuatro; se mantienen 200 entradas por
+directorio y profundidad previa. Caché de vectores: LRU de cuatro sesiones y
+5000 vectores acumulados; no reduce el límite previo de 5000 filas por carga
+SQLite ni borra memoria persistida. Es un presupuesto de caché, no un tope del
+heap total. Fuentes: `electron/path-memory/constants.ts`, `path-memory-service.ts`,
+`monitoring/monitoring-service.ts` y `memory/embedding-search.ts`.
+
+Streaming de chat: publicaciones intermedias hasta una por 50 ms, primer
+fragmento inmediato y vaciado al terminar. Puede añadirse una publicación final
+con fuentes/imágenes; no es una cuota del transporte ni recorta el texto. No se
+crean timers para agrupar fragmentos. Fuente: `src/hooks/chat-processor/process-message.ts`.
+
+WhatsApp: un intento actual de conexión y un reintento programado por servicio.
+Backoff existente: `min(1000 * 2^intento, 30000)` ms, hasta cinco reintentos;
+timer con unref, revocado por desconexión/cambio de sesión. La carga SDK se difiere
+hasta conectar y queda en la caché normal de módulos después del primer uso.
+No se cancela físicamente la lectura de credenciales o la petición de versión
+ya iniciada; se impide crear socket con el resultado revocado. Fuentes:
+`electron/whatsapp/service.ts`, `connection-runtime.ts` y `reconnect.ts`.
+
+Refresco renderer: conversaciones 15 s, mensajes 8 s si existe conversación y
+carpetas 30 s, contados después de terminar la lectura anterior. Eventos de
+foco/realtime se agrupan con 50 ms. Ventana oculta: sin nuevas lecturas de estos
+refrescos; vuelve a recuperar datos al hacerse visible. Una consulta por
+controlador y unión de lecturas de mensajes por usuario/organización/revisión.
+No cancela automáticamente la petición física ya iniciada; descarta resultados
+obsoletos. Fuentes: `src/services/visible-refresh.ts`, hooks chat-manager y
+folder-manager.
+
+Avatar: objetivo visual de 30 fps si `navigator.deviceMemory` informa 4 GB o
+menos, o `hardwareConcurrency` dos procesadores lógicos o menos; sin información
+limitante conserva la cadencia normal de requestAnimationFrame. No afecta
+transporte/captura de audio ni disponibilidad de herramientas. Es una heurística
+local de capacidad, no detección del modelo de CPU ni garantía de latencia.
+
 El chat flotante contextual lee al enviar: 12000 caracteres de texto renderer, recorrido de hasta 8000 nodos de texto, sin campos editables, panel ni regiones privadas. Navegador: 8000 ms por preparación, 16000 caracteres de DOM y hasta 60 nombres/refs de controles (200 caracteres por nombre), una captura de imagen de hasta 8 MiB si está disponible. No añade polling. El dock mide 460 px como máximo de ancho y se adapta al contenedor; vacío muestra sólo cabecera y compositor, con respuestas ocupa hasta 520 px o 70vh. El selector abierto sin historial ocupa hasta 360 px. En el navegador acota su altura para conservar un área web operable de al menos 120 px. Fuentes: `src/services/floating-chat-context.ts`, `src/components/browser/BrowserFloatingWorkspace.tsx` y [diseño](../../openspec/changes/floating-soflia-chat/design.md).
 
 <!-- evidence: electron/desktop-agent/agent-config.ts -->
@@ -50,6 +93,13 @@ solo suena con la ventana visible (`visibilityState`), no en modo background.
 | fallback de `ready-to-show` | 4000 ms | `electron/main/window-controller.ts` |
 | orden serial legacy (rollback) | `SOFLIA_STARTUP_LEGACY_ORDER=1` | `electron/main/bootstrap.ts` |
 | hitos de arranque | `[BOOT] hito fase=... t_relativo_ms=... duracion_ms=...` | `electron/main/boot-timeline.ts` |
+
+El origen temporal es el de Node main (`performance.now()`), incluido el trabajo
+anterior a evaluar boot-timeline. `main:entrada` mide el fin de imports estáticos;
+`entorno`, `modulos` y `servicios:construir` tienen inicio/fin separados. No
+incluye la compilación previa de npm/Vite. En desarrollo un build main con
+contenido idéntico no solicita otro arranque de Electron; los cambios reales y
+la recarga del preload se conservan.
 
 Presupuestos (tiempo hasta `ventana:visible` y hasta `servicios:init:fin`): se
 fijan con la medicion antes/despues de la instrumentacion en los escenarios frio
@@ -671,3 +721,12 @@ al cierre del listener y la fachada destruye la ventana. Son límites locales,
 no garantías duras del SO ni plazo global del proveedor. Fuentes:
 `electron/calendar/oauth-proof.ts`, `oauth-receiver.ts` y `oauth-window.ts`.
 [Contrato OAuth](../security/calendar-oauth.md).
+
+## Programación de respaldos
+
+`electron/services/auto-backup-service.ts` admite intervalos positivos finitos en
+días, representables como fecha. Divide la espera en tramos de hasta 2147483647 ms
+para evitar el desbordamiento de temporizadores Node con intervalos mensuales.
+El próximo plazo comienza al terminar el respaldo anterior, también ante error;
+no se solapan ejecuciones programadas. Stop invalida callbacks pendientes y no
+cancela un respaldo ya iniciado. El temporizador no mantiene vivo el proceso.

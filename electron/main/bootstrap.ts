@@ -48,11 +48,19 @@ function registerAppProtocolClient(): void {
 }
 
 export async function runBootstrap(): Promise<void> {
-  const modules = await loadMainServiceModules();
   const runtimeDirname = path.dirname(fileURLToPath(import.meta.url));
+  markBoot('entorno:inicio');
   const env = configureMainProcessEnvironment(runtimeDirname);
+  markBoot('entorno:fin');
+  // Los módulos pueden consultar variables al evaluarse. Configurarlas antes
+  // evita depender del orden accidental de sus imports concurrentes.
+  markBoot('modulos:inicio');
+  const modules = await loadMainServiceModules();
+  markBoot('modulos:fin');
   const protocolCommand = parseAppProtocolCommand(extractProtocolArg(process.argv));
+  markBoot('servicios:construir:inicio');
   const services = createMainServices(modules);
+  markBoot('servicios:construir:fin');
   const state = createRuntimeState(protocolCommand);
   const controls = createWindowControls({ env, modules, runtimeDirname, services, state });
   const initWhatsAppAgent = createWhatsAppAgentInitializer({ modules, services, state });

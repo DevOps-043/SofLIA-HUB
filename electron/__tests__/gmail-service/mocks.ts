@@ -11,7 +11,7 @@ export const mockMessagesModify = vi.fn();
 export const mockMessagesSend = vi.fn();
 export const mockMessagesTrash = vi.fn();
 
-vi.doMock('googleapis', () => ({
+vi.doMock('../../google-apis', () => ({
   google: {
     gmail: vi.fn(() => ({
       users: {

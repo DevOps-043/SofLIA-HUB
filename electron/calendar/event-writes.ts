@@ -12,7 +12,7 @@ export async function createEvent(service: CalendarServiceCore, event: {
   if (!auth) return { success: false, error: 'Google no conectado' };
 
   try {
-    const { google } = await import('googleapis');
+    const { google } = await import('../google-apis');
     const calendar = google.calendar({ version: 'v3', auth });
     beforeExecute();
     const response = await calendar.events.insert({

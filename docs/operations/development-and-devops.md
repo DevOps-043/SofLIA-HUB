@@ -35,7 +35,8 @@ no guardado.
 | Script | Uso |
 |---|---|
 | `dev`, `dev:fresh` | Vite + Electron en desarrollo |
-| `typecheck` | TS renderer y node sin emitir |
+| `typecheck` | TS renderer y node sin emitir, con cachés incrementales independientes; verifica Zoom antes de instalarlo |
+| `zoom:ensure`, `zoom:install` | reutilizar instalación Zoom coherente con locks, o forzar npm ci respectivamente |
 | `lint`, `lint:changed` | global o no-regresion de archivos cambiados |
 | `test`, `test:fast`, `test:main`, `test:renderer`, `test:coverage` | Vitest main/renderer; Electron simulado en main; coverage incluye inventario productivo completo y pisos obligatorios |
 | `ci:integrity` | rechaza Actions remotas mutables, Docker sin digest y rutas locales escapadas; revisa también actions compuestas locales |
@@ -57,6 +58,40 @@ no guardado.
 | `verify:pr`, `verify:release` | compuerta integral; release agrega build |
 
 ## Flujo de cambio
+
+La compilación local reutiliza `node_modules/.cache/*.tsbuildinfo`; eliminar esos
+archivos fuerza comprobación fría sin cambiar los controles de tipos. El primer
+typecheck sigue comprobando todo. `zoom:ensure` valida ambos locks, versiones
+instaladas y directorios SDK; ante divergencia ejecuta `npm ci --ignore-scripts`.
+`zoom:install` conserva la reinstalación explícita para reparar archivos internos
+alterados: la preparación rápida no verifica hashes de cada archivo instalado.
+Usar `build:app` para comprobar bundles sin generar instaladores ni preparar
+Python. `build:win/mac/linux` agrega empaquetado y puede tardar considerablemente
+más. No ejecutar builds concurrentes sobre el mismo directorio de salida.
+
+La fachada `electron/google-apis.ts` limita el catálogo Google cargado y tipado a
+los servicios usados. Al actualizar googleapis, comprobar sus subrutas y ejecutar
+las pruebas Calendar/Gmail/Drive/Chat. Ajustes y productividad se cargan al abrirlos.
+El watcher de Vite excluye worktrees y salidas voluminosas generadas.
+
+En `dev`, main/preload omiten calcular tamaños gzip. El watcher puede repetir
+un build idéntico: `config/vite/dev-main-restart.mts` compara todo el contenido
+emitido y conserva el proceso Electron cuando no cambia. Cambios reales de
+main/assets reinician de forma serial; preload conserva la recarga del renderer.
+El build de producción conserva su informe comprimido y no usa este coordinador.
+
+En `dev`, el proceso main carga el paquete Baileys instalado mediante
+`import()` al conectar WhatsApp o al descargar un documento del hub heredado.
+Vite sigue vigilando las fuentes de la aplicación. El build de producción
+empaqueta el SDK en el runtime de conexión diferido.
+
+Para diagnosticar una pausa alrededor de los mensajes dotenv, comparar los
+hitos `[BOOT]`: `main:entrada` incluye evaluación estática; `modulos:inicio/fin`
+mide imports; `entorno:inicio/fin`, la configuración del entorno;
+`servicios:construir:inicio/fin`, constructores; `ventana:visible`, primer
+revelado. El mensaje anterior a una pausa no identifica por sí solo su causa.
+Los tiempos BOOT parten de Node main, no de npm. Ver [diagnóstico y pruebas de
+arranque](../../openspec/changes/optimize-dev-startup-loading/reports/verification.md).
 
 1. Verificar Git y usar rama `codex/*` o worktree recuperable.
 2. Enriquecer solicitud y crear Context Pack/OpenSpec para cambio material.

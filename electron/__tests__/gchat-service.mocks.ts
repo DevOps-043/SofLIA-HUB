@@ -20,7 +20,7 @@ export const {
   mockSpacesList: vi.fn(),
 }));
 
-vi.mock('googleapis', () => ({
+vi.mock('../google-apis', () => ({
   google: {
     chat: vi.fn(() => ({
       spaces: {

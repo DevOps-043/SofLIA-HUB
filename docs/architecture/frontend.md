@@ -29,7 +29,11 @@ y retira la RPC conservando datos e imágenes existentes. Ver
 
 El [chat flotante contextual](../../openspec/changes/floating-soflia-chat/design.md) reutiliza el ChatUI principal en presentación compacta únicamente desde las secciones de proyectos que no muestran su chat. El icono oficial abre un compositor interno de 380 px, con cabecera de 28 px sin marca/título, botones de icono para nuevo chat y modelos, asa de arrastre y minimización. El campo vacío mide 28 px y abrir con ratón no lo enfoca ni activa el resaltado de escritura; el acceso por teclado conserva el foco útil. El asa permite arrastrar o mover con flechas dentro de la superficie de la aplicación; posición y borrador sobreviven a minimizar, y los cambios de tamaño reajustan los límites. Sin selección activa de proyecto se ofrece una entrada compacta para preparar su chat autorizado, sin habilitar envíos en otra conversación. No crea una ventana del SO ni monta dos controladores de conversación. El ámbito de usuario/organización/proyecto y el cambio de conversación cancelan turnos obsoletos; la primera persistencia del borrador no corta su respuesta. El navegador usa exclusivamente su panel lateral ajustable y minimizable: no monta el lanzador ni el compositor inferior de proyectos y no reserva una franja inferior. Al minimizar el lateral devuelve ese espacio a la página; las selecciones externas vuelven a abrirlo. El chat lateral conserva el contexto visible del navegador, las conversaciones y el modelo seleccionado. Las vistas previas de archivos usan el diálogo interno sin desmontar el chat.
 
-`src/main.tsx` monta `App`; `src/App.tsx` envuelve la aplicacion en
+`src/main.tsx` selecciona la superficie antes de importar el shell: `view=orb`
+o `--view-mode=orb` carga `src/app/OrbApp.tsx`, con AuthProvider y tema, sin
+gestores de conversaciones/carpetas/IRIS ni comprobaciones visuales del updater.
+Conserva voz, herramientas, fuentes y reuniones del avatar. La ventana principal
+carga `App`; `src/App.tsx` envuelve la aplicacion en
 `AuthProvider`, renderiza `AppContent` y mantiene `UpdateNotification` global.
 No se usa React Router: `ActiveView` es la union `chat | project | project-hub |
 productivity | meetings | live-sessions`. `AppWorkspace` selecciona chat y herramientas
@@ -47,6 +51,32 @@ con render condicional; `AppContent` presenta la agenda y el aula de Learning.
 
 El intro de inicio dura 4200 ms, concede 700 ms adicionales al auth y anima la
 salida 1250 ms. Son parametros UI en `src/app/AppContent.tsx`, no tiempos de SLA.
+
+Reuniones, proyectos, agenda y aula se cargan bajo demanda con estados de espera;
+las capacidades permanecen disponibles. Markdown histórico usa memo por texto
+para evitar parsearlo otra vez por cada token de otro mensaje. No se recorta el
+historial. El avatar limita actualizaciones visuales aproximadamente a 30 fps
+cuando el navegador informa hasta 4 GB de RAM o hasta dos procesadores lógicos;
+conserva voz/expresiones y respeta invisibilidad y movimiento reducido.
+
+Los refrescos de chat y carpetas usan `src/services/visible-refresh.ts`: mientras
+la ventana está oculta no inician lecturas periódicas; realtime conserva la
+suscripción e invalida la vista para recuperarla al volver. Agrupan eventos en
+50 ms y esperan a terminar antes de programar el siguiente poll. Las lecturas de
+mensajes compartidas por refresco general y específico se unen por ámbito; los
+resultados de otra sesión u organización y de hooks retirados se descartan.
+El [alcance y la evidencia](../../openspec/changes/optimize-low-memory-runtime/reports/verification.md)
+distinguen las mediciones locales del objetivo general de fluidez con recursos
+limitados, expresado por el usuario mediante la analogía de 4 GB/Pentium.
+
+El streaming de `src/hooks/chat-processor/process-message.ts` acumula todos los
+fragmentos y publica texto intermedio como máximo cada 50 ms. Primer fragmento
+inmediato, vaciado al terminar antes de esperar fuentes, y resolución completa
+en stop/éxito/error; no añade timers. Si el proveedor pausa tras un fragmento
+agrupado, ese resto se muestra con el siguiente fragmento o al finalizar el
+stream. Fuentes, imágenes, herramientas y texto final no se recortan. La
+actividad del avatar se deduplica por fase/expresión. Bootstrap descarta ajustes
+tardíos de otro ámbito y contiene los rechazos de inicialización.
 
 La pantalla de acceso monta `AppTitleBar` desde
 `src/components/auth/AuthChrome.tsx`. La barra permanece encima del formulario

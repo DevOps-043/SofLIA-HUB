@@ -1,6 +1,7 @@
-import { downloadMediaMessage } from '@whiskeysockets/baileys';
 import { logger } from './logger';
 import type { WhatsAppServiceCore } from './types';
+
+export type DownloadMediaMessage = typeof import('@whiskeysockets/baileys').downloadMediaMessage;
 
 export async function emitMediaIfPresent(
   service: WhatsAppServiceCore,
@@ -10,6 +11,7 @@ export async function emitMediaIfPresent(
   cleanText: string,
   isGroup: boolean,
   history: string,
+  downloadMediaMessage: DownloadMediaMessage,
 ): Promise<boolean> {
   const mediaMsg = msg.message.imageMessage || msg.message.documentMessage || msg.message.videoMessage;
   if (mediaMsg) {

@@ -1,7 +1,10 @@
 import { CreateFolderModal, DeleteFolderModal, MoveChatModal } from "../components/FolderModals";
 import { ShareModal } from "../components/ShareModal";
-import { UnifiedSettingsModal, type SettingsTab } from "../components/UnifiedSettingsModal";
+import { lazy, Suspense } from 'react';
+import type { SettingsTab } from "../components/UnifiedSettingsModal";
 import type { ShareTargetType } from "../services/share-service";
+
+const UnifiedSettingsModal = lazy(() => import('../components/UnifiedSettingsModal').then(module => ({ default: module.UnifiedSettingsModal })));
 
 interface AppModalsProps {
   folder: any;
@@ -63,7 +66,8 @@ export function AppModals(props: AppModalsProps) {
           currentUserEmail={props.user?.email}
         />
       )}
-      {props.userId && (
+      {props.userId && props.isUnifiedSettingsOpen && (
+        <Suspense fallback={<div role="status">Cargando ajustes…</div>}>
         <UnifiedSettingsModal
           isOpen={props.isUnifiedSettingsOpen}
           onClose={() => props.onSetUnifiedSettingsOpen(false)}
@@ -73,6 +77,7 @@ export function AppModals(props: AppModalsProps) {
           sofiaContext={props.sofiaContext}
           initialTab={props.activeSettingsTab}
         />
+        </Suspense>
       )}
     </>
   );

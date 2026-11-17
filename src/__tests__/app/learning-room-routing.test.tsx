@@ -54,29 +54,30 @@ afterEach(() => vi.useRealTimers());
 function openApp() {
   render(<AppContent />);
   act(() => { vi.advanceTimersByTime(6000); });
+  vi.useRealTimers();
 }
 describe('el aula tiene una vista exclusiva', () => {
-  it.each(['Volver a mis sesiones', 'Cerrar aula'])('sustituye el navegador y el chat al recibir una sesión, y %s regresa a la agenda', (exit) => {
+  it.each(['Volver a mis sesiones', 'Cerrar aula'])('sustituye el navegador y el chat al recibir una sesión, y %s regresa a la agenda', async (exit) => {
     openApp();
     fireEvent.click(screen.getByRole('button', { name: 'Abrir navegador' }));
     expect(screen.getByTestId('browser-workspace')).toBeInTheDocument();
-    act(() => mocks.request(reference));
-    expect(screen.getByRole('region', { name: 'Espacio de la sesión' })).toBeInTheDocument();
+    await act(async () => { mocks.request(reference); await vi.dynamicImportSettled(); });
+    expect(await screen.findByRole('region', { name: 'Espacio de la sesión' }, { timeout: 5000 })).toBeInTheDocument();
     expect(screen.queryByTestId('browser-workspace')).not.toBeInTheDocument();
     expect(screen.queryByTestId('old-chat')).not.toBeInTheDocument();
     expect(screen.queryByTestId('agents')).not.toBeInTheDocument();
     expect(screen.queryByRole('complementary', { name: 'Conversaciones' })).not.toBeInTheDocument();
     act(() => mocks.browserOpen());
     expect(screen.queryByTestId('browser-workspace')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: exit }));
-    expect(screen.getByRole('region', { name: 'Agenda de sesiones' })).toBeInTheDocument();
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: exit })); await vi.dynamicImportSettled(); });
+    expect(await screen.findByRole('region', { name: 'Agenda de sesiones' })).toBeInTheDocument();
     expect(screen.queryByTestId('browser-workspace')).not.toBeInTheDocument();
   });
-  it('abre el lienzo desde la agenda sin montar el chat anterior', () => {
+  it('abre el lienzo desde la agenda sin montar el chat anterior', async () => {
     openApp();
-    fireEvent.click(screen.getByRole('button', { name: 'Ver sesiones' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Seleccionar sesión' }));
-    expect(screen.getByRole('region', { name: 'Espacio de la sesión' })).toBeInTheDocument();
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Ver sesiones' })); await vi.dynamicImportSettled(); });
+    await act(async () => { fireEvent.click(await screen.findByRole('button', { name: 'Seleccionar sesión' })); await vi.dynamicImportSettled(); });
+    expect(await screen.findByRole('region', { name: 'Espacio de la sesión' }, { timeout: 5000 })).toBeInTheDocument();
     expect(screen.queryByTestId('old-chat')).not.toBeInTheDocument();
   });
 });

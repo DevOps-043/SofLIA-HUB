@@ -15,7 +15,7 @@ export async function fetchRecentCalendarMeetings(calendarService: CalendarServi
   const auth = await calendarService.getGoogleAuth();
   if (!auth) return [];
 
-  const { google } = await import('googleapis');
+  const { google } = await import('../google-apis');
   const calendar = google.calendar({ version: 'v3', auth });
   const response = await (calendar.events.list as any)({
     calendarId: 'primary',

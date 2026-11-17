@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import type { MutableRefObject } from 'react';
 import { supabase } from '../../lib/supabase';
 import type { ChatMessage } from '../../services/chat-service';
+import { createVisibleRefresh } from '../../services/visible-refresh';
 import { hasActivePlaceholder } from './helpers';
 
 interface UseChatRefreshEffectsArgs {
@@ -13,79 +14,28 @@ interface UseChatRefreshEffectsArgs {
   userId: string | undefined;
 }
 
-export function useChatRefreshEffects({
-  currentConversationId,
-  currentConvIdRef,
-  currentMessagesRef,
-  refreshConversationsFromRemote,
-  refreshCurrentConversationMessages,
-  userId,
-}: UseChatRefreshEffectsArgs) {
+export function useChatRefreshEffects({ currentConversationId, currentConvIdRef, currentMessagesRef,
+  refreshConversationsFromRemote, refreshCurrentConversationMessages, userId }: UseChatRefreshEffectsArgs) {
   useEffect(() => {
     if (!userId) return;
+    const conversations = createVisibleRefresh(refreshConversationsFromRemote, 15000,
+      error => console.warn('[Chat] No se pudieron actualizar las conversaciones:', error));
+    const messages = createVisibleRefresh(async () => {
+      const active = currentConvIdRef.current;
+      if (!active || active !== currentConversationId || hasActivePlaceholder(currentMessagesRef.current)) return;
+      await refreshCurrentConversationMessages(active);
+    }, currentConversationId ? 8000 : 0, error => console.warn('[Chat] No se pudieron actualizar los mensajes:', error));
 
-    const refreshSafely = () => {
-      void refreshConversationsFromRemote().catch((error) => {
-        console.warn('[useChatManager] refreshConversationsFromRemote FAILED:', error);
-      });
-    };
-
-    const intervalId = window.setInterval(refreshSafely, 15000);
-    const handleFocus = () => refreshSafely();
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') refreshSafely();
-    };
-
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      window.clearInterval(intervalId);
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [refreshConversationsFromRemote, userId]);
-
-  useEffect(() => {
-    if (!userId) return;
-
-    const channel = supabase
-      .channel(`lia-chat-sync:${userId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `user_id=eq.${userId}` }, (payload: any) => {
-        if (hasActivePlaceholder(currentMessagesRef.current)) return;
-
-        const changedConvId: string | undefined = payload?.new?.conversation_id ?? payload?.old?.conversation_id;
-        const activeConvId = currentConvIdRef.current;
-        if (changedConvId && activeConvId && changedConvId === activeConvId) {
-          void refreshCurrentConversationMessages(activeConvId).catch((error) => {
-            console.warn('[useChatManager] realtime message refresh FAILED:', error);
-          });
-        }
+    const channel = supabase.channel(`lia-chat-sync:${userId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `user_id=eq.${userId}` }, (payload: { new?: { conversation_id?: string }; old?: { conversation_id?: string } }) => {
+        const changed = payload.new?.conversation_id ?? payload.old?.conversation_id;
+        if (changed && changed === currentConvIdRef.current) messages.request();
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations', filter: `user_id=eq.${userId}` }, () => {
-        void refreshConversationsFromRemote().catch((error) => {
-          console.warn('[useChatManager] realtime conversation refresh FAILED:', error);
-        });
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations', filter: `user_id=eq.${userId}` }, conversations.request)
       .subscribe();
-
     return () => {
+      conversations.dispose(); messages.dispose();
       void supabase.removeChannel(channel);
     };
-  }, [currentConvIdRef, currentMessagesRef, refreshConversationsFromRemote, refreshCurrentConversationMessages, userId]);
-
-  useEffect(() => {
-    if (!userId || !currentConversationId) return;
-
-    const activeConvId = currentConversationId;
-    const intervalId = window.setInterval(() => {
-      if (hasActivePlaceholder(currentMessagesRef.current)) return;
-      if (currentConvIdRef.current !== activeConvId) return;
-      void refreshCurrentConversationMessages(activeConvId).catch((error) => {
-        console.warn('[useChatManager] message poll refresh FAILED:', error);
-      });
-    }, 8000);
-
-    return () => window.clearInterval(intervalId);
-  }, [currentConversationId, currentConvIdRef, currentMessagesRef, refreshCurrentConversationMessages, userId]);
+  }, [currentConversationId, currentConvIdRef, currentMessagesRef, refreshConversationsFromRemote, refreshCurrentConversationMessages, userId]);
 }

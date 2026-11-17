@@ -5,7 +5,7 @@ export async function getMessages(this: GChatService, spaceName: string, maxResu
     if (!auth) return { success: false, error: 'Google no conectado' };
 
     try {
-      const { google } = await import('googleapis');
+      const { google } = await import('../google-apis');
       const chat = google.chat({ version: 'v1', auth });
       const resolved = await this.resolveSpaceReference(chat, spaceName);
       const rawMessages = await this.listRecentRawMessages(chat, resolved.name, maxResults || 25);
