@@ -5,6 +5,7 @@ import type { MutableRefObject } from 'react';
 /** Estado de la conversación (state machine de useOrbConversation). */
 export type OrbConversationState =
   | 'idle'
+  | 'preparing'
   | 'listening'
   | 'thinking'
   | 'acting'
@@ -22,6 +23,7 @@ export interface OrbPointerInteraction {
 }
 
 export function toVisualState(state: OrbConversationState, ttsPlaying: boolean): OrbVisualState {
+  if (state === 'preparing') return 'idle';
   if (state === 'info') return ttsPlaying ? 'speaking' : 'idle';
   return state;
 }

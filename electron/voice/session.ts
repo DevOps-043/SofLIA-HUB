@@ -3,6 +3,7 @@ import { getAuthState, onAuthStateChange } from '../main/auth-state';
 import { nativeConfirmation, trustedAppCaller, trustedAppWindow } from '../ipc/caller-authorization';
 import type { PythonRuntimeService, VoicePassiveConfig } from '../python-runtime-service';
 import { captureSignature, parseVoiceConfig, publicVoiceConfig, publicVoiceStatus } from './contract';
+import { VoiceConsentStore } from './consent-store';
 
 type Caller = ReturnType<typeof trustedAppCaller>;
 export interface VoiceCall extends Caller { effectStarted: boolean }
@@ -10,7 +11,7 @@ type Mode = 'passive' | 'dictation' | 'probe';
 interface Grant { epoch: number; signature: string; mode: 'passive' | 'dictation' }
 interface Pending { cancellation: AbortController; invoked: boolean; parent: BrowserWindow | null; capture: boolean }
 
-/** Autorización efímera de sesión; las preferencias persistidas nunca son grants. */
+/** Grants efímeros y consentimiento explícito recordado por cuenta/configuración. */
 export class LocalVoiceSession {
   private epoch = 0;
   private grant: Grant | null = null;
@@ -19,7 +20,8 @@ export class LocalVoiceSession {
   private readonly confirm = nativeConfirmation('Autorizar voz local');
   private readonly unsubscribe: () => void;
   constructor(readonly runtime: PythonRuntimeService, private readonly getMain: () => BrowserWindow | null,
-    private readonly getOrb: () => BrowserWindow | null, private readonly clearPendingWake: () => void = () => {}) {
+    private readonly getOrb: () => BrowserWindow | null, private readonly clearPendingWake: () => void = () => {},
+    private readonly consents = new VoiceConsentStore()) {
     runtime.configureCaptureAuthorization((cmd, params) => this.assertCapture(cmd, params));
     this.unsubscribe = onAuthStateChange(() => {
       this.epoch++; this.revoke();
@@ -58,7 +60,11 @@ export class LocalVoiceSession {
     await this.runtime.stop();
   }
   async stop(call: VoiceCall): Promise<void> {
-    call.assert(); this.revoke(); call.effectStarted = true; await this.stopRuntime(); call.assert();
+    call.assert(); this.revoke();
+    // El cierre físico sigue siendo obligatorio aunque falle la escritura de preferencias.
+    try { this.consents.forget(call.userId!); }
+    finally { call.effectStarted = true; await this.stopRuntime(); }
+    call.assert();
   }
   cancelCapture(): void {
     this.revoke(); void this.stopRuntime().catch(() => console.warn('[VozLocal] Cierre de captura sin confirmar.'));
@@ -68,19 +74,44 @@ export class LocalVoiceSession {
     if (!pending?.capture || pending.parent !== call.parent) return false;
     pending.cancellation.abort(); return true;
   }
+  async prepare(call: VoiceCall, signal = call.signal): Promise<void> {
+    call.assert(); if (signal.aborted) throw new Error('approval_cancelled');
+    let cancel!: () => void;
+    const cancelled = new Promise<never>((_resolve, reject) => {
+      cancel = () => reject(new Error('approval_cancelled'));
+      signal.addEventListener('abort', cancel, { once: true });
+    });
+    try { await Promise.race([this.runtime.prepareVoice(), cancelled]); }
+    finally { signal.removeEventListener('abort', cancel); }
+    call.assert(); if (signal.aborted) throw new Error('approval_cancelled');
+  }
   async capture<T>(call: VoiceCall, mode: Mode, run: () => Promise<T>, config = this.runtime.getConfig(), device: unknown = config.micDevice ?? null): Promise<T> {
     parseVoiceConfig(config);
     return this.control(call, async (pending, signal) => {
-      if (mode === 'probe' || !this.isApproved(mode, config)) {
-        const detail = `Usuario: ${call.userId}\nAlcance: ${mode === 'probe' ? 'Prueba de micrófono de 3 segundos' : mode === 'passive' ? 'Escucha de activación y dictado durante esta sesión' : 'Dictado durante esta sesión'}\n`
-          + `Micrófono: ${JSON.stringify(device)}\nModelo: ${JSON.stringify(config.modelPath ?? 'Modelo local instalado')}\nPalabras: ${JSON.stringify(config.wakeWords)}\nCerrar sesión revoca la autorización.`;
+      await this.prepare(call, signal);
+      call.assert(); if (signal.aborted) throw new Error('approval_cancelled');
+      const remembered = mode !== 'probe' && this.consents.allows(call.userId!, captureSignature(config), mode);
+      let confirmed = false;
+      if (mode === 'probe' || !this.isApproved(mode, config) && !remembered) {
+        const detail = `Usuario: ${call.userId}\nAlcance: ${mode === 'probe' ? 'Prueba de micrófono de 3 segundos' : mode === 'passive' ? 'Escucha de activación y dictado local' : 'Dictado local'}\n`
+          + `Micrófono: ${device == null ? 'Predeterminado del sistema' : JSON.stringify(device)}\nModelo: ${JSON.stringify(config.modelPath ?? 'Modelo local instalado')}\nPalabras: ${JSON.stringify(config.wakeWords)}\n`
+          + (mode === 'probe' ? 'Esta prueba no concede escucha permanente.'
+            : 'Recordaremos tu autorización para esta cuenta y configuración en este equipo. Puedes revocarla deteniendo la captura o desactivando la voz en Ajustes. Cerrar sesión detiene la captura.');
         if (!await this.confirm(call.parent!, detail, call.assert, signal)) throw new Error('approval_cancelled');
+        confirmed = true;
       }
       call.assert(); if (signal.aborted) throw new Error('approval_cancelled');
       if (mode === 'probe') this.probe = { epoch: this.epoch, device, signal };
       else if (!this.isApproved(mode, config)) this.grant = { epoch: this.epoch, mode, signature: captureSignature(config) };
       pending.invoked = true; call.effectStarted = true;
-      try { const result = await run(); call.assert(); if (signal.aborted) throw new Error('approval_cancelled'); return result; }
+      try {
+        const result = await run(); call.assert(); if (signal.aborted) throw new Error('approval_cancelled');
+        if (confirmed && mode !== 'probe') {
+          try { this.consents.remember(call.userId!, captureSignature(config), mode); }
+          catch { console.warn('[VozLocal] No se pudo recordar el consentimiento; se mantiene sólo en esta sesión.'); }
+        }
+        return result;
+      }
       finally { if (mode === 'probe') this.probe = null; }
     });
   }
@@ -140,9 +171,14 @@ export class LocalVoiceSession {
 
 export function voiceFailure(error: unknown, call?: VoiceCall) {
   const code = error instanceof Error && error.name === 'ZodError' ? 'voice_invalid_input'
-    : error instanceof Error && ['context_invalid', 'approval_cancelled', 'approval_expired', 'approval_pending', 'voice_busy', 'voice_approval_required', 'voice_invalid_input'].includes(error.message)
+    : error instanceof Error && ['context_invalid', 'approval_cancelled', 'approval_expired', 'approval_pending', 'voice_busy', 'voice_approval_required', 'voice_invalid_input', 'voice_setup_failed', 'voice_runtime_blocked', 'voice_engine_untrusted'].includes(error.message)
       ? error.message : 'voice_unavailable';
-  return { success: false as const, code, error: code === 'voice_unavailable' ? 'No se pudo completar la operación de voz. Revisa el runtime, el modelo y el dispositivo.'
+  return { success: false as const, code, error: code === 'voice_engine_untrusted'
+    ? 'No se pudo verificar el motor de voz. Actualiza SofLIA desde su instalador oficial.'
+    : code === 'voice_runtime_blocked'
+    ? 'Windows bloqueó un componente de voz. La política de Control de aplicaciones debe permitir el runtime de SofLIA.'
+    : code === 'voice_setup_failed' ? 'No se pudo preparar la voz. Comprueba tu conexión e inténtalo de nuevo.'
+    : code === 'voice_unavailable' ? 'No se pudo iniciar la voz. Comprueba que el micrófono esté conectado y permitido, y vuelve a intentarlo.'
     : code === 'voice_invalid_input' ? 'La solicitud de voz no es válida.'
     : code === 'approval_pending' || code === 'voice_busy' ? 'Hay una operación de voz en curso. Puedes detenerla desde los controles.'
       : 'La operación de voz requiere una sesión y autorización vigentes.',

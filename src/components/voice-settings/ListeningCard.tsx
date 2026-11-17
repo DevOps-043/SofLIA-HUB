@@ -49,8 +49,8 @@ export function ListeningCard({ panel }: { panel: VoicePassivePanel }) {
           <p className="text-sm font-medium text-gray-900 dark:text-white">Activar voz pasiva</p>
           <p className="text-xs text-secondary mt-0.5">
             {canListen
-              ? 'La escucha requiere autorización al iniciar cada sesión.'
-              : 'Disponible cuando el runtime y el modelo de voz estén instalados.'}
+              ? 'Tu autorización se recuerda para esta cuenta y configuración. Desactivar la voz la revoca.'
+              : 'SofLIA está preparando automáticamente los recursos de voz.'}
           </p>
         </div>
         <Toggle

@@ -32,7 +32,9 @@ export async function prepareChatTeam(input: {
   const result = await runAgentTeam({
     plan, surface: 'chat', source: buildTeamSource(input.source, input.conversationHistory), generate, signal: input.options?.signal,
     onEvent: event => {
-      publishTeamActivity(event, input.options?.activityOwnerId ?? input.options?.userId);
+      const origin = input.options?.backgroundRequest;
+      publishTeamActivity(event, input.options?.activityOwnerId ?? input.options?.userId,
+        origin ? { conversationId: origin.conversationId, messageId: origin.messageId } : undefined);
       input.options?.onToolCall?.({ name: 'analisis_en_equipo', args: { tipo: event.kind }, result: JSON.stringify(event) });
     },
   });

@@ -1,5 +1,8 @@
 
 import { app, BrowserWindow, ipcMain } from 'electron';
+import { getAuthState } from './main/auth-state';
+import { getSofiaSessionUserId } from './main/sofia-session';
+import { getHubSessionUserId } from './main/hub-session';
 import path from 'node:path';
 import { z } from 'zod';
 import { AudiovisualService } from './audiovisual/service';
@@ -43,8 +46,15 @@ export function registerSkillWorkspaceHandlers(
     skillId: string;
     title: string;
     conversationId?: string | null;
+    organizationId?: string | null;
     policy: SkillWorkspacePolicyInput;
-  }) => handleIPC(async () => ({ workspace: unwrap(await service.createWorkspace(input)) })));
+  }) => handleIPC(async () => {
+    const auth = getAuthState();
+    const organizationId = z.string().uuid().nullable().optional().parse(input.organizationId) ?? null;
+    const owner = auth.authenticated && auth.userId && auth.userId === getSofiaSessionUserId()
+      ? { userId: auth.userId, dataUserId: getHubSessionUserId(), organizationId } : undefined;
+    return { workspace: unwrap(await service.createWorkspace({ skillId: input.skillId, title: input.title, conversationId: input.conversationId, policy: input.policy, owner })) };
+  }));
 
   ipcMain.handle('skill-workspace:find-by-conversation', (_event, input: { conversationId: string }) =>
     handleIPC(async () => ({ workspace: await service.findByConversation(String(input?.conversationId ?? '')) })));

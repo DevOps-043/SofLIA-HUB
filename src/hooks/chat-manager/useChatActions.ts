@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useLayoutEffect, useRef } from 'react';
 import { deleteConversation, loadMessages, updateConversationTitle, toggleConversationPin } from '../../services/chat-service';
 import { withoutActivePlaceholders } from './helpers';
 import type { ChatManagerState, ChatStorageKeyResolver, UseChatManagerOptions } from './types';
@@ -10,55 +10,70 @@ type ChatActionsDeps = UseChatManagerOptions & {
   state: ChatManagerState;
 };
 
-export function useChatActions({ flushPendingSave, getCurrentChatStorageKey, refreshConversationsFromRemote, state, userId }: ChatActionsDeps) {
+export function useChatActions({ flushPendingSave, getCurrentChatStorageKey, refreshConversationsFromRemote, state, userId, orgId }: ChatActionsDeps) {
+  const navigation = useRef(0);
+  useLayoutEffect(() => { ++navigation.current; }, [userId, orgId]);
+  const { scopeVersionRef, chatScopeIdRef, currentConvIdRef, currentFolderIdRef } = state;
   const handleNewChat = useCallback(async (folderId?: string | null, isCurrent?: () => boolean) => {
+    const ticket = ++navigation.current;
     if (!userId) return folderId ?? null;
     await flushPendingSave();
-    if (isCurrent && !isCurrent()) return null;
-    state.scopeVersionRef.current += 1;
+    if (ticket !== navigation.current || (isCurrent && !isCurrent())) return null;
+    scopeVersionRef.current += 1;
+    const scopeId = crypto.randomUUID();
+    chatScopeIdRef.current = scopeId;
+    state.setChatScopeId(scopeId);
     state.setCurrentConversationId(null);
-    state.currentConvIdRef.current = null;
+    currentConvIdRef.current = null;
     state.setCurrentMessages([]);
-    state.currentFolderIdRef.current = folderId ?? null;
+    currentFolderIdRef.current = folderId ?? null;
     localStorage.removeItem(getCurrentChatStorageKey(userId));
     return folderId ?? null;
-  }, [flushPendingSave, getCurrentChatStorageKey, state, userId]);
+  }, [flushPendingSave, getCurrentChatStorageKey, chatScopeIdRef, currentConvIdRef, currentFolderIdRef, scopeVersionRef, state, userId]);
 
   const handleSelectConversation = useCallback(async (convId: string, isCurrent?: () => boolean) => {
+    const ticket = ++navigation.current;
     if (!userId || (isCurrent && !isCurrent())) return false;
-    if (convId === state.currentConvIdRef.current) {
+    if (convId === currentConvIdRef.current) {
       await flushPendingSave();
-      if (isCurrent && !isCurrent()) return false;
+      if (ticket !== navigation.current || (isCurrent && !isCurrent())) return false;
       await refreshConversationsFromRemote();
       return true;
     }
     await flushPendingSave();
-    if (isCurrent && !isCurrent()) return false;
-    state.scopeVersionRef.current += 1;
+    if (ticket !== navigation.current || (isCurrent && !isCurrent())) return false;
+    scopeVersionRef.current += 1;
     const msgs = withoutActivePlaceholders(await loadMessages(convId, userId));
-    if (isCurrent && !isCurrent()) return false;
+    if (ticket !== navigation.current || (isCurrent && !isCurrent())) return false;
+    chatScopeIdRef.current = convId;
+    state.setChatScopeId(convId);
     state.setCurrentConversationId(convId);
-    state.currentConvIdRef.current = convId;
+    currentConvIdRef.current = convId;
     state.setCurrentMessages(msgs);
     localStorage.setItem(getCurrentChatStorageKey(userId), convId);
     return true;
-  }, [flushPendingSave, getCurrentChatStorageKey, refreshConversationsFromRemote, state, userId]);
+  }, [flushPendingSave, getCurrentChatStorageKey, refreshConversationsFromRemote, chatScopeIdRef, currentConvIdRef, scopeVersionRef, state, userId]);
 
   const handleDeleteConversation = useCallback(async (convId: string) => {
+    const ticket = ++navigation.current;
     if (!userId) return false;
     const conversation = state.conversations.find((item) => item.id === convId);
     if (!conversation?.can_share) return false;
     await flushPendingSave();
-    state.scopeVersionRef.current += 1;
+    if (ticket !== navigation.current) return false;
+    scopeVersionRef.current += 1;
     state.setConversations((prev) => prev.filter((item) => item.id !== convId));
-    if (convId === state.currentConvIdRef.current) {
+    if (convId === currentConvIdRef.current) {
       state.setCurrentConversationId(null);
-      state.currentConvIdRef.current = null;
+      const scopeId = crypto.randomUUID();
+      chatScopeIdRef.current = scopeId;
+      state.setChatScopeId(scopeId);
+      currentConvIdRef.current = null;
       state.setCurrentMessages([]);
       localStorage.removeItem(getCurrentChatStorageKey(userId));
     }
     return deleteConversation(userId, convId);
-  }, [flushPendingSave, getCurrentChatStorageKey, state, userId]);
+  }, [flushPendingSave, getCurrentChatStorageKey, chatScopeIdRef, currentConvIdRef, scopeVersionRef, state, userId]);
 
   const handleRenameChat = useCallback(async () => {
     const newTitle = state.editingChatTitle.trim();

@@ -23,6 +23,12 @@ trabajos independientes del turno con herramientas acotadas, archivos comprobado
 historial cifrado y recuperación. Las capacidades, restricciones y diferencias
 entre preparación y ejecución se mantienen en la guía canónica.
 
+El [aislamiento de chats y continuidad](chat-context-isolation.md) liga mensajes,
+memoria y workspaces al origen y ejecuta las presentaciones de Skill admitidas
+en main. Navegar no cancela esos trabajos; un acuse tardío sólo actualiza su
+mensaje originario. La preparación que aún requiere una superficie supervisada
+conserva sus guardas y no se confunde con un trabajo durable.
+
 Este documento es la referencia extendida de **el agente**: qué es, cómo razona,
 qué puede hacer, qué tiene prohibido, con qué límites numéricos opera y cómo se
 extiende. El resumen normativo corto vive en
@@ -1612,7 +1618,8 @@ descartara antes del agente por no poder acreditar `personal_agent`.
 ### 3.17 Anuncios proactivos en la orbe
 
 El dictado y la reproducción Piper de Orbe usan consumidor main por ID de flujo,
-sesión, ventana/marco y documento. Captura requiere consentimiento main efímero;
+sesión, ventana/marco y documento. Captura requiere un grant main efímero,
+derivado de aprobación explícita recordada por cuenta/configuración o revisión nativa;
 una preferencia enabled no activa micrófono antes de login. Estos permisos son
 de UI, no amplían herramientas de agentes runtime. La cola de anuncios invalida
 entregas en espera al cambiar la sesión. Ver

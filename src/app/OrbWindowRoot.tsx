@@ -18,6 +18,7 @@ import { OrbGuidanceControls } from '../components/orb/OrbGuidanceControls';
 
 const STATE_LABELS: Record<string, string> = {
   idle: '',
+  preparing: 'Preparando voz…',
   listening: 'Escuchando…',
   thinking: 'Pensando…',
   acting: 'Ejecutando…',

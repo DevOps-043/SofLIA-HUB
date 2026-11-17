@@ -1,5 +1,8 @@
 import { hasIndependentTeamWork, requestedTeamMode, selectTeam, teamRequestText, type TeamMode } from './agent-teams/policy';
 import { SOFLIA_DEFAULT_MODEL, SOFLIA_MAX_MODEL, SOFLIA_PRO_MODEL } from './soflia-runtime-model';
+import { VIEWER_LIMITS } from './artifact-viewer';
+/** La exportación de un workspace conserva el límite del visor existente. */
+export const BACKGROUND_PRESENTATION_ARTIFACT_BYTES = VIEWER_LIMITS.fileBytes;
 
 export const BACKGROUND_MODELS = [SOFLIA_MAX_MODEL, SOFLIA_DEFAULT_MODEL, SOFLIA_PRO_MODEL, 'gpt-5.6-luna'] as const;
 /** Compatibilidad de trabajos guardados con el proveedor retirado. */
@@ -10,11 +13,14 @@ export function reconcileBackgroundModel(value: unknown): unknown {
 export const BACKGROUND_LIMITS = { history: 30, admitted: 6, concurrentJobs: 1, workers: 2, rounds: 12, calls: 42, tools: 60, tokens: 160_000, timeoutMs: 600_000, sourceChars: 32_000, artifactBytes: 2_000_000, artifacts: 12 } as const;
 export type BackgroundStatus = 'queued' | 'running' | 'verifying' | 'paused' | 'completed' | 'failed' | 'cancelled' | 'interrupted';
 export type BackgroundScope = { userId: string; organizationId: string | null; dataUserId: string | null };
-export type BackgroundAgent = { role: string; instruction: string; status: 'pending' | 'running' | 'completed' | 'failed'; operation: string; output: string; calls: number };
+export type BackgroundAgent = { role: string; instruction: string; status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped'; operation: string; output: string; calls: number };
 export type BackgroundArtifact = { id: string; role: string; name: string; format: 'md' | 'txt' | 'csv' | 'docx' | 'pptx' | 'xlsx'; bytes: number; hash: string; inputHash: string; verified: boolean; designNotice?: string };
 export type BackgroundSource = { uri: string; title: string; role: string };
 export type BackgroundAction = { id: string; role: string; tool: string; status: 'running' | 'completed' | 'failed' | 'cancelled'; at: string; artifactId?: string };
 export interface BackgroundJob {
+  /** Workspace fijo de la Skill; sólo main valida y concede sus herramientas. */
+  presentationWorkspaceId?: string;
+  executionMode?: 'team' | 'direct';
   id: string; requestId: string; conversationId: string; scope: BackgroundScope; task: string; source: string;
   expectedOwnerId: string; expectedOrganizationId: string | null;
   messageId?: string;
@@ -25,6 +31,8 @@ export interface BackgroundJob {
   actions: BackgroundAction[];
 }
 export type BackgroundStart = { requestId: string; conversationId: string; task: string; source: string; model: string; effort: string; allowResearch: boolean;
+  presentationWorkspaceId?: string;
+  executionMode?: 'team' | 'direct';
   expectedOwnerId: string; expectedOrganizationId: string | null; messageId: string };
 export type BackgroundState = { scope: BackgroundScope; jobs: BackgroundJob[]; persistence: 'encrypted' };
 export type BackgroundReply<T> = { success: true; data: T } | { success: false; error: string };

@@ -11,6 +11,16 @@ import { VoiceEventOwner } from '../voice/event-owner';
 import { resetAuthStateForTests, setAuthState } from '../main/auth-state';
 import { deferred } from './project-hub/fixtures';
 
+const { savedConsents } = vi.hoisted(() => ({ savedConsents: new Map<string, { signature: string; mode: string }>() }));
+vi.mock('../voice/consent-store', () => ({ VoiceConsentStore: class {
+  allows(user: string, signature: string, mode: string) {
+    const saved = savedConsents.get(user);
+    return saved?.signature === signature && (saved.mode === 'passive' || mode === saved.mode);
+  }
+  remember(user: string, signature: string, mode: string) { savedConsents.set(user, { signature, mode }); }
+  forget(user: string) { savedConsents.delete(user); }
+} }));
+
 const harness = ipcMain as unknown as { _getHandler(channel: string): (event: IpcMainInvokeEvent, ...args: unknown[]) => Promise<Record<string, unknown>> };
 function windowFixture() {
   const sender = Object.assign(new EventEmitter(), { mainFrame: { url: pathToFileURL(path.join(app.getAppPath(), 'dist', 'index.html')).href }, isDestroyed: () => false, send: vi.fn() });
@@ -28,6 +38,7 @@ let authorize: (cmd: string, params: Record<string, unknown>) => void;
 let runtime: ReturnType<typeof runtimeFixture>;
 function runtimeFixture() {
   return Object.assign(new EventEmitter(), {
+    prepareVoice: vi.fn(async () => {}),
     configureCaptureAuthorization: vi.fn((fn: typeof authorize) => { authorize = fn; }),
     getConfig: vi.fn(() => ({ ...config, wakeWords: [...config.wakeWords] })),
     getStatus: vi.fn(() => ({ runtimeAvailable: true, sidecarRunning: false, enabled: config.enabled, listening, dictating: false,
@@ -49,7 +60,7 @@ function runtimeFixture() {
 const invoke = (channel: string, ...args: unknown[]) => harness._getHandler(channel)(main.event, ...args);
 const invokeOrb = (channel: string, ...args: unknown[]) => harness._getHandler(channel)(orb.event, ...args);
 beforeEach(() => {
-  vi.clearAllMocks(); resetAuthStateForTests(); setAuthState({ authenticated: true, userId: 'usuario-A' });
+  vi.clearAllMocks(); savedConsents.clear(); resetAuthStateForTests(); setAuthState({ authenticated: true, userId: 'usuario-A' });
   main = windowFixture(); orb = windowFixture(); listening = false; sequence = 0;
   config = { enabled: false, wakeWords: ['soflia'], micDevice: null, ttsVoice: 'Aoede', ttsSpeed: 1 };
   runtime = runtimeFixture(); vi.mocked(dialog.showMessageBox).mockResolvedValue({ response: 1, checkboxChecked: false });
@@ -61,6 +72,47 @@ beforeEach(() => {
 afterEach(() => { session.dispose(); resetAuthStateForTests(); });
 
 describe('Autorización integrada de voz local', () => {
+  it('prepara el modelo pequeño sin diálogo ni captura', async () => {
+    expect(await invoke('voice:install-model', 'small')).toMatchObject({ success: true });
+    expect(runtime.prepareVoice).toHaveBeenCalledOnce();
+    expect(dialog.showMessageBox).not.toHaveBeenCalled();
+    expect(runtime.startPassiveListening).not.toHaveBeenCalled();
+  });
+  it('espera preparación y cancelar impide aprobación y captura tardías', async () => {
+    const ready = deferred<void>(); runtime.prepareVoice.mockReturnValueOnce(ready.promise);
+    const pending = invokeOrb('orb:start-dictation');
+    await vi.waitFor(() => expect(runtime.prepareVoice).toHaveBeenCalledOnce());
+    expect(dialog.showMessageBox).not.toHaveBeenCalled();
+    await invokeOrb('orb:stop-dictation');
+    expect(await pending).toMatchObject({ success: false, code: 'approval_cancelled' });
+    ready.resolve();
+    expect(runtime.startDictation).not.toHaveBeenCalled();
+  });
+  it('un fallo de preparación da recuperación concreta sin pedir consentimiento', async () => {
+    runtime.prepareVoice.mockRejectedValueOnce(new Error('voice_setup_failed'));
+    expect(await invokeOrb('orb:start-dictation')).toMatchObject({ success: false, code: 'voice_setup_failed' });
+    expect(dialog.showMessageBox).not.toHaveBeenCalled(); expect(runtime.startDictation).not.toHaveBeenCalled();
+  });
+  it('recuerda aprobación al regresar a la cuenta sin conceder captura a otra', async () => {
+    await invokeOrb('orb:start-dictation');
+    setAuthState({ authenticated: false, userId: null });
+    expect(session.isApproved('dictation')).toBe(false);
+    setAuthState({ authenticated: true, userId: 'usuario-B' });
+    expect(() => authorize('start_dictation', {})).toThrow('voice_approval_required');
+    setAuthState({ authenticated: true, userId: 'usuario-A' });
+    expect(await invokeOrb('orb:start-dictation')).toMatchObject({ success: true });
+    expect(dialog.showMessageBox).toHaveBeenCalledOnce();
+  });
+  it('detener elimina el consentimiento recordado y el próximo inicio lo pide', async () => {
+    await invokeOrb('orb:start-dictation'); await invoke('voice:stop');
+    expect(savedConsents.size).toBe(0);
+    await invokeOrb('orb:start-dictation'); expect(dialog.showMessageBox).toHaveBeenCalledTimes(2);
+  });
+  it('cambiar micrófono invalida la aprobación recordada', async () => {
+    await invokeOrb('orb:start-dictation'); session.cancelCapture();
+    await invoke('voice:set-config', { micDevice: 2 });
+    await invokeOrb('orb:start-dictation'); expect(dialog.showMessageBox).toHaveBeenCalledTimes(2);
+  });
   it.each(['dictado', 'prueba'] as const)('un fallo devuelto por %s retira el hijo y el grant', async mode => {
     if (mode === 'dictado') runtime.startDictation.mockResolvedValueOnce({ success: false, error: 'Fallo nativo ficticio.' });
     else runtime.probeMic.mockResolvedValueOnce({ success: false, error: 'Fallo nativo ficticio.' });
@@ -163,14 +215,14 @@ describe('Autorización integrada de voz local', () => {
   });
   it.each(['sesión', 'navegación'] as const)('no instala tras invalidar %s durante aprobación', async mode => {
     const answer = deferred<{ response: number; checkboxChecked: boolean }>(); vi.mocked(dialog.showMessageBox).mockReturnValueOnce(answer.promise);
-    const pending = invoke('voice:install-model', 'small'); await vi.waitFor(() => expect(dialog.showMessageBox).toHaveBeenCalledOnce());
+    const pending = invoke('voice:install-model', 'large'); await vi.waitFor(() => expect(dialog.showMessageBox).toHaveBeenCalledOnce());
     if (mode === 'sesión') { setAuthState({ authenticated: true, userId: 'usuario-B' }); setAuthState({ authenticated: true, userId: 'usuario-A' }); }
     else main.sender.emit('did-start-navigation', {}, main.sender.mainFrame.url, true, true);
     answer.resolve({ response: 1, checkboxChecked: false }); expect(await pending).toMatchObject({ success: false }); expect(runtime.installModel).not.toHaveBeenCalled();
   });
   it('una instalación iniciada devuelve incertidumbre al perder contexto, sin repetir', async () => {
     const effect = deferred<{ success: boolean }>(); runtime.installModel.mockReturnValueOnce(effect.promise);
-    const pending = invoke('voice:install-model', 'small'); await vi.waitFor(() => expect(runtime.installModel).toHaveBeenCalledOnce());
+    const pending = invoke('voice:install-model', 'large'); await vi.waitFor(() => expect(runtime.installModel).toHaveBeenCalledOnce());
     setAuthState({ authenticated: false, userId: null }); effect.resolve({ success: true });
     expect(await pending).toMatchObject({ success: false, uncertain: true, recoveryRequired: true }); expect(runtime.installModel).toHaveBeenCalledOnce();
   });

@@ -29,6 +29,7 @@ models/vosk-model-*
 
 # Runtime Python embebido (generado por scripts/setup-python-runtime.js)
 python-runtime
+/voice-engine/
 
 # Electron
 dist-electron

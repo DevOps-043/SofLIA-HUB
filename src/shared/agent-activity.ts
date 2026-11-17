@@ -1,6 +1,8 @@
 import type { TeamEvent } from './agent-teams/runner';
 export type ActivityAgentState = 'pending' | 'running' | 'completed' | 'failed' | 'timed_out' | 'cancelled' | 'skipped';
 export interface AgentActivity {
+  /** Procedencia informativa; no concede permisos de acceso ni de ejecución. */
+  origin?: { conversationId: string; messageId?: string };
   id: string; sequence: number;
   surface: 'chat' | 'orb' | 'whatsapp' | 'browser' | 'computer' | 'meetings';
   kind: 'analysis' | 'document' | 'presentation' | 'browser' | 'computer' | 'meeting';
@@ -19,8 +21,8 @@ export interface AgentActivityBridge {
   publish(input: { ownerId: string; activity: AgentActivity }): Promise<ActivityReply>;
   onChanged(listener: (items: AgentActivity[]) => void): () => void;
 }
-export function activityFromTeam(event: TeamEvent): AgentActivity {
-  return { id: event.runId, sequence: event.sequence, surface: event.surface, kind: event.kind,
+export function activityFromTeam(event: TeamEvent, origin?: AgentActivity['origin']): AgentActivity {
+  return { id: event.runId, sequence: event.sequence, surface: event.surface, kind: event.kind, ...(origin ? { origin } : {}),
     status: event.status === 'started' || event.status === 'updated' ? 'running' : event.status,
     agents: event.agents.map(agent => ({ ...agent })), durationMs: event.durationMs };
 }

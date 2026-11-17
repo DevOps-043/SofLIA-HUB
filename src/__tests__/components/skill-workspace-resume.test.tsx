@@ -11,6 +11,17 @@ import type { ActiveSkillState } from '../../services/skills/active-skill';
  * carpeta intacta en disco.
  */
 describe('reanudacion del espacio de trabajo de una conversacion', () => {
+  it('respeta una desactivación ocurrida mientras esperaba la búsqueda del workspace', async () => {
+    let resolve!: (value: unknown) => void;
+    findByConversation.mockReturnValue(new Promise(done => { resolve = done; }));
+    const setActiveSkill = vi.fn();
+    const hook = renderHook(({ activeSkill }: { activeSkill: ActiveSkillState | null }) => useSkillWorkspaceResume({ conversationId: 'conv-1', activeSkill, setActiveSkill }), { initialProps: { activeSkill: null as ActiveSkillState | null } });
+    hook.rerender({ activeSkill: { skill: PRESENTACIONES_SKILL, workspaceId: 'ws-nuevo' } as ActiveSkillState });
+    hook.rerender({ activeSkill: null });
+    resolve({ success: true, workspace });
+    await new Promise(done => setTimeout(done, 0));
+    expect(setActiveSkill).not.toHaveBeenCalled();
+  });
   const workspace = {
     id: 'ws-1',
     skillId: PRESENTACIONES_SKILL.id,
@@ -144,7 +155,7 @@ describe('reanudacion del espacio de trabajo de una conversacion', () => {
     expect(setActiveSkill).toHaveBeenCalledWith(null);
   });
 
-  it('guardar el chat nuevo NO se confunde con cambiar de chat', async () => {
+  it('la identidad reservada del chat se conserva al guardar', async () => {
     // Pasar de "sin identificador" al suyo es el mismo chat al guardarse. Si se
     // tratara como un cambio, la presentacion recien generada desapareceria del
     // panel justo al enviar el primer mensaje.
@@ -158,7 +169,7 @@ describe('reanudacion del espacio de trabajo de una conversacion', () => {
         setActiveSkill,
         onWorkspaceResolved,
       }),
-      { initialProps: { conversationId: null as string | null } },
+      { initialProps: { conversationId: 'conv-recien-creada' as string | null } },
     );
 
     rerender({ conversationId: 'conv-recien-creada' });

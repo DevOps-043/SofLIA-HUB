@@ -16,6 +16,13 @@ export interface SkillWorkspacePolicyInput {
   protectedFiles?: readonly string[];
 }
 
+/** Custodia main; este dato no lo elige el modelo ni se devuelve al renderer. */
+export interface WorkspaceOwner {
+  userId: string;
+  dataUserId: string | null;
+  organizationId: string | null;
+}
+
 export interface SkillWorkspaceRecord {
   id: string;
   skillId: string;

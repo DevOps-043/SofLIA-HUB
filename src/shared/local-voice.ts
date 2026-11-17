@@ -9,6 +9,8 @@ export interface VoicePassiveConfig {
 export interface TtsVoiceInfo { id: string; label: string; installed: boolean }
 export interface MicDeviceInfo { index: number; name: string; default: boolean }
 export interface VoicePassiveStatus {
+  setupState?: 'idle' | 'runtime' | 'model' | 'ready' | 'error';
+  setupErrorCode?: 'voice_setup_failed' | 'voice_runtime_blocked' | 'voice_engine_untrusted';
   runtimeAvailable: boolean;
   sidecarRunning: boolean;
   listening: boolean;

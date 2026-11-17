@@ -8,15 +8,20 @@ const {
 } = require('./python-runtime-support.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
-const RUNTIME = path.join(ROOT, 'python-runtime');
+const RUNTIME = process.env.SOFLIA_PYTHON_RUNTIME_DIRECTORY
+  ? path.resolve(process.env.SOFLIA_PYTHON_RUNTIME_DIRECTORY) : path.join(ROOT, 'python-runtime');
 
 async function main() {
   if (process.argv.slice(2).some(arg => arg !== '--force')) throw new Error('Uso: node scripts/setup-python-runtime.js [--force]');
   const { download } = await import('./python-runtime-download.mjs');
   const spec = archiveSpec(process.platform, process.arch, process.env);
   const requirements = ['python/requirements.txt', 'python/tools_sidecar/requirements.txt'].map(file => path.join(ROOT, file));
-    const requirementsSha256 = requirementsFingerprint(ROOT);
-  const tempRoot = path.join(ROOT, 'tmp');
+  const requirementsSha256 = requirementsFingerprint(ROOT);
+  const signRuntime = process.platform === 'win32' && process.env.SOFLIA_REQUIRE_WINDOWS_SIGNING === '1';
+  const runSigning = signRuntime ? require('./windows-signing.cjs').runSigning : null;
+  if (signRuntime) runSigning('Check');
+  // Staging y destino comparten volumen también en la reparación de una app instalada.
+  const tempRoot = path.join(path.dirname(RUNTIME), 'tmp');
   fs.mkdirSync(tempRoot, { recursive: true });
   if (fs.lstatSync(tempRoot).isSymbolicLink()) throw new Error('El directorio temporal no puede ser un enlace.');
   const mutex = path.join(tempRoot, 'python-runtime-setup.lock');
@@ -29,6 +34,7 @@ async function main() {
     let lock;
     try { lock = JSON.parse(fs.readFileSync(path.join(RUNTIME, '.setup-lock.json'), 'utf8')); } catch { /* Sin caché válida. */ }
     if (!process.argv.includes('--force') && isCurrentLock(lock, spec, requirementsSha256, process.platform, process.arch)) {
+      if (signRuntime) runSigning('SignTree', RUNTIME);
       validateRuntime(RUNTIME);
       console.log(`[PythonRuntime] Python ${PYTHON_VERSION} y ambos sidecars verificados; sin descargas.`);
       return;
@@ -45,6 +51,7 @@ async function main() {
     const systemTar = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe');
     const tar = process.platform === 'win32' && fs.existsSync(systemTar) ? systemTar : 'tar';
     execFileSync(tar, ['-xzf', '../runtime.tar.gz', '--strip-components=1'], { cwd: staged, windowsHide: true, stdio: 'inherit', timeout: 180000 });
+    if (signRuntime) runSigning('SignTree', staged);
     const executable = pythonExecutable(staged);
     const options = { stdio: 'inherit', env: runtimeEnvironment(staged), windowsHide: true, timeout: 1800000 };
     // Sin configuraciones pip del usuario, paquetes user-site ni PYTHONPATH externos.
@@ -52,6 +59,7 @@ async function main() {
     execFileSync(executable, ['-I', '-m', 'pip', '--isolated', 'install', '--no-warn-script-location', '--no-build-isolation', '-r', requirements[0]], options);
     // Los hashes del lector no convierten la instalación de voz en un lock falso.
     execFileSync(executable, ['-I', '-m', 'pip', '--isolated', 'install', '--no-warn-script-location', '--only-binary=:all:', '--require-hashes', '-r', requirements[1]], options);
+    if (signRuntime) runSigning('SignTree', staged);
     if (process.platform === 'linux') {
       const output = execFileSync('ldconfig', ['-p'], { encoding: 'utf8' });
       const match = output.match(/libportaudio\.so\.2[^\n]*=>\s*(\S+)/);

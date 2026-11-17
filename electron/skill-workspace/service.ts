@@ -14,6 +14,7 @@ import type {
   SkillWorkspaceRecord,
   SkillWorkspaceResult,
   SkillWorkspaceState,
+  WorkspaceOwner,
 } from './types';
 
 /**
@@ -35,6 +36,7 @@ const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp']);
 
 interface WorkspaceEntry extends SkillWorkspaceRecord {
+  owner?: WorkspaceOwner;
   rootFolder: string;
   allowedExtensions: string[];
   maxFileBytes: number;
@@ -47,6 +49,35 @@ export class SkillWorkspaceService extends EventEmitter {
   private loaded = false;
   private writeQueue: Promise<void> = Promise.resolve();
   private readonly systemRefreshQueues = new Map<string, Promise<SkillWorkspaceResult<boolean>>>();
+  private readonly backgroundWriters = new Map<string, string>();
+
+  async reserveBackground(workspaceId: string, jobId: string, conversationId: string, owner: WorkspaceOwner, verifyLegacy?: () => Promise<void>): Promise<void> {
+    const workspace = await this.getWorkspace(workspaceId);
+    if (!workspace || workspace.skillId !== 'sistema:presentaciones' || workspace.entryFile !== 'deck.json' || workspace.conversationId !== conversationId) {
+      throw new Error('El workspace no pertenece a la presentación de este chat.');
+    }
+    const entry = this.entries.get(workspaceId)!;
+    if (!entry.owner) {
+      if (!verifyLegacy) throw new Error('Falta verificar el propietario del workspace anterior.');
+      await verifyLegacy();
+      if (this.entries.get(workspaceId) !== entry || entry.conversationId !== conversationId) throw new Error('El workspace cambió durante la verificación.');
+      if (!entry.owner) { entry.owner = { ...owner }; await this.persist(); }
+    }
+    if (entry.owner.userId !== owner.userId || entry.owner.dataUserId !== owner.dataUserId || entry.owner.organizationId !== owner.organizationId) {
+      throw new Error('El workspace pertenece a otro propietario u organización.');
+    }
+    const writer = this.backgroundWriters.get(workspaceId);
+    if (writer && writer !== jobId) throw new Error('La presentación ya tiene un trabajo pendiente.');
+    this.backgroundWriters.set(workspaceId, jobId);
+  }
+
+  releaseBackground(workspaceId: string, jobId: string): void {
+    if (this.backgroundWriters.get(workspaceId) === jobId) this.backgroundWriters.delete(workspaceId);
+  }
+
+  writeBackgroundFile(workspaceId: string, jobId: string, relativePath: string, content: string, guard: () => Promise<void>) {
+    return this.writeFileInternal(workspaceId, relativePath, content, false, { jobId, guard });
+  }
 
   constructor(private readonly baseDir = path.join(app.getPath('userData'), WORKSPACES_DIRNAME)) {
     super();
@@ -58,6 +89,7 @@ export class SkillWorkspaceService extends EventEmitter {
   }
 
   async createWorkspace(input: {
+    owner?: WorkspaceOwner;
     skillId: string;
     title: string;
     conversationId?: string | null;
@@ -67,6 +99,7 @@ export class SkillWorkspaceService extends EventEmitter {
     const id = `${slugify(input.title) || 'presentacion'}-${randomUUID().slice(0, 8)}`;
     const now = new Date().toISOString();
     const entry: WorkspaceEntry = {
+      ...(input.owner ? { owner: { ...input.owner } } : {}),
       id,
       skillId: input.skillId,
       conversationId: input.conversationId ?? null,
@@ -192,6 +225,7 @@ export class SkillWorkspaceService extends EventEmitter {
     workspaceId: string,
     conversationId: string,
   ): Promise<SkillWorkspaceResult<SkillWorkspaceRecord>> {
+    if (this.backgroundWriters.has(workspaceId)) return { ok: false, error: 'La presentación tiene un trabajo en curso.' };
     const entry = await this.requireEntry(workspaceId);
     if (!entry.ok) return entry;
     const target = String(conversationId ?? '').trim();
@@ -281,6 +315,20 @@ export class SkillWorkspaceService extends EventEmitter {
     fileName: string,
     data: Buffer,
   ): Promise<SkillWorkspaceResult<SkillWorkspaceFile>> {
+    return this.writeImageInternal(workspaceId, fileName, data);
+  }
+
+  async writeBackgroundImage(workspaceId: string, jobId: string, fileName: string, data: Buffer, guard: () => Promise<void>): Promise<SkillWorkspaceResult<SkillWorkspaceFile>> {
+    return this.writeImageInternal(workspaceId, fileName, data, { jobId, guard });
+  }
+
+  private async writeImageInternal(workspaceId: string, fileName: string, data: Buffer, task?: { jobId: string; guard: () => Promise<void> }): Promise<SkillWorkspaceResult<SkillWorkspaceFile>> {
+    const assertWriter = async () => {
+      await task?.guard();
+      const writer = this.backgroundWriters.get(workspaceId);
+      if ((task && writer !== task.jobId) || (writer && writer !== task?.jobId)) throw new Error('La presentación tiene otro escritor activo.');
+    };
+    try { await assertWriter(); } catch { return { ok: false, error: 'La presentación tiene un trabajo en curso o fue cancelada.' }; }
     const entry = await this.requireEntry(workspaceId);
     if (!entry.ok) return entry;
 
@@ -303,9 +351,13 @@ export class SkillWorkspaceService extends EventEmitter {
     this.emitProgress({ workspaceId, operation: 'escritura', path: relativePath, status: 'en_curso' });
     try {
       await fs.mkdir(path.dirname(resolved.absolutePath), { recursive: true });
-      const temporal = `${resolved.absolutePath}.parcial`;
-      await fs.writeFile(temporal, data);
-      await fs.rename(temporal, resolved.absolutePath);
+      const temporal = `${resolved.absolutePath}.${randomUUID()}.parcial`;
+      try {
+        await assertWriter();
+        await fs.writeFile(temporal, data);
+        await assertWriter();
+        await fs.rename(temporal, resolved.absolutePath);
+      } finally { await fs.rm(temporal, { force: true }); }
     } catch (error) {
       return this.fail(workspaceId, 'escritura', relativePath, `No se pudo guardar la imagen: ${describeError(error)}`);
     }
@@ -331,7 +383,14 @@ export class SkillWorkspaceService extends EventEmitter {
     relativePath: string,
     content: string,
     fromSystem: boolean,
+    task?: { jobId: string; guard: () => Promise<void> },
   ): Promise<SkillWorkspaceResult<SkillWorkspaceFile>> {
+    const assertWriter = async () => {
+      await task?.guard();
+      const writer = this.backgroundWriters.get(workspaceId);
+      if ((task && writer !== task.jobId) || (writer && writer !== task?.jobId)) throw new Error('La presentación tiene otro escritor activo.');
+    };
+    try { await assertWriter(); } catch { return { ok: false, error: 'La presentación tiene un trabajo en curso o fue cancelada.' }; }
     const entry = await this.requireEntry(workspaceId);
     if (!entry.ok) return entry;
 
@@ -396,9 +455,13 @@ export class SkillWorkspaceService extends EventEmitter {
       await fs.mkdir(path.dirname(resolved.absolutePath), { recursive: true });
       // Escritura atomica: un fallo a mitad no deja un archivo truncado que
       // el panel mostraria como contenido valido.
-      const temporal = `${resolved.absolutePath}.parcial`;
-      await fs.writeFile(temporal, content, 'utf-8');
-      await fs.rename(temporal, resolved.absolutePath);
+      const temporal = `${resolved.absolutePath}.${randomUUID()}.parcial`;
+      try {
+        await assertWriter();
+        await fs.writeFile(temporal, content, 'utf-8');
+        await assertWriter();
+        await fs.rename(temporal, resolved.absolutePath);
+      } finally { await fs.rm(temporal, { force: true }); }
     } catch (error) {
       return this.fail(workspaceId, 'escritura', resolved.relativePath, `No se pudo escribir: ${describeError(error)}`);
     }
@@ -471,6 +534,7 @@ export class SkillWorkspaceService extends EventEmitter {
   }
 
   async deleteFile(workspaceId: string, relativePath: string): Promise<SkillWorkspaceResult<true>> {
+    if (this.backgroundWriters.has(workspaceId)) return { ok: false, error: 'La presentación tiene un trabajo en curso.' };
     const entry = await this.requireEntry(workspaceId);
     if (!entry.ok) return entry;
 
@@ -487,6 +551,7 @@ export class SkillWorkspaceService extends EventEmitter {
     }
 
     try {
+      if (this.backgroundWriters.has(workspaceId)) return { ok: false, error: 'La presentación tiene un trabajo en curso.' };
       await fs.rm(resolved.absolutePath, { force: true });
     } catch (error) {
       return this.fail(workspaceId, 'borrado', resolved.relativePath, `No se pudo borrar: ${describeError(error)}`);
@@ -525,10 +590,12 @@ export class SkillWorkspaceService extends EventEmitter {
   }
 
   async deleteWorkspace(workspaceId: string): Promise<SkillWorkspaceResult<true>> {
+    if (this.backgroundWriters.has(workspaceId)) return { ok: false, error: 'La presentación tiene un trabajo en curso.' };
     const entry = await this.requireEntry(workspaceId);
     if (!entry.ok) return entry;
 
     try {
+      if (this.backgroundWriters.has(workspaceId)) return { ok: false, error: 'La presentación tiene un trabajo en curso.' };
       await fs.rm(this.rootOf(entry.data), { recursive: true, force: true });
     } catch (error) {
       return { ok: false, error: `No se pudo eliminar el espacio de trabajo: ${describeError(error)}` };

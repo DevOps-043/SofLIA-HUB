@@ -22,6 +22,11 @@ export function useChatTools(
     onWorkspaceReady?: (workspace: { id: string; skillId: string }) => void;
   },
 ) {
+  const scope = JSON.stringify([context.conversationId, context.organizationId, canSendMessages]);
+  const currentScope = useRef(scope);
+  useLayoutEffect(() => { currentScope.current = scope; }, [scope]);
+  const activation = useRef(0);
+  useLayoutEffect(() => () => { ++activation.current; }, [scope]);
   const handleToolSelect = (toolId: string) => {
     if (!canSendMessages) {
       state.tools.setOpen(false);
@@ -54,10 +59,12 @@ export function useChatTools(
   };
 
   const handleUseSkill = async (skill: Skill) => {
+    if (!canSendMessages) return;
+    const ticket = ++activation.current;
     state.skillModals.setLibraryOpen(false);
     // Se activa de inmediato con sus instrucciones; el workspace llega
     // despues para no bloquear la interfaz mientras se crea la carpeta.
-    state.skillModals.setActiveSkill({ skill, workspaceId: null, brandingNotice: null, workspaceError: null, contextNote: null });
+    state.skillModals.setActiveSkill({ skill, conversationId: context.conversationId, workspaceId: null, brandingNotice: null, workspaceError: null, contextNote: null });
 
     // El uso ordena la biblioteca del usuario. No bloquea la activacion: si
     // falla, la Skill se usa igual y solo se pierde el contador.
@@ -73,11 +80,13 @@ export function useChatTools(
       organizationId: context.organizationId,
       context: { ...context.activation, organizationName: context.organizationName },
     });
-    state.skillModals.setActiveSkill(prepared);
+    if (activation.current !== ticket || currentScope.current !== scope) return;
+    state.skillModals.setActiveSkill({ ...prepared, conversationId: context.conversationId });
     if (prepared.workspaceId) context.onWorkspaceReady?.({ id: prepared.workspaceId, skillId: skill.id });
   };
 
   const handleDeactivateSkill = () => {
+    ++activation.current;
     // Desactivar solo quita las instrucciones del turno: la conversacion y el
     // workspace siguen intactos.
     state.skillModals.setActiveSkill(null);
@@ -92,3 +101,4 @@ export function useChatTools(
 
   return { handleToolSelect, handleUseSkill, handleDeactivateSkill, handleEditSkill };
 }
+import { useLayoutEffect, useRef } from 'react';

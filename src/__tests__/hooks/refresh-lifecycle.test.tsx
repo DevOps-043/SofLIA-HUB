@@ -57,6 +57,28 @@ describe('Recursos y respuestas remotas por ámbito', () => {
     expect(state.setCurrentConversationId).not.toHaveBeenCalled();
   });
 
+  it('una carga inicial superada no publica resultados ni apaga el indicador de la más reciente', async () => {
+    const first = pending<[]>();
+    const second = pending<[]>();
+    mocks.conversations.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    const state = fixture();
+    const { result } = renderHook(() => useConversationRefresh({
+      state, userId: 'u', orgId: 'o', getCurrentChatStorageKey: key,
+    }));
+    const earlier = result.current.loadInitialConversations();
+    const latest = result.current.loadInitialConversations();
+
+    first.resolve([]);
+    await earlier;
+    expect(state.setConversations).not.toHaveBeenCalled();
+    expect(state.setLoadingConversations).toHaveBeenLastCalledWith(true);
+
+    second.resolve([]);
+    await latest;
+    expect(state.setConversations).toHaveBeenCalledOnce();
+    expect(state.setLoadingConversations).toHaveBeenLastCalledWith(false);
+  });
+
   it('carpetas ignora una lectura terminada después de retirar el hook', async () => {
     vi.useFakeTimers();
     const wait = pending<[]>(); mocks.folders.mockReturnValue(wait.promise);

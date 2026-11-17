@@ -106,7 +106,14 @@ jobs:
     needs: [check, verify, python-readers]
     if: needs.check.outputs.exists == 'false'
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
+    environment: windows-release
+    env:
+      SOFLIA_SIGNING_PROVIDER: azure
+      SOFLIA_WINDOWS_PUBLISHER: ${{ vars.SOFLIA_WINDOWS_PUBLISHER }}
+      SOFLIA_SIGNING_ENDPOINT: ${{ vars.SOFLIA_SIGNING_ENDPOINT }}
+      SOFLIA_SIGNING_ACCOUNT: ${{ vars.SOFLIA_SIGNING_ACCOUNT }}
+      SOFLIA_SIGNING_PROFILE: ${{ vars.SOFLIA_SIGNING_PROFILE }}
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -119,6 +126,27 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Preparar .NET para el cliente de firma
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Preparar cliente de firma con SHA256 fijado
+        shell: pwsh
+        run: |
+          npm run windows:signing:setup
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $clientVersion = (Get-Content -LiteralPath config/voice-engine.json -Raw | ConvertFrom-Json).signingClient.version
+          $dlibPath = Get-Content -LiteralPath "tmp/artifact-signing-$clientVersion/dlib-path.txt" -Raw
+          "SOFLIA_SIGNING_DLIB_PATH=$dlibPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Comprobar configuración de firma antes de compilar
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        run: npm run windows:signing:check
 
       - name: Create .env file
         run: |
@@ -155,7 +183,10 @@ jobs:
       - name: Build Electron app (Windows)
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
-        run: npm run build
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        run: npm run build:win
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

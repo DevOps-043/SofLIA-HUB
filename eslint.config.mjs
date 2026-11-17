@@ -37,7 +37,7 @@ export default tseslint.config(
   },
   {
     // Entradas Node CommonJS: hooks y fixtures nativas se cargan con require.
-    files: ['scripts/**/*.{js,cjs}', 'test/**/*.cjs', 'postcss.config.js', 'tailwind.config.js'],
+    files: ['scripts/**/*.{js,cjs}', 'test/**/*.cjs', 'postcss.config.js', 'tailwind.config.js', 'electron-builder.windows.cjs'],
     languageOptions: { sourceType: 'commonjs', globals: globals.node },
     rules: { '@typescript-eslint/no-require-imports': 'off' },
   },

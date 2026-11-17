@@ -77,9 +77,9 @@ export const agentActivityService = {
     return () => { active = false; localListeners.delete(receiveLocal); remove?.(); local.clear(); order.clear(); };
   },
 };
-export function publishTeamActivity(event: TeamEvent, ownerId?: string): void {
+export function publishTeamActivity(event: TeamEvent, ownerId?: string, origin?: AgentActivity['origin']): void {
   if (!ownerId) return;
-  const activity = activityFromTeam(event);
+  const activity = activityFromTeam(event, origin);
   // El progreso del propio chat no espera el viaje IPC; sólo expone metadatos.
   notifyLocal({ ownerId, activity: { ...activity, id: `renderer:${activity.id}` } });
   if (!window.agentActivity) { notifyLocal({ ownerId, error: monitorError }); return; }

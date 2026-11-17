@@ -11,7 +11,7 @@ Var pid
 !define MUI_INSTFILESPAGE_COLORS "0A2540 F4FAF9"
 !define MUI_DIRECTORYPAGE_TEXT_TOP "Elige dónde guardar Soflia Hub. Python queda dentro de la aplicación: no cambia el Python ni el PATH de tu equipo."
 !define MUI_FINISHPAGE_TITLE "Tu próximo paso empieza aquí."
-!define MUI_FINISHPAGE_TEXT "Soflia Hub se instaló con su motor Python privado.$\r$\n$\r$\nAl abrirlo podrás iniciar sesión y conectar tus herramientas. Los modelos de voz se descargan cuando los necesites; algunas funciones requieren conexión."
+!define MUI_FINISHPAGE_TEXT "Soflia Hub se instaló con su motor Python privado y el modelo básico de voz en español.$\r$\n$\r$\nAl abrirlo podrás iniciar sesión y conectar tus herramientas. Los modelos avanzados son opcionales; algunas funciones requieren conexión."
 !define MUI_FINISHPAGE_RUN_TEXT "Abrir Soflia Hub ahora"
 !define MUI_FINISHPAGE_RUN_NOTCHECKED
 !define MUI_UNWELCOMEPAGE_TITLE "Hasta la próxima."

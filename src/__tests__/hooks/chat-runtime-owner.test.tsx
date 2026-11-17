@@ -18,7 +18,7 @@ it('envía la identidad SOFIA al monitor y conserva el propietario Lia de la mem
 it('persistir un borrador conserva el turno y abrir otra conversación lo cancela', () => {
   mocks.stop.mockClear();
   const state = { modes: { imageGen: false, promptOptimizer: false }, input: { set: vi.fn() }, selection: { set: vi.fn() } } as unknown as ReturnType<typeof useChatUIState>;
-  const { rerender } = renderHook(({ id }: { id: string | null }) => useChatRuntime({ conversationId: id, messages: [], onMessagesChange: vi.fn() }, state, null), { initialProps: { id: null as string | null } });
+  const { rerender } = renderHook(({ id }: { id: string | null }) => useChatRuntime({ conversationId: id, conversationScopeId: id ?? 'primer-chat-persistido', messages: [], onMessagesChange: vi.fn() }, state, null), { initialProps: { id: null as string | null } });
   rerender({ id: 'primer-chat-persistido' });
   expect(mocks.stop).not.toHaveBeenCalled();
   rerender({ id: 'otro-chat' });

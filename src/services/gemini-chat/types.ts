@@ -19,6 +19,7 @@ export interface StreamSource {
 
 export interface StreamResult {
   backgroundJobId?: string;
+  backgroundNotice?: string;
   stream: AsyncIterable<string>;
   sources: Promise<Array<{ uri: string; title: string }> | null>;
   toolCalls?: ToolCallInfo[];

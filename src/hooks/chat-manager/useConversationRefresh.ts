@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import { useCallback, useLayoutEffect, useRef } from 'react';
 import { loadConversations, loadMessages } from '../../services/chat-service';
+import { buildLocalConversationList } from '../../services/chat/builders';
 import { areConversationListsEqual, areMessageListsEqual, hasActivePlaceholder } from './helpers';
 import type { ChatManagerState, ChatStorageKeyResolver, UseChatManagerOptions } from './types';
 
@@ -12,7 +13,8 @@ export function useConversationRefresh({ accessUserIds, getCurrentChatStorageKey
   const latestState = useRef(state);
   useLayoutEffect(() => { latestState.current = state; });
   const generation = useRef(0);
-  useEffect(() => {
+  const initialLoad = useRef(0);
+  useLayoutEffect(() => {
     const revision = ++generation.current;
     return () => { generation.current = revision + 1; };
   }, [orgId, userId]);
@@ -41,18 +43,29 @@ export function useConversationRefresh({ accessUserIds, getCurrentChatStorageKey
     const state = latestState.current;
     if (!userId) return [];
     const revision = generation.current;
+    const ticket = ++initialLoad.current;
+    const version = state.scopeVersionRef.current;
+    const local = buildLocalConversationList(userId, orgId);
+    if (local.length) state.setConversations(local);
     state.setLoadingConversations(true);
     try {
       const convs = await loadConversations(userId, orgId, accessUserIds);
-      if (generation.current !== revision) return [];
+      if (
+        generation.current !== revision || ticket !== initialLoad.current ||
+        version !== state.scopeVersionRef.current
+      ) return [];
       state.setConversations(convs);
-      
+
       // Siempre iniciar con una nueva conversación vacía al iniciar sesión
-      clearActiveChat(state);
-      localStorage.removeItem(getCurrentChatStorageKey(userId));
+      if (!state.currentConvIdRef.current && !state.currentMessagesRef.current.length) {
+        localStorage.removeItem(getCurrentChatStorageKey(userId));
+      }
       return convs;
     } finally {
-      if (generation.current === revision) state.setLoadingConversations(false);
+      // Navegar invalida el resultado, pero no debe dejar el historial cargando.
+      if (generation.current === revision && ticket === initialLoad.current) {
+        state.setLoadingConversations(false);
+      }
     }
   }, [accessUserIds, getCurrentChatStorageKey, orgId, userId]);
 
@@ -92,6 +105,10 @@ function joinRequest(pending: Map<string, Promise<void>>, key: string, task: () 
 }
 
 function clearActiveChat(state: ChatManagerState): void {
+  state.scopeVersionRef.current += 1;
+  const scopeId = crypto.randomUUID();
+  state.chatScopeIdRef.current = scopeId;
+  state.setChatScopeId(scopeId);
   state.setCurrentConversationId(null);
   state.currentConvIdRef.current = null;
   state.setCurrentMessages([]);

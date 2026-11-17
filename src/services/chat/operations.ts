@@ -6,6 +6,6 @@ export {
   updateConversationTitle,
   toggleConversationPin,
 } from './operations/conversation-mutations';
-export { saveMessages } from './operations/save-messages';
+export { saveMessages, stageMessages } from './operations/save-messages';
 export { generateTitle, generateTitleWithModel, PENDING_MODEL_TITLE } from './operations/title';
 export { getPendingMessageSnapshot } from './pending-state';

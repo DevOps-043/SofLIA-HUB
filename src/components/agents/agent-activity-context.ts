@@ -2,6 +2,9 @@ import { createContext, useContext } from 'react';
 import type { AgentActivity } from '../../shared/agent-activity';
 
 export interface AgentActivityPanelState {
+  activeConversationId?: string;
+  conversationTitles?: Readonly<Record<string, string>>;
+  openConversation?: (conversationId: string) => void;
   items: AgentActivity[];
   error: string;
   open: boolean;

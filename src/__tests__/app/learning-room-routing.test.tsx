@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   scopedMessages: vi.fn(),
 }));
 vi.mock('../../contexts/AuthContext', () => ({ useAuth: () => ({ user: { id: 'learner' }, dataUserId: 'learner', loading: false, sofiaContext: { currentOrganization: { id: 'org', slug: 'acme' }, teams: [] } }) }));
-vi.mock('../../hooks/useChatManager', () => ({ useChatManager: () => ({ getScopedMessagesHandler: () => mocks.scopedMessages }) }));
+vi.mock('../../hooks/useChatManager', () => ({ useChatManager: () => ({ conversations: [], chatScopeId: 'chat-de-prueba', getScopedMessagesHandler: () => mocks.scopedMessages }) }));
 vi.mock('../../hooks/useFolderManager', () => ({ useFolderManager: () => ({}) }));
 vi.mock('../../hooks/useIrisData', () => ({ useIrisData: () => ({}) }));
 vi.mock('../../hooks/useTheme', () => ({ useTheme: () => ({ theme: 'dark', setTheme: vi.fn() }) }));

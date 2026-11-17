@@ -41,10 +41,17 @@ export function publicVoiceConfig(config: VoicePassiveConfig) {
 }
 export function publicVoiceStatus(status: PythonRuntimeStatus, approved: boolean): VoicePassiveStatus {
   return { runtimeAvailable: status.runtimeAvailable, sidecarRunning: status.sidecarRunning, listening: status.listening,
+    setupState: status.setupState ?? 'idle',
+    setupErrorCode: status.setupErrorCode,
     enabled: status.enabled, modelInstalled: Boolean(status.modelPath), approvalRequired: !approved,
     largeModelInstalled: status.largeModelInstalled, modelDownloadProgress: status.modelDownloadProgress, ttsReady: status.ttsReady,
     ttsDownloadProgress: status.ttsDownloadProgress, dictating: status.dictating,
-    lastError: status.lastError ? 'La voz local no está disponible. Revisa el runtime, el modelo y la autorización de esta sesión.' : null };
+    lastError: status.setupErrorCode === 'voice_engine_untrusted'
+      ? 'No se pudo verificar el motor de voz. Actualiza SofLIA desde su instalador oficial.'
+      : status.setupErrorCode === 'voice_runtime_blocked'
+      ? 'Windows bloqueó un componente de voz. La política de Control de aplicaciones debe permitir el runtime de SofLIA.'
+      : status.setupState === 'error' ? 'No se pudo preparar la voz. Comprueba tu conexión e inténtalo de nuevo.'
+      : status.lastError ? 'La voz local no está disponible. Comprueba el micrófono y vuelve a intentarlo.' : null };
 }
 export function captureSignature(config: VoicePassiveConfig): string {
   return JSON.stringify([config.micDevice ?? null, config.modelPath ?? null, config.wakeWords]);

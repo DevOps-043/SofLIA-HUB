@@ -29,7 +29,11 @@ export function registerVoicePassiveHandlers(runtime: PythonRuntimeService, getM
   register('voice:stop', 0, 0, async call => { await session.stop(call); return session.snapshot(); });
   register('voice:install-model', 0, 1, async (call, [input]) => {
     const size = modelSizeSchema.parse(input);
-    const result = await session.install(call, `Instalar modelo de voz ${size === 'large' ? 'grande (~1.4 GB), y pequeño si falta' : 'pequeño (~39 MB)'}.`, () => runtime.installModel(size));
+    if (size === 'small') {
+      await session.prepare(call); return session.snapshot();
+    }
+    await session.prepare(call);
+    const result = await session.install(call, 'Instalar modelo de voz grande (~1.4 GB).', () => runtime.installModel(size));
     if (!result.success) throw new Error('voice_unavailable'); return session.snapshot();
   });
   register('voice:install-tts-voice', 1, 1, async (call, [input]) => {

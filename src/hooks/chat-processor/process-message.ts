@@ -26,7 +26,7 @@ interface ProcessChatMessageInput {
   images: string[];
   currentHistory: ChatMessage[];
   isRegeneration: boolean;
-  onMessagesChange: (messages: ChatMessage[]) => void;
+  onMessagesChange: import('../../services/chat/types').ChatMessagesChange;
   setIsLoading: Dispatch<SetStateAction<boolean>>;
   setActiveToolCall: Dispatch<SetStateAction<ToolCallInfo | null>>;
   preferredPrimaryModel: string;
@@ -68,9 +68,17 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
     ? [...currentHistory, aiPlaceholder]
     : [...currentHistory, userMsg, aiPlaceholder];
 
-  onMessagesChange(updatedMessages);
-
   const isCurrent = input.isCurrent ?? (() => true);
+  try {
+    onMessagesChange(updatedMessages);
+    await onMessagesChange.ensurePersisted?.();
+  } catch {
+    // La respuesta de error queda visible en memoria, pero no se promete guardado
+    // ni se inicia inferencia cuando el almacenamiento del equipo no confirma.
+    try { onMessagesChange.patchMessage?.(aiMessageId, { text: 'No pude guardar este mensaje en el equipo. Revisa el almacenamiento antes de volver a enviarlo.' }); } catch { /* El parche ya actualizó la vista antes de reintentar persistencia. */ }
+    if (isCurrent()) { input.setIsLoading(false); input.setActiveToolCall(null); }
+    return;
+  }
 
   let previousActivity: { phase: AvatarActivity['phase']; expression?: AvatarActivity['expression'] } | undefined;
   const activity = (phase: AvatarActivity['phase'], expression?: AvatarActivity['expression']) => {
@@ -138,6 +146,17 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
       signal: input.signal,
     });
     log('modelo respondió → leyendo stream');
+
+    if (result.backgroundJobId) {
+      const patch = { backgroundJobId: result.backgroundJobId, text: result.backgroundNotice ?? 'El equipo está preparando tu presentación o documento. Puedes cambiar de chat; el resultado quedará en esta conversación.' };
+      // La admisión IPC puede concluir después de navegar. Parchear por id evita
+      // sustituir el historial de un turno más reciente con el snapshot anterior.
+      if (onMessagesChange.patchMessage) onMessagesChange.patchMessage(aiMessageId, patch);
+      else if (isCurrent()) settle(patch);
+      settled = true;
+      activity('complete', 'focused');
+      return;
+    }
 
     if (browserSources.length) aiPlaceholder.sources = browserSources;
     let fullText = '';

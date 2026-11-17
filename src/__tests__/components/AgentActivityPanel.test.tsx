@@ -18,13 +18,26 @@ const team = (id: string, surface: AgentActivity['surface']): AgentActivity => (
   agents: [{ role: 'contenido', status: 'completed' }, { role: 'diseno', status: 'running' }],
 });
 
-function renderMonitor() {
+function renderMonitor(navigation: { activeConversationId?: string; conversationTitles?: Record<string, string>; openConversation?: (id: string) => void } = {}) {
   let change!: (items: AgentActivity[]) => void; const remove = vi.fn();
   vi.spyOn(agentActivityService, 'subscribe').mockImplementation(listener => { change = listener; return remove; });
   vi.spyOn(agentActivityService, 'snapshot').mockResolvedValue([]);
-  const view = render(<AgentActivityProvider><AgentActivityButton /><AgentActivityPanel /></AgentActivityProvider>);
+  const view = render(<AgentActivityProvider {...navigation}><AgentActivityButton /><AgentActivityPanel /></AgentActivityProvider>);
   return { view, remove, change: (items: AgentActivity[]) => act(() => change(items)) };
 }
+
+it('identifica el chat de origen, filtra el actual y vuelve a la presentación sin trasladar el equipo', async () => {
+  const openConversation = vi.fn();
+  const { change } = renderMonitor({ activeConversationId: 'emocional', conversationTitles: { presentacion: 'Calidad de software', emocional: 'Apoyo emocional' }, openConversation });
+  await act(async () => {});
+  change([{ ...team('a', 'chat'), origin: { conversationId: 'presentacion' } }, { ...team('b', 'chat'), origin: { conversationId: 'emocional' } }]);
+  fireEvent.click(screen.getByRole('button', { name: 'Este chat' }));
+  expect(screen.queryByRole('button', { name: 'Abrir chat: Calidad de software' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Abrir chat: Apoyo emocional' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Todos' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Abrir chat: Calidad de software' }));
+  expect(openConversation).toHaveBeenCalledWith('presentacion');
+});
 
 it('Computer Use sin archivos no abre el panel ni deja tarjetas al abrirlo manualmente', async () => {
   const { change } = renderMonitor(); await act(async () => {});
@@ -110,8 +123,8 @@ it('actualiza solo el estado global sin roles, operaciones ni contadores de agen
   expect(screen.queryByText('Diseño')).not.toBeInTheDocument();
   expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
   change([{ ...team('dos', 'chat'), sequence: 3, status: 'completed' }]);
-  expect(screen.getByText('Listo')).toBeInTheDocument();
-  expect(screen.getByText('Resultado disponible en el chat.')).toBeInTheDocument();
+  expect(screen.getByText('Aportes preparados')).toBeInTheDocument();
+  expect(screen.getByText(/su preparación no confirma que el entregable esté terminado/)).toBeInTheDocument();
 });
 it('recuerda el ancho elegido y permite recuperarlo sin recargar el monitor', async () => {
   localStorage.removeItem('soflia:files-panel-width');

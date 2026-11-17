@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { AgentActivity } from '../../src/shared/agent-activity';
 export const activitySchema = z.object({
+  origin: z.object({ conversationId: z.string().min(1).max(160), messageId: z.string().uuid().optional() }).strict().optional(),
   id: z.string().uuid(), sequence: z.number().int().min(1).max(1_000_000),
   surface: z.enum(['chat', 'orb', 'whatsapp', 'browser', 'computer', 'meetings']),
   kind: z.enum(['analysis', 'document', 'presentation', 'browser', 'computer', 'meeting']),
@@ -21,6 +22,7 @@ export class ActivityStore {
     if (!parsed.success) return false;
     const item = parsed.data; const key = `${origin}:${item.id}`; const previous = this.items.get(key);
     if (previous && (previous.sequence >= item.sequence || previous.status !== 'running')) return false;
+    if (previous && (previous.origin?.conversationId !== item.origin?.conversationId || previous.origin?.messageId !== item.origin?.messageId)) return false;
     if (!previous) {
       // Tras limpiar sesión no se resucitan equipos con eventos intermedios.
       if (item.sequence !== 1 || item.status !== 'running') return false;

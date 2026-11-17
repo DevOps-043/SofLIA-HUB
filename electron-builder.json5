@@ -21,6 +21,7 @@
     buildResources: "build",
   },
   afterPack: "scripts/verify-packaged-python.cjs",
+  afterSign: "scripts/verify-signed-windows-app.cjs",
   files: [
     "dist",
     "dist-electron",
@@ -33,6 +34,21 @@
   ],
   // Python y el sidecar se distribuyen con la aplicacion en las tres plataformas.
   extraResources: [
+    {
+      from: "models/vosk-model-small-es-0.42",
+      to: "models/vosk-model-small-es-0.42",
+      filter: ["**/*"],
+    },
+    {
+      from: "scripts",
+      to: "python-setup/scripts",
+      filter: ["setup-python-runtime.js", "python-runtime-support.cjs", "python-runtime-download.mjs"],
+    },
+    {
+      from: "python",
+      to: "python-setup/python",
+      filter: ["requirements.txt", "bootstrap.lock", "tools_sidecar/requirements.txt", "tools_sidecar/requirements.lock", "tools_sidecar/reader_dependencies.py", "tools_sidecar/document_errors.py"],
+    },
     {
       from: "python-runtime",
       to: "python",
@@ -85,6 +101,13 @@
     ],
   },
   win: {
+    forceCodeSigning: true,
+    signExts: [".exe", ".dll", ".pyd", ".node"],
+    verifyUpdateCodeSignature: true,
+    signtoolOptions: {
+      sign: "scripts/windows-sign-hook.cjs",
+      signingHashAlgorithms: ["sha256"],
+    },
     icon: "public/assets/icono.ico",
     target: [
       {

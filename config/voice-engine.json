@@ -1,0 +1,12 @@
+{
+  "model": {
+    "directory": "vosk-model-small-es-0.42",
+    "url": "https://alphacephei.com/vosk/models/vosk-model-small-es-0.42.zip",
+    "sha256": "09b239888f633ef2f0b4e09736e3d9936acfd810bc65d53fad45261762c6511f"
+  },
+  "signingClient": {
+    "version": "1.0.151",
+    "url": "https://api.nuget.org/v3-flatcontainer/microsoft.artifactsigning.client/1.0.151/microsoft.artifactsigning.client.1.0.151.nupkg",
+    "sha256": "35375a4bc4e1102da729fc3d8d9925f774c3baae6b8b7ff6398d948ca9ab0d8a"
+  }
+}

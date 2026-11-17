@@ -5,11 +5,12 @@ import { BACKGROUND_LIMITS, isActiveBackgroundJob, sameBackgroundScope } from '.
 import { selectTeam } from '../../src/shared/agent-teams/policy';
 import { BackgroundRepository } from './repository';
 import { ArtifactStore } from './artifacts';
-import { assertExecuting, type BackgroundProvider } from './contracts';
+import { assertExecuting, type BackgroundPresentation, type BackgroundProvider } from './contracts';
 import { startSchema } from './schemas';
 import { toolSchemas, toolsForAgent } from './tools';
 
 export interface BackgroundServiceOptions {
+  presentation?: BackgroundPresentation;
   documentBranding?: ConstructorParameters<typeof ArtifactStore>[1];
   repository: BackgroundRepository;
   resolveScope(organizationId: string | null): Promise<BackgroundScope>;
@@ -22,6 +23,7 @@ export class BackgroundTeamService extends EventEmitter {
   private scope: BackgroundScope | null = null;
   private jobs: BackgroundJob[] = [];
   private generation = 0;
+  private contextIntent = 0;
   private active: { id: string; controller: AbortController; promise: Promise<void>; startedAt: number } | null = null;
   private admissions: Promise<unknown> = Promise.resolve();
   private artifactReservations = new Map<string, number>();
@@ -29,15 +31,18 @@ export class BackgroundTeamService extends EventEmitter {
     super(); this.artifacts = new ArtifactStore(options.repository, options.documentBranding);
   }
   async context(organizationId: string | null): Promise<BackgroundState> {
+    const intent = ++this.contextIntent;
+    // Retirar el ámbito anterior antes de esperar la membresía del nuevo.
+    if (this.scope && this.scope.organizationId !== organizationId) this.invalidate(false);
     const generation = this.generation;
     const scope = await this.options.resolveScope(organizationId);
-    if (generation !== this.generation) throw new Error('La sesión cambió.');
+    if (generation !== this.generation || intent !== this.contextIntent) throw new Error('La sesión cambió.');
     if (this.scope && sameBackgroundScope(this.scope, scope)) {
       await this.options.authorize(scope);
-      if (generation !== this.generation) throw new Error('El contexto cambió.');
+      if (generation !== this.generation || intent !== this.contextIntent) throw new Error('El contexto cambió.');
       return this.state();
     }
-    this.invalidate();
+    this.invalidate(false);
     const jobs = this.options.repository.load(scope);
     for (const job of jobs) {
       if (isActiveBackgroundJob(job)) { job.status = 'interrupted'; job.error = 'El proceso se interrumpió. Puedes reanudar los pasos pendientes.'; }
@@ -61,13 +66,15 @@ export class BackgroundTeamService extends EventEmitter {
     if (generation !== this.generation || this.scope !== scope) throw new Error('La sesión cambió.');
   }
   contextToken(): number { return this.generation; }
-  invalidate(): void {
+  invalidate(cancelContext = true): void {
+    if (cancelContext) ++this.contextIntent;
     if (this.active) this.active.controller.abort();
     for (const job of this.jobs) if (isActiveBackgroundJob(job)) {
       job.status = 'interrupted'; job.error = 'La sesión o el contexto dejaron de estar disponibles.';
       job.agents.forEach(agent => { if (agent.status === 'running') agent.status = 'pending'; });
     }
     try { if (this.scope) this.persist(); } catch { /* Se mantiene la denegación aunque el almacenamiento falle. */ }
+    for (const job of this.jobs) this.options.presentation?.release(job);
     this.generation++; this.scope = null; this.jobs = []; this.emit('changed');
   }
   private persist(): void { if (this.scope) this.options.repository.save(this.scope, this.jobs); }
@@ -83,7 +90,10 @@ export class BackgroundTeamService extends EventEmitter {
       const generation = this.generation;
       if (parsed.expectedOwnerId !== scope.userId || parsed.expectedOrganizationId !== scope.organizationId) throw new Error('El contexto del encargo cambió.');
       const previous = this.jobs.find(job => job.requestId === parsed.requestId);
-      if (previous) return structuredClone(previous);
+      if (previous) {
+        if (previous.conversationId !== parsed.conversationId || previous.messageId !== parsed.messageId || previous.presentationWorkspaceId !== parsed.presentationWorkspaceId) throw new Error('La solicitud pertenece a otro origen.');
+        return structuredClone(previous);
+      }
       if (this.jobs.filter(isActiveBackgroundJob).length >= BACKGROUND_LIMITS.admitted) throw new Error('La cola de equipos está llena.');
       const plan = selectTeam({ task: parsed.task, surface: 'chat', mode: 'team' });
       if (!plan) throw new Error('Este encargo debe resolverse en modo directo.');
@@ -98,15 +108,27 @@ export class BackgroundTeamService extends EventEmitter {
       };
       job.agents.push(agent('coordinador', 'Lee los aportes y abre los archivos de ambos especialistas. Contrasta y corrige discrepancias. Crea el entregable final pedido: Word para documentos, PowerPoint para presentaciones, Excel para tablas o presupuestos cuando se soliciten. Si el encargo solo pide ideas, guarda la síntesis en Markdown. Lee cada entregable para comprobarlo. No afirmes verificar referencias o presentación visual que no comprobaste. Tu respuesta final es la síntesis de SofLIA para el chat: explica en dos a cuatro frases qué realizaste y qué archivos quedaron disponibles. No enumeres agentes, operaciones internas, tokens, identificadores ni enlaces artifact://. Explica brevemente cualquier limitación real.'));
       // Resolver el proveedor antes de admitir; una clave faltante no deja trabajos fingiendo estar activos.
+      if (job.executionMode === 'direct') job.agents.slice(0, 2).forEach(agent => { agent.status = 'skipped'; agent.operation = 'Modo directo'; });
       await this.options.provider(job); await this.authorize();
       if (generation !== this.generation || scope !== this.scope) throw new Error('El contexto cambió durante la admisión.');
+      if (this.jobs.length >= BACKGROUND_LIMITS.history && !this.jobs.some(item => ['completed', 'cancelled'].includes(item.status))) {
+        throw new Error('Conserva o cancela trabajos anteriores antes de iniciar otro.');
+      }
+      if (job.presentationWorkspaceId) {
+        if (!this.options.presentation) throw new Error('La ejecución de presentaciones no está disponible.');
+        await this.options.presentation.acquire(job);
+        try {
+          await this.authorize();
+          if (generation !== this.generation || scope !== this.scope) throw new Error('El contexto cambió durante la admisión.');
+        } catch (error) { this.options.presentation.release(job); throw error; }
+      }
       while (this.jobs.length >= BACKGROUND_LIMITS.history) {
         const removable = this.jobs.findIndex(item => ['completed', 'cancelled'].includes(item.status));
         if (removable < 0) throw new Error('Conserva o cancela trabajos anteriores antes de iniciar otro.');
       this.jobs.splice(removable, 1);
       }
       this.jobs.push(job);
-      try { this.persist(); } catch (error) { this.jobs.pop(); throw error; }
+      try { this.persist(); } catch (error) { this.jobs.pop(); this.options.presentation?.release(job); throw error; }
       this.emit('changed'); this.pump();
       return structuredClone(job);
     });
@@ -154,7 +176,7 @@ export class BackgroundTeamService extends EventEmitter {
           return;
         }
         await guard(); agent.status = 'running'; agent.operation = 'Preparando ejecución'; this.changed(job);
-        const tools = toolsForAgent(agent.role, job.allowResearch);
+        const tools = toolsForAgent(agent.role, job.allowResearch, Boolean(job.presentationWorkspaceId));
         agent.output = await provider.execute({ job: { ...structuredClone(job), effort: agent.role === 'coordinador' ? job.effort : 'medium' }, agent: { ...agent }, signal: controller.signal, tools,
           beforeCall: () => beforeCall(agent), usage,
           callTool: async (name, args) => {
@@ -166,6 +188,14 @@ export class BackgroundTeamService extends EventEmitter {
             job.actions.push(action); this.changed(job);
             try {
               const parsed = toolSchemas[name as keyof typeof toolSchemas].parse(args);
+              if (name.startsWith('workspace_')) {
+                if (!job.presentationWorkspaceId || agent.role !== 'coordinador' || !this.options.presentation) throw new Error('Workspace no autorizado.');
+                return await this.options.presentation.call(job, name, parsed, guard, provider.generateImage ? async prompt => {
+                  await beforeCall(agent);
+                  const result = await provider.generateImage!(prompt, controller.signal); await guard(); usage(result.tokens);
+                  return result.dataUrl;
+                } : undefined);
+              }
               if (name === 'read_source') return JSON.stringify({ solicitud: job.task, fuenteNoConfiable: job.source });
               if (name === 'read_outputs') return JSON.stringify({ aportes: job.agents.filter(item => item.role !== agent.role).map(item => ({ role: item.role, output: item.output })), archivos: job.artifacts, fuentes: job.sources });
               if (name === 'read_artifact' && 'artifactId' in parsed) {
@@ -201,10 +231,11 @@ export class BackgroundTeamService extends EventEmitter {
                 this.changed(job);
                 return JSON.stringify(artifact);
               } finally { this.artifactReservations.set(job.id, Math.max(0, (this.artifactReservations.get(job.id) ?? 1) - 1)); }
-            } catch {
+            } catch (error) {
               action.status = 'failed';
               await guard();
-              return JSON.stringify({ success: false, error: name === 'read_artifact' ? 'Usa el id UUID exacto de un archivo de read_outputs o de write_artifact. No uses nombres, rutas ni identificadores inventados. El archivo debe pertenecer a este trabajo.'
+              return JSON.stringify({ success: false, error: name.startsWith('workspace_') && error instanceof Error ? error.message.slice(0, 1200)
+                : name === 'read_artifact' ? 'Usa el id UUID exacto de un archivo de read_outputs o de write_artifact. No uses nombres, rutas ni identificadores inventados. El archivo debe pertenecer a este trabajo.'
                 : 'La herramienta no pudo completar la operación. Comprueba esquema, fuentes, destino, formato y presupuesto; no declares éxito.' });
             } finally {
               if (action.status === 'running') action.status = controller.signal.aborted ? 'cancelled' : 'completed';
@@ -216,7 +247,7 @@ export class BackgroundTeamService extends EventEmitter {
         if (!job.artifacts.some(item => item.role === agent.role && item.verified)) throw new Error('El agente no produjo un archivo comprobado.');
         agent.status = 'completed'; agent.operation = 'Archivo comprobado'; this.changed(job);
       };
-      const workers = await Promise.allSettled(job.agents.slice(0, 2).map(async agent => {
+      const workers = await Promise.allSettled(job.agents.slice(0, 2).filter(agent => agent.status !== 'skipped').map(async agent => {
         try { await run(agent); } catch (error) {
           if (!controller.signal.aborted && generation === this.generation) { agent.status = 'failed'; agent.operation = 'No completado'; this.changed(job); }
           throw error;
@@ -225,11 +256,18 @@ export class BackgroundTeamService extends EventEmitter {
       await guard();
       if (workers.some(result => result.status === 'rejected')) throw new Error('Un especialista no completó su entregable.');
       await run(job.agents[2]); await guard();
-      for (const worker of job.agents.slice(0, 2)) {
+      for (const worker of job.agents.slice(0, 2).filter(agent => agent.status !== 'skipped')) {
         if (!job.actions.some(action => action.role === 'coordinador' && action.tool === 'read_artifact' && action.status === 'completed'
           && job.artifacts.some(file => file.id === action.artifactId && file.role === worker.role))) throw new Error('Falta revisar el archivo de un especialista.');
       }
       job.status = 'verifying'; this.changed(job);
+      if (job.presentationWorkspaceId) {
+        if (!this.options.presentation) throw new Error('Falta el ejecutor de presentación.');
+        const presentation = await this.options.presentation.verify(job, guard); await guard();
+        const artifact = await this.artifacts.create(job, 'coordinador', 'slides', { name: 'presentacion.pptx', deck: presentation.deck }, guard, presentation);
+        if (!job.artifacts.some(item => item.id === artifact.id)) job.artifacts.push(artifact);
+        this.changed(job);
+      }
       const finalTexts: string[] = [];
       for (const artifact of job.artifacts) {
         const text = await this.artifacts.read(job, artifact); await guard();
@@ -259,6 +297,7 @@ export class BackgroundTeamService extends EventEmitter {
       job.agents.forEach(agent => { if (agent.status === 'running') agent.status = 'pending'; });
     } finally {
       clearTimeout(timer);
+      if (!isActiveBackgroundJob(job) && job.status !== 'paused') this.options.presentation?.release(job);
       if (generation === this.generation && this.scope) {
         job.activeMs += Date.now() - started;
         try { this.changed(job); } catch { job.status = 'interrupted'; job.error = 'No se pudo guardar el último estado del trabajo.'; this.emit('changed'); }
@@ -279,12 +318,21 @@ export class BackgroundTeamService extends EventEmitter {
       if (!['paused', 'failed', 'interrupted'].includes(job.status)) throw new Error('El trabajo no puede reanudarse.');
       if (job.calls >= BACKGROUND_LIMITS.calls || job.activeMs >= BACKGROUND_LIMITS.timeoutMs || job.tokens >= BACKGROUND_LIMITS.tokens) throw new Error('El presupuesto del trabajo está agotado.');
       if (this.jobs.filter(isActiveBackgroundJob).length >= BACKGROUND_LIMITS.admitted) throw new Error('La cola de equipos está llena.');
+      if (job.presentationWorkspaceId) {
+        if (!this.options.presentation) throw new Error('Falta el ejecutor de presentación.');
+        await this.options.presentation.acquire(job);
+        try {
+          await this.authorize();
+          if (generation !== this.generation || !this.jobs.includes(job) || !this.scope || !sameBackgroundScope(job.scope, this.scope)) throw new Error('El contexto cambió durante la reanudación.');
+        } catch (error) { this.options.presentation.release(job); throw error; }
+      }
       job.agents.forEach(agent => { if (agent.status === 'failed') agent.status = 'pending'; });
       job.status = 'queued'; job.error = null;
     } else {
       if (job.status === 'completed' || job.status === 'cancelled') throw new Error('El trabajo ya terminó.');
       job.status = action === 'pause' ? 'paused' : 'cancelled';
       if (this.active?.id === id) this.active.controller.abort();
+      if (action === 'cancel') this.options.presentation?.release(job);
     }
     this.changed(job); this.pump(); return structuredClone(job);
   }

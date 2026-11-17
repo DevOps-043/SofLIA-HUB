@@ -12,15 +12,16 @@ export type ChatManagerState = {
   conversations: Conversation[];
   conversationsRef: MutableRefObject<Conversation[]>;
   currentConversationId: string | null;
+  chatScopeId: string;
+  chatScopeIdRef: MutableRefObject<string>;
+  setChatScopeId: Dispatch<SetStateAction<string>>;
   currentConvIdRef: MutableRefObject<string | null>;
   currentFolderIdRef: MutableRefObject<string | null>;
   currentMessages: ChatMessage[];
   currentMessagesRef: MutableRefObject<ChatMessage[]>;
   editingChatTitle: string;
-  flushSaveRef: MutableRefObject<(() => Promise<void>) | null>;
   loadingConversations: boolean;
   renamingChatId: string | null;
-  saveTimerRef: MutableRefObject<ReturnType<typeof setTimeout> | null>;
   scopeVersionRef: MutableRefObject<number>;
   setActiveMenuChatId: Dispatch<SetStateAction<string | null>>;
   setConversations: Dispatch<SetStateAction<Conversation[]>>;

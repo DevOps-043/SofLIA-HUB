@@ -11,7 +11,7 @@ export function VoiceModelCard({ panel }: { panel: VoicePassivePanel }) {
   const { status, modelInstalled, downloadProgress, busy, installModel } = panel;
   const largeInstalled = Boolean(status?.largeModelInstalled);
 
-  if (modelInstalled && largeInstalled) return null;
+  if (!modelInstalled || largeInstalled) return null;
 
   const upgrading = modelInstalled && !largeInstalled;
 

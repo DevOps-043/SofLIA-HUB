@@ -1058,6 +1058,13 @@ libre, y comprueba hash antes de invocar la apertura local.
 No hay canal para ejecutar shell, enviar correos o conceder herramientas arbitrarias.
 Véase [contrato funcional](runtime-multiagent-harness.md#equipos-ejecutores-locales-en-segundo-plano).
 
+Presentaciones extiende `start` con `presentationWorkspaceId` y `executionMode`
+opcionales. Main valida custodia y reserva el workspace; `skill-workspace:create`
+recibe la organización seleccionada y deriva el propietario desde su sesión.
+Los eventos de actividad pueden incluir conversación/mensaje de origen, como
+metadatos informativos inmutables. Contratos, compatibilidad y límites de
+recuperación: [aislamiento de chats](chat-context-isolation.md).
+
 
 ## Visor de archivos y entregables
 
@@ -1162,8 +1169,10 @@ captura sin elegir otra fuente. [Contrato de salida](../../openspec/changes/add-
 Los nueve canales de ajustes conservan argumentos y allowlist; los contratos
 compartidos son `src/shared/local-voice.ts` y `src/shared/orb.ts`, con preload y
 wrappers por capacidad. Main valida emisor/marco/documento/sesión y payload
-antes del efecto. `enabled` no concede micrófono; captura/restauración e
-instalación pasan revisión nativa, con detención disponible durante esperas.
+antes del efecto. `enabled` no concede micrófono; captura/restauración reutiliza
+consentimiento explícito por cuenta/configuración y solicita revisión si falta.
+Python y Vosk pequeño se preparan automáticamente sin captura; instalaciones
+opcionales pasan revisión nativa. Detener revoca también consentimiento recordado.
 Dictado/Piper entregan al consumidor vigente y síntesis propaga cancelación.
 Roles, DTO, revocación y límites de recuperación:
 [autorización de voz local](../security/local-voice-authorization.md).

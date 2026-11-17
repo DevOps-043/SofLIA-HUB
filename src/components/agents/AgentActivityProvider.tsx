@@ -6,13 +6,15 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useBackgroundTeams } from './useBackgroundTeams';
 
 /** Mantiene una única suscripción al monitor para el panel y sus botones de acceso. */
-export function AgentActivityProvider({ children }: { children: ReactNode }) {
+type Navigation = Pick<AgentActivityPanelState, 'activeConversationId' | 'conversationTitles' | 'openConversation'>;
+export function AgentActivityProvider({ children, ...navigation }: { children: ReactNode } & Navigation) {
   const { user, sofiaContext } = useAuth();
   const organizationId = sofiaContext?.currentOrganization?.id ?? null;
-  return <ScopedActivityProvider key={(user?.id ?? 'sin-sesion') + ':' + organizationId} ownerId={user?.id} organizationId={organizationId}>{children}</ScopedActivityProvider>;
+  return <ScopedActivityProvider key={(user?.id ?? 'sin-sesion') + ':' + organizationId} ownerId={user?.id} organizationId={organizationId} {...navigation}>{children}</ScopedActivityProvider>;
 }
 
-function ScopedActivityProvider({ children, ownerId, organizationId }: { children: ReactNode; ownerId?: string; organizationId: string | null }) {
+function ScopedActivityProvider({ children, ownerId, organizationId, ...navigation }: { children: ReactNode; ownerId?: string; organizationId: string | null } & Navigation) {
+  const { activeConversationId, conversationTitles, openConversation } = navigation;
   const background = useBackgroundTeams(ownerId, organizationId);
   const [items, setItems] = useState<AgentActivity[]>([]);
   const [error, setError] = useState('');
@@ -40,8 +42,8 @@ function ScopedActivityProvider({ children, ownerId, organizationId }: { childre
   }, [background.activities]);
   const runningCount = allItems.filter(item => item.status === 'running').length;
   const value = useMemo<AgentActivityPanelState>(
-    () => ({ items: allItems, error: error || background.error, open, runningCount, setOpen, toggle }),
-    [allItems, error, background.error, open, runningCount, toggle],
+    () => ({ items: allItems, error: error || background.error, open, runningCount, setOpen, toggle, activeConversationId, conversationTitles, openConversation }),
+    [allItems, error, background.error, open, runningCount, toggle, activeConversationId, conversationTitles, openConversation],
   );
   return <AgentActivityContext.Provider value={value}>{children}</AgentActivityContext.Provider>;
 }

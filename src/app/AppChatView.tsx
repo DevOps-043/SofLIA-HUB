@@ -39,12 +39,13 @@ export function AppChatView(props: AppChatViewProps) {
 
   return (
     <ChatUI
-      key={props.scopeKey}
+      key={`${props.scopeKey ?? ''}/${props.chat.chatScopeId ?? props.chat.currentConversationId ?? 'nuevo'}`}
       floating={props.floating}
       readVisibleContext={props.readVisibleContext}
       onBackToProject={props.onBackToProject}
       compact={props.compact}
       conversationId={props.chat.currentConversationId}
+      conversationScopeId={props.chat.chatScopeId}
       browserOpen={props.browserOpen ?? props.compact}
       messages={props.chat.currentMessages}
       onMessagesChange={props.onMessagesChange}

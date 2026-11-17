@@ -1,108 +1,61 @@
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import { workspaceApi } from '../../../services/skills/workspace-bridge';
 import { SYSTEM_SKILLS } from '../../../shared/skills/registry';
 import type { ActiveSkillState } from '../../../services/skills/active-skill';
 
-/**
- * Mantiene la Skill y el panel apuntando a la presentacion DEL CHAT QUE SE ESTA
- * MIRANDO.
- *
- * Resuelve dos fallos distintos:
- *
- * 1. Pedir un cambio sobre una presentacion ya generada llegaba al modelo SIN
- *    las herramientas del workspace —el turno solo las declara mientras hay una
- *    Skill activa, y la Skill solo se activaba al escribir el comando—. El
- *    modelo describia los ajustes y terminaba con "no tengo acceso al espacio
- *    de trabajo", con los archivos intactos en disco.
- *
- * 2. Al abrir OTRO chat, el panel seguia mostrando la presentacion del
- *    anterior: la reanudacion se saltaba entera mientras hubiera una Skill
- *    activa, y despues de generar siempre la hay. Peor que lo visual: la Skill
- *    seguia apuntando al workspace del chat anterior, asi que un cambio pedido
- *    aqui habria editado la baraja de alla.
- *
- * La distincion que lo gobierna todo: pasar de "sin identificador" al suyo NO
- * es cambiar de chat, es el mismo chat al guardarse. Tratarlo como un cambio
- * borraria del panel la presentacion recien generada.
- */
+/** Recupera sólo el destino explícito; un error nunca devuelve autoridad al anterior. */
 export function useSkillWorkspaceResume(input: {
   conversationId: string | null;
   activeSkill: ActiveSkillState | null;
   setActiveSkill: (state: ActiveSkillState | null) => void;
-  /** Apunta el panel a la presentacion de esta conversacion, o a ninguna. */
   onWorkspaceResolved?: (workspace: { id: string; skillId: string } | null) => void;
 }): void {
   const { conversationId, activeSkill, setActiveSkill, onWorkspaceResolved } = input;
-  // Chat que se estaba mirando. `undefined` es "ninguno todavia".
-  const chatVisto = useRef<string | null | undefined>(undefined);
-  // Una sola tentativa por chat: si el usuario desactiva la Skill, no se la
-  // volvemos a imponer mientras siga en el mismo chat.
-  const intentada = useRef<string | null>(null);
-
-  useEffect(() => {
+  const activeRef = useRef(activeSkill);
+  const revision = useRef(0);
+  const clearingPrevious = useRef(false);
+  useLayoutEffect(() => {
+    activeRef.current = activeSkill;
+    if (clearingPrevious.current && !activeSkill) { clearingPrevious.current = false; return; }
+    clearingPrevious.current = false;
+    ++revision.current;
+  }, [activeSkill]);
+  const previous = useRef(conversationId);
+  useLayoutEffect(() => {
+    const changed = previous.current !== conversationId;
+    previous.current = conversationId;
+    const initial = activeRef.current;
+    if (!changed && initial && (!initial.conversationId || initial.conversationId === conversationId)) return;
+    // Limpiar antes del viaje IPC evita enviar con las herramientas de otro chat.
+    onWorkspaceResolved?.(null);
+    if (changed) {
+      clearingPrevious.current = Boolean(initial);
+      setActiveSkill(null);
+    }
+    if (!conversationId) return;
     const api = workspaceApi();
     if (!api) return;
-
-    const anterior = chatVisto.current;
-    const seGuardo = anterior === null && conversationId !== null;
-    const cambioDeChat = anterior !== undefined && !seGuardo && anterior !== conversationId;
-    chatVisto.current = conversationId;
-
-    // El intento pertenecia al chat anterior: en el nuevo hay que resolver de
-    // cero, aunque el usuario hubiera desactivado la Skill alla.
-    if (cambioDeChat) intentada.current = null;
-
-    if (!conversationId) {
-      // Chat nuevo. No hay nada que buscar, pero el panel y la Skill no pueden
-      // seguir apuntando a la presentacion del chat anterior.
-      if (cambioDeChat) {
-        onWorkspaceResolved?.(null);
-        setActiveSkill(null);
-      }
-      return;
-    }
-
-    // Dentro del mismo chat se respeta lo que haya: la Skill que el usuario
-    // activo, o su decision de quitarla.
-    if (!cambioDeChat && (activeSkill || intentada.current === conversationId)) return;
-    intentada.current = conversationId;
-
-    let vigente = true;
-    void api.findByConversation(conversationId).then((resultado) => {
-      const workspace = resultado?.workspace;
-      if (!vigente) return;
-      // Se resuelve SIEMPRE, tambien sin presentacion: asi el panel deja de
-      // apuntar a la de la conversacion anterior.
-      onWorkspaceResolved?.(workspace ? { id: workspace.id, skillId: workspace.skillId } : null);
-
-      const skill = workspace ? SYSTEM_SKILLS.find((candidate) => candidate.id === workspace.skillId) : null;
-      if (!workspace || !skill) {
-        // Este chat no tiene entregable. Dejar activa la Skill del anterior
-        // pondria su workspace en las manos del modelo aqui.
-        if (cambioDeChat) setActiveSkill(null);
-        return;
-      }
-
+    const expectedRevision = revision.current;
+    let current = true;
+    void api.findByConversation(conversationId).then(result => {
+      if (!current || revision.current !== expectedRevision || (activeRef.current && activeRef.current !== initial)) return;
+      const workspace = result?.success ? result.workspace : null;
+      const skill = workspace && workspace.conversationId === conversationId
+        ? SYSTEM_SKILLS.find(candidate => candidate.id === workspace.skillId) : null;
+      if (!workspace || !skill) return;
+      onWorkspaceResolved?.({ id: workspace.id, skillId: workspace.skillId });
       setActiveSkill({
-        skill,
-        workspaceId: workspace.id,
-        brandingNotice: null,
-        workspaceError: null,
-        // La identidad y el sistema de diseno ya estan escritos en la carpeta:
-        // lo que el modelo necesita saber es que continua un trabajo, no que
-        // empieza uno. El protocolo de recoleccion no aplica aqui.
+        skill, conversationId, workspaceId: workspace.id, brandingNotice: null, workspaceError: null,
         contextNote: [
           '=== CONTINUACION DE UN TRABAJO EXISTENTE ===',
-          `Esta conversacion ya tiene un entregable de la skill "${skill.name}" en su espacio de trabajo.`,
-          'No vuelvas a preguntar por el tema ni por las fuentes, y no lo regeneres desde cero.',
-          'Lee los archivos antes de tocarlos y aplica los cambios que pida el usuario por reemplazo exacto.',
+          'Esta conversación ya tiene un entregable. No vuelvas a preguntar por el tema ni por las fuentes.',
+          'Lee los archivos antes de tocarlos y aplica únicamente los cambios solicitados.',
           '===========================================',
         ].join('\n'),
       });
-    }).catch((error) => {
-      console.warn('[Skills] No se pudo reanudar el espacio de trabajo de la conversacion:', error);
+    }).catch(() => {
+      if (current) console.warn('[Skills] No se pudo recuperar el espacio de trabajo del chat.');
     });
-
-    return () => { vigente = false; };
-  }, [conversationId, activeSkill, setActiveSkill, onWorkspaceResolved]);
+    return () => { current = false; };
+  }, [conversationId, setActiveSkill, onWorkspaceResolved]);
 }
