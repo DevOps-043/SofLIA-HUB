@@ -105,6 +105,8 @@ independiente y la barra inferior accesible en las dos vistas móviles.
   La paginación ahora se monta solo si existe una segunda página y la fixture
   del adaptador representa la llamada del SDK que informa la subsesión actual.
   La repetición dirigida del adaptador, salas y la interfaz aprobó 34 pruebas.
-  La compuerta general se volvió a ejecutar tras estas correcciones.
+  La repetición de la compuerta pasó tipos, lint y las etapas anteriores a
+  cobertura. El proceso de cobertura se interrumpió al perderse la sesión de
+  ejecución, con 471 informes parciales de 670 y sin un resultado consolidado.
 
 Queda pendiente un piloto con sesiones y cámaras reales del proveedor.
