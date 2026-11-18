@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useModelSelector } from '../../hooks/useModelSelector';
+import { consumeSofliaMaxUse, readSofliaMaxQuota } from '../../services/model-quota';
 import { resetUserPreferenceScopeForTests, scopedPreferenceKey, setUserPreferenceScope } from '../../services/user-scope';
 
 describe('useModelSelector', () => {
@@ -15,7 +16,7 @@ describe('useModelSelector', () => {
     expect(result.current.currentModel.provider).toBe('openai');
     expect(result.current.thinkingMode).toBe('medium');
 
-    act(() => result.current.handleModelChange('gpt-6.1-sol'));
+    act(() => result.current.handleModelChange('gpt-6.2-sol'));
     expect(result.current.currentModel.provider).toBe('openai');
     expect(result.current.thinkingMode).toBe('medium');
 
@@ -26,7 +27,7 @@ describe('useModelSelector', () => {
     expect(result.current.currentModel.provider).toBe('openai');
     expect(result.current.thinkingMode).toBe('medium');
 
-    act(() => result.current.handleModelChange('gpt-6.1-sol'));
+    act(() => result.current.handleModelChange('gpt-6.2-sol'));
     expect(result.current.thinkingMode).toBe('max');
   });
 
@@ -58,38 +59,41 @@ describe('useModelSelector', () => {
   it('sincroniza modelo y razonamiento entre selectores montados en la misma ventana', () => {
     const { result } = renderHook(() => ({ first: useModelSelector(), second: useModelSelector() }));
 
-    act(() => result.current.first.handleModelChange('gpt-6.1-sol'));
-    expect(result.current.second.preferredPrimaryModel).toBe('gpt-6.1-sol');
+    act(() => result.current.first.handleModelChange('gpt-6.2-sol'));
+    expect(result.current.second.preferredPrimaryModel).toBe('gpt-6.2-sol');
 
     act(() => result.current.first.setThinkingMode('xhigh'));
     expect(result.current.second.thinkingMode).toBe('xhigh');
   });
 
-  it('migra la selección y el razonamiento de Max al identificador de Sol y los conserva al remontar', () => {
-    localStorage.setItem(scopedPreferenceKey('soflia:selected-model'), 'gpt-5.6-terra');
+  it.each(['gpt-6.1-sol', 'gpt-6-sol', 'gpt-5.6-terra'])('migra %s a Sol 6.2 y conserva razonamiento y cuota al remontar', model => {
+    consumeSofliaMaxUse('usuario-max');
+    const quota = readSofliaMaxQuota('usuario-max');
+    localStorage.setItem(scopedPreferenceKey('soflia:selected-model'), model);
     localStorage.setItem(scopedPreferenceKey('soflia:thinking-by-model'), JSON.stringify({
-      'gpt-5.6-terra': 'xhigh',
+      [model]: 'xhigh',
       'gpt-5.6-luna': 'low',
     }));
     const first = renderHook(() => useModelSelector());
-    expect(first.result.current.preferredPrimaryModel).toBe('gpt-6.1-sol');
+    expect(first.result.current.preferredPrimaryModel).toBe('gpt-6.2-sol');
     expect(first.result.current.currentModel.name).toBe('SofLIA Max');
     expect(first.result.current.thinkingMode).toBe('xhigh');
-    expect(localStorage.getItem(scopedPreferenceKey('soflia:selected-model'))).toBe('gpt-6.1-sol');
+    expect(localStorage.getItem(scopedPreferenceKey('soflia:selected-model'))).toBe('gpt-6.2-sol');
     expect(JSON.parse(localStorage.getItem(scopedPreferenceKey('soflia:thinking-by-model'))!))
-      .toMatchObject({ 'gpt-6.1-sol': 'xhigh', 'gpt-5.6-luna': 'low' });
+      .toMatchObject({ 'gpt-6.2-sol': 'xhigh', 'gpt-5.6-luna': 'low' });
     first.unmount();
     const second = renderHook(() => useModelSelector());
-    expect(second.result.current.preferredPrimaryModel).toBe('gpt-6.1-sol');
+    expect(second.result.current.preferredPrimaryModel).toBe('gpt-6.2-sol');
     expect(second.result.current.thinkingMode).toBe('xhigh');
+    expect(readSofliaMaxQuota('usuario-max')).toEqual(quota);
   });
 
   it('acepta el identificador anterior de Max desde una superficie y sincroniza Sol', () => {
     const { result } = renderHook(() => ({ first: useModelSelector(), second: useModelSelector() }));
     act(() => result.current.first.handleModelChange('gpt-5.6-terra'));
-    expect(result.current.first.preferredPrimaryModel).toBe('gpt-6.1-sol');
-    expect(result.current.second.preferredPrimaryModel).toBe('gpt-6.1-sol');
-    expect(localStorage.getItem(scopedPreferenceKey('soflia:selected-model'))).toBe('gpt-6.1-sol');
+    expect(result.current.first.preferredPrimaryModel).toBe('gpt-6.2-sol');
+    expect(result.current.second.preferredPrimaryModel).toBe('gpt-6.2-sol');
+    expect(localStorage.getItem(scopedPreferenceKey('soflia:selected-model'))).toBe('gpt-6.2-sol');
   });
 
   it('conserva Max y su razonamiento desde el identificador de Sol de la rama integrada', () => {
@@ -98,20 +102,20 @@ describe('useModelSelector', () => {
       'gpt-6-sol': 'high', 'gpt-5.6-terra': 'max',
     }));
     const { result } = renderHook(() => useModelSelector());
-    expect(result.current.preferredPrimaryModel).toBe('gpt-6.1-sol');
+    expect(result.current.preferredPrimaryModel).toBe('gpt-6.2-sol');
     expect(result.current.currentModel.name).toBe('SofLIA Max');
     expect(result.current.thinkingMode).toBe('high');
-    expect(localStorage.getItem(scopedPreferenceKey('soflia:selected-model'))).toBe('gpt-6.1-sol');
+    expect(localStorage.getItem(scopedPreferenceKey('soflia:selected-model'))).toBe('gpt-6.2-sol');
     act(() => result.current.handleModelChange('gpt-6-luna'));
     act(() => result.current.handleModelChange('gpt-6-sol'));
-    expect(result.current.preferredPrimaryModel).toBe('gpt-6.1-sol');
+    expect(result.current.preferredPrimaryModel).toBe('gpt-6.2-sol');
     expect(result.current.thinkingMode).toBe('high');
   });
 
   it('prioriza el razonamiento de Sol cuando también hay una preferencia del Max anterior', () => {
-    localStorage.setItem(scopedPreferenceKey('soflia:selected-model'), 'gpt-6.1-sol');
+    localStorage.setItem(scopedPreferenceKey('soflia:selected-model'), 'gpt-6.2-sol');
     localStorage.setItem(scopedPreferenceKey('soflia:thinking-by-model'), JSON.stringify({
-      'gpt-5.6-terra': 'max', 'gpt-6.1-sol': 'low',
+      'gpt-5.6-terra': 'max', 'gpt-6-sol': 'high', 'gpt-6.1-sol': 'xhigh', 'gpt-6.2-sol': 'low',
     }));
     const { result } = renderHook(() => useModelSelector());
     expect(result.current.thinkingMode).toBe('low');

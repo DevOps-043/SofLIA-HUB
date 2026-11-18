@@ -45,7 +45,7 @@ secretos y cuatro capas. El renderer distingue revisión local nativa de otras
 rutas. Usa servicios/puertos sustituidos y pruebas existentes de herramientas;
 no ejecuta GUI, shell, correo ni recursos del usuario para esta verificación.
 
-El inventario del cambio contiene 867 archivos de prueba: 549 para main y 295
+El inventario del cambio contiene 868 archivos de prueba: 549 para main y 296
 para renderer, además de los archivos de prueba de scripts. El validador documental recalcula estas cifras; el numero de casos
 ejecutados se registra en el reporte de evidencia de cada cambio, no aqui.
 

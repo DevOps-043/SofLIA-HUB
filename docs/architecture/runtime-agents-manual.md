@@ -231,7 +231,7 @@ ejecutando acciones a espaldas del usuario.
 | Nombre en la UI | Modelo | Modos de razonamiento |
 |---|---|---|
 | SofLIA | `gpt-6-luna` | Bajo / Medio / Alto / Muy alto / Máximo |
-| SofLIA Max | `gpt-6.1-sol` | Bajo / Medio / Alto / Muy alto / Máximo |
+| SofLIA Max | `gpt-6.2-sol` | Bajo / Medio / Alto / Muy alto / Máximo |
 | SofLIA Pro | `gpt-6.1-terra` | Bajo / Medio / Alto / Muy alto / Máximo |
 
 SofLIA usa `gpt-6-luna` por defecto. El chat envía el modelo elegido a OpenAI
@@ -247,8 +247,11 @@ ese actuador ni sustituir silenciosamente el proveedor conversacional.
 Los identificadores del catálogo provienen de
 `src/shared/soflia-runtime-model.ts`. Los equipos en segundo plano conservan el
 modelo del encargo al ejecutarlo y al recuperar el historial.
-`useModelSelector` migra la selección anterior de Max (`gpt-5.6-terra`) a
-`gpt-6.1-sol` dentro del ámbito del usuario y conserva su razonamiento, sin
+Los encargos nuevos de Max usan Sol 6.2; los históricos con `gpt-6.1-sol`
+siguen admitidos para recuperar y ejecutar el modelo original.
+`useModelSelector` migra las selecciones anteriores de Max (`gpt-6.1-sol`,
+`gpt-6-sol` y `gpt-5.6-terra`) a
+`gpt-6.2-sol` dentro del ámbito del usuario y conserva su razonamiento, sin
 sobrescribir una preferencia ya guardada para Sol ni reiniciar la cuota mensual.
 También normaliza identificadores anteriores recibidos de otra superficie y
 reconcilia las preferencias al montar el efecto de sincronización.

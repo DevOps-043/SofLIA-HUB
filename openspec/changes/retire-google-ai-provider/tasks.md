@@ -2,6 +2,7 @@
 
 - [x] 1.1 Retirar selector Gemini, migrar preferencias y excluir clave de renderer/preload.
 - [x] 1.2 Migrar equipos en segundo plano y reconciliar sus modelos.
+- [x] 1.2.1 Actualizar SofLIA Max a Sol 6.2, migrar preferencias conservando razonamiento y cuota, y mantener los encargos históricos de Sol 6.1.
 - [ ] 1.3 Retirar rutas Gemini de chat, utilidades, Flow e imágenes.
 - [x] 1.3.1 Migrar imágenes y Flow a OpenAI nativo, sin fallback web con claves.
 - [x] 1.3.2 Migrar especialistas, títulos, redacción y optimización a Responses; retirar destino Gemini del optimizador.

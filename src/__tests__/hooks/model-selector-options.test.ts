@@ -6,14 +6,14 @@ describe('Catálogo de modelos de SofLIA', () => {
   it('expone el catálogo conversacional y define gpt-6-luna como modelo por defecto', () => {
     expect(DEFAULT_MODEL_ID).toBe('gpt-6-luna');
     expect(MODEL_OPTIONS[0]).toMatchObject({ id: 'gpt-6-luna', name: 'SofLIA', provider: 'openai' });
-    expect(MODEL_OPTIONS[1]).toMatchObject({ id: 'gpt-6.1-sol', name: 'SofLIA Max', provider: 'openai' });
+    expect(MODEL_OPTIONS[1]).toMatchObject({ id: 'gpt-6.2-sol', name: 'SofLIA Max', provider: 'openai' });
     expect(MODEL_OPTIONS[2]).toMatchObject({
       id: 'gpt-6.1-terra', name: 'SofLIA Pro', provider: 'openai', defaultThinkingId: 'medium',
     });
     expect(MODEL_OPTIONS[2].badge).toBeUndefined();
     expect(MODEL_OPTIONS.map(({ id }) => id)).toEqual([
       'gpt-6-luna',
-      'gpt-6.1-sol',
+      'gpt-6.2-sol',
       'gpt-6.1-terra',
     ]);
     for (const option of MODEL_OPTIONS) {

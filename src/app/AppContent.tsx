@@ -1,10 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Auth } from '../components/Auth';
 import { AppLoadingScreen, type StartupLogoExitTarget } from './AppLoadingScreen';
-import { AppModals } from './AppModals';
-import { AppSidebar } from './AppSidebar';
 import { AppTitleBar } from '../components/ui/AppTitleBar';
-import { AppWorkspace } from './AppWorkspace';
 import { useProjectWorkspace } from './useProjectWorkspace';
 import type { ActiveView, ShareLinkNotice, ShareTarget } from './app-types';
 import type { SettingsTab } from '../components/UnifiedSettingsModal';
@@ -32,6 +29,9 @@ import { AgentActivityProvider } from '../components/agents/AgentActivityProvide
 import { isOrbWindow as detectOrbWindow } from './window-mode';
 
 const STARTUP_INTRO_DURATION_MS = 4200;
+const AppModals = lazy(() => import('./AppModals').then(module => ({ default: module.AppModals })));
+const AppSidebar = lazy(() => import('./AppSidebar').then(module => ({ default: module.AppSidebar })));
+const AppWorkspace = lazy(() => import('./AppWorkspace').then(module => ({ default: module.AppWorkspace })));
 const OrbWindowRoot = lazy(() => import('./OrbWindowRoot').then(module => ({ default: module.OrbWindowRoot })));
 const LearningWorkspace = lazy(() => import('../components/learning-live/LearningWorkspace').then(module => ({ default: module.LearningWorkspace })));
 const LearningSessions = lazy(() => import('../components/learning-live/LearningSessions').then(module => ({ default: module.LearningSessions })));
@@ -178,8 +178,10 @@ export function AppContent() {
     return () => window.removeEventListener('sofLia_sidebarPositionChanged', handleUpdate);
   }, []);
 
-  const shouldWaitForAuthDuringIntro = loading && !startupAuthGraceElapsed && !user;
-  const shouldShowStartupIntro = !isOrbWindow && (showStartupIntro || shouldWaitForAuthDuringIntro);
+  // El formulario puede aparecer al resolverse la sesión. Una transición que
+  // ya comenzó no vuelve a cubrir el acceso cuando el usuario empieza a entrar.
+  const shouldShowStartupIntro = renderStartupOverlay && !isStartupOverlayExiting && !isOrbWindow
+    && (user ? showStartupIntro : loading && !startupAuthGraceElapsed);
   const startupLogoExitTarget: StartupLogoExitTarget = user
     ? sidebarPosition === 'right'
       ? 'workspace-right'
@@ -189,13 +191,7 @@ export function AppContent() {
     : 'login';
 
   useEffect(() => {
-    if (shouldShowStartupIntro) {
-      setRenderStartupOverlay(true);
-      setIsStartupOverlayExiting(false);
-      return undefined;
-    }
-
-    if (!renderStartupOverlay) return undefined;
+    if (shouldShowStartupIntro || !renderStartupOverlay) return undefined;
 
     setIsStartupOverlayExiting(true);
     const overlayTimer = window.setTimeout(() => {
@@ -211,12 +207,12 @@ export function AppContent() {
   ) : isOrbWindow ? (
     <Suspense fallback={<div role="status">Cargando avatar…</div>}><OrbWindowRoot key="orb-window" /></Suspense>
   ) : (
-    <AgentActivityProvider activeConversationId={chat.chatScopeId} conversationTitles={Object.fromEntries(chat.conversations.map(conversation => [conversation.id, conversation.title]))} openConversation={id => { void handlers.handleSelectConversation(id); }}><ArtifactViewerProvider key={(user?.id ?? "") + ":" + orgId + ":" + (chat.currentConversationId ?? "")}>
+    <AgentActivityProvider activeConversationId={chat.chatScopeId} conversationTitles={Object.fromEntries(chat.conversations.map(conversation => [conversation.id, conversation.title]))} openConversation={id => { void handlers.handleSelectConversation(id); }}><ArtifactViewerProvider key={(user?.id ?? "") + ":" + orgId + ":" + chat.chatScopeId}>
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background dark:bg-background-dark">
       {!browserWorkspaceVisible && <AppTitleBar />}
       <div className="relative flex min-h-0 flex-1 w-full overflow-hidden">
       <div className={`flex min-h-0 min-w-0 flex-1 overflow-hidden ${!projectWorkspace.navigation && !browserWorkspaceVisible && !liveRoomVisible && sidebarPosition === 'bottom' ? 'flex-col-reverse' : !liveRoomVisible && sidebarPosition === 'right' ? 'flex-row-reverse' : 'flex-row'}`}>
-        {(!browserWorkspaceVisible || !!projectWorkspace.navigation) && !liveRoomVisible && <AppSidebar
+        {(!browserWorkspaceVisible || !!projectWorkspace.navigation) && !liveRoomVisible && <Suspense fallback={null}><AppSidebar
           projectNavigation={projectWorkspace.navigation}
           activeView={activeView}
           browserOpen={browserWorkspaceVisible}
@@ -250,14 +246,14 @@ export function AppContent() {
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           setTheme={setTheme}
           theme={theme}
-        />}
+        /></Suspense>}
         {liveRoomVisible && liveWorkspace.reference && <Suspense fallback={<div role="status">Cargando aula…</div>}><LearningWorkspace key={`${user?.id}:${liveWorkspace.reference.organization_slug}:${liveWorkspace.reference.session_id}`} reference={liveWorkspace.reference} onClose={closeLiveRoom} onBackToSessions={closeLiveRoom} /></Suspense>}
         {!liveWorkspace.reference && !browserWorkspaceVisible && activeView === 'live-sessions' && <Suspense fallback={<div role="status">Cargando sesiones…</div>}><LearningSessions key={`${user?.id}:${orgId}`} organizationSlug={sofiaContext?.currentOrganization?.slug} organizationName={sofiaContext?.currentOrganization?.name} onOpenManagement={async (url) => {
           const response = await integratedBrowserService.createTab(url);
           if (!response.success) throw new Error('No se pudo abrir Learning.');
           setIsBrowserWorkspaceOpen(true);
         }} onSelect={liveWorkspace.select} onClose={() => setActiveView('chat')} /></Suspense>}
-        {!liveRoomVisible && (activeView !== 'live-sessions' || browserWorkspaceVisible) && <AppWorkspace key={(userId ?? '') + ':' + orgId}
+        {!liveRoomVisible && (activeView !== 'live-sessions' || browserWorkspaceVisible) && <Suspense fallback={<div role="status">Cargando espacio de trabajo…</div>}><AppWorkspace key={(userId ?? '') + ':' + orgId}
           accessUserIds={accessUserIds}
           activeView={activeView}
           avatarUrl={derived.avatarUrl ?? undefined}
@@ -290,8 +286,8 @@ export function AppContent() {
           shareLinkNotice={shareLinkNotice}
           userId={userId}
           userSettings={userSettings}
-        />}
-        <AppModals
+        /></Suspense>}
+        <Suspense fallback={null}><AppModals
           folder={folder}
           movingChat={derived.movingChat}
           shareTarget={shareTarget}
@@ -307,7 +303,7 @@ export function AppContent() {
           onSetUnifiedSettingsOpen={setIsUnifiedSettingsOpen}
           onConfirmDeleteFolder={handlers.handleConfirmDeleteFolder}
           onCancelDeleteFolder={handlers.handleCancelDeleteFolder}
-        />
+        /></Suspense>
       </div>
       {/* En el navegador el panel flota dentro de su layout para reservar espacio a la vista nativa. */}
       {!browserWorkspaceVisible && !liveRoomVisible && <AgentActivityPanel className="absolute right-3 top-3 z-40 max-w-[calc(100%-24px)]" />}
@@ -326,7 +322,6 @@ export function AppContent() {
           isExiting={isStartupOverlayExiting}
           isOrbWindow={isOrbWindow}
           logoExitTarget={startupLogoExitTarget}
-          playIntroSound={!isStartupOverlayExiting}
           themeMode={theme}
         />
       )}

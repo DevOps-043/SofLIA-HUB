@@ -313,16 +313,16 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
     const { sendMessageStream } = await import('../../services/gemini-chat');
 
     await sendMessageStream('abre el bloc de notas', [], {
-      model: 'gpt-6.1-sol',
+      model: 'gpt-6.2-sol',
       thinking: { id: 'max', level: 'max' },
     });
 
     expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({
-      modelId: 'gpt-6.1-sol',
+      modelId: 'gpt-6.2-sol',
       useToolLoop: true,
       computerUseEnabled: true,
       options: expect.objectContaining({
-        model: 'gpt-6.1-sol',
+        model: 'gpt-6.2-sol',
         thinking: { id: 'max', level: 'max' },
       }),
     }));
@@ -334,10 +334,10 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
     await sendMessageStream(
       'si mis notas estan desde Soflia.ai estan especificamente en mi libro de apuntes, ayudame a crearlo usa el computer use para hacer',
       [{ role: 'model', text: 'En esta sesión no está disponible use_computer.' }],
-      { model: 'gpt-6.1-sol' },
+      { model: 'gpt-6.2-sol' },
     );
     expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({
-      modelId: 'gpt-6.1-sol', useToolLoop: true, computerUseEnabled: true,
+      modelId: 'gpt-6.2-sol', useToolLoop: true, computerUseEnabled: true,
       systemInstruction: expect.stringContaining('use_computer está disponible en este turno'),
     }));
   });
@@ -482,7 +482,7 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
     const { sendMessageStream } = await import('../../services/gemini-chat');
 
     await expect(sendMessageStream('Hola', [], {
-      model: 'gpt-6.1-sol',
+      model: 'gpt-6.2-sol',
       thinking: { id: 'medium', level: 'medium' },
       userId,
     })).rejects.toThrow('OPENAI_API_KEY_MISSING');

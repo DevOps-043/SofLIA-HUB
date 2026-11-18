@@ -101,7 +101,7 @@ describe('BrowserWorkspaceLayout', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar modelo y razonamiento' }));
     fireEvent.click(screen.getByRole('menuitemradio', { name: /SofLIA Max/ }));
 
-    expect(localStorage.getItem(scopedPreferenceKey('soflia:selected-model'))).toBe('gpt-6.1-sol');
+    expect(localStorage.getItem(scopedPreferenceKey('soflia:selected-model'))).toBe('gpt-6.2-sol');
     expect(screen.getByRole('button', { name: 'Cambiar modelo y razonamiento' })).toHaveTextContent('SofLIA Max');
   });
 
@@ -117,7 +117,7 @@ describe('BrowserWorkspaceLayout', () => {
     expect(screen.getByRole('menuitemradio', { name: /SofLIA Pro/ })).toHaveAttribute('aria-checked', 'true');
     await user.click(screen.getByRole('menuitemradio', { name: /SofLIA Max/ }));
     expect(selector).toHaveTextContent('SofLIA Max');
-    expect(localStorage.getItem(scopedPreferenceKey('soflia:selected-model'))).toBe('gpt-6.1-sol');
+    expect(localStorage.getItem(scopedPreferenceKey('soflia:selected-model'))).toBe('gpt-6.2-sol');
     await user.click(selector);
     expect(screen.getByRole('menuitemradio', { name: /SofLIA Max/ })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('slider', { name: 'Nivel de razonamiento' })).toHaveAttribute('aria-valuemax', '5');

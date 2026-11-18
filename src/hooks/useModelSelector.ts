@@ -7,7 +7,7 @@ import type { ModelIconKey, ModelOption, ThinkingOption } from './model-selector
 const MODEL_STORAGE_KEY = 'soflia:selected-model';
 const THINKING_STORAGE_KEY = 'soflia:thinking-by-model';
 const MODEL_PREFERENCES_CHANGED_EVENT = 'soflia:model-preferences-changed';
-const LEGACY_MAX_MODEL_IDS = ['gpt-6-sol', 'gpt-5.6-terra'];
+const LEGACY_MAX_MODEL_IDS = ['gpt-6.1-sol', 'gpt-6-sol', 'gpt-5.6-terra'];
 
 export function useModelSelector() {
   const [preferredPrimaryModel, setPreferredPrimaryModel] = useState(readStoredModel);

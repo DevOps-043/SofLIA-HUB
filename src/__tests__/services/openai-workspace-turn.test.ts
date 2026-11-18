@@ -94,11 +94,11 @@ describe('turno de OpenAI con espacio de trabajo', () => {
     dispatch.execute.mockResolvedValueOnce({ functionResponse: {
       name: 'use_computer', response: { success: true, outcome: { estado: 'completada', mensaje: 'Página observada' } },
     } });
-    const input = params({ modelId: 'gpt-6.1-sol', computerUseEnabled: true, options: { thinking: { id: 'high', level: 'high' } } });
+    const input = params({ modelId: 'gpt-6.2-sol', computerUseEnabled: true, options: { thinking: { id: 'high', level: 'high' } } });
     const result = await sendOpenAIMessageStream(input);
     await expect(collect(result.stream)).resolves.toBe('Observación completada.');
     expect(openAiMocks.create.mock.calls[0][0]).toMatchObject({
-      model: 'gpt-6.1-sol', reasoning: { effort: 'high' },
+      model: 'gpt-6.2-sol', reasoning: { effort: 'high' },
       tools: expect.arrayContaining([expect.objectContaining({ type: 'function', name: 'use_computer' })]),
     });
     expect(dispatch.execute).toHaveBeenCalledWith('use_computer',

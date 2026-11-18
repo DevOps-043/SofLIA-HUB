@@ -268,7 +268,7 @@ export function AppLoadingScreen({
   const colorScheme = useResolvedStartupScheme(themeMode);
   const baseBackground = colorScheme === 'dark' ? '#080b11' : '#f4faf9';
   const exitDuration = getLogoExitPose(logoExitTarget).duration;
-  useStartupIntroAudio(playIntroSound && !isOrbWindow && !isExiting);
+  useStartupIntroAudio(playIntroSound && !isOrbWindow);
 
   return (
     <motion.main
