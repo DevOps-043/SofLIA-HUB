@@ -33,6 +33,7 @@ const knownErrors: Record<string, string> = {
   'No hay participantes conectados para distribuir': 'No hay participantes conectados para distribuir',
   'El contenido pertenece a otro curso': 'El contenido pertenece a otro curso',
   'La sesión está cerrada': 'La sesión está cerrada',
+  'La sesión ya tiene trabajo de participantes. Conserva el paquete vigente.': 'La sesión ya tiene trabajo de participantes. Conserva el paquete vigente.',
 };
 
 export async function requestLearningStudio(input: unknown, deps: { baseUrl: string; getIdentity: () => Promise<{ userId: string; accessToken: string } | null>; fetcher?: typeof fetch }): Promise<StudioResult> {
@@ -57,6 +58,8 @@ export async function requestLearningStudio(input: unknown, deps: { baseUrl: str
     const headers = {
       'Content-Type': 'application/json',
       'X-Soflia-Studio-Participation': '1',
+      'X-Soflia-Studio-Preparation': '1',
+      'X-Soflia-Studio-Documents': '1',
       Authorization: `Bearer ${identity.accessToken}`,
       ...(recordingNotice === undefined ? {} : { [STUDIO_RECORDING_NOTICE_HEADER]: String(recordingNotice) }),
     };
@@ -81,6 +84,7 @@ export async function requestLearningStudio(input: unknown, deps: { baseUrl: str
     phase = 'respuesta';
     const result = studioResponseSchema.parse(await readLearningResponse(response, 2 * 1024 * 1024));
     if (result.snapshot && (result.snapshot.session_id !== parsed.data.session_id || result.snapshot.user_id !== identity.userId)) throw new Error('Actor incompatible');
+    if (result.snapshot?.state.engine_preparation && !result.snapshot.can_manage) throw new Error('Preparación privada incompatible');
     if(result.recording_snapshot && (result.recording_snapshot.session_id!==parsed.data.session_id || result.recording_snapshot.user_id!==identity.userId))throw new Error('Archivo incompatible');
     if(result.playback){
       if(result.playback.session_id!==parsed.data.session_id || result.playback.user_id!==identity.userId || parsed.data.operation.type!=='recordings' || parsed.data.operation.operation.type!=='play' || result.playback.run_id!==parsed.data.operation.operation.run_id)throw new Error('Reproducción incompatible');

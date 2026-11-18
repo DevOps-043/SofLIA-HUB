@@ -3,6 +3,7 @@ import { LiveIcon } from '../LiveIcon';
 import { StudioDialog } from './StudioDialog';
 import { StudioNumberField } from './StudioNumberField';
 import { StudioClock } from './StudioClock';
+import { StudioConductionPanel } from './StudioConductionPanel';
 import SelectDropdown from '../../ui/SelectDropdown';
 import { useStudioRuntime } from './StudioRuntimeContext';
 import { engineSessionManifestSchema, studioQuizSchema } from '../../../shared/live-studio.contract';
@@ -67,6 +68,7 @@ export function StudioLiveActivities() {
     if (success) { setDialog(null); setNotice('Cambios guardados en Learning.'); }
   }
   return <aside className="studio-panel studio-activities" aria-label="Actividades y recursos"><header className="studio-panel-heading"><h2><LiveIcon name="grid" />Tu caja de herramientas</h2></header><div className="studio-activities-content">
+    <StudioConductionPanel />
     <div className="studio-section-caption"><span>ACTIVIDADES</span><span>{participants} participantes conectados</span></div>
     <button className="studio-activity-card" disabled={runtime.busy} onClick={() => setDialog('rooms')}><span className="studio-tool-icon"><LiveIcon name="users" /></span><span><strong>Salas de práctica</strong><small>Distribuye al grupo conectado.</small></span><LiveIcon name="plus" /></button>
     {state.rooms.length > 0 && <section className="studio-prepared-activity"><div><strong>{state.rooms.length} salas académicas</strong><button aria-label="Cerrar salas" disabled={runtime.busy} onClick={() => void runtime.send({ type: 'close_rooms' })}><LiveIcon name="close" /></button></div><div className="studio-room-grid">{state.rooms.map((room) => <span key={room.id}>{room.name}<small>{room.user_ids.length} participantes</small></span>)}</div><small>Chat y actividades por sala. Crea las salas de audio en Zoom.</small></section>}

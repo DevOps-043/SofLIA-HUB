@@ -1,6 +1,7 @@
 # Integración de cursos asíncronos de CourseForge con SofLIA Hub
 
-**Estado** — Propuesta técnica para revisión.  
+**Estado** — Antecedente del análisis para cursos asíncronos. El alcance corregido del curso híbrido se documenta en [Entrega de preparación síncrona de Architect al estudio de Hub](architect-live-preparation-delivery.md).
+
 **Fecha** — 14 de noviembre de 2026.
 
 ## 1. Entendimiento del objetivo

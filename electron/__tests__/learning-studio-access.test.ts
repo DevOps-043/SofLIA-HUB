@@ -8,11 +8,20 @@ const input = { organization_slug: 'acme', session_id: session, operation: { typ
 const deps = { baseUrl: 'https://learning.test', getIdentity: async () => ({ userId: user, accessToken: 'privado' }) };
 const snapshot = { user_id: user, session_id: session, title: 'Clase', server_time: '2026-10-12T20:00:00.000Z', can_manage: true, state: emptyStudioState(), asset_urls: {} };
 describe('frontera HTTP del estudio', () => {
+  it('rechaza preparación privada en una respuesta de participante', async () => {
+    const preparation = { minutes: 60, blocks: [{ id: 'caso', purpose: 'Aplicar', minutes: 60, explanation: 'Reservado', activity: 'Resuelve', criteria: ['Justifica'], practice_ids: [] }], speaker_notes: [] };
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      snapshot: { ...snapshot, can_manage: false, state: { ...snapshot.state, engine_preparation: preparation } },
+    })));
+    expect(await requestLearningStudio(input, { ...deps, fetcher })).toMatchObject({ success: false, code: 'unavailable' });
+  });
   it('negocia participación y distingue límite 429 sin exponer el mensaje arbitrario del servidor',async()=>{
     const fetcher=vi.fn().mockResolvedValue(new Response(JSON.stringify({error:'detalle privado'}),{status:429}));
     expect(await requestLearningStudio(input,{...deps,fetcher})).toMatchObject({success:false,code:'rate_limited'});
     expect(JSON.parse(fetcher.mock.calls[0][1].body)).not.toHaveProperty('participation_version');
     expect(fetcher.mock.calls[0][1].headers['X-Soflia-Studio-Participation']).toBe('1');
+    expect(fetcher.mock.calls[0][1].headers['X-Soflia-Studio-Preparation']).toBe('1');
+    expect(fetcher.mock.calls[0][1].headers['X-Soflia-Studio-Documents']).toBe('1');
   });
   it('abre el instructor con API anterior estricta sin enviar el campo nuevo en JSON',async()=>{
     const legacyRequest=studioRequestSchema.omit({participation_version:true});
