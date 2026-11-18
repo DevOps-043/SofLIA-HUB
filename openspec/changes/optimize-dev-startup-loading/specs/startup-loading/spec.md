@@ -22,6 +22,17 @@ El sistema SHALL registrar entrada main, carga, entorno y construcción con mili
 - **WHEN** main termina de evaluar sus imports
 - **THEN** el primer hito incluye ese tiempo y los hitos siguientes permiten distinguir las fases
 
+### Requirement: Acceso sin espera fija
+El renderer SHALL mostrar el acceso cuando se confirme que no hay sesión, iniciando la transición del logotipo y conservando el sonido de arranque.
+
+#### Scenario: Arranque sin sesión
+- **WHEN** la restauración determina que no hay usuario
+- **THEN** comienza la salida del intro sin esperar los 4200 ms y el espacio de trabajo no necesita cargarse para mostrar el formulario
+
+#### Scenario: Sesión restaurada o aún pendiente
+- **WHEN** hay una sesión restaurada o la restauración continúa
+- **THEN** el intro conserva su espera visual original y su límite de gracia, y una vez en salida no vuelve a tapar el acceso
+
 ### Requirement: Trabajo accesorio del build
 El modo desarrollo SHALL omitir calcular tamaños gzip de main/preload y conservar funciones y recarga de fuentes.
 

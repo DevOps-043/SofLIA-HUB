@@ -39,6 +39,13 @@ No se usa React Router: `ActiveView` es la union `chat | project | project-hub |
 productivity | meetings | live-sessions`. `AppWorkspace` selecciona chat y herramientas
 con render condicional; `AppContent` presenta la agenda y el aula de Learning.
 
+En la ventana principal, una restauración que confirma la ausencia de sesión
+revela el acceso sin esperar el mínimo de la introducción. La transición del
+logotipo y el audio se conservan. La barra lateral, el espacio de trabajo y los
+diálogos se importan al renderizar la sesión autenticada. La escucha de enlaces
+y reuniones empieza en el shell de acceso para conservar eventos que llegan
+antes del inicio de sesión.
+
 `AppContent` coordina:
 
 - autenticacion SOFIA/Lia y organizacion activa;
