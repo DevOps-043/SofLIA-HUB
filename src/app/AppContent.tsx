@@ -207,7 +207,7 @@ export function AppContent() {
   ) : isOrbWindow ? (
     <Suspense fallback={<div role="status">Cargando avatar…</div>}><OrbWindowRoot key="orb-window" /></Suspense>
   ) : (
-    <AgentActivityProvider activeConversationId={chat.chatScopeId} conversationTitles={Object.fromEntries(chat.conversations.map(conversation => [conversation.id, conversation.title]))} openConversation={id => { void handlers.handleSelectConversation(id); }}><ArtifactViewerProvider key={(user?.id ?? "") + ":" + orgId + ":" + (chat.currentConversationId ?? "")}>
+    <AgentActivityProvider activeConversationId={chat.chatScopeId} conversationTitles={Object.fromEntries(chat.conversations.map(conversation => [conversation.id, conversation.title]))} openConversation={id => { void handlers.handleSelectConversation(id); }}><ArtifactViewerProvider key={(user?.id ?? "") + ":" + orgId + ":" + chat.chatScopeId}>
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background dark:bg-background-dark">
       {!browserWorkspaceVisible && <AppTitleBar />}
       <div className="relative flex min-h-0 flex-1 w-full overflow-hidden">
