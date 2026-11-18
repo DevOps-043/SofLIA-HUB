@@ -16,6 +16,14 @@ El reloj BOOT parte del origen del proceso, en lugar del momento tardío de eval
 
 ## Compatibilidad y reversión
 
+El acceso usa el resultado de restauración para iniciar la salida del intro.
+Con sesión restaurada conserva la animación de 4200 ms. Si todavía carga sin
+usuario, puede esperar hasta 4900 ms. Una vez que comienza a salir, el intro no
+vuelve a cubrir el formulario. El audio permanece activo durante la transición.
+El shell conserva los listeners y el proveedor de autenticación. Las importaciones
+de barra lateral, diálogos y espacio de trabajo sólo se solicitan al renderizar
+esas vistas.
+
 En modo `serve`, main resuelve Baileys de la instalación local. La conexión y el descargador del hub heredado usan `import()` asíncrono. La conexión entrega a sus callbacks el código de cierre y el descargador de la versión cargada, y revalida el intento después de esperar el import. La compilación de producción sigue empaquetando el SDK. Esta decisión preserva la recarga de las fuentes locales.
 
 Se preservan constructores, todos los handlers, sesiones, ventanas y secuencia de init. Revertir únicamente este diff recupera la carga secuencial y el informe gzip dev. Las métricas y smokes aislados no acreditan un arranque con cuentas reales ni un tiempo garantizado en otra máquina.

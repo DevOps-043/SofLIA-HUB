@@ -82,3 +82,46 @@ La emisión ahorró 0,819–1,872 s en cada par. El total del primer build fue v
 - `npm run app:smoke:build` aprobó la compilación completa de producción con fuentes aisladas. El SDK quedó en un chunk diferido de 4,64 MB. Electron con perfil temporal cargó ese bundle y pasó el mismo escenario de revocación, sin un import externo de Baileys en el código emitido.
 - `npm run docs:check`, OpenSpec strict y `git diff --check` aprobados.
 - `npm run verify:pr` aprobado con código cero. 7629 pruebas de aplicación, 70 de tooling y 33 contratos Python aprobados. Se mantienen las cinco omisiones preexistentes. Lint sin deuda nueva en 91 archivos. Cobertura validada en 2743 fuentes: 63,59% de líneas, 61,69% de sentencias, 58,16% de funciones y 54,93% de ramas.
+
+## Acceso después de la fusión
+
+Base `8a230103`. El formulario requería importar estáticamente la barra
+lateral, el espacio de trabajo y los diálogos. Incluso al resolverse el acceso
+sin sesión, la introducción mantenía el bloqueo 4200 ms antes de la salida.
+El shell conserva autenticación, eventos y apariencia. Las tres vistas se
+importan al renderizarlas y el intro empieza a salir al resolverse el estado
+sin usuario. Se conserva la transición y la reproducción de audio.
+
+Un ensayo con el servidor Vite real, caché Vite vacía en cada variante,
+compilación main/preload y navegador Electron aislado detectó el formulario
+visible cuando terminó la cobertura de la introducción. El main de producto
+se sustituyó por un lanzador de esa ventana. Se usó un perfil temporal, sin
+preload ni configuración local y con acceso de red limitado al origen Vite.
+
+| Fase observada | Base | Cambio |
+| --- | ---: | ---: |
+| Vite a formulario visible | 20,118 s | 13,863 s |
+| Navegación Electron a formulario visible | 12,282 s | 5,972 s |
+
+En la base hubo un HTTP 504 de una dependencia del resaltador y Vite recuperó
+el renderer. La variante con carga diferida llegó al formulario sin ese 504.
+El primer build main tardó 6,225 y 6,964 s respectivamente. Una segunda muestra
+del cambio llegó en 13,402 s, con 5,654 s de navegación. La segunda muestra
+base coincidió con el inicio de verificaciones y se excluyó de la comparación.
+La mejora observada no incluye el bootstrap nativo del producto ni npm.
+
+Las ocho pruebas dirigidas aisladas pasaron. Cubren la entrada por ventana,
+el arranque y la navegación de Learning, además de revelar el formulario
+al resolver la sesión, no reabrir el intro y cargar el espacio de trabajo
+después de autenticar. El checkout activo preserva sus cambios de identidad
+de conversación. Su suite combinada de primer turno y navegación aprobó
+nueve pruebas tras esperar la carga diferida del workspace en el test.
+
+Vite compiló en modo producción los bundles de renderer, main y preload.
+`npm run verify:pr` pasó sobre la rama aislada de esta etapa. Aprobó 7696
+pruebas de la aplicación, con cinco omisiones preexistentes, 70 pruebas de
+herramientas y 33 contratos Python. La cobertura se validó en 2749 fuentes.
+También pasaron la comprobación documental y OpenSpec en el checkout activo.
+
+Reversión: retirar sólo los cambios de acceso de esta etapa. No modifica
+datos de sesión, perfil de usuario, preload ni comunicación IPC.

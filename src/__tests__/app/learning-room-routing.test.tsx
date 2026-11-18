@@ -8,8 +8,11 @@ const mocks = vi.hoisted(() => ({
   request: (() => {}) as (value: LearningLiveSessionReference) => void,
   browserOpen: () => {},
   scopedMessages: vi.fn(),
+  signedIn: true,
+  restoring: false,
+  workspaceLoaded: vi.fn(),
 }));
-vi.mock('../../contexts/AuthContext', () => ({ useAuth: () => ({ user: { id: 'learner' }, dataUserId: 'learner', loading: false, sofiaContext: { currentOrganization: { id: 'org', slug: 'acme' }, teams: [] } }) }));
+vi.mock('../../contexts/AuthContext', () => ({ useAuth: () => ({ user: mocks.signedIn ? { id: 'learner' } : null, dataUserId: mocks.signedIn ? 'learner' : null, loading: mocks.restoring, sofiaContext: { currentOrganization: { id: 'org', slug: 'acme' }, teams: [] } }) }));
 vi.mock('../../hooks/useChatManager', () => ({ useChatManager: () => ({ conversations: [], chatScopeId: 'chat-de-prueba', getScopedMessagesHandler: () => mocks.scopedMessages }) }));
 vi.mock('../../hooks/useFolderManager', () => ({ useFolderManager: () => ({}) }));
 vi.mock('../../hooks/useIrisData', () => ({ useIrisData: () => ({}) }));
@@ -37,28 +40,60 @@ vi.mock('../../services/integrated-browser-service', () => ({ integratedBrowserS
 } }));
 vi.mock('../../services/browser-writing', () => ({ improveBrowserSelection: vi.fn() }));
 vi.mock('../../services/learning-live-service', () => ({ learningLiveService: { workspace: vi.fn().mockResolvedValue({ success: true, snapshot: { can_manage: false, session: { title: 'Clase del participante' } } }) } }));
-vi.mock('../../components/Auth', () => ({ Auth: () => null }));
-vi.mock('../../app/AppLoadingScreen', () => ({ AppLoadingScreen: () => null }));
+vi.mock('../../components/Auth', () => ({ Auth: () => <button>Entrar a SofLIA</button> }));
+vi.mock('../../app/AppLoadingScreen', () => ({ AppLoadingScreen: ({ isExiting }: { isExiting: boolean }) => <span data-testid="intro" data-exiting={isExiting} /> }));
 vi.mock('../../app/AppModals', () => ({ AppModals: () => null }));
 vi.mock('../../app/OrbWindowRoot', () => ({ OrbWindowRoot: () => null }));
 vi.mock('../../components/ui/AppTitleBar', () => ({ AppTitleBar: () => <div>Controles de ventana</div> }));
 vi.mock('../../app/AppSidebar', () => ({ AppSidebar: ({ onOpenBrowser }: { onOpenBrowser: () => void }) => <aside aria-label="Conversaciones"><button onClick={onOpenBrowser}>Abrir navegador</button></aside> }));
-vi.mock('../../app/AppWorkspace', () => ({ AppWorkspace: ({ browserWorkspaceOpen, onOpenLiveSessions }: { browserWorkspaceOpen: boolean; onOpenLiveSessions: () => void }) => <div>{browserWorkspaceOpen && <div data-testid="browser-workspace">Navegador</div>}<div data-testid="old-chat">Conversación anterior</div><button onClick={onOpenLiveSessions}>Ver sesiones</button></div> }));
+vi.mock('../../app/AppWorkspace', () => {
+  mocks.workspaceLoaded();
+  return { AppWorkspace: ({ browserWorkspaceOpen, onOpenLiveSessions }: { browserWorkspaceOpen: boolean; onOpenLiveSessions: () => void }) => <div>{browserWorkspaceOpen && <div data-testid="browser-workspace">Navegador</div>}<div data-testid="old-chat">Conversación anterior</div><button onClick={onOpenLiveSessions}>Ver sesiones</button></div> };
+});
 vi.mock('../../components/learning-live/LearningSessions', () => ({ LearningSessions: ({ onSelect }: { onSelect: (value: LearningLiveSessionReference) => void }) => <section aria-label="Agenda de sesiones"><button onClick={() => onSelect(reference)}>Seleccionar sesión</button></section> }));
 vi.mock('../../components/agents/AgentActivityPanel', () => ({ AgentActivityPanel: () => <div data-testid="agents">Actividad de agentes</div> }));
 vi.mock('../../components/agents/AgentActivityProvider', () => ({ AgentActivityProvider: ({ children }: { children: React.ReactNode }) => children }));
 vi.mock('../../components/artifacts/ArtifactViewerProvider', () => ({ ArtifactViewerProvider: ({ children }: { children: React.ReactNode }) => children }));
 
-beforeEach(() => { vi.useFakeTimers(); localStorage.clear(); });
+beforeEach(() => { vi.useFakeTimers(); localStorage.clear(); mocks.signedIn = true; mocks.restoring = false; });
 afterEach(() => vi.useRealTimers());
-function openApp() {
+async function openApp() {
   render(<AppContent />);
   act(() => { vi.advanceTimersByTime(6000); });
   vi.useRealTimers();
+  await act(async () => { await vi.dynamicImportSettled(); });
 }
+
+it('revela el acceso al confirmar que no hay sesión y reserva el espacio de trabajo para después', async () => {
+  mocks.signedIn = false;
+  mocks.restoring = true;
+  const view = render(<AppContent />);
+  expect(screen.queryByRole('button', { name: 'Entrar a SofLIA' })).not.toBeInTheDocument();
+
+  mocks.restoring = false;
+  view.rerender(<AppContent />);
+  expect(screen.getByRole('button', { name: 'Entrar a SofLIA' })).toBeInTheDocument();
+  expect(screen.getByTestId('intro')).toHaveAttribute('data-exiting', 'true');
+  expect(mocks.workspaceLoaded).not.toHaveBeenCalled();
+
+  mocks.restoring = true;
+  view.rerender(<AppContent />);
+  act(() => { vi.advanceTimersByTime(1250); });
+  expect(screen.queryByTestId('intro')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Entrar a SofLIA' })).toBeInTheDocument();
+
+  mocks.signedIn = true;
+  view.rerender(<AppContent />);
+  vi.useRealTimers();
+  await act(async () => { await vi.dynamicImportSettled(); });
+  expect(await screen.findByTestId('old-chat')).toBeInTheDocument();
+  expect(mocks.workspaceLoaded).toHaveBeenCalledOnce();
+  expect(screen.queryByTestId('intro')).not.toBeInTheDocument();
+});
+
 describe('el aula tiene una vista exclusiva', () => {
   it.each(['Volver a mis sesiones', 'Cerrar aula'])('sustituye el navegador y el chat al recibir una sesión, y %s regresa a la agenda', async (exit) => {
-    openApp();
+    await openApp();
     fireEvent.click(screen.getByRole('button', { name: 'Abrir navegador' }));
     expect(screen.getByTestId('browser-workspace')).toBeInTheDocument();
     await act(async () => { mocks.request(reference); await vi.dynamicImportSettled(); });
@@ -74,7 +109,7 @@ describe('el aula tiene una vista exclusiva', () => {
     expect(screen.queryByTestId('browser-workspace')).not.toBeInTheDocument();
   });
   it('abre el lienzo desde la agenda sin montar el chat anterior', async () => {
-    openApp();
+    await openApp();
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Ver sesiones' })); await vi.dynamicImportSettled(); });
     await act(async () => { fireEvent.click(await screen.findByRole('button', { name: 'Seleccionar sesión' })); await vi.dynamicImportSettled(); });
     expect(await screen.findByRole('region', { name: 'Espacio de la sesión' }, { timeout: 5000 })).toBeInTheDocument();
