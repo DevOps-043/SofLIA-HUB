@@ -1,6 +1,6 @@
 # Aula de sesiones de Learning
 
-Estado: implementación local para pruebas; despliegue pendiente. Actualizado: 2026-11-11.
+Estado: implementación local para pruebas; despliegue pendiente. Actualizado: 2026-11-18.
 
 <!-- evidence: src/components/learning-live/LearningWorkspace.tsx -->
 <!-- evidence: src/components/learning-live/ConnectedStudio.tsx -->
@@ -68,6 +68,69 @@ El instructor puede publicar mensajes, cerrar/abrir chat, habilitar el acceso al
 Los participantes reciben sus entregas y respuestas, sin claves de quiz, respuestas ajenas ni conversaciones de otras salas. Las salas académicas distribuyen identidades realmente conectadas por tamaño o cantidad; se puede visitar su chat y regresar al principal. Video SDK sincroniza las salas académicas mediante user_key firmado, crea destinos audiovisuales y asigna participantes conectados; quienes llegan tarde se incorporan al actualizar la lista del proveedor. Entrar espera confirmación audiovisual antes de cambiar la presencia académica y compensa un fallo. Meeting conserva su gestión de salas en la llamada.
 
 ## Preparación, materiales y reloj
+
+### Salas de trabajo por actividad
+
+El [panel de salas](../../src/components/learning-live/rooms/InstructorRoomPanel.tsx)
+ocupa el área principal del instructor y conserva chat lateral y barra inferior.
+Permite elegir una práctica, leer sus instrucciones, revisar equipos equilibrados
+por tamaño o cantidad y abrirlos con confirmación de Learning. Después permite
+renombrar salas, reasignar personas conectadas o previamente asignadas, identificar
+personas sin equipo, visitar salas y revisar sus entregas personales. El cierre
+requiere una confirmación explícita y conserva prácticas y entregas. Abrir otro
+reparto o cambiar la práctica vinculada exige cerrar primero las salas actuales.
+
+Las prácticas del manifiesto v1 aceptan `collaboration` opcional: `{ mode:
+'individual' }` o `{ mode: 'teams', team_size: 4 }`, con tamaño propuesto entre 2
+y 50. Architect propone; el instructor puede ajustar la distribución efectiva
+sin alterar esa propuesta. Ausencia del campo significa que no hay propuesta;
+una práctica individual no se puede abrir como actividad de salas. El receptor
+está preparado; el productor Architect todavía debe adoptar estos metadatos.
+
+La ampliación se negocia por `X-Soflia-Studio-Rooms: 1`; el snapshot devuelve
+`rooms_version: 1`. Los comandos administrativos son `open_rooms`, `assign_room`
+y `rename_room`, además de `close_rooms` ya existente. `room_activity` conserva
+práctica, modo, valor efectivo y fecha de apertura. Todos usan el canal Studio,
+autorización de instructor, CAS y deduplicación existentes, sin nuevas tablas o
+migraciones. Servidores anteriores ofrecen distribución básica y el cliente
+deshabilita vinculación y ajustes nuevos. Learning retira los campos ampliados
+de respuestas destinadas a clientes anteriores, independientemente de la
+negociación de reacciones.
+
+Al entrar o visitar una sala, el escenario principal muestra la galería de personas
+presentes. El lateral separa el [detalle de sala](../../src/components/learning-live/rooms/RoomWorkspace.tsx)
+con integrantes, actividad y entregas del chat del equipo. En ventanas estrechas
+se alternan galería y lateral con la barra inferior disponible. Se conserva el
+acceso a materiales, quizzes y otras prácticas, incluso en salas sin actividad vinculada.
+
+La galería mantiene montado un único iframe. Video SDK confirma la subsesión activa
+antes de mostrarlo y aporta cámaras, nombres y fichas para cámaras apagadas.
+La galería admite hasta nueve fichas por página y verifica identidad de subsesión
+con el ID del proveedor o el GUID confirmado de un usuario presente. Mientras se
+confirma la llamada, Hub muestra solo la presencia académica de esa sala.
+Meeting conserva su gestión audiovisual desde sus propios controles.
+Los dos accesos a una práctica comparten un
+[borrador por actividad](../../src/components/learning-live/usePracticeDrafts.ts)
+durante la sesión. La entrega de equipo compartida no está implementada.
+
+Reasignar retira la pertenencia anterior y vuelve al contexto académico principal;
+entrar al nuevo equipo sigue siendo explícito. Video SDK distingue usuarios sin
+asignación, usuarios asignados y personas que ya entraron. La preparación inicial
+se pasa a `openSubsessions`; la reasignación utiliza `moveUserToSubsession` y el
+regreso automático al principal para quien estaba dentro. El estado de audio y
+video continúa separado de la confirmación académica. Referencia: [subsesiones
+Video SDK](https://developers.zoom.us/docs/video-sdk/web/subsessions/).
+
+Retirar una asignación académica no acredita que Zoom haya retirado su invitación:
+la API de regreso puede conservarla. El bridge anuncia `unavailable` con motivo
+`assignment_revocation` y el panel exige cerrar y reabrir salas para completar esa
+revocación audiovisual. No anuncia `ready` mientras exista la asignación antigua.
+
+Publicar Learning antes de Hub. Para revertir servidor, conservar el lector del
+JSON ampliado o retirar previamente `room_activity` y `collaboration`; un servidor
+antiguo con validación estricta no puede leer estos campos persistidos. La
+[evidencia local](../../openspec/changes/develop-session-rooms/reports/verification.md)
+no acredita un piloto con audio/video real.
 
 El dominio valida escenas, material, prácticas y quizzes. Archivos privados de hasta 25 MB se suben por URL firmada; el servidor comprueba pertenencia de ruta, existencia, tamaño y MIME antes de publicarlos. Lecturas usan el mismo flujo. Crear o importar un quiz JSON no lo publica hasta que el instructor lo indique. Entregas y reloj se guardan en Learning; el reloj se representa a partir de hora de servidor sin escribir cada segundo.
 

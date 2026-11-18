@@ -1,0 +1,7 @@
+- [x] 1. Extender contrato y dominio canónicos, negociación compatible y pruebas de permisos.
+- [x] 2. Implementar panel de salas del instructor con preparación, distribución, asignaciones y visitas.
+- [x] 3. Implementar espacio de sala del participante preservando chat, llamada y controles.
+- [x] 4. Verificar frontend, contratos, transporte, tipos, lint y compuerta aplicable.
+- [x] 5. Actualizar documentación y registrar revisión adversarial independiente y evidencia.
+- [x] 6. Dar el escenario principal a la galería de personas y dividir detalle y chat en el lateral de ambos roles.
+- [x] 7. Verificar galería, aislamiento audiovisual, navegación y diseño adaptable.

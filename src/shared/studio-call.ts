@@ -8,7 +8,7 @@ export type StudioCallControls = z.infer<typeof studioCallControlsSchema>;
 export type StudioCallCommand = 'mute' | 'toggle-mic' | 'toggle-camera' | 'captions' | 'visit-room' | 'sync-rooms' | 'leave' | 'start-share' | 'stop-share' | 'get-devices' | 'select-device' | 'set-view';
 export const studioCallViewSchema = z.enum(['screen', 'camera', 'combined']);
 export type StudioCallView = z.infer<typeof studioCallViewSchema>;
-export const studioCallVisualSchema = z.object({ cameras: z.boolean(), remoteShare: z.boolean() }).strict();
+export const studioCallVisualSchema = z.object({ cameras: z.boolean(), remoteShare: z.boolean(), roomId: z.string().uuid().nullable().optional() }).strict();
 export type StudioCallVisual = z.infer<typeof studioCallVisualSchema>;
 export const studioRecordingStatusSchema = z.enum(['Recording', 'Paused', 'Stopped']);
 export type StudioRecordingStatus = z.infer<typeof studioRecordingStatusSchema>;
@@ -17,7 +17,7 @@ export const studioRoomPlanSchema=z.array(z.object({id:z.string().uuid(),user_id
   return new Set(rooms.map(room=>room.id)).size===rooms.length&&people.length<=500&&new Set(people).size===people.length;
 });
 export type StudioRoomPlan=z.infer<typeof studioRoomPlanSchema>;
-export const studioRoomsStatusSchema=z.object({status:z.enum(['ready','waiting','unavailable']),missing:z.number().int().min(0).max(500)}).strict();
+export const studioRoomsStatusSchema=z.object({status:z.enum(['ready','waiting','unavailable']),missing:z.number().int().min(0).max(500),reason:z.literal('assignment_revocation').optional()}).strict();
 export type StudioRoomsStatus=z.infer<typeof studioRoomsStatusSchema>;
 export const studioCaptionSchema = z.object({ text: z.string().max(2000), speaker: z.string().max(160) }).strict();
 export type StudioCaption = z.infer<typeof studioCaptionSchema>;

@@ -1,5 +1,5 @@
 // Generado desde Learning. Sincronizar con scripts/quality/sync-learning-studio.mjs.
-import { engineSessionManifestSchema } from './engine-preparation.contract';
+import { engineSessionManifestSchema, studioPracticeSchema } from './engine-preparation.contract';
 export { engineSessionManifestSchema } from './engine-preparation.contract';
 import { z } from 'zod';
 import { recordingOperationSchema,recordingResponseSchema,recordingSnapshotSchema } from './recordings.contract';
@@ -11,7 +11,8 @@ export const studioSceneSchema = z.object({ id, name: text(60), kind: z.enum(['s
 export const studioMaterialSchema = z.object({ id, name: text(160), kind: z.enum(['file', 'reading', 'quiz']), asset_path: text(500), mime: text(100), bytes: z.number().int().min(1).max(25 * 1024 * 1024) }).strict();
 const quizBase = z.object({ id, question: text(300), options: z.array(text(120)).min(2).max(6).refine((items) => new Set(items).size === items.length), correct: z.number().int().min(0).max(5) }).strict();
 export const studioQuizSchema = quizBase.refine((quiz) => quiz.correct < quiz.options.length);
-const practice = z.object({ id, title: text(160), instructions: text(2000) }).strict();
+const practice = studioPracticeSchema;
+export const studioRoomActivitySchema=z.object({practice_id:id.nullable(),mode:z.enum(['size','count']),value:z.number().int().min(1).max(50),opened_at:z.string().datetime()}).strict();
 export const studioClockSchema = z.object({ mode: z.enum(['timer', 'stopwatch']), seconds: z.number().int().min(0).max(86400), running: z.boolean(), updated_at: z.string().datetime() }).strict();
 export const studioReactionSchema=z.enum(['👏','👍','💡','❤️','🎉','😂']);
 export const studioCommandSchema = z.discriminatedUnion('type', [
@@ -22,6 +23,9 @@ export const studioCommandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('restrict'), user_id: id, restriction: z.enum(['none', 'chat', 'blocked']) }).strict(),
   z.object({ type: z.literal('presence'), room_id: id.nullable(), leave: z.boolean().optional() }).strict(),
   z.object({ type: z.literal('rooms'), mode: z.enum(['size', 'count']), value: z.number().int().min(1).max(50) }).strict(),
+  z.object({ type: z.literal('open_rooms'), practice_id:id.nullable(), mode:z.enum(['size','count']), value:z.number().int().min(1).max(50) }).strict(),
+  z.object({ type:z.literal('assign_room'),user_id:id,room_id:id.nullable() }).strict(),
+  z.object({ type:z.literal('rename_room'),room_id:id,name:text(60) }).strict(),
   z.object({ type: z.literal('close_rooms') }).strict(),
   z.object({ type: z.literal('scene'), scene: studioSceneSchema }).strict(),
   z.object({ type: z.literal('remove_scene'), scene_id: id }).strict(),
@@ -55,6 +59,7 @@ export const studioStateSchema = z.object({
   participation:z.record(id,z.object({last_message_at:z.string().datetime().optional(),last_reaction_at:z.string().datetime().optional()}).strict()).refine(items=>Object.keys(items).length<=5000).default({}),
   messages: z.array(z.object({ id, user_id: id, author: text(160), instructor: z.boolean(), content: text(2000), question: z.boolean(), room_id: id.nullable(), created_at: z.string().datetime() }).strict()).max(100),
   members: z.array(z.object({ user_id: id, name: text(160), instructor: z.boolean(), room_id: id.nullable(), seen_at: z.string().datetime() }).strict()).max(500),
+  room_activity:studioRoomActivitySchema.nullable().optional(),
   rooms: z.array(z.object({ id, name: text(60), user_ids: z.array(id).max(500) }).strict()).max(50),
   scenes: z.array(studioSceneSchema).max(12), active_scene_id: id.nullable(),
   materials: z.array(studioMaterialSchema).max(20),
@@ -66,6 +71,7 @@ export const studioStateSchema = z.object({
 }).strict();
 export type StudioState = z.infer<typeof studioStateSchema>;
 export const studioSnapshotSchema = z.object({
+  rooms_version:z.literal(1).optional(),
   participation_version:z.literal(1).optional(),
   session_id: id, user_id: id, can_manage: z.boolean(), title: text(160), server_time: z.string().datetime(),
   state: studioStateSchema.omit({ quizzes: true }).extend({ quizzes: z.array(quizBase.omit({ correct: true }).extend({ correct: z.number().int().min(0).max(5).optional() })).max(20) }),

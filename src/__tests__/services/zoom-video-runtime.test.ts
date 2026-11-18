@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const sdk = vi.hoisted(() => ({
-  client: { init: vi.fn(), join: vi.fn(), leave: vi.fn(), on: vi.fn(), getMediaStream: vi.fn(), getAllUser: vi.fn(), getCurrentUserInfo: vi.fn(), getRecordingClient: vi.fn(), getLiveTranscriptionClient: vi.fn() },
+  client: { init: vi.fn(), join: vi.fn(), leave: vi.fn(), on: vi.fn(), getMediaStream: vi.fn(), getAllUser: vi.fn(), getCurrentUserInfo: vi.fn(), getRecordingClient: vi.fn(), getLiveTranscriptionClient: vi.fn(), getSubsessionClient: vi.fn() },
   transcription: { startLiveTranscription: vi.fn(), getLiveTranscriptionStatus: vi.fn() },
   stream: { startAudio: vi.fn(), muteAudio: vi.fn(), unmuteAudio: vi.fn(), startVideo: vi.fn(), stopVideo: vi.fn(), startShareScreen: vi.fn(), stopShareScreen: vi.fn(), isStartShareScreenWithVideoElement: vi.fn(),getMicList:vi.fn(),getSpeakerList:vi.fn(),getCameraList:vi.fn(),getActiveMicrophone:vi.fn(),getActiveSpeaker:vi.fn(),getActiveCamera:vi.fn(),switchMicrophone:vi.fn(),switchSpeaker:vi.fn(),switchCamera:vi.fn() },
   destroy: vi.fn(),
@@ -21,6 +21,7 @@ beforeEach(() => {
   Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getDisplayMedia: vi.fn() } });
   sdk.client.init.mockResolvedValue(''); sdk.client.join.mockResolvedValue(''); sdk.client.leave.mockResolvedValue('');
   sdk.client.getMediaStream.mockReturnValue(sdk.stream); sdk.client.getAllUser.mockReturnValue([]);
+  sdk.client.getSubsessionClient.mockReturnValue({ getCurrentSubsession: () => ({ subsessionId: '', subsessionName: '', userStatus: 'main session' }) });
   sdk.client.getCurrentUserInfo.mockReturnValue({ muted: true, bVideoOn: false });
   sdk.client.getRecordingClient.mockReturnValue({ getCloudRecordingStatus: () => 'Recording' });
   sdk.client.getLiveTranscriptionClient.mockReturnValue(sdk.transcription);

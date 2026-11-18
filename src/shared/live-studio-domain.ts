@@ -62,14 +62,39 @@ export function applyStudioCommand(previous: StudioState, input: StudioCommand, 
       }
       break;
     }
+    case 'open_rooms':
     case 'rooms': {
-      const users = state.members.filter((member) => !member.instructor && Date.parse(now) - Date.parse(member.seen_at) < 90000).map((member) => member.user_id).sort();
+      if(command.type==='open_rooms'&&command.practice_id){
+        const practice=state.practices.find(item=>item.id===command.practice_id);
+        if(!practice)invalid('La actividad no pertenece a esta sesión');
+        if(practice.collaboration?.mode==='individual')invalid('Esta actividad es individual');
+      }
+      if(state.rooms.length)invalid('Cierra las salas actuales antes de preparar otra distribución');
+      const users = state.members.filter((member) => !member.instructor && state.moderation.restrictions[member.user_id]!=='blocked' && Date.parse(now) - Date.parse(member.seen_at) < 90000).map((member) => member.user_id).sort();
       if (!users.length) invalid('No hay participantes conectados para distribuir');
       const count = Math.min(users.length, command.mode === 'size' ? Math.ceil(users.length / command.value) : command.value, 50);
       state.rooms = Array.from({ length: count }, (_, index) => ({ id: newId(), name: `Sala ${index + 1}`, user_ids: users.filter((_, position) => position % count === index) }));
+      state.room_activity=command.type==='open_rooms'?{practice_id:command.practice_id,mode:command.mode,value:command.value,opened_at:now}:null;
       state.members.forEach((member) => { member.room_id = null; }); break;
     }
-    case 'close_rooms': state.rooms = []; state.members.forEach((member) => { member.room_id = null; }); break;
+    case 'rename_room': {
+      const room=state.rooms.find(item=>item.id===command.room_id);
+      if(!room)invalid('La sala no pertenece a esta sesión');
+      if(state.rooms.some(item=>item.id!==room.id&&item.name.toLocaleLowerCase()===command.name.toLocaleLowerCase()))invalid('Ya existe una sala con ese nombre');
+      room.name=command.name;break;
+    }
+    case 'assign_room': {
+      const room=command.room_id?state.rooms.find(item=>item.id===command.room_id):null;
+      if(command.room_id&&!room)invalid('La sala no pertenece a esta sesión');
+      const member=state.members.find(item=>item.user_id===command.user_id);
+      const assigned=state.rooms.some(item=>item.user_ids.includes(command.user_id));
+      if(member?.instructor||state.moderation.restrictions[command.user_id]==='blocked'||(!assigned&&(!member||Date.parse(now)-Date.parse(member.seen_at)>=90000)))invalid('El participante no está disponible para asignar');
+      state.rooms.forEach(item=>{item.user_ids=item.user_ids.filter(user=>user!==command.user_id);});
+      if(room)room.user_ids.push(command.user_id);
+      if(member&&member.room_id!==command.room_id)member.room_id=null;
+      break;
+    }
+    case 'close_rooms': state.room_activity=null;state.rooms = []; state.members.forEach((member) => { member.room_id = null; }); break;
     case 'scene': {
       if (state.scenes.some((scene) => scene.id !== command.scene.id && scene.name.toLocaleLowerCase() === command.scene.name.toLocaleLowerCase())) invalid('Ya existe una escena con ese nombre');
       state.scenes = upsert(state.scenes, command.scene, 12); state.active_scene_id ??= command.scene.id; break;
@@ -87,7 +112,9 @@ export function applyStudioCommand(previous: StudioState, input: StudioCommand, 
       if (state.answers.length >= 10000) invalid('Se alcanzó el límite de respuestas');
       state.answers.push({ quiz_id: quiz.id, user_id: actor.id, answer: command.answer }); break;
     }
-    case 'practice': state.practices = upsert(state.practices, command.practice, 20); break;
+    case 'practice':
+      if(state.rooms.length&&state.room_activity?.practice_id===command.practice.id)invalid('Cierra las salas antes de modificar su actividad');
+      state.practices = upsert(state.practices, command.practice, 20); break;
     case 'submit_practice': {
       if (!state.practices.some((entry) => entry.id === command.practice_id)) invalid('Práctica no encontrada');
       state.submissions = state.submissions.filter((entry) => entry.practice_id !== command.practice_id || entry.user_id !== actor.id);
@@ -96,6 +123,7 @@ export function applyStudioCommand(previous: StudioState, input: StudioCommand, 
     }
     case 'clock': state.clock = { ...command.clock, updated_at: now }; break;
     case 'import_engine': {
+      if(state.rooms.length)invalid('Cierra las salas antes de importar otra preparación');
       const manifest = command.manifest;
       if (manifest.course_id !== actor.courseId) deny('El contenido pertenece a otro curso');
       for (const collection of [manifest.scenes, manifest.materials, manifest.quizzes, manifest.practices]) {
@@ -110,7 +138,7 @@ export function applyStudioCommand(previous: StudioState, input: StudioCommand, 
 }
 
 /** Nunca devuelve claves de quiz, entregas ajenas ni conversaciones de otras salas. */
-export function projectStudioState(state: StudioState, actor: StudioActor, now: string) {
+export function projectStudioState(state: StudioState, actor: StudioActor, now: string, rooms = false) {
   const room = state.members.find((member) => member.user_id === actor.id)?.room_id ?? null;
   if (state.moderation.restrictions[actor.id] === 'blocked') deny('Tu acceso a esta sesión está bloqueado');
   return {
@@ -120,7 +148,7 @@ export function projectStudioState(state: StudioState, actor: StudioActor, now: 
     messages: state.messages.filter((message) => actor.canManage || message.room_id === room),
     members: state.members.filter((member) => Date.parse(now) - Date.parse(member.seen_at) < 90000),
     moderation: { ...state.moderation, restrictions: actor.canManage ? state.moderation.restrictions : state.moderation.restrictions[actor.id] ? { [actor.id]: state.moderation.restrictions[actor.id] } : {} },
-    rooms: state.rooms.map((entry) => ({ ...entry, user_ids: actor.canManage ? entry.user_ids : entry.user_ids.filter((user) => user === actor.id) })),
+    rooms: state.rooms.map((entry) => ({ ...entry, user_ids: actor.canManage || rooms && entry.user_ids.includes(actor.id) ? entry.user_ids : entry.user_ids.filter((user) => user === actor.id) })),
     quizzes: state.quizzes.map(({ correct, ...quiz }) => actor.canManage ? { ...quiz, correct } : quiz),
     answers: state.answers.filter((answer) => actor.canManage || answer.user_id === actor.id),
     submissions: state.submissions.filter((submission) => actor.canManage || submission.user_id === actor.id),

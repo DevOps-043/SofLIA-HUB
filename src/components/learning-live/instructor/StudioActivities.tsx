@@ -9,7 +9,7 @@ import SelectDropdown from '../../ui/SelectDropdown';
 import { StudioGuidedPractice } from './StudioGuidedPractice';
 import type { StudioResource, StudioRoom } from './studio-types';
 
-export function StudioActivities({ initialResources = [], participants, rooms, onRoomsChange }: { initialResources?: StudioResource[]; participants: number; rooms: StudioRoom[]; onRoomsChange: (rooms: StudioRoom[]) => void }) {
+export function StudioActivities({ initialResources = [], participants, rooms, onRoomsChange, onOpenRooms }: { onOpenRooms?: () => void; initialResources?: StudioResource[]; participants: number; rooms: StudioRoom[]; onRoomsChange: (rooms: StudioRoom[]) => void }) {
   const runtime = useStudioRuntime();
   const [resources, setResources] = useState(initialResources);
   const [dialog, setDialog] = useState<'rooms' | 'quiz' | null>(null);
@@ -23,7 +23,7 @@ export function StudioActivities({ initialResources = [], participants, rooms, o
   const [resourceKind, setResourceKind] = useState<StudioResource['kind']>('file');
   const [notice, setNotice] = useState('');
   const fileInput = useRef<HTMLInputElement>(null);
-  if (runtime) return <StudioLiveActivities />;
+  if (runtime) return <StudioLiveActivities onOpenRooms={onOpenRooms} />;
   const count = roomParticipants > 0 ? Math.min(roomParticipants, roomMode === 'size' ? Math.ceil(roomParticipants / roomValue) : roomValue) : 0;
   function createRooms(event: FormEvent) {
     event.preventDefault();

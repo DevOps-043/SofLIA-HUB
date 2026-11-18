@@ -5,6 +5,7 @@ import { manageZoomSharing } from './share-lifecycle';
 import { callDevices } from './call-devices';
 import { academicRooms } from './academic-rooms';
 import { receiveProgramAudio } from './program-audio';
+import { peopleInVideoRoom, roomVideoContext, roomVideoPage } from './room-video-context';
 
 export function videoAssetSource(pageUrl: string): string {
   const url = new URL(pageUrl);
@@ -34,6 +35,11 @@ export function start(initial: MessageEvent) {
   if (initial.data.presentation === 'instructor') document.documentElement.classList.add('instructor-video-document');
   root.classList.add('video-session', initial.data.presentation === 'participant' ? 'participant-presentation' : 'instructor-presentation');
   const grid = document.createElement('video-player-container'); grid.className = 'video-grid';
+  const paging = document.createElement('nav'); paging.className = 'video-grid-paging'; paging.hidden = true;
+  paging.setAttribute('aria-label', 'Páginas de la galería');
+  const previous = document.createElement('button'), next = document.createElement('button'), pageLabel = document.createElement('span');
+  previous.textContent = 'Anterior'; next.textContent = 'Siguiente'; pageLabel.setAttribute('role', 'status');
+  paging.append(previous, pageLabel, next);
   const share = document.createElement('video-player-container'); share.className = 'video-share'; share.hidden = true;
   let preview = document.createElement('video') as HTMLVideoElement | HTMLCanvasElement;
   preview.className = 'share-preview'; preview.hidden = true;
@@ -71,28 +77,94 @@ export function start(initial: MessageEvent) {
     if (!available) captionsEnabled = false;
     emit('call-controls', { camera: true, captions: available, captionsEnabled });
   }
-  function reportVisual() { emit('visual', { cameras: videos.size > 0, remoteShare: !!remoteShare }); }
+  let publishedRoom: string | null | undefined;
+  let switchingRoom = false;
+  const currentSubsession = () => client.getSubsessionClient().getCurrentSubsession();
+  const currentRoom = () => switchingRoom ? undefined : roomVideoContext(currentSubsession());
+  function reportVisual() { emit('visual', { cameras: videos.size > 0, remoteShare: !!remoteShare, roomId: publishedRoom }); }
   async function stopShare() {
     sharing.stop(); preview.hidden = true;
     if (joined) await checked(stream.stopShareScreen());
     media();
   }
   const videos = new Map<number, HTMLElement>();
+  let galleryRoom: string | null | undefined, page = 0;
+  previous.onclick = () => { page--; render(); };
+  next.onclick = () => { page++; render(); };
+
   function render() {
     renders = renders.then(async () => {
       if (!joined || disposed) return;
-      const users = client.getAllUser();
-      const visible = users.filter(user => user.bVideoOn).sort((a, b) => Number(b.isHost) - Number(a.isHost)).slice(0, 9);
-      for (const [id, tile] of videos) if (!visible.some(user => user.userId === id)) { await stream.detachVideo(id); tile.remove(); videos.delete(id); }
-      for (const user of visible) {
-        if (videos.has(user.userId) || disposed) continue;
-        const tile = document.createElement('div'); tile.className = 'video-tile';
-        const player = await stream.attachVideo(user.userId, VideoQuality.Video_360P);
-        if (!(player instanceof HTMLElement)) continue;
-        if (disposed) { await stream.detachVideo(user.userId); break; }
-        const name = document.createElement('span'); name.textContent = user.displayName;
-        tile.append(player, name); grid.append(tile); videos.set(user.userId, tile);
+      const subsession = currentSubsession();
+      const scope = switchingRoom ? undefined : roomVideoContext(subsession);
+      if (scope !== galleryRoom) {
+        publishedRoom = undefined; galleryRoom = scope; page = 0;
+        grid.replaceChildren(); paging.remove();
+        share.hidden = true; root.classList.remove('has-remote-share');
+        reportVisual();
+        const staleIds = [...videos.keys()]; videos.clear();
+        await Promise.allSettled(staleIds.map(id => stream.detachVideo(id)));
+        if (remoteShare) { const staleShare = remoteShare; remoteShare = 0; share.replaceChildren(); await stream.detachShareView(staleShare); }
       }
+      if (scope === undefined || disposed || scope !== currentRoom()) return;
+      root.classList.toggle('room-presentation', !!scope);
+      const self = client.getCurrentUserInfo()?.userId;
+      const users = [...new Map(client.getAllUser().map(user => [user.userId, user])).values()];
+      const residents = scope && client.getSubsessionClient().getSubsessionList().find(room => room.subsessionId === subsession.subsessionId);
+      const joinedGuids = new Set(residents ? residents.userList.flatMap(user => user.isInSubsession && user.userGuid ? [user.userGuid] : []) : []);
+      const candidates = scope ? peopleInVideoRoom(users, subsession.subsessionId, self, joinedGuids) : users.filter(user => user.bVideoOn && !user.subsessionId);
+      candidates.sort((a, b) => Number(b.isHost) - Number(a.isHost) || a.userId - b.userId);
+      const selection = roomVideoPage(candidates, scope ? page : 0);
+      page = selection.page;
+      const visible = selection.people;
+      if (scope && selection.pages > 1) {
+        paging.hidden = false;
+        if (!paging.isConnected) root.append(paging);
+      } else paging.remove();
+      previous.disabled = page === 0; next.disabled = page + 1 >= selection.pages;
+      pageLabel.textContent = `Página ${page + 1} de ${selection.pages}`;
+      const cameraIds = new Set(visible.filter(user => user.bVideoOn).map(user => user.userId));
+      for (const [id, player] of videos) {
+        if (cameraIds.has(id)) continue;
+        player.remove(); videos.delete(id);
+        await stream.detachVideo(id);
+      }
+      let position = 0;
+      for (const user of visible) {
+        if (disposed || scope !== currentRoom()) return;
+        if (videos.has(user.userId) || !user.bVideoOn) continue;
+        try {
+          const player = await stream.attachVideo(user.userId, VideoQuality.Video_360P);
+          if (!(player instanceof HTMLElement)) continue;
+          if (disposed || scope !== currentRoom()) { await stream.detachVideo(user.userId); return; }
+          videos.set(user.userId, player);
+        } catch { /* Una cámara que no se puede cargar conserva su ficha. */ }
+      }
+      if (disposed || scope !== currentRoom()) return;
+      const displayed = new Set(visible.map(user => String(user.userId)));
+      for (const tile of Array.from(grid.children)) if (!displayed.has((tile as HTMLElement).dataset.userId ?? '')) tile.remove();
+      for (const user of visible) {
+        const id = String(user.userId);
+        const tile = grid.querySelector<HTMLElement>(`[data-user-id="${id}"]`) ?? document.createElement('div');
+        tile.dataset.userId = id; tile.className = 'video-tile';
+        const player = videos.get(user.userId);
+        const person = document.createElement('span'); person.className = 'video-tile-name';
+        person.textContent = `${user.displayName}${scope && user.userId === self ? ' (tú)' : ''}${scope && user.muted ? ' · Silenciado' : ''}`;
+        if (!player && scope) {
+          const initial = document.createElement('div'); initial.className = 'video-tile-initial';
+          initial.textContent = user.displayName.slice(0, 1).toLocaleUpperCase(); initial.setAttribute('aria-hidden', 'true');
+          tile.replaceChildren(initial, person);
+        } else if (player) {
+          if (tile.firstChild !== player) tile.replaceChildren(player, person);
+          else tile.querySelector('.video-tile-name')?.replaceWith(person);
+        }
+        if (tile.firstChild) {
+          const atPosition = grid.children.item(position++);
+          if (atPosition !== tile) grid.insertBefore(tile, atPosition);
+        }
+      }
+      publishedRoom = scope;
+      grid.style.visibility = '';
       reportVisual(); media();
     }).catch(() => { if (!disposed) failure(); });
   }
@@ -137,13 +209,26 @@ export function start(initial: MessageEvent) {
     else if(type==='visit-room')action(async()=>{
       const room=detail?.room_id,request=detail?.request_id;
       if(typeof request!=='string'||!/^[-a-f0-9]{36}$/.test(request)||room!==null&&(typeof room!=='string'||!/^[-a-f0-9]{36}$/.test(room)))throw new Error('Sala inválida.');
-      await rooms.visit(room);emit('room-joined',{room_id:room,request_id:request});
+      await rooms.visit(room);render();emit('room-joined',{room_id:room,request_id:request});
     });
   }
   window.addEventListener('message', receive);
   window.addEventListener('pagehide', () => { void dispose(); }, { once: true });
-  client.on('connection-change', event => { if (event.state === 'Closed' || event.state === 'Fail') void dispose(); });
+  client.on('connection-change', event => {
+    if (event.state === 'Closed' || event.state === 'Fail') { void dispose(); return; }
+    if (event.state === 'Reconnecting' && ['join breakout room', 'move to breakout room', 'back to main session'].includes(event.reason ?? '')) {
+      switchingRoom = true;
+      grid.style.visibility = 'hidden';
+      share.hidden = true;
+      publishedRoom = undefined;
+      reportVisual();
+    }
+    if (event.state === 'Connected') switchingRoom = false;
+    if (joined && !disposed) render();
+  });
   for (const name of ['user-added', 'user-updated', 'user-removed', 'peer-video-state-change']) client.on(name, render);
+  client.on('subsession-user-update', render);
+  client.on('subsession-state-change', render);
   for(const name of ['user-added','main-session-user-updated','subsession-state-change'] as const)client.on(name,()=>{
     if(roomPlanReceived&&!disposed&&joined)action(async()=>{emit('rooms-status',await rooms.sync());});
   });
@@ -157,13 +242,16 @@ export function start(initial: MessageEvent) {
     emit('recording', value);
   });
   client.on('active-share-change', event => {
+    if (!joined || disposed) return;
+    const scope = currentRoom();
+    if (scope === undefined) return;
     renders = renders.then(async () => {
-      if (disposed) return;
+      if (!joined || disposed || scope !== currentRoom()) return;
       if (remoteShare) { await stream.detachShareView(remoteShare); remoteShare = 0; share.replaceChildren(); }
       if (event.state === 'Active') {
         const player = await stream.attachShareView(event.userId);
         if (player instanceof HTMLElement) {
-          if (disposed) { await stream.detachShareView(event.userId); return; }
+          if (disposed || scope !== currentRoom()) { await stream.detachShareView(event.userId); return; }
           share.append(player); remoteShare = event.userId;
         }
       }

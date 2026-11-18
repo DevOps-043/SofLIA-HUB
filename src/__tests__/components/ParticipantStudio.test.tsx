@@ -121,6 +121,7 @@ describe('aula del participante',()=>{
   });
   it('envía quiz y solicitudes de palabra a la sala actual con moderación',async()=>{
     snapshot.state.members[0].room_id='room';open();
+    fireEvent.click(screen.getByRole('tab',{name:'Actividades y materiales'}));
     fireEvent.click(screen.getByRole('button',{name:'Abrir quiz'}));fireEvent.click(screen.getByRole('button',{name:'ARepetitiva'}));
     await waitFor(()=>expect(send).toHaveBeenCalledWith({type:'answer_quiz',quiz_id:'quiz',answer:0}));
     fireEvent.click(screen.getByRole('button',{name:'Cerrar actividad'}));fireEvent.click(screen.getByRole('button',{name:'Levantar la mano'}));
