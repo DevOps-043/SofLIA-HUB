@@ -110,3 +110,28 @@ independiente y la barra inferior accesible en las dos vistas móviles.
   ejecución, con 471 informes parciales de 670 y sin un resultado consolidado.
 
 Queda pendiente un piloto con sesiones y cámaras reales del proveedor.
+
+## Integración en main del 18 de noviembre de 2026
+
+El checkout principal quedó en `main`. Se integraron las puntas
+`ecd2185a` (arranque), `3d9b74b4` (primer turno del chat),
+`a98969cb` (SofLIA Max) y `a6525db1` (salas), sobre `8a230103`.
+Los merges correspondientes son `43e8c759`, `458929ab`, `a8dc2f80`
+y `45d3aedb`. Todas las ramas locales quedaron contenidas en `main`.
+
+Se conservó la espera de la importación diferida en la prueba del primer
+mensaje y se regeneró el inventario combinado con 870 archivos de prueba.
+La lista de fuentes del build aislado incluye el nuevo adaptador
+`packages/zoom-runtime/room-video-context.ts`. No se cambian las
+credenciales, el workflow de publicación o los worktrees de las ramas.
+
+Pasaron 110 pruebas dirigidas en 11 archivos. Se comprobaron acceso,
+primer turno, navegación, selección de modelos, permisos de Learning,
+adaptador de Zoom y salas de instructor y participante.
+
+`npm run app:smoke:build` compiló la aplicación, presentación, audiovisual
+y Zoom en una copia sin configuración local. `npm run verify:pr`, con
+`HARNESS_BASE_REF=origin/main`, pasó con 7732 pruebas de aplicación en
+669 archivos, cinco omisiones preexistentes, 70 pruebas de herramientas y
+33 contratos Python. Se verificaron 2755 fuentes de cobertura con 64,04%
+de líneas y el lint validó 53 archivos sin deuda nueva.

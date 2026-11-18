@@ -19,6 +19,7 @@ const zoomSourceFiles = new Set([
   'packages/zoom-runtime/runtime.ts', 'packages/zoom-runtime/share-lifecycle.ts',
   'packages/zoom-runtime/academic-rooms.ts', 'packages/zoom-runtime/call-devices.ts',
   'packages/zoom-runtime/meeting-runtime.ts', 'packages/zoom-runtime/program-audio.ts',
+  'packages/zoom-runtime/room-video-context.ts',
   'packages/zoom-runtime/video-client.ts', 'packages/zoom-runtime/video-runtime.ts',
 ]);
 const sourceRoots = new Set(['src', 'electron', 'config', 'public', 'resources', 'scripts', 'test']);
