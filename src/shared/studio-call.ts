@@ -17,7 +17,7 @@ export const studioRoomPlanSchema=z.array(z.object({id:z.string().uuid(),user_id
   return new Set(rooms.map(room=>room.id)).size===rooms.length&&people.length<=500&&new Set(people).size===people.length;
 });
 export type StudioRoomPlan=z.infer<typeof studioRoomPlanSchema>;
-export const studioRoomsStatusSchema=z.object({status:z.enum(['ready','waiting','unavailable']),missing:z.number().int().min(0).max(500)}).strict();
+export const studioRoomsStatusSchema=z.object({status:z.enum(['ready','waiting','unavailable']),missing:z.number().int().min(0).max(500),reason:z.literal('assignment_revocation').optional()}).strict();
 export type StudioRoomsStatus=z.infer<typeof studioRoomsStatusSchema>;
 export const studioCaptionSchema = z.object({ text: z.string().max(2000), speaker: z.string().max(160) }).strict();
 export type StudioCaption = z.infer<typeof studioCaptionSchema>;

@@ -57,6 +57,7 @@ export async function requestLearningStudio(input: unknown, deps: { baseUrl: str
     const headers = {
       'Content-Type': 'application/json',
       'X-Soflia-Studio-Participation': '1',
+      'X-Soflia-Studio-Rooms': '1',
       Authorization: `Bearer ${identity.accessToken}`,
       ...(recordingNotice === undefined ? {} : { [STUDIO_RECORDING_NOTICE_HEADER]: String(recordingNotice) }),
     };

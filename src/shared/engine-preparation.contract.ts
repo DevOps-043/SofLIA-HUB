@@ -6,9 +6,14 @@ const text=(max:number)=>z.string().trim().min(1).max(max);
 const scene=z.object({id,name:text(60),kind:z.enum(['slide','screen','image','video']),title:text(160),description:z.string().max(500),asset_path:z.string().max(500).optional()}).strict();
 const material=z.object({id,name:text(160),kind:z.enum(['file','reading','quiz']),asset_path:text(500),mime:text(100),bytes:z.number().int().min(1).max(25*1024*1024)}).strict();
 const quiz=z.object({id,question:text(300),options:z.array(text(120)).min(2).max(6),correct:z.number().int().min(0).max(5)}).strict().refine(item=>item.correct<item.options.length&&new Set(item.options).size===item.options.length);
+export const practiceCollaborationSchema=z.discriminatedUnion('mode',[
+  z.object({mode:z.literal('individual')}).strict(),
+  z.object({mode:z.literal('teams'),team_size:z.number().int().min(2).max(50)}).strict(),
+]);
+export const studioPracticeSchema=z.object({id,title:text(160),instructions:text(2000),collaboration:practiceCollaborationSchema.optional()}).strict();
 export const engineSessionManifestSchema=z.object({
   version:z.literal(1),course_id:id,revision:text(100),scenes:z.array(scene).max(12),materials:z.array(material).max(20),
-  quizzes:z.array(quiz).max(20),practices:z.array(z.object({id,title:text(160),instructions:text(2000)}).strict()).max(20),
+  quizzes:z.array(quiz).max(20),practices:z.array(studioPracticeSchema).max(20),
 }).strict();
 export const enginePreparationSchema=z.object({
   version:z.literal(1),actor_id:id,artifact_id:id,source_session_id:id,source_revision:z.number().int().positive(),

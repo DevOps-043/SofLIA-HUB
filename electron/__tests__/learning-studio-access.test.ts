@@ -13,6 +13,7 @@ describe('frontera HTTP del estudio', () => {
     expect(await requestLearningStudio(input,{...deps,fetcher})).toMatchObject({success:false,code:'rate_limited'});
     expect(JSON.parse(fetcher.mock.calls[0][1].body)).not.toHaveProperty('participation_version');
     expect(fetcher.mock.calls[0][1].headers['X-Soflia-Studio-Participation']).toBe('1');
+    expect(fetcher.mock.calls[0][1].headers['X-Soflia-Studio-Rooms']).toBe('1');
   });
   it('abre el instructor con API anterior estricta sin enviar el campo nuevo en JSON',async()=>{
     const legacyRequest=studioRequestSchema.omit({participation_version:true});

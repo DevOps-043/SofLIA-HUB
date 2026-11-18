@@ -1,13 +1,15 @@
 import { useState } from 'react';
+import { usePracticeDrafts, type PracticeDraftStore } from '../usePracticeDrafts';
 import { LiveIcon } from '../LiveIcon';
 import { useStudioRuntime } from '../instructor/StudioRuntimeContext';
 
-export function ParticipantActivities({onPractice,onExpandedChange}: {onPractice:(id?:string)=>void;onExpandedChange?:(expanded:boolean)=>void}) {
+export function ParticipantActivities({onPractice,onExpandedChange,draftStore}: {draftStore?:PracticeDraftStore;onPractice:(id?:string)=>void;onExpandedChange?:(expanded:boolean)=>void}) {
   const runtime=useStudioRuntime()!;
   const {state,user_id,asset_urls}=runtime.snapshot;
   const [tab,setTab]=useState<'activities'|'materials'>('activities');
   const [open,setOpen]=useState<{kind:'practice'|'quiz';id:string}|null>(null);
-  const [drafts,setDrafts]=useState<Record<string,string>>({});
+  const localDrafts=usePracticeDrafts();
+  const {drafts,setDraft}=draftStore??localDrafts;
   const [notice,setNotice]=useState('');
   const quiz=state.quizzes.find(item=>item.id===state.active_quiz_id);
   const practice=open?.kind==='practice'?state.practices.find(item=>item.id===open.id):undefined;
@@ -34,7 +36,7 @@ export function ParticipantActivities({onPractice,onExpandedChange}: {onPractice
       {state.materials.map(item=><article className="participant-activity-row" key={item.id}><span className="participant-activity-symbol"><LiveIcon name={item.kind==='reading'?'book':'file'}/></span><div><strong>{item.name}</strong><span>{Math.ceil(item.bytes/1024)} KB</span></div>{asset_urls[item.asset_path]?<a href={asset_urls[item.asset_path]} target="_blank" rel="noopener noreferrer" className="participant-secondary">Abrir material</a>:<span className="participant-muted">No disponible</span>}</article>)}
     </div>
     {open&&<section className="participant-open-activity" aria-label="Actividad abierta"><header><h3>{practice?.title||openQuiz?.question||'Actividad finalizada'}</h3><button className="studio-icon-button" aria-label="Cerrar actividad" onClick={close}><LiveIcon name="close"/></button></header><div className="participant-workspace-scroll">
-      {practice?<form className="participant-practice-form" onSubmit={event=>{event.preventDefault();void submitPractice();}}><p>{practice.instructions}</p><label>Tu entrega<textarea required maxLength={2000} rows={6} value={draft} onChange={event=>{setDrafts(previous=>({...previous,[practice.id]:event.target.value}));setNotice('');}} /></label><small>Tu borrador se conserva mientras permanezcas en esta sesión.</small><button type="submit" className="studio-primary-button" disabled={runtime.busy||!(draft).trim()}>Guardar entrega</button></form>:openQuiz?<div className="participant-quiz-options">{state.answers.some(item=>item.quiz_id===openQuiz.id&&item.user_id===user_id)?<p>Respuesta guardada.</p>:<><p>Selecciona una respuesta.</p>{openQuiz.options.map((option,index)=><button key={index} disabled={runtime.busy} onClick={async()=>{const ok=await runtime.send({type:'answer_quiz',quiz_id:openQuiz.id,answer:index});setNotice(ok?'Respuesta guardada.':'No se guardó tu respuesta. Reintenta.');}}><span>{String.fromCharCode(65+index)}</span>{option}</button>)}</>}</div>:<p>El instructor retiró o cerró esta actividad.</p>}
+      {practice?<form className="participant-practice-form" onSubmit={event=>{event.preventDefault();void submitPractice();}}><p>{practice.instructions}</p><label>Tu entrega<textarea required maxLength={2000} rows={6} value={draft} onChange={event=>{setDraft(practice.id,event.target.value);setNotice('');}} /></label><small>Tu borrador se conserva mientras permanezcas en esta sesión.</small><button type="submit" className="studio-primary-button" disabled={runtime.busy||!(draft).trim()}>Guardar entrega</button></form>:openQuiz?<div className="participant-quiz-options">{state.answers.some(item=>item.quiz_id===openQuiz.id&&item.user_id===user_id)?<p>Respuesta guardada.</p>:<><p>Selecciona una respuesta.</p>{openQuiz.options.map((option,index)=><button key={index} disabled={runtime.busy} onClick={async()=>{const ok=await runtime.send({type:'answer_quiz',quiz_id:openQuiz.id,answer:index});setNotice(ok?'Respuesta guardada.':'No se guardó tu respuesta. Reintenta.');}}><span>{String.fromCharCode(65+index)}</span>{option}</button>)}</>}</div>:<p>El instructor retiró o cerró esta actividad.</p>}
       {notice&&<p role="status">{notice}</p>}
     </div></section>}
   </section>;
