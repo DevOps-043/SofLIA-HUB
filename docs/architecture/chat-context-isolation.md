@@ -37,6 +37,11 @@ los presenta ni reencola como recuperación de la organización actual.
 
 ChatUI se remonta por ámbito estable. Skill y panel llevan conversación de
 origen, y el render no concede herramientas de un panel de otra conversación.
+El proveedor del visor que contiene el workspace usa también ese ámbito estable,
+junto con usuario y organización. Persistir el primer mensaje no remonta el
+árbol ni cancela el turno; abrir otro chat o cambiar identidad limpia el visor
+y revoca la generación supervisada anterior. No usar el cambio de identificador
+persistido `null` → UUID como clave de ese contenedor.
 La recuperación retira la autoridad anterior antes de esperar IPC. Activaciones
 pendientes se invalidan al navegar, desactivar, desmontar o cambiar identidad.
 El enlace de un workspace legado necesita el UUID explícito del borrador; un
