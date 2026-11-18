@@ -11,6 +11,12 @@ credenciales, endpoints, SDK y herramientas específicas de Gemini.
 - **AND** los trabajos en segundo plano iniciados con Pro conservan Terra al ejecutarse y al recuperarse
 - **AND** Pro está disponible aun cuando se agotan los tres usos mensuales de Max
 
+#### Scenario: SofLIA Max con Sol 6.2
+- **WHEN** el usuario selecciona SofLIA Max o recupera su selección de `gpt-6.1-sol`
+- **THEN** el chat usa `gpt-6.2-sol` y conserva el razonamiento y la cuota mensual existentes
+- **AND** una preferencia de razonamiento de Sol 6.2 ya guardada tiene prioridad sobre las anteriores
+- **AND** los encargos nuevos en segundo plano usan Sol 6.2 y los históricos con Sol 6.1 siguen disponibles con su modelo original
+
 #### Scenario: Selección guardada retirada
 - **WHEN** se abre el selector con un modelo Gemini anterior
 - **THEN** se persiste el modelo OpenAI por defecto y se conserva razonamiento compatible

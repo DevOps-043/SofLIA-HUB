@@ -4,7 +4,7 @@ import { sendOpenAIMessageStream } from '../../services/openai-chat/send-message
 import { prepareChatTeam } from '../../services/gemini-chat/agent-team';
 const ports = vi.hoisted(() => ({ execute: vi.fn(), tokens: vi.fn() }));
 vi.mock('../../services/gemini-chat/tool-dispatch', () => ({ isKnownGeminiTool: () => true, executeGeminiToolCall: ports.execute }));
-vi.mock('../../services/model-quota', () => ({ SOFLIA_MAX_MODEL_ID: 'gpt-6.1-sol', recordSofliaMaxTokens: ports.tokens }));
+vi.mock('../../services/model-quota', () => ({ SOFLIA_MAX_MODEL_ID: 'gpt-6.2-sol', recordSofliaMaxTokens: ports.tokens }));
 afterEach(() => { Reflect.deleteProperty(window, 'openaiRuntime'); Reflect.deleteProperty(window, 'flowInference'); vi.clearAllMocks(); });
 function fixture() {
   let current = 0; const runs = new Map<string, number>();
@@ -55,16 +55,16 @@ describe('Consumidores reales del puerto OpenAI nativo', () => {
       const event = cursor === 0 ? { type: 'response.output_text.delta', delta: 'Respuesta nativa' } : cursor === 1 ? { type: 'response.output_text.annotation.added', annotation: { type: 'url_citation', url: 'https://example.test/fuente', title: 'Fuente' } } : cursor === 2 ? { type: 'response.completed', response: { usage: { total_tokens: 12 } } } : null;
       return event ? { success: true, kind: 'event', cursor: cursor + 1, event: event as never } : { success: true, kind: 'done', cursor: cursor + 1 };
     });
-    const result = await sendOpenAIMessageStream({ modelId: 'gpt-6.1-sol', finalMessage: 'prueba', systemInstruction: 'prueba', conversationHistory: [], useToolLoop: false, computerUseEnabled: false, useWebSearch: true, options: { userId: 'usuario', thinking: { id: 'max', level: 'max' } } });
+    const result = await sendOpenAIMessageStream({ modelId: 'gpt-6.2-sol', finalMessage: 'prueba', systemInstruction: 'prueba', conversationHistory: [], useToolLoop: false, computerUseEnabled: false, useWebSearch: true, options: { userId: 'usuario', thinking: { id: 'max', level: 'max' } } });
     let text = ''; for await (const chunk of result.stream) text += chunk;
     expect(text).toBe('Respuesta nativa'); expect(await result.sources).toContainEqual({ uri: 'https://example.test/fuente', title: 'Fuente' }); expect(ports.tokens).toHaveBeenCalledWith('usuario', 12); expect(api.cancel).toHaveBeenCalledOnce();
     expect(api.start.mock.calls[0][2]).toMatchObject({ reasoning: { effort: 'max' } });
   });
   it('análisis en equipo conserva modelo/salida/uso por las dos respuestas nativas', async () => {
     const { api } = fixture(); api.pull.mockImplementation(async (_scope, _id, cursor) => ({ success: true, kind: 'response', cursor: cursor + 1, response: { output_text: 'Aporte nativo', usage: { total_tokens: 7 } } as never }));
-    const result = await prepareChatTeam({ message: 'Crea una presentación con propuestas distintas', source: 'datos', modelId: 'gpt-6.1-sol', options: { teamMode: 'team', userId: 'usuario' } });
+    const result = await prepareChatTeam({ message: 'Crea una presentación con propuestas distintas', source: 'datos', modelId: 'gpt-6.2-sol', options: { teamMode: 'team', userId: 'usuario' } });
     expect(result.context).toContain('Aporte nativo'); expect(api.start).toHaveBeenCalledTimes(2); expect(api.cancel).toHaveBeenCalledTimes(2);
-    for (const call of api.start.mock.calls) expect(call[2]).toMatchObject({ model: 'gpt-6.1-sol', store: false, reasoning: { effort: 'low' } });
+    for (const call of api.start.mock.calls) expect(call[2]).toMatchObject({ model: 'gpt-6.2-sol', store: false, reasoning: { effort: 'low' } });
     expect(ports.tokens).toHaveBeenCalledWith('usuario', 7);
   });
   it('chat reinyecta una herramienta real del dispatcher y continúa por otro trabajo nativo', async () => {

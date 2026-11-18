@@ -40,6 +40,18 @@ function writerProvider(): BackgroundProvider {
   };
 }
 describe('Equipos ejecutores en main', () => {
+  it.each(['gpt-6.2-sol', 'gpt-6.1-sol'])('ejecuta y recupera encargos de Max con el modelo original %s', async model => {
+    const provider = writerProvider();
+    const { service, repository } = fixture(provider);
+    await service.context(null);
+    const job = await service.start({ ...request(), model });
+    await service.idle();
+    expect(service.state().jobs[0].status).toBe('completed');
+    expect(provider.execute).toHaveBeenCalled();
+    for (const [input] of vi.mocked(provider.execute).mock.calls) expect(input.job.model).toBe(model);
+    expect(repository.load(scope).find(saved => saved.id === job.id)?.model).toBe(model);
+    service.close();
+  });
   it('recupera un trabajo histórico con modelo retirado usando OpenAI', async () => {
     const { service, repository } = fixture();
     await service.context(null);

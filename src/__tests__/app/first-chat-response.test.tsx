@@ -68,6 +68,7 @@ function response(text: string): StreamResult {
   return { stream: (async function* () { yield text; })(), sources: Promise.resolve([]) };
 }
 async function sendFirstMessage() {
+  await act(async () => { await vi.dynamicImportSettled(); });
   fireEvent.click(screen.getByText('Enviar'));
   await waitFor(() => expect(screen.getByTestId('persistido')).not.toHaveTextContent('borrador'));
   await waitFor(() => expect(mocks.send).toHaveBeenCalledOnce());

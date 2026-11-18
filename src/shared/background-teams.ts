@@ -4,7 +4,8 @@ import { VIEWER_LIMITS } from './artifact-viewer';
 /** La exportación de un workspace conserva el límite del visor existente. */
 export const BACKGROUND_PRESENTATION_ARTIFACT_BYTES = VIEWER_LIMITS.fileBytes;
 
-export const BACKGROUND_MODELS = [SOFLIA_MAX_MODEL, SOFLIA_DEFAULT_MODEL, SOFLIA_PRO_MODEL, 'gpt-5.6-luna'] as const;
+// Sol 6.1 sigue disponible para recuperar encargos creados antes de Sol 6.2.
+export const BACKGROUND_MODELS = [SOFLIA_MAX_MODEL, SOFLIA_DEFAULT_MODEL, SOFLIA_PRO_MODEL, 'gpt-6.1-sol', 'gpt-5.6-luna'] as const;
 /** Compatibilidad de trabajos guardados con el proveedor retirado. */
 export function reconcileBackgroundModel(value: unknown): unknown {
   if (typeof value === 'string' && value.replace(/^models\//, '').startsWith('gemini-')) return SOFLIA_DEFAULT_MODEL;

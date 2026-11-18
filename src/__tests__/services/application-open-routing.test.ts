@@ -18,7 +18,7 @@ beforeEach(() => {
 });
 
 describe('apertura única desde el chat', () => {
-  it.each(['gpt-6.1-sol', 'gemini-3.8-flash'])('ejecuta la orden reportada con %s sin inventar texto del modelo', async model => {
+  it.each(['gpt-6.2-sol', 'gemini-3.8-flash'])('ejecuta la orden reportada con %s sin inventar texto del modelo', async model => {
     const result = await sendMessageStream('usa el computer use y abre firefox', [], { model });
     expect(executeComputerTool).toHaveBeenCalledExactlyOnceWith('open_application', { path: 'firefox' }, expect.anything());
     expect(result.toolCalls).toMatchObject([{ name: 'open_application', args: { path: 'firefox' } }]);
@@ -32,19 +32,19 @@ describe('apertura única desde el chat', () => {
     expect(await collectStreamText(result.stream)).toContain('Sesión no autenticada');
   });
   it('el alcance de extractos no permite una apertura', async () => {
-    await sendMessageStream('usa el computer use y abre firefox', [], { model: 'gpt-6.1-sol', browserSourceMode: 'attached-fragments' });
+    await sendMessageStream('usa el computer use y abre firefox', [], { model: 'gpt-6.2-sol', browserSourceMode: 'attached-fragments' });
     expect(executeComputerTool).not.toHaveBeenCalled();
   });
   it('el catálogo restringido no se amplía', async () => {
     const skill = { id: 'prueba', name: 'Prueba', instructions: '', tools: [], workspaceId: null, allowedTools: [] };
     await sendMessageStream('usa el computer use y abre firefox', [], {
-      model: 'gpt-6.1-sol',
+      model: 'gpt-6.2-sol',
       activeSkill: skill,
     });
     expect(executeComputerTool).not.toHaveBeenCalled();
   });
   it('una acción adicional conserva el coordinador', async () => {
-    await sendMessageStream('usa el computer use y abre firefox y busca noticias', [], { model: 'gpt-6.1-sol' });
+    await sendMessageStream('usa el computer use y abre firefox y busca noticias', [], { model: 'gpt-6.2-sol' });
     expect(executeComputerTool).not.toHaveBeenCalled();
     expect(mocks.provider).toHaveBeenCalled();
   });
