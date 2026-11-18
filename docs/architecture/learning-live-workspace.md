@@ -97,10 +97,18 @@ deshabilita vinculación y ajustes nuevos. Learning retira los campos ampliados
 de respuestas destinadas a clientes anteriores, independientemente de la
 negociación de reacciones.
 
-El [espacio del equipo](../../src/components/learning-live/rooms/RoomWorkspace.tsx)
-del participante muestra instrucciones, integrantes y una entrega personal.
-Conserva video montado, chat de sala, controles inferiores y acceso a materiales,
-quizzes y otras prácticas, incluso en salas anteriores sin actividad vinculada.
+Al entrar o visitar una sala, el escenario principal muestra la galería de personas
+presentes. El lateral separa el [detalle de sala](../../src/components/learning-live/rooms/RoomWorkspace.tsx)
+con integrantes, actividad y entregas del chat del equipo. En ventanas estrechas
+se alternan galería y lateral con la barra inferior disponible. Se conserva el
+acceso a materiales, quizzes y otras prácticas, incluso en salas sin actividad vinculada.
+
+La galería mantiene montado un único iframe. Video SDK confirma la subsesión activa
+antes de mostrarlo y aporta cámaras, nombres y fichas para cámaras apagadas.
+La galería admite hasta nueve fichas por página y verifica identidad de subsesión
+con el ID del proveedor o el GUID confirmado de un usuario presente. Mientras se
+confirma la llamada, Hub muestra solo la presencia académica de esa sala.
+Meeting conserva su gestión audiovisual desde sus propios controles.
 Los dos accesos a una práctica comparten un
 [borrador por actividad](../../src/components/learning-live/usePracticeDrafts.ts)
 durante la sesión. La entrega de equipo compartida no está implementada.

@@ -82,3 +82,29 @@ Rama `codex/develop-session-rooms` en ambos repositorios. El contrato/API Learni
 quedó guardado en el commit `e2db1268`. Hub conserva la copia canónica sincronizada,
 los paneles, pruebas, especificación y capturas en su worktree homónimo. El worktree
 principal del usuario no se modificó ni se integraron sus cambios pendientes.
+
+## Galería de la sala y lateral dividido
+
+El seguimiento coloca a las personas presentes en el centro. La actividad,
+los integrantes y las entregas quedan arriba del chat, con desplazamiento
+independiente y la barra inferior accesible en las dos vistas móviles.
+
+- Comprobación en navegador local con participante e instructor en la misma sala.
+  Entrada, visita y regreso confirmados con la fixture. En 430 × 800 se comprobó
+  el selector de sala desde la barra inferior y se restauró el tamaño del navegador.
+  Capturas de [participante](room-gallery.jpg), [instructor](room-gallery-instructor.jpg)
+  y [lateral en móvil](room-gallery-mobile.jpg).
+- Se aprobaron 61 pruebas en seis suites del estudio, salas académicas y puente
+  de llamadas. El SDK simulado comprueba cámara apagada, desprendimiento del
+  reproductor, exclusión de personas de otra sala y cambios de subsesión. Las
+  pruebas de interfaz comprueban que el iframe permanece montado y que solo se
+  vuelve visible al coincidir la sala académica y la audiovisual.
+- Aprobados tipos de Hub y Zoom runtime, compilación del adaptador de Zoom,
+  OpenSpec y lint incremental. La primera ejecución de la compuerta aprobó
+  7720 pruebas y detectó dos regresiones en la suite del adaptador de Zoom.
+  La paginación ahora se monta solo si existe una segunda página y la fixture
+  del adaptador representa la llamada del SDK que informa la subsesión actual.
+  La repetición dirigida del adaptador, salas y la interfaz aprobó 34 pruebas.
+  La compuerta general se volvió a ejecutar tras estas correcciones.
+
+Queda pendiente un piloto con sesiones y cámaras reales del proveedor.

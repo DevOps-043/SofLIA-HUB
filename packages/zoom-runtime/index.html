@@ -14,4 +14,14 @@ html,body,#meeting{margin:0;width:100%;min-height:100%;background:#10161c;color:
 .instructor-presentation[data-view="screen"] .video-grid,.instructor-presentation[data-view="camera"] .video-share,.instructor-presentation[data-view="camera"] .share-preview{display:none}
 .instructor-presentation.has-remote-share[data-view="camera"] .video-grid{position:static;display:grid;width:100%;height:100%}
 .instructor-presentation.has-remote-share[data-view="camera"] .video-tile{display:block}
+.video-grid-paging{display:flex;align-items:center;justify-content:center;gap:12px;padding:6px;font-size:12px}
+.video-grid-paging button{font:inherit;color:inherit;background:#19272f;border:1px solid #607480;border-radius:6px;padding:5px 9px;cursor:pointer}
+.video-grid-paging button:disabled{opacity:.45;cursor:default}
+.video-session.room-presentation{display:flex;flex-direction:column;height:100vh;min-height:0;overflow:hidden;background:#10161c}
+.video-session.room-presentation .video-grid{position:static;display:grid;flex:1;min-width:0;min-height:0;width:auto;height:auto;max-height:none;grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr));grid-auto-rows:minmax(96px,1fr);gap:8px;overflow:auto;padding:8px}
+.video-session.room-presentation .video-tile{display:grid;place-items:center;min-height:0;height:100%;aspect-ratio:auto}
+.video-session.room-presentation .video-tile-name{font-size:12px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:90%}
+.video-tile-initial{display:grid;place-items:center;width:48px;height:48px;border-radius:50%;background:#31434e;color:#fff;font-size:22px}
+.video-session.room-presentation .video-share,.video-session.room-presentation .share-preview{position:static;flex:1;min-height:0;height:auto;max-height:65vh;object-fit:contain}
+.video-session.room-presentation.has-remote-share .video-grid{flex:0 1 28%;grid-auto-rows:minmax(75px,1fr)}
 </style></head><body><div id="status" role="status">Preparando la sesión…</div><div id="meeting"></div><script type="module" src="./runtime.ts"></script></body></html>

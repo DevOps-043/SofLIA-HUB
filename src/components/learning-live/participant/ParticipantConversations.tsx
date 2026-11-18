@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { LiveIcon } from '../LiveIcon';
 import { StudioChat } from '../instructor/StudioChat';
 import { useStudioRuntime } from '../instructor/StudioRuntimeContext';
@@ -6,7 +6,7 @@ import { participantTutorContext } from '../../../services/participant-tutor';
 import type { StudioRoom } from '../instructor/studio-types';
 import { useParticipantTutor } from './useParticipantTutor';
 
-export function ParticipantConversations({ room, practiceId }: {room: StudioRoom | null; practiceId?: string}) {
+export function ParticipantConversations({ room, practiceId, roomDetails }: {room: StudioRoom | null; practiceId?: string; roomDetails?: ReactNode}) {
   const {snapshot,reference} = useStudioRuntime()!;
   const [tab,setTab] = useState<'group'|'soflia'>('group');
   const tutor=useParticipantTutor(participantTutorContext(snapshot,practiceId), reference ? {reference,userId:snapshot.user_id} : undefined);
@@ -16,7 +16,8 @@ export function ParticipantConversations({ room, practiceId }: {room: StudioRoom
   const unread=tab==='group'?0:contextual.filter(item=>item.user_id!==snapshot.user_id&&!readIds.includes(item.id)).length;
   function change(next: typeof tab) { setReadIds(contextual.map(item=>item.id));setTab(next); }
   useEffect(()=>{ if (list.current) list.current.scrollTop=list.current.scrollHeight; },[tutor.messages,tutor.answer]);
-  return <aside className="participant-conversations studio-panel" aria-label="Conversaciones de la sesión">
+  return <aside className={room ? 'participant-conversations studio-panel room-split-sidebar' : 'participant-conversations studio-panel'} aria-label="Conversaciones de la sesión">
+    {roomDetails}
     <div className="participant-tabs" role="tablist" aria-label="Conversaciones"><button role="tab" id="participant-group-tab" aria-controls="participant-group-panel" aria-selected={tab==='group'} onClick={()=>change('group')}><LiveIcon name="chat" />{room?'Chat de mi equipo':'Chat del grupo'}{unread>0&&<b>{unread}</b>}</button><button role="tab" id="participant-soflia-tab" aria-controls="participant-soflia-panel" aria-selected={tab==='soflia'} onClick={()=>change('soflia')}><LiveIcon name="sparkles" />Soflia</button></div>
     <div className="participant-group-panel" id="participant-group-panel" role="tabpanel" aria-labelledby="participant-group-tab" hidden={tab!=='group'}><StudioChat room={room} compact /></div>
     <div className="participant-tutor" id="participant-soflia-panel" role="tabpanel" aria-labelledby="participant-soflia-tab" hidden={tab!=='soflia'}>

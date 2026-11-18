@@ -4,14 +4,17 @@ import { LiveIcon } from '../LiveIcon';
 import { StudioSceneCanvas } from '../instructor/StudioSceneCanvas';
 import { useStudioRuntime } from '../instructor/StudioRuntimeContext';
 import { useStudioMediaRuntime } from '../instructor/StudioMediaContext';
+import { RoomGalleryFallback } from '../rooms/RoomGalleryFallback';
 
-export function ParticipantStage() {
+export function ParticipantStage({ roomId }: { roomId?: string } = {}) {
   const {snapshot}=useStudioRuntime()!;
   const media=useStudioMediaRuntime()!;
   const root=useRef<HTMLElement>(null);
   const [full,setFull]=useState(false),[notice,setNotice]=useState('');
   const scene=snapshot.state.scenes.find(item=>item.id===snapshot.state.active_scene_id);
   const caption=media.caption;
+  const roomReady = !!roomId && media.zoomConnected && media.callVisual?.roomId === roomId;
+  const stageVisible = roomId ? roomReady : !media.callVisual?.roomId;
   useEffect(()=>{
     const element=root.current;
     const changed=()=>setFull(document.fullscreenElement===element);
@@ -24,10 +27,13 @@ export function ParticipantStage() {
     if(!media.callControls?.captions){setNotice('Los subtítulos no están habilitados en esta llamada. Solicita al instructor que los active desde sus controles.');return;}
     media.setCaptions?.(!media.callControls.captionsEnabled);setNotice('');
   }
-  return <section ref={root} className="participant-stage" aria-label="Escenario de la clase">
-    <div className="participant-stage-content">{media.zoomStage|| (scene?<StudioSceneCanvas key={scene.id} scene={{...scene,assetUrl:scene.asset_path?snapshot.asset_urls[scene.asset_path]:undefined}}/>:<div className="participant-stage-empty"><LiveIcon name="video"/><h2>Tu próxima idea empieza aquí</h2><p>{media.zoomConnected?'Esperando la transmisión del instructor.':'Conecta la transmisión desde los controles del video para ver y escuchar la clase.'}</p></div>)}</div>
+  return <section ref={root} className={roomId ? 'participant-stage room-gallery-stage' : 'participant-stage'} aria-label={roomId ? 'Galería de la sala' : 'Escenario de la clase'}>
+    <div className="participant-stage-content">
+      <div className="participant-embedded-call" hidden={!media.zoomStage || !stageVisible}>{media.zoomStage}</div>
+      {roomId ? (!roomReady && <RoomGalleryFallback roomId={roomId} />) : (!media.zoomStage || !stageVisible) && (scene ? <StudioSceneCanvas key={scene.id} scene={{...scene,assetUrl:scene.asset_path?snapshot.asset_urls[scene.asset_path]:undefined}}/> : <div className="participant-stage-empty"><LiveIcon name="video"/><h2>Tu próxima idea empieza aquí</h2><p>{media.zoomConnected?'Esperando la transmisión del instructor.':'Conecta la transmisión desde los controles del video para ver y escuchar la clase.'}</p></div>)}
+    </div>
     <StudioReactions/>
-    {media.callControls?.captionsEnabled&&caption&&<div className="participant-caption" key={caption.text+caption.speaker} role="status"><strong>{caption.speaker}</strong><span>{caption.text}</span></div>}
+    {stageVisible&&media.callControls?.captionsEnabled&&caption&&<div className="participant-caption" key={caption.text+caption.speaker} role="status"><strong>{caption.speaker}</strong><span>{caption.text}</span></div>}
     <div className="participant-stage-bar" role="group" aria-label="Controles de la transmisión">
       {!media.zoomConnected&&<button aria-label={media.zoomPending?'Conectando transmisión':'Conectar transmisión'} title="Conectar transmisión" disabled={media.zoomPending} onClick={media.connectZoom}><LiveIcon name={media.zoomPending?'clock':'play'}/></button>}
       <button aria-label={media.callControls?.captionsEnabled?'Desactivar subtítulos':'Activar subtítulos automáticos'} aria-pressed={!!media.callControls?.captionsEnabled} title="Subtítulos automáticos" onClick={captions}><LiveIcon name="captions"/></button>

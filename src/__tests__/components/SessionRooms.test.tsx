@@ -128,6 +128,42 @@ describe('panel y espacio de salas', () => {
     expect(screen.getByRole('navigation', { name: 'Controles de participación' })).toBeVisible();
     expect(within(screen.getByRole('region', { name: 'Espacio de trabajo de la sala' })).getByRole('tab', { name: 'Instrucciones' })).toHaveAttribute('aria-selected', 'true');
   });
+  it('muestra presentes en la galería y solo revela el iframe cuando coincide la sala audiovisual', () => {
+    openRooms(); snapshot.user_id=id(10); snapshot.can_manage=false;
+    const roomId=snapshot.state.rooms[0].id;
+    snapshot.state.members[0].room_id=roomId;
+    snapshot.state.members[1].room_id=snapshot.state.rooms[1].id;
+    media.programAudioAvailable=true;
+    media.callVisual={roomId:snapshot.state.rooms[1].id,cameras:true,remoteShare:false};
+    const renderStudio=()=><Harness><ParticipantStudio onBack={vi.fn()} onClose={vi.fn()} /></Harness>;
+    const view=render(renderStudio());
+    const gallery=screen.getByRole('region',{name:'Galería de la sala'});
+    const frame=screen.getByTitle('Llamada persistente');
+    expect(frame).not.toBeVisible();
+    expect(within(gallery).getByText('Persona 1 (tú)')).toBeVisible();
+    expect(within(gallery).queryByText('Persona 2')).not.toBeInTheDocument();
+    const side=screen.getByRole('complementary',{name:'Conversaciones de la sesión'});
+    expect(within(side).getByText(/Analicen el problema/)).toBeVisible();
+    expect(within(side).getByRole('log',{name:'Mensajes de Sala 1'})).toBeVisible();
+    media={...media,callVisual:{roomId,cameras:false,remoteShare:false}};
+    view.rerender(renderStudio());
+    expect(screen.getByTitle('Llamada persistente')).toBe(frame);
+    expect(frame).toBeVisible();
+    expect(within(gallery).queryByText('Persona 1 (tú)')).not.toBeInTheDocument();
+  });
+  it('abre la galería del instructor al confirmar una visita y coloca actividad y chat en su lateral', async () => {
+    openRooms(); media.visitRoom=undefined;
+    render(<Harness reactive><InstructorStudio onBack={vi.fn()} onClose={vi.fn()} /></Harness>);
+    const frame=screen.getByTitle('Llamada persistente');
+    fireEvent.click(screen.getByRole('button',{name:'Gestionar salas de trabajo'}));
+    fireEvent.click(screen.getByRole('button',{name:'Visitar Sala 1'}));
+    const gallery=await screen.findByRole('region',{name:'Galería de la sala'});
+    expect(within(gallery).getByText('Instructora (tú)')).toBeVisible();
+    expect(screen.getByTitle('Llamada persistente')).toBe(frame);
+    const details=screen.getByRole('region',{name:'Espacio de trabajo de la sala'});
+    expect(within(details).getByText(/Analicen el problema/)).toBeVisible();
+    expect(screen.getByRole('log',{name:'Mensajes de Sala 1'}).closest('.room-split-sidebar')).toContainElement(details);
+  });
   it('mantiene acceso a actividades, quizzes y materiales también en salas anteriores', () => {
     openRooms(); snapshot.user_id = id(10); snapshot.can_manage = false; snapshot.state.members[0].room_id = snapshot.state.rooms[0].id;
     delete snapshot.rooms_version; delete snapshot.state.room_activity;

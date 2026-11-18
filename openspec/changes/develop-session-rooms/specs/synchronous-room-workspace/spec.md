@@ -21,7 +21,12 @@ El sistema MUST permitir nombres, asignaciones únicas, visitas y cierre mediant
 - **AND** no se aceptan instructores, usuarios bloqueados o destinos ajenos
 
 ### Requirement: Espacio de sala
-El sistema MUST conservar chat lateral y controles inferiores mientras muestra instrucciones, integrantes y entrega personal de la actividad de sala.
+El sistema MUST mostrar una galería central de personas presentes y dividir el lateral entre datos de la sala, actividad y chat del equipo. Los controles inferiores y las entregas personales se conservan.
+
+#### Scenario: Galería y contexto audiovisual
+- **WHEN** el participante o instructor entra en una sala
+- **THEN** la galería muestra la llamada de esa sala cuando el SDK confirma el destino, con nombre y ficha para quienes tienen la cámara apagada
+- **AND** mientras no se confirma la conexión, muestra únicamente la presencia académica de la sala, con un estado explícito de audio y video
 
 #### Scenario: Trabajo y regreso
 - **WHEN** un participante entra a su sala y después regresa al grupo principal
