@@ -8,6 +8,8 @@ Las dos primeras entregas conservan bloques y notas y añaden documentos estruct
 
 ## Decisions
 
+- La revisión visual reutiliza los tokens de Architect y del estudio de Hub por separado. Los documentos distinguen contenido reservado, contenido que se puede compartir y publicación efectiva. El editor conserva identificadores y comandos existentes. La validación visual aislada con datos de QA no sustituye el piloto autenticado.
+
 - Campo opcional preparation en el manifiesto v1 para conservar envíos anteriores.
 - engine_preparation opcional en estado privado de Academy, protegido por grants y RLS existentes. La proyección del participante excluye el campo entero.
 - Cabecera X-Soflia-Studio-Preparation: 1 negocia lectura. Respuestas anteriores excluyen el campo incluso para instructores.

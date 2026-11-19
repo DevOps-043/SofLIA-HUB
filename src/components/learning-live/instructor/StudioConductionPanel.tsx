@@ -1,4 +1,7 @@
 import { useStudioRuntime } from './StudioRuntimeContext';
+import { LiveIcon } from '../LiveIcon';
+import { StudioPreparationDocument } from './StudioPreparationDocument';
+import './studio-preparation.css';
 
 /** Las notas se muestran fuera de las escenas que componen la salida audiovisual. */
 export function StudioConductionPanel() {
@@ -8,10 +11,15 @@ export function StudioConductionPanel() {
   if (!runtime || !snapshot?.can_manage || !preparation) return null;
 
   const scenes = new Map(snapshot.state.scenes.map(scene => [scene.id, scene]));
-  return <section aria-label="Preparación del instructor" className="studio-prepared-activity">
-    <h3>Plan de sesión · {preparation.minutes} min</h3>
-    <small>Revisión {snapshot.state.engine_revision}</small>
-    <ol>
+  return <section aria-label="Preparación del instructor" className="studio-preparation">
+    <header className="studio-preparation-heading">
+      <span className="studio-tool-icon"><LiveIcon name="book" /></span>
+      <div><h3>Preparación de la sesión</h3><p>{preparation.blocks.length} {preparation.blocks.length === 1 ? 'bloque' : 'bloques'} · {preparation.minutes} min</p></div>
+    </header>
+    <p className="studio-preparation-revision">Revisión {snapshot.state.engine_revision}</p>
+    <details className="studio-preparation-outline">
+      <summary>Plan de sesión · {preparation.minutes} min<LiveIcon name="chevron" className="studio-preparation-chevron" /></summary>
+      <ol>
       {preparation.blocks.map(block => <li key={block.id}>
         <details>
           <summary>{block.purpose} · {block.minutes} min</summary>
@@ -20,38 +28,25 @@ export function StudioConductionPanel() {
           <ul>{block.criteria.map((criterion, index) => <li key={index}>{criterion}</li>)}</ul>
         </details>
       </li>)}
-    </ol>
-    {preparation.speaker_notes.length > 0 && <details>
-      <summary>Notas privadas del ponente</summary>
+      </ol>
+    </details>
+    {preparation.speaker_notes.length > 0 && <details className="studio-preparation-outline">
+      <summary><span><LiveIcon name="lock" />Notas privadas del ponente</span><LiveIcon name="chevron" className="studio-preparation-chevron" /></summary>
+      <div className="studio-preparation-notes">
+      <p className="studio-preparation-hint">Disponibles solo para instructores autorizados.</p>
       {preparation.speaker_notes.map(note => <article key={note.scene_id}>
         <h4>{scenes.get(note.scene_id)?.title || 'Lámina de la preparación'}</h4>
-        <p style={{ whiteSpace: 'pre-wrap' }}>{note.content}</p>
+        <p>{note.content}</p>
       </article>)}
+      </div>
     </details>}
     {preparation.documents && <section aria-label="Documentos de la sesión">
-      <h4>Documentos</h4>
-      {preparation.documents.map(document => <details key={document.id}>
-        <summary>{document.title}{document.applicable ? '' : ' · No aplica'}</summary>
-        {!document.applicable ? <p>{document.reason}</p> : <>
-          {document.participant_sections.length > 0 && <section aria-label="Contenido para compartir">
-            <h5>Visible al compartir</h5>
-            {document.participant_sections.map((section, index) =>
-              <article key={index}><h5>{section.heading}</h5><p style={{ whiteSpace: 'pre-wrap' }}>{section.body}</p></article>)}
-          </section>}
-          {document.facilitator_sections.length > 0 && <section aria-label="Contenido reservado">
-            <h5>Reservado al instructor</h5>
-            {document.facilitator_sections.map((section, index) =>
-              <article key={index}><h5>{section.heading}</h5><p style={{ whiteSpace: 'pre-wrap' }}>{section.body}</p></article>)}
-          </section>}
-          {document.participant_sections.length > 0 && <button
-            disabled={runtime.busy}
-            onClick={() => void runtime.send({
-              type: 'publish_document', document_id: document.id,
-              published: !snapshot.published_documents?.some(item => item.id === document.id),
-            })}
-          >{snapshot.published_documents?.some(item => item.id === document.id) ? 'Retirar del grupo' : 'Compartir con el grupo'} · {document.title}</button>}
-        </>}
-      </details>)}
+      <div className="studio-preparation-caption"><h4>Documentos</h4><span>{preparation.documents.filter(document => document.applicable).length} disponibles</span></div>
+      <p className="studio-preparation-hint">Revisa el contenido antes de compartirlo con el grupo.</p>
+      {preparation.documents.map(document => <StudioPreparationDocument key={document.id} document={document}
+        published={Boolean(snapshot.published_documents?.some(item => item.id === document.id))} busy={runtime.busy}
+        onPublish={() => void runtime.send({ type: 'publish_document', document_id: document.id,
+          published: !snapshot.published_documents?.some(item => item.id === document.id) })} />)}
     </section>}
   </section>;
 }

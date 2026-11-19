@@ -16,3 +16,7 @@
 - [ ] 3.3 Integrar videos demo/guía, B-roll y encuestas de opinión con emisión real.
 - [ ] 3.4 Registrar evidencias reales, contingencias y actividades posteriores/ausencia.
 - [ ] 3.5 Ejecutar piloto autorizado en Academy desplegada y Hub instalado.
+## 4. Revisión visual de la preparación
+- [x] 4.1 Alinear edición y entrega de Architect con sus tokens, estados y jerarquía visual.
+- [x] 4.2 Alinear plan, notas y documentos de Hub con el estudio y distinguir audiencias y publicación.
+- [x] 4.3 Revisar componentes reales con datos de QA en claro, oscuro y ancho reducido; registrar límites y evidencia.

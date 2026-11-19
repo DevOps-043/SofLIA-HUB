@@ -42,4 +42,20 @@ describe('documentos de sesión en Hub',()=>{
     expect(screen.getByText('Contenido público')).toBeInTheDocument();
     expect(screen.queryByText('SOLUCION_RESERVADA')).not.toBeInTheDocument();
   });
+  it('distingue la publicación efectiva y bloquea acciones mientras se guarda',()=>{
+    const value=runtime(true);
+    value.busy=true;
+    value.snapshot.published_documents=[{id:'document',kind:'assessment',title:'Instrumento',sections:[{heading:'Consigna',body:'Contenido público'}]}];
+    render(<StudioRuntimeContext.Provider value={value}><StudioConductionPanel /></StudioRuntimeContext.Provider>);
+    expect(screen.getByText('Compartido con el grupo')).toBeInTheDocument();
+    expect(screen.getByRole('button',{name:'Retirar del grupo · Instrumento'})).toBeDisabled();
+  });
+  it('explica un documento no aplicable sin ofrecer publicarlo',()=>{
+    const value=runtime(true);
+    value.snapshot.state.engine_preparation!.documents=[{id:'followup',kind:'follow_up',title:'Refuerzo',applicable:false,reason:'Se realiza en Learning',block_ids:[],source_refs:[],participant_sections:[],facilitator_sections:[]}];
+    render(<StudioRuntimeContext.Provider value={value}><StudioConductionPanel /></StudioRuntimeContext.Provider>);
+    expect(screen.getByText('No aplica')).toBeInTheDocument();
+    expect(screen.getByText('Se realiza en Learning')).toBeInTheDocument();
+    expect(screen.queryByRole('button',{name:/Compartir con el grupo/})).not.toBeInTheDocument();
+  });
 });

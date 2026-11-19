@@ -2,6 +2,8 @@
 
 **Estado** — Dos entregas implementadas localmente para el curso híbrido. Pendientes archivos, medios, registro real y piloto. Revisión del 17 de noviembre de 2026.
 
+La [primera revisión visual del 18 de noviembre](../../openspec/changes/extend-live-session-preparation/reports/visual-review.md) alinea edición y entrega en Architect y plan/documentos en Hub con los tokens de cada producto. Su evidencia utiliza componentes reales y datos sintéticos; el recorrido autenticado completo sigue pendiente.
+
 La segunda entrega estructura los 14 documentos, genera instrumentos y contingencias y registra la aplicabilidad de ayudas, refuerzo y ausencia. Academy conserva los documentos privados y permite al instructor publicar al grupo únicamente sus secciones públicas. Los clientes negocian la ampliación mediante X-Soflia-Studio-Documents. La ruta firmada de preparación admite 256 KiB y las operaciones habituales del aula conservan 32 KiB.
 
 La [ruta coordinada de ampliaciones](../../openspec/changes/extend-live-session-preparation/roadmap.md) organiza las entregas por plataforma. La primera ampliación local incluye bloques, tiempos y notas privadas del ponente. Las tareas y la evidencia de verificación se mantienen en ese cambio.

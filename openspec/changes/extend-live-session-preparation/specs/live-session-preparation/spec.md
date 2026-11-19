@@ -1,5 +1,13 @@
 ## ADDED Requirements
 
+### Requirement: Preparación legible en la identidad visual de cada producto
+Las vistas SHALL reutilizar los tokens de su repositorio, permitir lectura en tema claro y oscuro y distinguir por texto el contenido reservado, compartible y publicado. Las acciones SHALL ofrecer foco visible y estados de espera, y el contenido largo SHALL ajustarse a paneles estrechos.
+
+#### Scenario: Consultar y compartir un documento
+- **WHEN** el instructor consulta un documento aplicable
+- **THEN** distingue las secciones reservadas y públicas y su estado de publicación antes de compartirlo
+- **AND** el participante visualiza únicamente las secciones públicas publicadas
+
 ### Requirement: Documentos completos y publicación por audiencia
 El sistema SHALL generar los documentos de apoyo faltantes desde el plan y fuentes aprobadas, validar su integridad y permitir al instructor publicar únicamente las secciones destinadas al participante.
 
