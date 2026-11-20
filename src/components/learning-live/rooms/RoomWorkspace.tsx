@@ -7,7 +7,7 @@ import { useRoomVisit } from './useRoomVisit';
 import './session-rooms.css';
 
 /** El componente permanece montado al volver al grupo para conservar borradores. */
-export function RoomWorkspace({onResourcesChange,draftStore}:{onResourcesChange?:(visible:boolean)=>void;draftStore?:PracticeDraftStore} = {}) {
+export function RoomWorkspace({onResourcesChange,draftStore,hidden}:{onResourcesChange?:(visible:boolean)=>void;draftStore?:PracticeDraftStore;hidden?:boolean} = {}) {
   const runtime = useStudioRuntime()!;
   const { state, user_id, can_manage, rooms_version } = runtime.snapshot;
   const current = state.members.find(member => member.user_id === user_id)?.room_id;
@@ -31,7 +31,7 @@ export function RoomWorkspace({onResourcesChange,draftStore}:{onResourcesChange?
       setNotices(previous => ({ ...previous, [id]: ok ? 'Entrega guardada en Learning.' : 'No se guardó tu entrega. Conservamos tu borrador para reintentar.' }));
     } catch { setNotices(previous => ({ ...previous, [id]: 'No se guardó tu entrega. Conservamos tu borrador para reintentar.' })); }
   }
-  return <section className="room-workspace studio-panel" aria-label="Espacio de trabajo de la sala">
+  return <section className="room-workspace studio-panel" aria-label="Espacio de trabajo de la sala" hidden={hidden}>
     <header className="room-workspace-heading"><div className="room-heading-title"><span className="room-emblem"><LiveIcon name="users" /></span><h2>{room.name}</h2></div><button className="room-secondary" disabled={runtime.busy || visiting} aria-label={visiting ? 'Cambiando…' : 'Volver al grupo principal'} onClick={() => void visit(null)}><LiveIcon name="back" />{visiting ? 'Cambiando…' : 'Volver al grupo'}</button></header>
     <div className="room-context-line"><span>{presentCount} {presentCount === 1 ? 'persona presente' : 'personas presentes'}</span><StudioLiveClock compact /></div>
     <div className="room-tabs" role="tablist" aria-label="Trabajo de la sala">{([{ id: 'instructions', label: 'Instrucciones', icon: 'file' }, { id: 'team', label: 'Mi equipo', icon: 'users' }, { id: 'delivery', label: can_manage ? 'Entregas' : 'Mi entrega', icon: 'check' }, ...(onResourcesChange ? [{id:'resources' as const,label:'Actividades y materiales',icon:'book' as const}] : [])] as const).map(item => <button key={item.id} role="tab" id={`room-tab-${item.id}`} aria-selected={tab === item.id} aria-controls={item.id==='resources'?'room-shared-resources':`room-panel-${item.id}`} onClick={() => {setTab(item.id);onResourcesChange?.(item.id==='resources');}}><LiveIcon name={item.icon} />{item.label}</button>)}</div>

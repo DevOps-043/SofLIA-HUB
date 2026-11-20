@@ -6,7 +6,9 @@ import { participantTutorContext } from '../../../services/participant-tutor';
 import type { StudioRoom } from '../instructor/studio-types';
 import { useParticipantTutor } from './useParticipantTutor';
 
-export function ParticipantConversations({ room, practiceId, roomDetails }: {room: StudioRoom | null; practiceId?: string; roomDetails?: ReactNode}) {
+export function ParticipantConversations({ room, practiceId, roomDetails, hidden, showChat = true }: {
+  room: StudioRoom | null; practiceId?: string; roomDetails?: ReactNode; hidden?: boolean; showChat?: boolean;
+}) {
   const {snapshot,reference} = useStudioRuntime()!;
   const [tab,setTab] = useState<'group'|'soflia'>('group');
   const tutor=useParticipantTutor(participantTutorContext(snapshot,practiceId), reference ? {reference,userId:snapshot.user_id} : undefined);
@@ -16,11 +18,11 @@ export function ParticipantConversations({ room, practiceId, roomDetails }: {roo
   const unread=tab==='group'?0:contextual.filter(item=>item.user_id!==snapshot.user_id&&!readIds.includes(item.id)).length;
   function change(next: typeof tab) { setReadIds(contextual.map(item=>item.id));setTab(next); }
   useEffect(()=>{ if (list.current) list.current.scrollTop=list.current.scrollHeight; },[tutor.messages,tutor.answer]);
-  return <aside className={room ? 'participant-conversations studio-panel room-split-sidebar' : 'participant-conversations studio-panel'} aria-label="Conversaciones de la sesión">
+  return <aside className={room ? 'participant-conversations studio-panel room-split-sidebar' : 'participant-conversations studio-panel'} aria-label="Conversaciones de la sesión" hidden={hidden}>
     {roomDetails}
-    <div className="participant-tabs" role="tablist" aria-label="Conversaciones"><button role="tab" id="participant-group-tab" aria-controls="participant-group-panel" aria-selected={tab==='group'} onClick={()=>change('group')}><LiveIcon name="chat" />{room?'Chat de mi equipo':'Chat del grupo'}{unread>0&&<b>{unread}</b>}</button><button role="tab" id="participant-soflia-tab" aria-controls="participant-soflia-panel" aria-selected={tab==='soflia'} onClick={()=>change('soflia')}><LiveIcon name="sparkles" />Soflia</button></div>
-    <div className="participant-group-panel" id="participant-group-panel" role="tabpanel" aria-labelledby="participant-group-tab" hidden={tab!=='group'}><StudioChat room={room} compact /></div>
-    <div className="participant-tutor" id="participant-soflia-panel" role="tabpanel" aria-labelledby="participant-soflia-tab" hidden={tab!=='soflia'}>
+    <div className="participant-tabs" role="tablist" aria-label="Conversaciones" hidden={!showChat}><button role="tab" id="participant-group-tab" aria-controls="participant-group-panel" aria-selected={tab==='group'} onClick={()=>change('group')}><LiveIcon name="chat" />{room?'Chat de mi equipo':'Chat del grupo'}{unread>0&&<b>{unread}</b>}</button><button role="tab" id="participant-soflia-tab" aria-controls="participant-soflia-panel" aria-selected={tab==='soflia'} onClick={()=>change('soflia')}><LiveIcon name="sparkles" />Soflia</button></div>
+    <div className="participant-group-panel" id="participant-group-panel" role="tabpanel" aria-labelledby="participant-group-tab" hidden={!showChat||tab!=='group'}><StudioChat room={room} compact /></div>
+    <div className="participant-tutor" id="participant-soflia-panel" role="tabpanel" aria-labelledby="participant-soflia-tab" hidden={!showChat||tab!=='soflia'}>
       <header><span className="participant-tutor-symbol"><LiveIcon name="sparkles" /></span><div><strong>Soflia</strong><small>Ayuda individual · durante esta sesión</small></div></header>
       <div className="participant-tutor-context"><LiveIcon name="file" /><span>{practiceId?'Contexto: práctica abierta':'Contexto: esta clase'}</span></div>
       <div className="participant-tutor-messages" ref={list} role="log" aria-label="Conversación individual con Soflia" aria-live="polite">

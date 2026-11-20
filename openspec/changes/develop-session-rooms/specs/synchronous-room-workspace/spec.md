@@ -23,6 +23,12 @@ El sistema MUST permitir nombres, asignaciones únicas, visitas y cierre mediant
 ### Requirement: Espacio de sala
 El sistema MUST mostrar una galería central de personas presentes y dividir el lateral entre datos de la sala, actividad y chat del equipo. Los controles inferiores y las entregas personales se conservan.
 
+#### Scenario: Distribución configurable
+- **WHEN** el usuario elige Solo video, Chat, Actividad o Ambos en una sala
+- **THEN** Solo video ocupa todo el ancho y Chat, Actividad o Ambos muestran las secciones elegidas
+- **AND** el usuario puede ampliar el lateral, recuperar el video y cambiar de vista sin perder la llamada ni sus borradores
+- **AND** en una ventana estrecha puede alternar entre video y lateral con los controles de llamada accesibles
+
 #### Scenario: Galería y contexto audiovisual
 - **WHEN** el participante o instructor entra en una sala
 - **THEN** la galería muestra la llamada de esa sala cuando el SDK confirma el destino, con nombre y ficha para quienes tienen la cámara apagada

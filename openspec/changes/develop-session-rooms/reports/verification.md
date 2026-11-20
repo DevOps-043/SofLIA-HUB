@@ -135,3 +135,19 @@ y Zoom en una copia sin configuración local. `npm run verify:pr`, con
 669 archivos, cinco omisiones preexistentes, 70 pruebas de herramientas y
 33 contratos Python. Se verificaron 2755 fuentes de cobertura con 64,04%
 de líneas y el lint validó 53 archivos sin deuda nueva.
+
+## Vistas del panel lateral
+
+- Pasaron 56 pruebas de `SessionRooms`, `ParticipantStudio`, `InstructorStudio`
+  y `StudioChat`. Cambiar la vista conserva el marco audiovisual y los borradores
+  de chat y práctica. El selector no envía operaciones de sala.
+- La fixture local confirmó las cuatro vistas para ambos roles en 1280 × 720 y
+  430 × 800. Se comprobaron el ancho completo para video, el filtrado de chat y
+  actividad, la ampliación en escritorio y el acceso al micrófono en ventana
+  estrecha. La fixture usa datos de ejemplo y simula la llamada.
+- Capturas de [actividad ampliada](room-sidebar-activity.jpg) y
+  [chat en ventana estrecha](room-sidebar-mobile-chat.jpg).
+- Pasaron `typecheck`, `lint:changed`, `harness:validate`, `docs:check` y OpenSpec.
+  `verify:pr` llegó a cobertura, donde registró fallos en cinco suites del proceso
+  principal antes de interrumpirse sin resultado consolidado. La repetición
+  dirigida de esas cinco suites aprobó 71 pruebas.

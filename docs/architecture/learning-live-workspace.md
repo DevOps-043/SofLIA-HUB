@@ -103,6 +103,12 @@ con integrantes, actividad y entregas del chat del equipo. En ventanas estrechas
 se alternan galería y lateral con la barra inferior disponible. Se conserva el
 acceso a materiales, quizzes y otras prácticas, incluso en salas sin actividad vinculada.
 
+El selector de vista de la sala ofrece Solo video, Chat, Actividad y Ambos. Solo
+video oculta todo el lateral. En escritorio, Chat y Actividad dejan únicamente la
+sección elegida junto al video y Ampliar lateral le da todo el ancho. En ventanas
+estrechas el selector cambia entre la galería y el lateral. Cambiar de vista
+conserva el iframe audiovisual, los borradores y los controles inferiores.
+
 La galería mantiene montado un único iframe. Video SDK confirma la subsesión activa
 antes de mostrarlo y aporta cámaras, nombres y fichas para cámaras apagadas.
 La galería admite hasta nueve fichas por página y verifica identidad de subsesión
