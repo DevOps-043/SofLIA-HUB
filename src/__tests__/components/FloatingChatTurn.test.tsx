@@ -1,9 +1,10 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChatUI } from '../../adapters/desktop_ui/ChatUI';
 import type { ChatMessage } from '../../services/chat-service';
-import type { FloatingContextReader } from '../../services/floating-chat-context';
+import { browserFloatingContext, type FloatingContextReader } from '../../services/floating-chat-context';
+import { integratedBrowserService } from '../../services/integrated-browser-service';
 
 const mocks=vi.hoisted(()=>({send:vi.fn(),record:vi.fn()}));
 vi.mock('../../services/gemini-chat',()=>({sendMessageStream:mocks.send,getPublicAiErrorMessage:()=> 'No se pudo responder.',optimizePrompt:vi.fn()}));
@@ -29,6 +30,7 @@ beforeEach(()=>{
   mocks.send.mockReset();mocks.record.mockReset();
   mocks.send.mockResolvedValue({stream:(async function*(){yield 'Veo las tareas de tu proyecto.';})(),sources:Promise.resolve(null)});
 });
+afterEach(() => vi.restoreAllMocks());
 describe('Turno real del compositor flotante con proveedor simulado',()=>{
   it('lee al enviar y muestra la respuesta con un único perfil reactivo',async()=>{
     const read=vi.fn(async()=>({text:'VISTA_NO_CONFIABLE: tareas visibles',images:[]}));
@@ -44,6 +46,31 @@ describe('Turno real del compositor flotante con proveedor simulado',()=>{
     expect(document.querySelectorAll('.chat-avatar-profile[data-live="true"] .soflia-avatar')).toHaveLength(1);
     expect(document.querySelector('.chat-avatar-presence')).toBeNull();
     expect(screen.queryByAltText('SofLIA')).toBeNull();
+  });
+  it('envía la pregunta desde una pestaña estable de Gmail con fragmento', async () => {
+    const url = 'https://mail.google.com/mail/u/0/';
+    vi.spyOn(integratedBrowserService, 'getState').mockResolvedValue({
+      success: true, state: { isVisible: true, profileRevision: 1, activeTabId: 'correo', url: `${url}#chat/home` },
+    } as never);
+    vi.spyOn(integratedBrowserService, 'getObservation').mockResolvedValue({
+      success: true,
+      observation: {
+        tabId: 'correo', capturedAt: '2026-11-19T16:16:00Z', screenshot: '',
+        dom: { url, title: 'Gmail', text: 'Página principal', controls: [], truncated: false },
+      },
+    } as never);
+    mocks.send.mockResolvedValue({ stream: (async function* () { yield 'Puedo ayudarte a revisar esta vista.'; })(), sources: Promise.resolve(null) });
+    render(<Chat read={browserFloatingContext} />);
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: '¿Qué puedes hacer?' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(await screen.findByText('Puedo ayudarte a revisar esta vista.')).toBeVisible();
+    expect(mocks.send).toHaveBeenCalledOnce();
+    const prompt = mocks.send.mock.calls[0][0];
+    expect(prompt).toContain('¿Qué puedes hacer?');
+    expect(prompt).toContain(`"url":"${url}"`);
+    expect(prompt).not.toContain('#chat/home');
   });
   it('anima sólo el perfil de la última respuesta y reacciona al borrador ahí', async () => {
     render(<ChatUI messages={[

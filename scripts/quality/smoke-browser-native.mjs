@@ -131,10 +131,10 @@ try {
     await fs.writeFile(destination, compiled.outputText, { flag: 'wx' });
   }
   let hasLimitations = false;
-  // Dependencias compartidas de los stores, atajos y protocolo usados en el smoke.
+  // Dependencias compartidas de los módulos que ejecuta el smoke.
   const sharedModules = [
     'browser-agent-shortcuts', 'browser-home', 'browser-keyboard-shortcuts',
-    'browser-semantic-memory', 'learning-live-session',
+    'browser-observed-url', 'browser-semantic-memory', 'learning-live-session',
   ];
   await fs.mkdir(path.join(sandbox, 'src/shared'), { recursive: true });
   for (const module of sharedModules) {

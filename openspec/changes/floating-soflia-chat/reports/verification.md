@@ -39,3 +39,31 @@ Se intentó inspeccionar la app en ejecución: estaba autenticada y mostró la v
 ## Límites
 
 El contexto automático se limita al apartado de la aplicación o la pestaña integrada actual. No captura continuamente el escritorio ni garantiza lectura de otras ventanas; el catálogo existente permite adjuntarlas o solicitar sus herramientas cuando corresponde. Las acciones de sitios protegidos dependen de sus políticas; un bloqueo permanece visible y no se evita. Las vistas pequeñas reducen el área web para dejar operable el compositor. La inspección visual y una respuesta real con proveedor siguen sin acreditarse; las comprobaciones funcionales usan proveedor simulado.
+
+## Corrección de la lectura de URL con fragmentos
+
+El estado del navegador devolvía la URL completa de Gmail, incluido
+`#chat/home`. Los recolectores DOM eliminaban ese fragmento y el chat comparaba
+las dos cadenas literalmente. Tres regresiones reprodujeron el aviso con una
+URL de Gmail, una URL con consulta y una ruta que supera el límite de 500
+caracteres de la observación.
+
+El chat compara los estados inicial y final usando pestaña, perfil y URL
+completa. Luego aplica la misma función de saneamiento que los recolectores
+de Electron al cotejar la URL del DOM. La ruta IPC existente sigue autorizando
+la lectura y verifica la vigencia de la captura. El mensaje al modelo incluye
+sólo la URL saneada.
+
+- 57 pruebas focalizadas en cinco archivos, incluido el envío desde el
+  compositor con la URL de Gmail y un proveedor simulado. Los casos negativos
+  incluyen cambios de pestaña, perfil, ruta, consulta, fragmento, DOM de otra
+  página, lectura denegada, cancelación y tiempo agotado.
+- `npm run browser:smoke:native -- --electron <ruta-absoluta> --perception-only`
+  aprobó siete comprobaciones con Chromium en un perfil temporal. Incluyó la
+  invalidación tras navegar y volver a la misma URL, y el descarte de capturas
+  tras un cambio de política.
+- `npm run verify:pr` terminó con código 0. Vitest aprobó 7741 pruebas en 669
+  archivos y omitió otras cinco pruebas en dos archivos. La cobertura de líneas
+  fue del 64.04 % y se verificaron los cuatro umbrales del repositorio.
+- La verificación usó datos ficticios y un proveedor simulado. Revertir el
+  cambio consiste en retirar el diff de la corrección.

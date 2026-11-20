@@ -1,4 +1,5 @@
 import type { WebContents } from 'electron';
+import { sanitizeObservedUrl } from '../../src/shared/browser-observed-url';
 import { runInAgentWorld, type AgentWorldTarget } from './agent-world';
 import { captureCdpDomSnapshot } from './cdp-dom-snapshot';
 import {
@@ -84,21 +85,6 @@ export async function collectDomViaScript(contents: WebContents): Promise<Browse
     DOM_SNAPSHOT_SCRIPT,
   ) as RawSnapshot;
   return normalizeSnapshot(raw);
-}
-
-export function sanitizeObservedUrl(value: unknown): string {
-  if (typeof value !== 'string') return '';
-  try {
-    const url = new URL(value);
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') return '';
-    url.username = '';
-    url.password = '';
-    url.search = '';
-    url.hash = '';
-    return url.toString().slice(0, 500);
-  } catch {
-    return '';
-  }
 }
 
 function normalizeSnapshot(raw: RawSnapshot): BrowserDomSnapshot {
