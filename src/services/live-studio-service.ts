@@ -7,9 +7,9 @@ export async function studioOperation(reference: LearningLiveSessionReference, o
   try {
     const result = await window.learningLive.studio(reference, operation);
     if (!result.success) return result;
-    const response = { ...(result.snapshot ? { snapshot: result.snapshot } : {}), ...(result.zoom ? { zoom: result.zoom } : {}), ...(result.upload ? { upload: result.upload } : {}), ...(result.recording_snapshot ? {recording_snapshot:result.recording_snapshot} : {}), ...(result.playback ? {playback:result.playback} : {}) };
+    const response = { ...(result.tutor_answer ? { tutor_answer: result.tutor_answer } : {}), ...(result.snapshot ? { snapshot: result.snapshot } : {}), ...(result.zoom ? { zoom: result.zoom } : {}), ...(result.upload ? { upload: result.upload } : {}), ...(result.recording_snapshot ? {recording_snapshot:result.recording_snapshot} : {}), ...(result.playback ? {playback:result.playback} : {}) };
     const parsed = studioResponseSchema.safeParse(response);
-    if (!parsed.success || parsed.data.snapshot && parsed.data.snapshot.session_id !== reference.session_id || parsed.data.recording_snapshot && parsed.data.recording_snapshot.session_id !== reference.session_id || parsed.data.playback && parsed.data.playback.session_id !== reference.session_id) return { success: false, code: 'unavailable', error: 'Learning devolvió un estudio incompatible.' };
+    if (!parsed.success || parsed.data.tutor_answer && operation.type !== 'soflia_private' || parsed.data.snapshot && parsed.data.snapshot.session_id !== reference.session_id || parsed.data.recording_snapshot && parsed.data.recording_snapshot.session_id !== reference.session_id || parsed.data.playback && parsed.data.playback.session_id !== reference.session_id) return { success: false, code: 'unavailable', error: 'Learning devolvió un estudio incompatible.' };
     return { success: true, ...parsed.data };
   } catch { return { success: false, code: 'unavailable', error: 'No se pudo conectar con Learning.' }; }
 }
