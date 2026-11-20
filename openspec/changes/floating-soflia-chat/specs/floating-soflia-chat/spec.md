@@ -9,6 +9,12 @@ El panel MUST leer contexto automáticamente al enviar, sin una franja de contro
 #### Scenario: Referencia a la vista
 - **WHEN** el usuario pregunta por lo que está viendo
 - **THEN** el turno recibe contexto de la superficie visible o un error verificable, sin fingir haber leído.
+#### Scenario: URL estable con consulta o fragmento
+- **WHEN** la URL activa permanece estable y la observación elimina la consulta o el fragmento por privacidad
+- **THEN** el turno recibe el contexto con la URL saneada.
+#### Scenario: Navegación durante la lectura
+- **WHEN** la URL activa cambia durante la preparación, incluso si sólo cambia su consulta o fragmento
+- **THEN** se descarta la observación y se conserva el borrador para reintentar.
 ### Requirement: Ámbito y compositor nativo
 MUST impedir respuestas y acciones tardías en otra identidad, organización, proyecto o conversación. El navegador MUST reservar espacio para los controles y mantener la página operable sin tapar el panel ni crear otra ventana.
 #### Scenario: Cambio de proyecto

@@ -17,8 +17,36 @@ describe('Contexto puntual del chat flotante',()=>{
     expect(integratedBrowserService.getObservation).toHaveBeenCalledExactlyOnceWith(true);
     expect(integratedBrowserService.getState).toHaveBeenCalledTimes(2);
   });
-  it('no acepta una observación que llegó después de cambiar pestaña o perfil',async()=>{
-    vi.mocked(integratedBrowserService.getState).mockResolvedValueOnce({success:true,state} as never).mockResolvedValueOnce({success:true,state:{...state,activeTabId:'tab-b',profileRevision:2}} as never);
+  it.each([
+    ['https://mail.google.com/mail/u/0/#chat/home', 'https://mail.google.com/mail/u/0/'],
+    ['https://example.test/?token=ficticio&vista=detalle#panel', 'https://example.test/'],
+    [`https://example.test/${'a'.repeat(550)}`, `https://example.test/${'a'.repeat(479)}`],
+  ])('acepta la pestaña estable %s con la URL saneada del DOM', async (url, observedUrl) => {
+    vi.mocked(integratedBrowserService.getState).mockResolvedValue({ success: true, state: { ...state, url } } as never);
+    vi.mocked(integratedBrowserService.getObservation).mockResolvedValue({
+      success: true, observation: { ...observation, dom: { ...observation.dom, url: observedUrl } },
+    } as never);
+    const context = await browserFloatingContext(new AbortController().signal);
+    const payload = JSON.parse(context.text.split('\n')[1]);
+    expect(payload).toMatchObject({ url: observedUrl, text: 'Contenido visible' });
+    expect(context.images).toEqual([observation.screenshot]);
+  });
+  it.each([
+    ['pestaña', { activeTabId: 'tab-b' }],
+    ['perfil', { profileRevision: 2 }],
+    ['ruta', { url: 'https://example.test/otro' }],
+    ['consulta', { url: 'https://example.test/?vista=nueva' }],
+    ['fragmento', { url: 'https://example.test/#otra-vista' }],
+  ])('rechaza la observación si cambia %s durante la lectura', async (_change, changedState) => {
+    vi.mocked(integratedBrowserService.getState)
+      .mockResolvedValueOnce({ success: true, state } as never)
+      .mockResolvedValueOnce({ success: true, state: { ...state, ...changedState } } as never);
+    await expect(browserFloatingContext(new AbortController().signal)).rejects.toThrow('cambió');
+  });
+  it('rechaza la observación cuyo DOM proviene de otra página', async () => {
+    vi.mocked(integratedBrowserService.getObservation).mockResolvedValue({
+      success: true, observation: { ...observation, dom: { ...observation.dom, url: 'https://example.test/otra' } },
+    } as never);
     await expect(browserFloatingContext(new AbortController().signal)).rejects.toThrow('cambió');
   });
   it('un permiso rechazado no se presenta como contexto leído',async()=>{

@@ -1,3 +1,4 @@
+import { sanitizeObservedUrl } from '../shared/browser-observed-url';
 import { integratedBrowserService } from './integrated-browser-service';
 import { safeWebUrl } from './project-web-url';
 
@@ -57,9 +58,13 @@ export const browserFloatingContext: FloatingContextReader = async signal => {
     const observation = result.observation;
     const after = await integratedBrowserService.getState(); check();
     if (!result.success || !observation || !after.success || !after.state?.isVisible) throw new Error('No se pudo leer la página visible. Revisa sus permisos o desactiva Contexto visible.');
-    if (before.state.activeTabId !== observation.tabId || after.state.activeTabId !== observation.tabId
-      || before.state.url !== observation.dom.url || after.state.url !== observation.dom.url
-      || before.state.profileRevision !== after.state.profileRevision) throw new Error('La pestaña cambió durante la lectura. Vuelve a enviar.');
+    const observedUrl = sanitizeObservedUrl(before.state.url);
+    if (
+      before.state.activeTabId !== observation.tabId || after.state.activeTabId !== observation.tabId
+      || before.state.profileRevision !== after.state.profileRevision
+      || before.state.url !== after.state.url
+      || !observedUrl || observedUrl !== observation.dom.url
+    ) throw new Error('La pestaña cambió durante la lectura. Vuelve a enviar.');
     const dom = observation.dom;
     const payload = { title:dom.title.slice(0,500), url:safeWebUrl(dom.url), capturedAt:observation.capturedAt,
       text:dom.text.slice(0,16000), controls:dom.controls.slice(0,60).filter(c=>c.type !== 'password').map(c=>({ref:c.ref,role:c.role,name:c.name.slice(0,200)})), truncated:dom.truncated };

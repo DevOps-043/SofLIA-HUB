@@ -27,6 +27,7 @@
  */
 
 import type { WebContents } from 'electron';
+import { sanitizeObservedUrl } from '../../src/shared/browser-observed-url';
 import { withCdpSession } from './cdp-session';
 import {
   MAX_CONTROLS,
@@ -169,7 +170,7 @@ export function buildSnapshot(
 
   return {
     title: clean(str(ctx, root.title), 300),
-    url: sanitizeUrl(str(ctx, root.documentURL) || fallbackUrl),
+    url: sanitizeObservedUrl(str(ctx, root.documentURL) || fallbackUrl),
     language: clean(str(ctx, root.contentLanguage), 40),
     text,
     headings: ctx.headings,
@@ -367,7 +368,7 @@ function walkDocument(ctx: BuildContext, docIndex: number, scope: string, offset
       const accessible = contentDoc !== undefined && contentDoc >= 0 && contentDoc < ctx.documents.length;
       ctx.frames.push({
         title: clean(attrs.get('title') ?? '', MAX_FIELD_TEXT),
-        url: sanitizeUrl(attrs.get('src') ?? ''),
+        url: sanitizeObservedUrl(attrs.get('src') ?? ''),
         accessible,
       });
       if (accessible) {
@@ -437,7 +438,7 @@ function walkDocument(ctx: BuildContext, docIndex: number, scope: string, offset
       // los necesita para decidir donde hacer clic.
       text: editable || isPassword ? '' : textOf(index),
       type: isPassword ? 'password-redacted' : rawType,
-      href: tag === 'a' ? sanitizeUrl(attrs.get('href') ?? '') : '',
+      href: tag === 'a' ? sanitizeObservedUrl(attrs.get('href') ?? '') : '',
       disabled: attrs.has('disabled') || attrs.get('aria-disabled') === 'true',
       // `inputChecked` solo lista los marcados. Un control marcable que no
       // aparece esta desmarcado; el resto no tiene estado que informar.
@@ -522,21 +523,6 @@ function num(value: unknown): number {
 
 function int(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0;
-}
-
-/** Mismo saneamiento que el backend en script: sin credenciales, sin query. */
-function sanitizeUrl(value: string): string {
-  try {
-    const url = new URL(value);
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') return '';
-    url.username = '';
-    url.password = '';
-    url.search = '';
-    url.hash = '';
-    return url.toString().slice(0, 500);
-  } catch {
-    return '';
-  }
 }
 
 /** En las URL de imagen la query lleva tamano o firma: quitarla devuelve un 403. */

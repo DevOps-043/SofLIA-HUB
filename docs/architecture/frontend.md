@@ -29,6 +29,10 @@ y retira la RPC conservando datos e imágenes existentes. Ver
 
 El [chat flotante contextual](../../openspec/changes/floating-soflia-chat/design.md) reutiliza el ChatUI principal en presentación compacta únicamente desde las secciones de proyectos que no muestran su chat. El icono oficial abre un compositor interno de 380 px, con cabecera de 28 px sin marca/título, botones de icono para nuevo chat y modelos, asa de arrastre y minimización. El campo vacío mide 28 px y abrir con ratón no lo enfoca ni activa el resaltado de escritura; el acceso por teclado conserva el foco útil. El asa permite arrastrar o mover con flechas dentro de la superficie de la aplicación; posición y borrador sobreviven a minimizar, y los cambios de tamaño reajustan los límites. Sin selección activa de proyecto se ofrece una entrada compacta para preparar su chat autorizado, sin habilitar envíos en otra conversación. No crea una ventana del SO ni monta dos controladores de conversación. El ámbito de usuario/organización/proyecto y el cambio de conversación cancelan turnos obsoletos; la primera persistencia del borrador no corta su respuesta. El navegador usa exclusivamente su panel lateral ajustable y minimizable: no monta el lanzador ni el compositor inferior de proyectos y no reserva una franja inferior. Al minimizar el lateral devuelve ese espacio a la página; las selecciones externas vuelven a abrirlo. El chat lateral conserva el contexto visible del navegador, las conversaciones y el modelo seleccionado. Las vistas previas de archivos usan el diálogo interno sin desmontar el chat.
 
+El chat lateral admite páginas con consultas o fragmentos en su URL, como Gmail.
+Comprueba que la dirección completa se mantenga estable durante la lectura y
+adjunta al turno la dirección saneada del DOM.
+
 `src/main.tsx` selecciona la superficie antes de importar el shell: `view=orb`
 o `--view-mode=orb` carga `src/app/OrbApp.tsx`, con AuthProvider y tema, sin
 gestores de conversaciones/carpetas/IRIS ni comprobaciones visuales del updater.
