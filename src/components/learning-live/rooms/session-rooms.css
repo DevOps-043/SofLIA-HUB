@@ -84,6 +84,24 @@
 .room-split-sidebar .room-tabs button { font-size: 10px; }
 .room-split-sidebar .room-tabs svg { display: none; }
 .room-split-sidebar > .studio-chat-column, .room-split-sidebar > .participant-group-panel { flex: 1; min-height: 0; }
+[data-room-view="activity"] .room-split-sidebar > .room-workspace { flex: 1; border-bottom: 0; }
+.room-split-sidebar[hidden], .room-split-sidebar > [hidden], .studio-layout[data-room-expanded] > .studio-production[hidden] { display: none !important; }
+.room-view-controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; padding: 7px 14px 0; }
+.room-view-options { display: inline-flex; flex-wrap: wrap; gap: 3px; padding: 3px; border: 1px solid var(--studio-border); border-radius: 9px; background: var(--studio-surface); }
+.room-view-controls button { display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; border-radius: 6px; font-size: 12px; white-space: nowrap; color: var(--studio-muted); }
+.room-view-controls button:hover, .room-view-controls button[aria-pressed="true"] { background: var(--studio-inset); color: var(--studio-accent); }
+.room-view-controls svg { width: 13px; height: 13px; flex-shrink: 0; }
+.participant-layout.participant-resizable-layout[data-room-view="video"], .participant-layout.participant-resizable-layout[data-room-expanded],
+.studio-visiting-room .studio-layout.studio-resizable-layout[data-room-view="video"],
+.studio-visiting-room .studio-layout.studio-resizable-layout[data-room-expanded] { grid-template-columns: minmax(0,1fr); }
+[data-room-view="video"] > .studio-resize-handle.is-width, [data-room-expanded] > .studio-resize-handle.is-width { display: none; }
+.participant-layout[data-room-expanded] { grid-template-rows: minmax(0,1fr) 55px; }
+.participant-layout[data-room-expanded][data-room-resources] { grid-template-rows: minmax(0,1fr) minmax(0,1fr); }
+.participant-layout[data-room-expanded] > .participant-learning-area { grid-row: 2; }
+.participant-layout[data-room-expanded] > .participant-conversations { grid-row: 1; }
+.participant-layout[data-room-expanded] .participant-learning-caption { display: none; }
+.participant-layout[data-room-expanded] .participant-resource-container:not([hidden]) { flex: 1; }
+.participant-layout[data-room-expanded] .participant-floating-controls { top: auto !important; bottom: 4px; left: 50% !important; transform: translateX(-50%) !important; }
 .studio-room-sidebar { gap: 8px; }
 .studio-room-sidebar > .room-workspace { border: 1px solid var(--studio-border); border-radius: 12px; }
 .studio-room-sidebar .studio-statistics { display: none; }
@@ -129,14 +147,23 @@
   .studio-rooms-open .studio-layout.studio-resizable-layout { grid-template-columns: minmax(0,1fr); }
   .studio-rooms-open.show-activities .studio-layout > .studio-activities { display: flex; }
   .studio-visiting-room:not(.show-chat) .studio-room-sidebar { display: none; }
+  .studio-visiting-room .room-view-expand { display: none; }
+  .studio-visiting-room .studio-layout[data-room-view]:not([data-room-view="video"]) > .studio-room-sidebar,
+  .studio-visiting-room .studio-layout[data-room-view] .studio-room-sidebar > .studio-chat-column:not([hidden]) { display: flex; }
+  .studio-visiting-room .studio-layout[data-room-view]:not([data-room-view="video"]) > .studio-production { display: none; }
+  .studio-visiting-room .studio-layout.studio-resizable-layout[data-room-view] > .studio-activities { display: none; }
+  .studio-visiting-room .studio-layout[data-room-view="video"] > .studio-production { display: flex; }
   .room-control-panel { padding: 0 0 20px; }
 }
 @container instructor-studio (max-width: 760px) {
-  .participant-has-room.participant-show-chat .participant-layout { display: grid; grid-template-columns: minmax(0,1fr); grid-template-rows: minmax(0,1fr) 55px; }
-  .participant-has-room.participant-show-chat .participant-learning-area { display: block; grid-row: 2; }
-  .participant-has-room.participant-show-chat .participant-learning-area > :is(.participant-stage,.participant-learning-caption,.studio-resize-handle,.participant-resource-container) { display: none; }
-  .participant-has-room.participant-show-chat .participant-floating-controls { top: auto !important; bottom: 4px; left: 50% !important; transform: translateX(-50%) !important; }
-  .participant-has-room.participant-show-chat .participant-conversations { grid-row: 1; }
+  .participant-has-room .room-view-expand { display: none; }
+  .participant-layout[data-room-view]:not([data-room-view="video"]) { display: grid; grid-template-columns: minmax(0,1fr); grid-template-rows: minmax(0,1fr) 55px; }
+  .participant-layout[data-room-view]:not([data-room-view="video"])[data-room-resources] { grid-template-rows: minmax(0,1fr) minmax(0,1fr); }
+  .participant-layout[data-room-view]:not([data-room-view="video"]) > .participant-learning-area { grid-row: 2; }
+  .participant-layout[data-room-view]:not([data-room-view="video"]) .participant-learning-area > :is(.participant-stage,.participant-learning-caption,.studio-resize-handle) { display: none; }
+  .participant-layout[data-room-view]:not([data-room-view="video"]) .participant-resource-container:not([hidden]) { flex: 1; }
+  .participant-layout[data-room-view]:not([data-room-view="video"]) .participant-floating-controls { top: auto !important; bottom: 4px; left: 50% !important; transform: translateX(-50%) !important; }
+  .participant-layout[data-room-view]:not([data-room-view="video"]) .participant-conversations { grid-row: 1; }
 }
 @container instructor-studio (max-width: 500px) {
   .room-heading-title h2 { font-size: 21px; }

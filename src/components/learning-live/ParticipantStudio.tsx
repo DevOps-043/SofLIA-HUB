@@ -6,6 +6,8 @@ import { StudioResizeHandle } from './StudioResizeHandle';
 import { LiveIcon } from './LiveIcon';
 import { usePracticeDrafts } from './usePracticeDrafts';
 import { RoomWorkspace } from './rooms/RoomWorkspace';
+import { RoomViewControls } from './rooms/RoomViewControls';
+import { useRoomView } from './rooms/useRoomView';
 import { ParticipantStage } from './participant/ParticipantStage';
 import { ParticipantActivities } from './participant/ParticipantActivities';
 import { ParticipantConversations } from './participant/ParticipantConversations';
@@ -33,9 +35,28 @@ export function ParticipantStudio({ onBack, onClose }: { onBack: () => void; onC
   const current=state.members.find(member=>member.user_id===user_id)?.room_id;
   const room=state.rooms.find(item=>item.id===current);
   const roomPractice=room?state.room_activity?.practice_id??undefined:undefined;
-  return <section className={`instructor-studio participant-studio participant-show-${mobile}${room ? ' participant-has-room' : ''}`} aria-label="Aula del participante">
+  const roomView = useRoomView(layoutSize.width > 0 && layoutSize.width <= 760);
+  const showRoomResources = !!room && roomView.activity && roomResources;
+  return <section className={`instructor-studio participant-studio${room ? ' participant-has-room' : ` participant-show-${mobile}`}`} aria-label="Aula del participante">
     <header className="studio-topbar participant-topbar"><div className="studio-session-heading"><button className="studio-icon-button" aria-label="Volver a mis sesiones" onClick={onBack}><LiveIcon name="back"/></button><span className="studio-brand-mark"><LiveIcon name="book"/></span><div><span>SOFLIA LEARNING <i>/</i> MI CLASE</span><h1 title={snapshot.title}>{snapshot.title}</h1></div></div><div className="participant-session-status"><span><LiveIcon name="users"/>{state.members.length} participantes</span></div></header>
-    <nav className="participant-mobile-tabs" aria-label="Vistas del aula"><button aria-pressed={mobile==='class'} onClick={()=>setMobile('class')}><LiveIcon name="video"/>{room ? 'Galería' : 'Clase'}</button><button aria-pressed={mobile==='chat'} onClick={()=>setMobile('chat')}><LiveIcon name="chat"/>{room ? 'Sala y chat' : 'Conversaciones'}</button></nav>
-    <div ref={layoutRef} className="participant-layout participant-resizable-layout studio-resizable-region" style={{'--participant-chat-width':`${actualChat}px`} as CSSProperties}><main ref={learningRef} className={`participant-learning-area studio-resizable-region${room ? ` participant-in-room${roomResources ? ' participant-room-resources' : ''}` : ''}`} style={{'--participant-activity-height':`${actualActivity}px`} as CSSProperties} aria-label="Contenido de la sesión"><ParticipantStage roomId={room?.id}/><div className="participant-learning-caption"><span>{room?`Trabajando con ${room.name}`:'Aprende y participa con tu grupo'}</span><StudioLiveClock compact/></div><StudioResizeHandle axis="height" side="after" label="Cambiar altura de actividades y transmisión" value={actualActivity} min={88} max={maxActivity} onChange={setActivityHeight} onReset={()=>setActivityHeight(null)}/><div hidden={!!room&&!roomResources} className="participant-resource-container" id="room-shared-resources" role={roomResources&&room?'tabpanel':undefined} aria-labelledby={roomResources&&room?'room-tab-resources':undefined}><ParticipantActivities draftStore={practiceDrafts} onPractice={setPracticeId} onExpandedChange={setActivityExpanded}/></div><ParticipantToolbar onClose={onClose}/></main><StudioResizeHandle axis="width" side="after" label="Cambiar ancho del chat y transmisión" value={actualChat} min={260} max={maxChat} onChange={setChatWidth} onReset={()=>setChatWidth(340)}/><ParticipantConversations roomDetails={<RoomWorkspace draftStore={practiceDrafts} onResourcesChange={(visible) => { setRoomResources(visible); if (visible) setMobile('class'); }} />} room={room?{id:room.id,name:room.name,participants:room.user_ids.length}:null} practiceId={roomResources?practiceId??roomPractice:roomPractice??practiceId}/></div>
+    {room ? <RoomViewControls {...roomView} /> : <nav className="participant-mobile-tabs" aria-label="Vistas del aula"><button aria-pressed={mobile==='class'} onClick={()=>setMobile('class')}><LiveIcon name="video"/>Clase</button><button aria-pressed={mobile==='chat'} onClick={()=>setMobile('chat')}><LiveIcon name="chat"/>Conversaciones</button></nav>}
+    <div ref={layoutRef} className="participant-layout participant-resizable-layout studio-resizable-region"
+      data-room-view={room ? roomView.view : undefined} data-room-expanded={!!room && roomView.expanded ? true : undefined}
+      data-room-resources={showRoomResources ? true : undefined} style={{'--participant-chat-width':`${actualChat}px`} as CSSProperties}>
+      <main ref={learningRef} className={`participant-learning-area studio-resizable-region${room ? ` participant-in-room${showRoomResources ? ' participant-room-resources' : ''}` : ''}`}
+        style={{'--participant-activity-height':`${actualActivity}px`} as CSSProperties} aria-label="Contenido de la sesión">
+        <ParticipantStage roomId={room?.id} hidden={!!room && roomView.expanded} />
+        <div className="participant-learning-caption"><span>{room?`Trabajando con ${room.name}`:'Aprende y participa con tu grupo'}</span><StudioLiveClock compact/></div>
+        <StudioResizeHandle axis="height" side="after" label="Cambiar altura de actividades y transmisión" value={actualActivity} min={88} max={maxActivity} onChange={setActivityHeight} onReset={()=>setActivityHeight(null)}/>
+        <div hidden={!!room&&!showRoomResources} className="participant-resource-container" id="room-shared-resources" role={showRoomResources?'tabpanel':undefined} aria-labelledby={showRoomResources?'room-tab-resources':undefined}>
+          <ParticipantActivities draftStore={practiceDrafts} onPractice={setPracticeId} onExpandedChange={setActivityExpanded}/>
+        </div>
+        <ParticipantToolbar onClose={onClose}/>
+      </main>
+      <StudioResizeHandle axis="width" side="after" label="Cambiar ancho del chat y transmisión" value={actualChat} min={260} max={maxChat} onChange={setChatWidth} onReset={()=>setChatWidth(340)}/>
+      <ParticipantConversations hidden={!!room && roomView.view === 'video'} showChat={!room || roomView.chat}
+        roomDetails={<RoomWorkspace hidden={!roomView.activity} draftStore={practiceDrafts} onResourcesChange={setRoomResources} />}
+        room={room?{id:room.id,name:room.name,participants:room.user_ids.length}:null} practiceId={showRoomResources?practiceId??roomPractice:roomPractice??practiceId}/>
+    </div>
   </section>;
 }

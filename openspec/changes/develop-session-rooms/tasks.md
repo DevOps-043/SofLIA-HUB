@@ -5,3 +5,4 @@
 - [x] 5. Actualizar documentación y registrar revisión adversarial independiente y evidencia.
 - [x] 6. Dar el escenario principal a la galería de personas y dividir detalle y chat en el lateral de ambos roles.
 - [x] 7. Verificar galería, aislamiento audiovisual, navegación y diseño adaptable.
+- [x] 8. Permitir ocultar, filtrar y ampliar el lateral de la sala preservando el estado de la sesión.

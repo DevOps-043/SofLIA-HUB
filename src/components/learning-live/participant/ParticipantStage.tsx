@@ -6,7 +6,7 @@ import { useStudioRuntime } from '../instructor/StudioRuntimeContext';
 import { useStudioMediaRuntime } from '../instructor/StudioMediaContext';
 import { RoomGalleryFallback } from '../rooms/RoomGalleryFallback';
 
-export function ParticipantStage({ roomId }: { roomId?: string } = {}) {
+export function ParticipantStage({ roomId, hidden }: { roomId?: string; hidden?: boolean } = {}) {
   const {snapshot}=useStudioRuntime()!;
   const media=useStudioMediaRuntime()!;
   const root=useRef<HTMLElement>(null);
@@ -27,7 +27,7 @@ export function ParticipantStage({ roomId }: { roomId?: string } = {}) {
     if(!media.callControls?.captions){setNotice('Los subtítulos no están habilitados en esta llamada. Solicita al instructor que los active desde sus controles.');return;}
     media.setCaptions?.(!media.callControls.captionsEnabled);setNotice('');
   }
-  return <section ref={root} className={roomId ? 'participant-stage room-gallery-stage' : 'participant-stage'} aria-label={roomId ? 'Galería de la sala' : 'Escenario de la clase'}>
+  return <section ref={root} className={roomId ? 'participant-stage room-gallery-stage' : 'participant-stage'} aria-label={roomId ? 'Galería de la sala' : 'Escenario de la clase'} hidden={hidden}>
     <div className="participant-stage-content">
       <div className="participant-embedded-call" hidden={!media.zoomStage || !stageVisible}>{media.zoomStage}</div>
       {roomId ? (!roomReady && <RoomGalleryFallback roomId={roomId} />) : (!media.zoomStage || !stageVisible) && (scene ? <StudioSceneCanvas key={scene.id} scene={{...scene,assetUrl:scene.asset_path?snapshot.asset_urls[scene.asset_path]:undefined}}/> : <div className="participant-stage-empty"><LiveIcon name="video"/><h2>Tu próxima idea empieza aquí</h2><p>{media.zoomConnected?'Esperando la transmisión del instructor.':'Conecta la transmisión desde los controles del video para ver y escuchar la clase.'}</p></div>)}

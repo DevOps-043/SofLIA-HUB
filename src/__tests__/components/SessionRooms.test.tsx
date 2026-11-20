@@ -128,6 +128,37 @@ describe('panel y espacio de salas', () => {
     expect(screen.getByRole('navigation', { name: 'Controles de participación' })).toBeVisible();
     expect(within(screen.getByRole('region', { name: 'Espacio de trabajo de la sala' })).getByRole('tab', { name: 'Instrucciones' })).toHaveAttribute('aria-selected', 'true');
   });
+  it('oculta y amplía el lateral sin perder la llamada, el mensaje ni la entrega', () => {
+    openRooms(); snapshot.user_id = id(10); snapshot.can_manage = false;
+    const roomId = snapshot.state.rooms[0].id;
+    snapshot.state.members[0].room_id = roomId;
+    media.callVisual = { roomId, cameras: true, remoteShare: false };
+    render(<Harness><ParticipantStudio onBack={vi.fn()} onClose={vi.fn()} /></Harness>);
+    const frame = screen.getByTitle('Llamada persistente');
+    const controls = within(screen.getByRole('navigation', { name: 'Vista de la sala' }));
+    const panel = () => screen.queryByRole('region', { name: 'Espacio de trabajo de la sala' });
+    const chat = () => screen.queryByRole('log', { name: 'Mensajes de Sala 1' });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Tu mensaje al grupo' }), { target: { value: 'Mensaje en borrador' } });
+    fireEvent.click(screen.getByRole('tab', { name: 'Mi entrega' }));
+    fireEvent.change(screen.getByLabelText('Tu respuesta individual'), { target: { value: 'Entrega en borrador' } });
+
+    fireEvent.click(controls.getByRole('button', { name: 'Solo video' }));
+    expect(panel()).toBeNull(); expect(chat()).toBeNull(); expect(frame).toBeVisible();
+    fireEvent.click(controls.getByRole('button', { name: 'Chat' }));
+    expect(panel()).toBeNull(); expect(chat()).toBeVisible();
+    fireEvent.click(controls.getByRole('button', { name: 'Ampliar lateral' }));
+    expect(frame).not.toBeVisible();
+    expect(screen.getByRole('textbox', { name: 'Tu mensaje al grupo' })).toHaveValue('Mensaje en borrador');
+    fireEvent.click(controls.getByRole('button', { name: 'Actividad' }));
+    expect(panel()).toBeVisible(); expect(chat()).toBeNull(); expect(frame).not.toBeVisible();
+    expect(screen.getByLabelText('Tu respuesta individual')).toHaveValue('Entrega en borrador');
+    expect(screen.getByRole('navigation', { name: 'Controles de participación' })).toBeVisible();
+    fireEvent.click(controls.getByRole('button', { name: 'Mostrar video' }));
+    fireEvent.click(controls.getByRole('button', { name: 'Ambos' }));
+    expect(panel()).toBeVisible(); expect(chat()).toBeVisible();
+    expect(screen.getByTitle('Llamada persistente')).toBe(frame); expect(frame).toBeVisible();
+    expect(send).not.toHaveBeenCalled();
+  });
   it('muestra presentes en la galería y solo revela el iframe cuando coincide la sala audiovisual', () => {
     openRooms(); snapshot.user_id=id(10); snapshot.can_manage=false;
     const roomId=snapshot.state.rooms[0].id;
@@ -163,6 +194,17 @@ describe('panel y espacio de salas', () => {
     const details=screen.getByRole('region',{name:'Espacio de trabajo de la sala'});
     expect(within(details).getByText(/Analicen el problema/)).toBeVisible();
     expect(screen.getByRole('log',{name:'Mensajes de Sala 1'}).closest('.room-split-sidebar')).toContainElement(details);
+
+    const controls = within(screen.getByRole('navigation', { name: 'Vista de la sala' }));
+    fireEvent.click(controls.getByRole('button', { name: 'Solo video' }));
+    expect(details).not.toBeVisible(); expect(gallery).toBeVisible();
+    fireEvent.click(controls.getByRole('button', { name: 'Chat' }));
+    expect(details).not.toBeVisible(); expect(screen.getByRole('log', { name: 'Mensajes de Sala 1' })).toBeVisible();
+    fireEvent.click(controls.getByRole('button', { name: 'Actividad' }));
+    fireEvent.click(controls.getByRole('button', { name: 'Ampliar lateral' }));
+    expect(details).toBeVisible(); expect(gallery).not.toBeVisible();
+    expect(screen.queryByRole('log', { name: 'Mensajes de Sala 1' })).toBeNull();
+    expect(screen.getByTitle('Llamada persistente')).toBe(frame);
   });
   it('mantiene acceso a actividades, quizzes y materiales también en salas anteriores', () => {
     openRooms(); snapshot.user_id = id(10); snapshot.can_manage = false; snapshot.state.members[0].room_id = snapshot.state.rooms[0].id;

@@ -6,7 +6,7 @@ import { StudioNumberField } from './StudioNumberField';
 import { StudioReactionPicker } from '../StudioReactionPicker';
 import { useStudioTime } from '../useStudioTime';
 
-export function StudioChat({ initialMessages = [], room = null, compact = false }: { initialMessages?: StudioMessage[]; room?: StudioRoom | null; compact?: boolean }) {
+export function StudioChat({ initialMessages = [], room = null, compact = false, hidden }: { initialMessages?: StudioMessage[]; room?: StudioRoom | null; compact?: boolean; hidden?: boolean }) {
   const runtime = useStudioRuntime();
   const [localMessages, setMessages] = useState(initialMessages);
   const messages: StudioMessage[] = runtime ? runtime.snapshot.state.messages.map((post) => ({ id: post.id, authorId: post.user_id, author: post.author, role: post.instructor ? 'instructor' : 'participant', text: post.content, time: new Date(post.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }), question: post.question ? post.content : undefined, roomId: post.room_id ?? undefined })) : localMessages;
@@ -115,7 +115,7 @@ export function StudioChat({ initialMessages = [], room = null, compact = false 
     if(runtime){const success=await runtime.send({type:'chat_interval',seconds:intervalDraft});setNotice(success?'Intervalo de chat actualizado.':'No se guardó el intervalo. Vuelve a intentarlo.');}
     else {setLocalInterval(intervalDraft);setNotice('Intervalo actualizado en la vista de diseño.');}
   }
-  return <aside className="studio-chat-column" aria-label="Chat y participación">
+  return <aside className="studio-chat-column" aria-label="Chat y participación" hidden={hidden}>
     <section className="studio-panel studio-chat">
       <header className="studio-panel-heading"><h2><LiveIcon name="chat" />{room ? `Chat · ${room.name}` : 'Chat de la sesión'}</h2>{!compact && <button className="studio-icon-button" aria-label="Moderar chat" disabled={!canManage} aria-expanded={moderation} onClick={() => {setIntervalDraft(interval);setModeration(!moderation);}}><LiveIcon name="settings" /></button>}</header>
       <div className="studio-chat-tabs"><button aria-pressed={tab === 'all'} onClick={() => setTab('all')}>Todos <span>{contextual.length}</span></button><button aria-pressed={tab === 'questions'} onClick={() => setTab('questions')}>Preguntas <span>{contextual.filter((message) => message.question).length}</span></button></div>
