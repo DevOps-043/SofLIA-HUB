@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LearningLiveSessionReference } from '../../../shared/learning-live-session';
-import type { StudioCommand, StudioSnapshot } from '../../../shared/live-studio.contract';
+import { STUDIO_TUTOR_UNAVAILABLE, type StudioCommand, type StudioSnapshot } from '../../../shared/live-studio.contract';
 import { onStudioInvalidation, studioCommand, studioOperation, uploadStudioFile } from '../../../services/live-studio-service';
 import { StudioAssetUrls } from '../../../services/studio-asset-urls';
 
@@ -50,12 +50,12 @@ export function useStudioSession(reference: LearningLiveSessionReference) {
     } catch { if(generation===epoch.current)setRealtime('Realtime no disponible'); }
     finally { if(generation===epoch.current)watching.current=false; }
   },[slug,session]);
-  const send = useCallback(async (command: StudioCommand) => {
+  const send = useCallback(async (command: StudioCommand, id?: string) => {
     if (!current.current || commandPending.current) return false;
     const generation = epoch.current;
     commandPending.current = true; setBusy(true); setError('');
     try {
-      const result = await studioCommand({ organization_slug: slug, session_id: session }, current.current.state.revision, command);
+      const result = await studioCommand({ organization_slug: slug, session_id: session }, current.current.state.revision, command, id);
       if (generation !== epoch.current) return false;
       if (!result.success || !result.snapshot) {
         if (result.success || result.code !== 'conflict' || command.type !== 'presence') setError(result.success ? 'Learning no confirmó la acción.' : result.error);
@@ -64,6 +64,24 @@ export function useStudioSession(reference: LearningLiveSessionReference) {
       if (!current.current || result.snapshot.state.revision >= current.current.state.revision) { current.current = assets.current.normalize(result.snapshot, Date.now()); setSnapshot(current.current); }
       return true;
     } finally { if (generation === epoch.current) { commandPending.current = false; setBusy(false); } }
+  }, [slug, session, refresh]);
+  const askTutor = useCallback(async (postId: string) => {
+    const generation = epoch.current;
+    const userId = current.current?.user_id;
+    if (!userId) return STUDIO_TUTOR_UNAVAILABLE;
+    const result = await studioOperation({ organization_slug: slug, session_id: session }, { type: 'soflia_public', post_id: postId });
+    if (generation !== epoch.current || current.current?.user_id !== userId) return STUDIO_TUTOR_UNAVAILABLE;
+    if (!result.success) return result.error;
+    const updated = result.snapshot;
+    if (!updated || updated.user_id !== userId ||
+      !updated.tutor_replies?.some(reply => reply.post_id === postId && reply.user_id === userId)) {
+      await refresh();
+      return STUDIO_TUTOR_UNAVAILABLE;
+    }
+    if (updated.state.revision >= current.current.state.revision) {
+      current.current = assets.current.normalize(updated, Date.now());
+      setSnapshot(current.current);
+    }
   }, [slug, session, refresh]);
   const reconnect=useCallback(async()=>{
     if(reconnecting.current||watching.current)return;
@@ -99,5 +117,5 @@ export function useStudioSession(reference: LearningLiveSessionReference) {
     }, 30000);
     return () => { disposed = true; epoch.current = generation + 1; stop(); window.clearInterval(heartbeat); void window.learningLive?.unwatchStudio?.(); };
   }, [slug, session, refresh, send, subscribe]);
-  return { snapshot, error:readError||error, busy, realtime, send, reconnect, refresh: () => { setError(''); return refresh(); }, upload: (file: File) => uploadStudioFile(reference, file) };
+  return { snapshot, error:readError||error, busy, realtime, send, askTutor, reconnect, refresh: () => { setError(''); return refresh(); }, upload: (file: File) => uploadStudioFile(reference, file) };
 }

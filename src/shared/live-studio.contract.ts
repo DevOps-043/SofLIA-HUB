@@ -44,9 +44,29 @@ export type StudioCommand = z.infer<typeof studioCommandSchema>;
 export const STUDIO_RECORDING_NOTICE_VERSION = 1;
 export const STUDIO_RECORDING_NOTICE_HEADER = 'X-Soflia-Studio-Recording-Notice';
 export const STUDIO_RECORDING_NOTICE_REQUIRED = 'Se requiere aceptar el aviso vigente de grabación.';
+export const STUDIO_TUTOR_HEADER = 'X-Soflia-Studio-Tutor';
+export const STUDIO_TUTOR_POLICY_REQUIRED = 'Activa el consentimiento vigente de IA en Learning para consultar a SofLIA.';
+export const STUDIO_TUTOR_UNAVAILABLE = 'SofLIA no pudo responder. Puedes reintentar.';
+export const STUDIO_TUTOR_ROOM_CHANGED = 'La pregunta o su sala ya no están disponibles.';
+export const STUDIO_TUTOR_PENDING = 'SofLIA está atendiendo una consulta. Espera un momento antes de reintentar.';
+const studioTutorReplySchema = z.object({ post_id: id, user_id: id, answer: text(1800) }).strict();
+export const studioTutorMessageSchema = z.object({ role: z.enum(['user', 'model']), text: text(1800) }).strict();
+
+// Acepta menciones exactas y evita activar correos o nombres más largos.
+const studioTutorMention = /(?<![\p{L}\p{N}_.@-])@sofl[ií]a(?![\p{L}\p{N}_@-]|\.[\p{L}\p{N}])/iu;
+export function hasStudioTutorMention(message: string): boolean {
+  return studioTutorMention.test(message);
+}
+
+export function studioTutorQuestion(message: string): string {
+  return message.replace(studioTutorMention, ' ').trim();
+}
+
 export const studioOperationSchema = z.discriminatedUnion('type', [
   z.object({type:z.literal('recordings'),operation:recordingOperationSchema}).strict(),
   z.object({ type: z.literal('snapshot') }).strict(),
+  z.object({ type: z.literal('soflia_public'), post_id: id }).strict(),
+  z.object({ type: z.literal('soflia_private'), question: text(2000), history: z.array(studioTutorMessageSchema).max(8), practice_id: id.optional() }).strict(),
   z.object({ type: z.literal('command'), id, revision: z.number().int().nonnegative(), command: studioCommandSchema }).strict(),
   z.object({ type: z.literal('zoom'), recording_notice_version: z.literal(STUDIO_RECORDING_NOTICE_VERSION).optional() }).strict(),
   z.object({ type: z.literal('upload'), name: text(160), mime: text(100), bytes: z.number().int().min(1).max(25 * 1024 * 1024) }).strict(),
@@ -71,6 +91,7 @@ export const studioStateSchema = z.object({
 }).strict();
 export type StudioState = z.infer<typeof studioStateSchema>;
 export const studioSnapshotSchema = z.object({
+  tutor_replies: z.array(studioTutorReplySchema).max(100).optional(),
   rooms_version:z.literal(1).optional(),
   participation_version:z.literal(1).optional(),
   session_id: id, user_id: id, can_manage: z.boolean(), title: text(160), server_time: z.string().datetime(),
@@ -82,5 +103,5 @@ const meetingJoinSchema = z.object({ provider: z.literal("zoom-meeting").optiona
 export const videoJoinSchema = z.object({ provider: z.literal("zoom-video"), sessionName: text(200), token: text(4096), userName: text(160), password: z.string().min(1).max(10), recording_required: z.literal(true).default(true) }).strict();
 export const zoomJoinSchema = z.union([meetingJoinSchema, videoJoinSchema]);
 export type ZoomJoin = z.infer<typeof zoomJoinSchema>;
-export const studioResponseSchema = z.object({ snapshot: studioSnapshotSchema.optional(), zoom: zoomJoinSchema.optional(), recording_snapshot: recordingSnapshotSchema.optional(), playback: recordingResponseSchema.shape.playback, upload: z.object({ path: text(500), token: text(8192), url: z.string().url().max(4096) }).strict().optional() }).strict();
+export const studioResponseSchema = z.object({ tutor_answer: text(1800).optional(), snapshot: studioSnapshotSchema.optional(), zoom: zoomJoinSchema.optional(), recording_snapshot: recordingSnapshotSchema.optional(), playback: recordingResponseSchema.shape.playback, upload: z.object({ path: text(500), token: text(8192), url: z.string().url().max(4096) }).strict().optional() }).strict();
 export type StudioResult = ({ success: true } & z.infer<typeof studioResponseSchema>) | { success: false; code: 'not_ready' | 'access_denied' | 'conflict' | 'rate_limited' | 'unavailable'; error: string };

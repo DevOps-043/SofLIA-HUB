@@ -8,7 +8,8 @@ export type StudioRuntime = {
   busy: boolean;
   realtime: string;
   error: string;
-  send: (command: StudioCommand) => Promise<boolean>;
+  send: (command: StudioCommand, id?: string) => Promise<boolean>;
+  askTutor?: (postId: string) => Promise<string | undefined>;
   upload: (file: File) => Promise<string>;
   refresh: () => Promise<void>;
   reconnect?: () => Promise<void>;

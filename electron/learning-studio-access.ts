@@ -1,4 +1,4 @@
-import { STUDIO_RECORDING_NOTICE_HEADER, STUDIO_RECORDING_NOTICE_REQUIRED, studioRequestSchema, studioResponseSchema, type StudioResult } from '../src/shared/live-studio.contract';
+import { STUDIO_RECORDING_NOTICE_HEADER, STUDIO_RECORDING_NOTICE_REQUIRED, STUDIO_TUTOR_HEADER, STUDIO_TUTOR_PENDING, STUDIO_TUTOR_POLICY_REQUIRED, STUDIO_TUTOR_ROOM_CHANGED, STUDIO_TUTOR_UNAVAILABLE, studioRequestSchema, studioResponseSchema, type StudioResult } from '../src/shared/live-studio.contract';
 import { learningLiveEndpoint, readLearningResponse } from './learning-live-http';
 import { createLogger } from './utils/logger';
 
@@ -25,6 +25,10 @@ const knownJoinUnavailableErrors: Record<string, string> = {
   'No se pudo verificar la organización': 'Learning no pudo consultar la organización de esta sesión. El administrador de Soflia debe revisar el servicio.',
 };
 const knownErrors: Record<string, string> = {
+  [STUDIO_TUTOR_POLICY_REQUIRED]: STUDIO_TUTOR_POLICY_REQUIRED,
+  [STUDIO_TUTOR_ROOM_CHANGED]: STUDIO_TUTOR_ROOM_CHANGED,
+  [STUDIO_TUTOR_UNAVAILABLE]: STUDIO_TUTOR_UNAVAILABLE,
+  [STUDIO_TUTOR_PENDING]: STUDIO_TUTOR_PENDING,
   [STUDIO_RECORDING_NOTICE_REQUIRED]: 'Acepta el aviso de privacidad de la grabación en el Hub para conectar la sesión.',
   'Falta configurar Meeting SDK en Learning': 'La conexión audiovisual aún no está configurada en Learning. El administrador de Soflia debe completar la configuración para habilitar el ingreso.',
   'Zoom no autorizó al anfitrión; revisa el permiso ZAK': 'No se autorizó el ingreso del anfitrión. El administrador de Soflia debe revisar los permisos de la conexión audiovisual.',
@@ -58,6 +62,7 @@ export async function requestLearningStudio(input: unknown, deps: { baseUrl: str
       'Content-Type': 'application/json',
       'X-Soflia-Studio-Participation': '1',
       'X-Soflia-Studio-Rooms': '1',
+      [STUDIO_TUTOR_HEADER]: '1',
       Authorization: `Bearer ${identity.accessToken}`,
       ...(recordingNotice === undefined ? {} : { [STUDIO_RECORDING_NOTICE_HEADER]: String(recordingNotice) }),
     };
@@ -81,6 +86,7 @@ export async function requestLearningStudio(input: unknown, deps: { baseUrl: str
     }
     phase = 'respuesta';
     const result = studioResponseSchema.parse(await readLearningResponse(response, 2 * 1024 * 1024));
+    if (result.tutor_answer && operation.type !== 'soflia_private') throw new Error('Respuesta de SofLIA incompatible');
     if (result.snapshot && (result.snapshot.session_id !== parsed.data.session_id || result.snapshot.user_id !== identity.userId)) throw new Error('Actor incompatible');
     if(result.recording_snapshot && (result.recording_snapshot.session_id!==parsed.data.session_id || result.recording_snapshot.user_id!==identity.userId))throw new Error('Archivo incompatible');
     if(result.playback){
