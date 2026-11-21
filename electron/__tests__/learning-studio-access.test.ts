@@ -8,6 +8,21 @@ const input = { organization_slug: 'acme', session_id: session, operation: { typ
 const deps = { baseUrl: 'https://learning.test', getIdentity: async () => ({ userId: user, accessToken: 'privado' }) };
 const snapshot = { user_id: user, session_id: session, title: 'Clase', server_time: '2026-10-12T20:00:00.000Z', can_manage: true, state: emptyStudioState(), asset_urls: {} };
 describe('frontera HTTP del estudio', () => {
+  it('negocia tutoría sin cambiar el cuerpo del snapshot de clientes anteriores',async()=>{
+    const fetcher=vi.fn().mockResolvedValue(new Response(JSON.stringify({snapshot})));
+    expect(await requestLearningStudio(input,{...deps,fetcher})).toMatchObject({success:true,snapshot});
+    const options=fetcher.mock.calls[0][1];
+    expect(options.headers['X-Soflia-Studio-Tutor']).toBe('1');
+    expect(JSON.parse(options.body)).toEqual(input);
+  });
+  it('acepta una respuesta privada solo en su operación y conserva la identidad main',async()=>{
+    const operation={type:'soflia_private',question:'¿Qué actividad está publicada?',history:[]};
+    const fetcher=vi.fn().mockImplementation(async()=>new Response(JSON.stringify({tutor_answer:'Consulta las instrucciones publicadas.'})));
+    expect(await requestLearningStudio({...input,operation},{...deps,fetcher})).toMatchObject({success:true,tutor_answer:'Consulta las instrucciones publicadas.'});
+    expect(await requestLearningStudio(input,{...deps,fetcher})).toMatchObject({success:false,code:'unavailable'});
+    const getIdentity=vi.fn().mockResolvedValueOnce({userId:user,accessToken:'privado'}).mockResolvedValueOnce({userId:'00000000-0000-4000-8000-000000000002',accessToken:'otro'});
+    expect(await requestLearningStudio({...input,operation},{...deps,getIdentity,fetcher})).toMatchObject({success:false,code:'not_ready'});
+  });
   it('negocia participación y distingue límite 429 sin exponer el mensaje arbitrario del servidor',async()=>{
     const fetcher=vi.fn().mockResolvedValue(new Response(JSON.stringify({error:'detalle privado'}),{status:429}));
     expect(await requestLearningStudio(input,{...deps,fetcher})).toMatchObject({success:false,code:'rate_limited'});

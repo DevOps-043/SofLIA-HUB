@@ -15,6 +15,21 @@ beforeEach(()=>{
 afterEach(()=>{delete window.learningLive;});
 
 describe('suscripción y recuperación del estudio',()=>{
+  it('conserva el identificador del mensaje cuando reintenta un comando sin respuesta',async()=>{
+    const {result}=renderHook(()=>useStudioSession(ref));
+    await waitFor(()=>expect(watch).toHaveBeenCalledOnce());
+    await waitFor(()=>expect(result.current.busy).toBe(false));
+    studio.mockClear();
+    studio.mockResolvedValueOnce({success:false,code:'unavailable',error:'Respuesta perdida'});
+    const messageId: string='00000000-0000-4000-8000-000000000071';
+    const command={type:'post' as const,content:'@SofLIA explica la actividad',question:true,room_id:null};
+    await act(async()=>{expect(await result.current.send(command,messageId)).toBe(true);});
+    expect(studio).toHaveBeenCalledTimes(2);
+    for(const [reference,operation] of studio.mock.calls){
+      expect(reference).toEqual(ref);
+      expect(operation).toMatchObject({type:'command',id:messageId,command});
+    }
+  });
   it('reanuda suscripción y presencia si la primera lectura falla y después se reintenta',async()=>{
     studio.mockResolvedValueOnce({success:false,code:'unavailable',error:'Primera carga sin red'});
     const {result}=renderHook(()=>useStudioSession(ref));await waitFor(()=>expect(result.current.error).toBe('Primera carga sin red'));expect(watch).not.toHaveBeenCalled();

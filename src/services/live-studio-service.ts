@@ -13,7 +13,7 @@ export async function studioOperation(reference: LearningLiveSessionReference, o
     return { success: true, ...parsed.data };
   } catch { return { success: false, code: 'unavailable', error: 'No se pudo conectar con Learning.' }; }
 }
-export async function studioCommand(reference: LearningLiveSessionReference, revision: number, command: StudioCommand, id = crypto.randomUUID()) {
+export async function studioCommand(reference: LearningLiveSessionReference, revision: number, command: StudioCommand, id: string = crypto.randomUUID()) {
   const operation = { type: 'command' as const, id, revision, command };
   const result = await studioOperation(reference, operation);
   // Una respuesta perdida se reintenta con el mismo UUID; Learning deduplica.

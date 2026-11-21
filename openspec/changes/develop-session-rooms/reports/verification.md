@@ -151,3 +151,52 @@ de líneas y el lint validó 53 archivos sin deuda nueva.
   `verify:pr` llegó a cobertura, donde registró fallos en cinco suites del proceso
   principal antes de interrumpirse sin resultado consolidado. La repetición
   dirigida de esas cinco suites aprobó 71 pruebas.
+
+## Integración en main del 20 de noviembre de 2026
+
+Estado: integración local verificada. Base anterior: `e19b0218`, conservada en
+`codex/respaldo-main-antes-merge-20261120-3-ramas`.
+
+Se integraron las puntas `414affe7` de `codex/develop-session-rooms`, `5509cac6`
+de `codex/live-soflia-mentions` y `8ec4cc9d` de `codex/fix-floating-chat-context`.
+Los commits de merge son `724280af`, `406afa9c` y `65e8a806`, respectivamente.
+Las tres puntas son ancestros de `main`; el índice no conserva conflictos.
+
+El único conflicto textual afectó este reporte: se conservaron tanto la
+integración histórica del 18 de noviembre como las vistas del panel lateral.
+El chequeo de tipos encontró una incompatibilidad entre el ID opcional de
+`useStudioSession.send` y el parámetro inferido de `studioCommand`. El wrapper
+ahora declara `id: string`, como el contrato validado en main, y conserva el UUID
+por defecto. Una prueba comprueba que el reintento reutiliza el mismo ID.
+
+La instalación local tenía MSAL 5.5.0, Vitest 4.1.10 y Electron 44.5.1, distintos
+del lockfile. `npm ci` sincronizó las dependencias sin modificar manifiesto ni
+lockfile; desaparecieron los tres errores de tipos OAuth. Se preparó Python
+3.12.11 mediante `node scripts/quality/prepare-test-python.mjs`, con verificación
+de SHA256, y se seleccionó por proceso con `SOFLIA_TEST_PYTHON`.
+
+Verificación sobre el código final:
+
+- `npm run test -- src/__tests__/hooks/useStudioSession.test.tsx electron/__tests__/learning-studio-access.test.ts src/__tests__/components/SessionRooms.test.tsx src/__tests__/components/ParticipantStudio.test.tsx src/__tests__/components/InstructorStudio.test.tsx src/__tests__/components/StudioChat.test.tsx src/__tests__/components/FloatingChatTurn.test.tsx src/__tests__/services/floating-chat-context.test.ts src/__tests__/services/live-studio-domain.test.ts electron/__tests__/integrated-browser-page-observation.test.ts electron/__tests__/integrated-browser-cdp-dom-snapshot.test.ts`: 129 pruebas aprobadas en 11 archivos.
+- `npm run docs:inventory:sync`: 870 archivos de prueba; inventario vigente.
+- `npm run verify:pr`, con `HARNESS_BASE_REF=codex/respaldo-main-antes-merge-20261120-3-ramas`: aprobado, incluidas las 70 pruebas de tooling, 33 contratos Python, tipos, lint incremental, documentación, arnés, OpenSpec y comprobación nativa de Electron 44.9.3.
+- Suite con cobertura: 669 archivos aprobados y dos omitidos; 7745 pruebas aprobadas y cinco omitidas. Duración: 242,85 s.
+- Cobertura de 2758 fuentes: líneas 64,03 %, sentencias 62,11 %, funciones 58,66 % y ramas 55,42 %.
+- `git diff --check`, ausencia de entradas sin resolver y comprobación de ascendencia de las tres ramas: aprobados.
+
+La revisión adversarial local comprobó conservación de ambos reportes, ausencia
+de consumidores del export retirado del saneamiento, cambio de pestaña/perfil/URL,
+persistencia de borradores y transporte IPC existente. Las nuevas pruebas HTTP
+comprueban negociación sin alterar el JSON anterior, rechazo de una respuesta
+privada en otra operación y descarte al cambiar la identidad main.
+
+Límite confirmado: la rama de menciones es parcial. `StudioChat` todavía no
+consume `askTutor` ni presenta `tutor_replies`; las tareas de
+[menciones de SofLIA](../../live-soflia-mentions/tasks.md) siguen pendientes.
+Integrar su contrato no habilita por sí solo las menciones en la interfaz.
+No se realizaron migraciones, despliegues ni pilotos con cuentas reales.
+
+Rollback: revertir primero el commit posterior de corrección/verificación y
+luego los tres merges con primer padre (`git revert -m 1`), en orden inverso.
+La referencia de respaldo permite comparar el estado previo sin resetear ni
+borrar cambios de otros worktrees.
