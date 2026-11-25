@@ -287,13 +287,14 @@ y [activación](../../openspec/changes/connect-browser-ecosystem-session/integra
 
 `computer:confirm-action` conserva el canal allowlisted y acepta un mensaje de
 hasta 8000 caracteres con opciones `{ allowAlways?: boolean, command?: string }`; devuelve
-`{ confirmed: boolean, always?: boolean }`. El wrapper tipado del renderer
-guarda la aprobación exacta por usuario sólo tras una decisión humana. El fallback
-nativo verifica sesión, mensaje/opciones y ventana emisora; sin ventana deniega.
-La casilla Siempre permitir sólo aparece para comandos no sensibles vinculados
-al detalle mostrado (la carpeta aparece aparte) y confirmar
-con la casilla marcada es necesario para devolver `always: true`. No reemplaza
-la política de ejecución main. Ver [permisos del chat](runtime-agents-manual.md#211-permisos-locales-de-comandos-y-archivos).
+`{ confirmed: boolean, always?: boolean }`. Main verifica el emisor y usa la
+vista de revisión de SofLIA. Devuelve `always: false` y la respuesta es
+informativa. `computer:permission-mode` y `computer:cancel-review` gestionan el
+permiso temporal y la revisión activa del emisor. Ver [contrato de Computer Use](../security/computer-use-ipc.md).
+
+`integrated-browser:chat-navigate` admite un identificador y un destino. Abre y
+observa la pestaña integrada para el documento principal autenticado.
+`integrated-browser:chat-cancel-navigation` cancela por identificador y emisor.
 
 El namespace `agent-activity` expone `snapshot`, `publish` y el evento `changed`.
 Sólo los frames principales autenticados del Hub y Orbe pueden acceder al
@@ -335,7 +336,7 @@ aprobación fabricada del renderer. El servicio comprueba capacidad, política,
 perfil y control humano; el borrado pregunta en main. Responde con biblioteca
 versionada, cancelación o error saneado. No existe IPC de ejecución de atajos.
 
-La allowlist actual contiene 543 canales derivados de cinco arrays: 84, 52, 61, 160, 186. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
+La allowlist actual contiene 547 canales derivados de cinco arrays (84, 52, 63, 162 y 186). El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 
 | Namespace | Canales | Proposito |

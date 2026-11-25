@@ -23,6 +23,7 @@ export async function syncMessagesRemoteOutcome(
       images: message.images || null,
       feedback: message.feedback || null,
       backgroundJobId: message.backgroundJobId || null,
+      ...(message.revision ? { revision: message.revision } : {}),
     },
   }));
 

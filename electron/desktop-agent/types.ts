@@ -5,6 +5,8 @@ export type { DesktopActionPayload } from '../desktop-agent-types';
 export type DesktopTaskExecutionOptions = DesktopTaskOptions & {
   /** Cancelacion desde el llamador (p.ej. la conversacion que origino la tarea). */
   signal?: AbortSignal;
+  /** Autorización de la ventana, añadida sólo desde main. */
+  fullAccess?: AbortSignal;
 };
 
 export type ScreenshotDisplayRegion = {

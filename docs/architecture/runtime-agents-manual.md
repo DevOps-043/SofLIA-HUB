@@ -178,15 +178,25 @@ conclusión sea correcta. Ver [contrato y límites de adjuntos](integrated-brows
 
 ### 2.1.1 Permisos locales de comandos y archivos
 
+El menú `+` del compositor ofrece **Permisos de computadora**. Las operaciones
+revisadas por main usan una vista interna de SofLIA. **Aprobar por mí** es el
+modo inicial y autoriza acciones de bajo riesgo mediante reglas. **Acceso
+completo** requiere una autorización al activarse. Computer Use ejecuta los
+pasos locales de la tarea sin otra revisión de SofLIA durante la sesión de esa
+ventana. Consulta el
+[contrato de autorización](../security/computer-use-ipc.md) para conocer qué
+operaciones requieren revisión y cuándo se revoca el permiso.
+
 La presentación de [confirmaciones accesibles](../ux/accessibility.md#confirmación-de-acciones-del-chat)
 conserva una identidad efímera por revisión; su resolver pertenece al controlador
 del chat. Esa identidad renderer no es un permiso ni un contrato IPC.
 
 La [confirmación del chat](../../src/services/computer-use/confirmation.ts)
 permite los movimientos reversibles solicitados (`move_item`, `organize_files`,
-`batch_move_files`) sin modal. Borrado, envíos, efectos externos y acciones remotas
-conservan HITL. Los comandos simples de consulta no interrumpen; los desconocidos
-piden aprobación inicial.
+`batch_move_files`) sin modal. En Aprobar por mí se revisan borrados, envíos y
+otros efectos externos sujetos a autorización. Las acciones remotas conservan
+sus propias confirmaciones. Los comandos simples de consulta no interrumpen;
+los desconocidos piden aprobación inicial.
 
 Los comandos locales no sensibles ofrecen **Cancelar**, **Ejecutar** y
 **Siempre permitir**. Esta última guarda únicamente una huella SHA-256 por
@@ -223,6 +233,15 @@ tardan minutos. `LONG_RUNNING_TOOL_TIMEOUTS_MS` eleva a **15 minutos**
 `use_computer` y `use_computer_on_node`. Si aun así expira `use_computer`, el
 chat llama `window.desktopAgent.abort()` para no dejar un agente zombi
 ejecutando acciones a espaldas del usuario.
+
+`navigate_integrated_browser` abre la pestaña integrada aunque el panel esté
+cerrado y devuelve su DOM vigente. La carga inicial vence a los 25 segundos.
+La cancelación se enlaza al identificador de la llamada y al documento de
+origen. `inspect_browser_downloads` consulta el registro del navegador y puede
+esperar hasta 45 segundos por una transferencia concreta. Sólo un registro
+completado devuelve la ruta guardada. Si se mueve el archivo, la comprobación
+del destino se hace con `get_file_info`. `get_system_info` admite `graphics: true`
+para consultar GPU sin lanzar comandos generados por el modelo.
 
 ### 2.3 Modelos y razonamiento
 
@@ -309,7 +328,8 @@ Una tarea puede combinar superficies sin cambiar de orquestador: `backend:
 determinista regresan a la pestaña integrada; `backend: 'browser'` se reserva
 para interacción visual compleja en esa pestaña. Cada llamada declara su
 superficie y un fallo no habilita fallback silencioso. Enviar, publicar, pagar
-o borrar mediante Computer Use requiere HITL antes de iniciar el paso.
+o borrar mediante Computer Use está sujeto al modo de permisos de la ventana
+y a los bloqueos del actuador.
 
 El dispatcher (`tool-dispatch.ts`) rechaza cualquier nombre desconocido
 (`isKnownGeminiTool`) antes de intentar ejecutarlo.

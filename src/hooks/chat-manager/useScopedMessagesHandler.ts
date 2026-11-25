@@ -84,7 +84,10 @@ export function useScopedMessagesHandler({ getCurrentChatStorageKey, orgId, stat
       const snapshot = withoutActivePlaceholders(messages);
       const first = !initialized;
       initialize(snapshot);
-      if (state.chatScopeIdRef.current === destination) state.setCurrentMessages(messages);
+      if (state.chatScopeIdRef.current === destination) {
+        state.currentMessagesRef.current = messages;
+        state.setCurrentMessages(messages);
+      }
       stageMessages(destination, userId, snapshot);
       if (timer) clearTimeout(timer);
       // El usuario y el acuse del job son durables antes de abandonar el turno.

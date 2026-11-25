@@ -9,12 +9,16 @@ export function exposeComputerApis(bridge: PreloadBridge, ipc: SafeIpc): void {
   const { safeInvoke } = ipc;
   const api: ComputerUseApi = {
     nativeActionReview: true,
+    permissionMode: mode => mode === undefined ? safeInvoke('computer:permission-mode') : safeInvoke('computer:permission-mode', mode),
+    cancelReview: () => safeInvoke('computer:cancel-review'),
     listDirectory: (dirPath: string, showHidden?: boolean) => safeInvoke('computer:list-directory', dirPath, showHidden),
     readFile: (filePath: string) => safeInvoke('computer:read-file', filePath),
     writeFile: (filePath: string, content: string) => safeInvoke('computer:write-file', filePath, content),
     createWordDocument: options => safeInvoke('computer:create-word-document', options),
     createDirectory: (dirPath: string) => safeInvoke('computer:create-directory', dirPath),
-    moveItem: (source: string, dest: string) => safeInvoke('computer:move-item', source, dest),
+    moveItem: (source, dest, noOverwrite) => noOverwrite === undefined
+      ? safeInvoke('computer:move-item', source, dest)
+      : safeInvoke('computer:move-item', source, dest, noOverwrite),
     copyItem: (source: string, dest: string) => safeInvoke('computer:copy-item', source, dest),
     deleteItem: (itemPath: string) => safeInvoke('computer:delete-item', itemPath),
     getFileInfo: (filePath: string) => safeInvoke('computer:get-file-info', filePath),
@@ -26,7 +30,7 @@ export function exposeComputerApis(bridge: PreloadBridge, ipc: SafeIpc): void {
     listProcessSessions: () => safeInvoke('computer:list-process-sessions'),
     pollProcessSession: (sessionId: string) => safeInvoke('computer:poll-process-session', sessionId),
     killProcessSession: (sessionId: string) => safeInvoke('computer:kill-process-session', sessionId),
-    getSystemInfo: () => safeInvoke('computer:get-system-info'),
+    getSystemInfo: graphics => graphics === undefined ? safeInvoke('computer:get-system-info') : safeInvoke('computer:get-system-info', graphics),
     clipboardRead: () => safeInvoke('computer:clipboard-read'),
     clipboardWrite: (text: string) => safeInvoke('computer:clipboard-write', text),
     takeScreenshot: () => safeInvoke('computer:take-screenshot'),

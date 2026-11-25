@@ -294,6 +294,7 @@ export interface BrowserDownloadRecord {
   canResume: boolean;
   startedAt: string;
   completedAt: string | null;
+  savedPath?: string;
   error: string | null;
 }
 
@@ -672,6 +673,8 @@ export interface IntegratedBrowserApi {
   setObservationEnabled(enabled: boolean): Promise<IntegratedBrowserObservationResponse>;
   open(url?: string, options?: BrowserNavigationOptions): Promise<IntegratedBrowserResponse>;
   navigate(target: string, options?: BrowserNavigationOptions): Promise<IntegratedBrowserResponse>;
+  navigateForChat?(requestId: string, target: string): Promise<IntegratedBrowserObservationResponse>;
+  cancelChatNavigation?(requestId: string): Promise<{ success: boolean; cancelled?: boolean }>;
   findInPage(query: string, forward?: boolean): Promise<IntegratedBrowserResponse>;
   stopFindInPage(): Promise<IntegratedBrowserResponse>;
   setZoom(action: 'in' | 'out' | 'reset'): Promise<IntegratedBrowserResponse>;
@@ -685,8 +688,8 @@ export interface IntegratedBrowserApi {
   retryDownload(id: string): Promise<IntegratedBrowserDataResponse>;
   openDownload(id: string): Promise<IntegratedBrowserDataResponse>;
   revealDownload(id: string): Promise<IntegratedBrowserDataResponse>;
-  clickElement(ref: string): Promise<IntegratedBrowserInteractionResponse>;
-  typeInElement(ref: string, text: string, submit?: boolean): Promise<IntegratedBrowserInteractionResponse>;
+  clickElement(ref: string, requireFullAccess?: boolean): Promise<IntegratedBrowserInteractionResponse>;
+  typeInElement(ref: string, text: string, submit?: boolean, requireFullAccess?: boolean): Promise<IntegratedBrowserInteractionResponse>;
   scrollView(direction: 'up' | 'down' | 'left' | 'right', amount?: number): Promise<IntegratedBrowserResponse>;
   createTab(url?: string, options?: BrowserNavigationOptions): Promise<IntegratedBrowserResponse>;
   closeTab(tabId: string): Promise<IntegratedBrowserResponse>;
@@ -823,6 +826,16 @@ export const integratedBrowserService = {
   // waitForLoad:false acusa inicio; errores posteriores llegan por state-changed.
   open: (url?: string, options?: BrowserNavigationOptions): Promise<IntegratedBrowserResponse> => options ? requireApi().open(url, options) : requireApi().open(url),
   navigate: (target: string, options?: BrowserNavigationOptions): Promise<IntegratedBrowserResponse> => options ? requireApi().navigate(target, options) : requireApi().navigate(target),
+  navigateForChat: async (target: string, signal?: AbortSignal): Promise<IntegratedBrowserObservationResponse> => {
+    const api = requireApi();
+    if (!api.navigateForChat) return { success: false, error: 'La navegación del chat requiere actualizar la aplicación.' };
+    signal?.throwIfAborted();
+    const requestId = crypto.randomUUID();
+    const cancel = () => { void api.cancelChatNavigation?.(requestId).catch(() => undefined); };
+    signal?.addEventListener('abort', cancel, { once: true });
+    try { return await api.navigateForChat(requestId, target); }
+    finally { signal?.removeEventListener('abort', cancel); }
+  },
   findInPage: (query: string, forward = true): Promise<IntegratedBrowserResponse> => requireApi().findInPage(query, forward),
   stopFindInPage: (): Promise<IntegratedBrowserResponse> => requireApi().stopFindInPage(),
   setZoom: (action: 'in' | 'out' | 'reset'): Promise<IntegratedBrowserResponse> => requireApi().setZoom(action),

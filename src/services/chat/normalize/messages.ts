@@ -24,6 +24,13 @@ export function normalizeMessage(
 
   const images = Array.isArray(raw.images) ? raw.images.filter(Boolean) : undefined;
   const sources = Array.isArray(raw.sources) ? raw.sources.filter((source) => source?.uri) : undefined;
+  const edit = raw.revision;
+  const revision = raw.role === 'user' && edit && Number.isSafeInteger(edit.editedAt) && edit.editedAt > 0
+    && Array.isArray(edit.supersedes) ? {
+      editedAt: edit.editedAt,
+      supersedes: [...new Set(edit.supersedes.flatMap(id => typeof id === 'string' ? [id.trim()] : []))]
+        .filter(id => id && id !== raw.id!.trim()),
+    } : undefined;
 
   return {
     id: raw.id!.trim(),
@@ -34,6 +41,7 @@ export function normalizeMessage(
     images: images && images.length > 0 ? images : undefined,
     feedback: raw.feedback === 'like' || raw.feedback === 'dislike' ? raw.feedback : undefined,
     backgroundJobId: typeof raw.backgroundJobId === 'string' && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(raw.backgroundJobId) ? raw.backgroundJobId : undefined,
+    revision,
   };
 }
 
@@ -55,12 +63,17 @@ export function dedupeMessages(messages: ChatMessage[]): ChatMessage[] {
       byId.set(message.id, message);
       continue;
     }
-    const preferred = getMessageScore(message) >= getMessageScore(existing) ? message : existing;
+    const editedAt = (message.revision?.editedAt ?? 0) - (existing.revision?.editedAt ?? 0);
+    const preferred = editedAt > 0 || (editedAt === 0 && getMessageScore(message) >= getMessageScore(existing)) ? message : existing;
     if (message.text === existing.text && !preferred.backgroundJobId) preferred.backgroundJobId = existing.backgroundJobId ?? message.backgroundJobId;
+    if (preferred.revision && message.revision && existing.revision) {
+      preferred.revision = { ...preferred.revision, supersedes: [...new Set([...existing.revision.supersedes, ...message.revision.supersedes])] };
+    }
     byId.set(message.id, preferred);
   }
 
-  return Array.from(byId.values()).sort((a, b) => {
+  const superseded = new Set(Array.from(byId.values()).flatMap(message => message.revision?.supersedes ?? []));
+  return Array.from(byId.values()).filter(message => !superseded.has(message.id)).sort((a, b) => {
     if (a.timestamp !== b.timestamp) {
       return a.timestamp - b.timestamp;
     }

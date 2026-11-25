@@ -1,5 +1,7 @@
 ﻿import { describe, it, expect, vi } from 'vitest';
 import fs from 'node:fs/promises';
+import type { Stats } from 'node:fs';
+import path from 'node:path';
 import { shell } from 'electron';
 import { executeToolDirect } from './context';
 
@@ -32,6 +34,31 @@ describe('Filesystem item operations', () => {
     vi.mocked(fs.rename).mockRejectedValue(new Error('EPERM'));
     const result = await executeToolDirect('move_item', { source_path: '/tmp/a', destination_path: '/tmp/b' });
     expect(result.success).toBe(false);
+  });
+
+  it('mueve el archivo sin sobrescribir y conserva ambas rutas si el origen cambia', async () => {
+    const source = { dev: 1, ino: 2, size: 12, mtimeMs: 3, isFile: () => true } as Stats;
+    vi.mocked(fs.lstat).mockResolvedValue(source);
+    vi.mocked(fs.realpath).mockImplementation(async value => String(value));
+    vi.mocked(fs.link).mockResolvedValue(undefined);
+    const args = { source_path: '/qa/origen', destination_path: '/qa/destino', no_overwrite: true };
+    await expect(executeToolDirect('move_item', args)).resolves.toMatchObject({ success: true });
+    expect(fs.link).toHaveBeenCalledWith(path.join('/qa', 'origen'), path.join('/qa', 'destino'));
+    expect(fs.unlink).toHaveBeenCalledOnce();
+    vi.mocked(fs.unlink).mockClear();
+    vi.mocked(fs.lstat).mockResolvedValueOnce(source).mockResolvedValueOnce({ ...source, ino: 4 });
+    await expect(executeToolDirect('move_item', args)).resolves.toMatchObject({ success: false });
+    expect(fs.unlink).not.toHaveBeenCalled();
+  });
+
+  it('un destino ocupado no se sobrescribe ni elimina el origen', async () => {
+    const source = { isFile: () => true } as Stats;
+    vi.mocked(fs.lstat).mockResolvedValue(source);
+    vi.mocked(fs.realpath).mockImplementation(async value => String(value));
+    vi.mocked(fs.link).mockRejectedValueOnce(Object.assign(new Error('Destino ocupado'), { code: 'EEXIST' }));
+    await expect(executeToolDirect('move_item', { source_path: '/qa/a', destination_path: '/qa/b', no_overwrite: true })).resolves.toMatchObject({ success: false, code: 'DESTINATION_EXISTS' });
+    expect(fs.rename).not.toHaveBeenCalled();
+    expect(fs.unlink).not.toHaveBeenCalled();
   });
 
   // ── copy_item ────────────────────────────────────────────────────────────

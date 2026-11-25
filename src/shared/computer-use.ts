@@ -1,4 +1,5 @@
 import type { ConfirmationOptions, ConfirmationResult } from './command-approval';
+import type { ComputerPermissionMode, ComputerPermissionResponse } from './computer-permissions';
 import type { DocumentDesignOptions } from './document-design';
 
 /** Respuestas extensibles: sus valores deben comprobarse antes de asumir tipos. */
@@ -11,12 +12,14 @@ export interface CreateWordDocumentOptions {
 export interface ComputerUseApi {
   /** Main revisa cada efecto local; una aprobación renderer no concede autoridad. */
   readonly nativeActionReview?: true;
+  permissionMode?(mode?: ComputerPermissionMode): Promise<ComputerPermissionResponse>;
+  cancelReview?(): Promise<{ success: boolean }>;
   listDirectory(dirPath: string, showHidden?: boolean): Promise<ComputerToolReply>;
   readFile(filePath: string): Promise<ComputerToolReply>;
   writeFile(filePath: string, content: string): Promise<ComputerToolReply>;
   createWordDocument(options: CreateWordDocumentOptions): Promise<ComputerToolReply>;
   createDirectory(dirPath: string): Promise<ComputerToolReply>;
-  moveItem(source: string, dest: string): Promise<ComputerToolReply>;
+  moveItem(source: string, dest: string, noOverwrite?: boolean): Promise<ComputerToolReply>;
   copyItem(source: string, dest: string): Promise<ComputerToolReply>;
   deleteItem(itemPath: string): Promise<ComputerToolReply>;
   getFileInfo(filePath: string): Promise<ComputerToolReply>;
@@ -28,7 +31,7 @@ export interface ComputerUseApi {
   listProcessSessions(): Promise<ComputerToolReply>;
   pollProcessSession(sessionId: string): Promise<ComputerToolReply>;
   killProcessSession(sessionId: string): Promise<ComputerToolReply>;
-  getSystemInfo(): Promise<ComputerToolReply>;
+  getSystemInfo(includeGraphics?: boolean): Promise<ComputerToolReply>;
   clipboardRead(): Promise<ComputerToolReply>;
   clipboardWrite(text: string): Promise<ComputerToolReply>;
   takeScreenshot(): Promise<ComputerToolReply>;

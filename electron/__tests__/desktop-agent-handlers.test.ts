@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ipcMain, dialog, type IpcMainInvokeEvent } from 'electron';
+import { ipcMain, type IpcMainInvokeEvent } from 'electron';
 import { authSourceFixture } from './helpers/auth-source.fixture';
+import { mountComputerApprovalFixture } from './helpers/computer-approval.fixture';
 import { resetAuthStateForTests, setAuthState } from '../main/auth-state';
 import { registerDesktopAgentHandlers } from '../desktop-agent-handlers';
 import type { DesktopAgentService } from '../desktop-agent-service';
@@ -19,7 +20,7 @@ describe('Desktop Agent Handlers Registration', () => {
 
     mockService = createMockDesktopAgentService();
     resetAuthStateForTests(); setAuthState({ authenticated: true, userId: 'usuario-qa' }); hub = authSourceFixture();
-    vi.mocked(dialog.showMessageBox).mockResolvedValue({ response: 1, checkboxChecked: false });
+    mountComputerApprovalFixture(hub.window, true);
     registerDesktopAgentHandlers(mockService as unknown as DesktopAgentService, () => hub.window);
   });
 

@@ -6,7 +6,7 @@ import type { ToolCallInfo } from '../services/gemini-chat';
 import { MODEL_OPTIONS, type ThinkingOption } from './useModelSelector';
 import { copyTextWithFallback } from './chat-processor/clipboard';
 import { createProcessMessage } from './chat-processor/create-process-message';
-import { dedupeMessageList, shouldShowLoadingUi } from './chat-processor/message-utils';
+import { replaceChatTurn, shouldShowLoadingUi } from './chat-processor/message-utils';
 import type { UseChatProcessorParams } from './chat-processor/types';
 
 export function useChatProcessor({
@@ -29,7 +29,7 @@ export function useChatProcessor({
   const [avatarActivity, setAvatarActivity] = useState<AvatarActivity>({ phase: 'idle', version: 0 });
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const messagesRef = useRef(messages);
-  messagesRef.current = messages;
+  useLayoutEffect(() => { messagesRef.current = messages; }, [messages]);
   // Controlador de cancelación del turno en curso (botón Stop).
   const abortRef = useRef<AbortController | null>(null);
   // Token de generación: solo la más reciente puede escribir en el chat. Al
@@ -107,27 +107,32 @@ export function useChatProcessor({
 
   const handleRegenerate = async (messageId: string) => {
     // Se permite durante una generación: runWithAbort aborta la anterior.
-    const targetIndex = messages.findIndex((message) => message.id === messageId);
+    const current = messagesRef.current;
+    const targetIndex = current.findIndex((message) => message.id === messageId);
     if (targetIndex === -1) return;
 
-    const historyUpToNow = messages.slice(0, targetIndex);
+    const historyUpToNow = current.slice(0, targetIndex);
     const lastUserMsgIndex = historyUpToNow.map((message) => message.role).lastIndexOf('user');
     if (lastUserMsgIndex === -1) return;
 
     const userMsg = historyUpToNow[lastUserMsgIndex];
-    const dedupedHistory = dedupeMessageList(messages.slice(0, lastUserMsgIndex + 1));
-    onMessagesChange(dedupedHistory);
-    await runWithAbort(userMsg.text, userMsg.images || [], dedupedHistory, true, undefined, userMsg.sources);
+    const revised = replaceChatTurn(current, lastUserMsgIndex, userMsg);
+    messagesRef.current = revised;
+    await runWithAbort(userMsg.text, userMsg.images || [], revised, true, undefined, userMsg.sources);
   };
 
-  const handleEditMessage = async (messageId: string, nextText: string, nextImages: string[] = []) => {
+  const handleEditMessage = async (messageId: string, nextText: string, nextImages?: string[]) => {
     // Se permite durante una generación: runWithAbort aborta la anterior.
-    const userMessageIndex = messages.findIndex((message) => message.id === messageId && message.role === 'user');
+    const current = messagesRef.current;
+    const userMessageIndex = current.findIndex((message) => message.id === messageId && message.role === 'user');
     if (userMessageIndex === -1) return;
-
-    const history = dedupeMessageList(messages.slice(0, userMessageIndex));
-    onMessagesChange(history);
-    await runWithAbort(nextText.trim(), nextImages, history, false);
+    const previous = current[userMessageIndex];
+    const text = nextText.trim();
+    const images = nextImages ?? previous.images ?? [];
+    if ((!text && !images.length) || (text === previous.text.trim() && JSON.stringify(images) === JSON.stringify(previous.images ?? []))) return;
+    const revised = replaceChatTurn(current, userMessageIndex, { ...previous, text, images: images.length ? [...images] : undefined });
+    messagesRef.current = revised;
+    await runWithAbort(text, images, revised, true, undefined, previous.sources);
   };
 
   const handleCopy = (id: string, text: string) => {

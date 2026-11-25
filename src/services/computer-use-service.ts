@@ -7,6 +7,7 @@ import { executeEmailTool } from './computer-use/email-tools';
 import { executeLocalComputerTool } from './computer-use/local-tools';
 import { executeRemoteNodeTool } from './computer-use/remote-tools';
 import { orbGuidanceService } from './orb-guidance-service';
+import { COMPUTER_NATIVE_REVIEWED_TOOLS } from '../shared/computer-use-policy';
 
 export { getDesktopAgentAPI, isComputerUseAvailable, isDesktopAgentAvailable, setConfirmationHandler };
 
@@ -26,13 +27,19 @@ export async function executeComputerTool(toolName: string, args: Record<string,
     return JSON.stringify(await orbGuidanceService.showTarget(request));
   }
 
-  let result =
-    await executeLocalComputerTool(toolName, args, api)
-    ?? await executeBackgroundTool(toolName, args, api)
-    ?? await executeDesktopTool(toolName, args, desktopApi)
-    ?? await executeRemoteNodeTool(toolName, args)
-    ?? await executeEmailTool(toolName, args, api)
-    ?? { success: false, error: `Herramienta desconocida: ${toolName}` };
+  const cancelReview = () => { void api?.cancelReview?.().catch(() => undefined); };
+  if (COMPUTER_NATIVE_REVIEWED_TOOLS.has(toolName) || toolName === 'use_computer' || toolName === 'reset_browser_profile') {
+    signal?.addEventListener('abort', cancelReview, { once: true });
+  }
+  let result;
+  try {
+    result = await executeLocalComputerTool(toolName, args, api)
+      ?? await executeBackgroundTool(toolName, args, api)
+      ?? await executeDesktopTool(toolName, args, desktopApi)
+      ?? await executeRemoteNodeTool(toolName, args)
+      ?? await executeEmailTool(toolName, args, api)
+      ?? { success: false, error: `Herramienta desconocida: ${toolName}` };
+  } finally { signal?.removeEventListener('abort', cancelReview); }
 
   if (typeof result === 'string') {
     result = { success: true, message: result };

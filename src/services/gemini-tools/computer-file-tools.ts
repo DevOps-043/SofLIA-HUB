@@ -21,7 +21,7 @@ export const COMPUTER_FILE_TOOL_DECLARATIONS: GeminiFunctionDeclaration[] = [
     }, ['title', 'content']),
   },
   { name: 'create_directory', description: 'Crea una carpeta nueva.', parameters: objectParams({ path: stringProp('Ruta completa de la carpeta.') }, ['path']) },
-  { name: 'move_item', description: 'Mueve o renombra un archivo o carpeta.', parameters: objectParams({ source_path: stringProp('Ruta origen.'), destination_path: stringProp('Ruta destino.') }, ['source_path', 'destination_path']) },
+  { name: 'move_item', description: 'Mueve o renombra un archivo o carpeta. Para mover un archivo local a una carpeta existente, usa no_overwrite: true para conservar cualquier archivo previo en el destino. En Acceso completo ese movimiento puede continuar sin aprobación adicional.', parameters: objectParams({ source_path: stringProp('Ruta origen.'), destination_path: stringProp('Ruta destino con el nombre del archivo.'), no_overwrite: booleanProp('Limita el movimiento a un archivo local y exige un destino libre.') }, ['source_path', 'destination_path']) },
   { name: 'copy_item', description: 'Copia un archivo o carpeta a otra ubicacion.', parameters: objectParams({ source_path: stringProp('Ruta origen.'), destination_path: stringProp('Ruta destino.') }, ['source_path', 'destination_path']) },
   { name: 'delete_item', description: 'Envia un archivo o carpeta a la papelera. Requiere confirmacion.', parameters: objectParams({ path: stringProp('Ruta del archivo o carpeta.') }, ['path']) },
   { name: 'get_file_info', description: 'Obtiene informacion detallada sobre un archivo o carpeta.', parameters: objectParams({ path: stringProp('Ruta del archivo o carpeta.') }, ['path']) },

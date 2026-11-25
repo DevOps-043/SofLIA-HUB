@@ -65,7 +65,7 @@ export async function executeToolDirect(
     case 'list_process_sessions': return handleListProcessSessions();
     case 'poll_process_session': return handlePollProcessSession(args);
     case 'kill_process_session': return handleKillProcessSession(args);
-    case 'get_system_info': return handleGetSystemInfo();
+    case 'get_system_info': return handleGetSystemInfo(args.graphics === true);
     case 'clipboard_read': return handleClipboardRead();
     case 'clipboard_write': return handleClipboardWrite(args);
     case 'use_computer': return handleUseComputer(args, onProgress, context);

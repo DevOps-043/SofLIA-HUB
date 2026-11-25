@@ -46,7 +46,7 @@ export class BrowserDownloadManager {
 
   list(): BrowserDownloadRecord[] {
     return Array.from(this.downloads.values())
-      .map(({ record }) => ({ ...record }))
+      .map(({ record, savePath }) => record.state === 'completed' ? { ...record, savedPath: savePath } : { ...record })
       .sort((left, right) => right.startedAt.localeCompare(left.startedAt));
   }
 

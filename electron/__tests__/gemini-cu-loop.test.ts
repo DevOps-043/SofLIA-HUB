@@ -172,9 +172,11 @@ describe('runComputerUseLoop', () => {
   it('CU-L-004: safety "blocked" no ejecuta y reporta bloqueada', async () => {
     const client = fakeClient([click(500, 500, { decision: 'blocked', explanation: 'peligro' })]);
     const driver = fakeDriver();
-    const r = await runComputerUseLoop(base(client, driver));
+    const confirmSafety = vi.fn(async () => true);
+    const r = await runComputerUseLoop(base(client, driver, { confirmSafety }));
     expect(r.estado).toBe('bloqueada');
     expect(r.mensaje).toContain('peligro');
+    expect(confirmSafety).not.toHaveBeenCalled();
     expect(driver.acciones).toHaveLength(0);
   });
 

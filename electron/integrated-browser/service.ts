@@ -112,6 +112,7 @@ import type { BrowserSyncControlRequest } from './platform-types';
 import { BrowserAgentPolicyStore, normalizeAgentOrigin } from './agent-policy-store';
 import { BrowserAgentAuditStore, BrowserAuditError, type BrowserAuditOperation } from './agent-audit-store';
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { currentComputerAccess } from '../computer-use/permission-mode';
 import { browserCertificateDecision } from './certificate-policy';
 import { assertCuNotAborted, CuContextChangedError } from '../desktop-agent/gemini-cu/execution-guard';
 import { BrowserPrivacyStore, normalizePrivacyOrigin } from './privacy-store';
@@ -1166,7 +1167,7 @@ export class IntegratedBrowserService extends EventEmitter {
     const currentUrl = contents.getURL();
     if (rawUrl !== undefined) {
       await this.loadTarget(rawUrl, undefined, options.waitForLoad);
-    } else if (!currentUrl || currentUrl === 'about:blank') {
+    } else if (!this.agentControlling && (!currentUrl || currentUrl === 'about:blank')) {
       if (!this.enterpriseUrlAllowed(INTEGRATED_BROWSER_HOME)) throw new Error('El sitio está bloqueado por tu organización.');
       await this.loadTarget(INTEGRATED_BROWSER_HOME, undefined, options.waitForLoad);
     }
@@ -1183,6 +1184,19 @@ export class IntegratedBrowserService extends EventEmitter {
     this.ensureView();
     await this.loadTarget(rawTarget, assertCurrent, options.waitForLoad);
     return this.getState();
+  }
+
+  async navigateForChat(target: string, signal: AbortSignal) {
+    await this.openForAgent(target, undefined, signal);
+    const controlRevision = this.agentControlRevision;
+    const assertTarget = this.captureNavigationGuard();
+    try {
+      assertCuNotAborted(signal);
+      const result = await this.getObservation(true, signal);
+      assertCuNotAborted(signal);
+      assertTarget();
+      return { ...result, state: this.getState() };
+    } finally { if (this.agentControlRevision === controlRevision) this.releaseAgentControl(); }
   }
 
   listDownloads() { this.assertCapability('downloads'); return this.downloadManager.list(); }
@@ -2047,13 +2061,14 @@ export class IntegratedBrowserService extends EventEmitter {
     host.focus();
     this.setAgentControlling(true);
     const controlRevision = this.agentControlRevision;
+    const tabRevision = this.activeTabRevision;
     const viewportAbort = new AbortController();
     const abortViewport = () => viewportAbort.abort();
     signal?.addEventListener('abort', abortViewport, { once: true });
     const assertOpening = () => {
       assertCuNotAborted(signal);
       assertProfile();
-      if (this.agentControlRevision !== controlRevision || this.getActiveTab() !== active) throw new CuContextChangedError();
+      if (this.agentControlRevision !== controlRevision || this.activeTabRevision !== tabRevision || this.getActiveTab() !== active) throw new CuContextChangedError();
     };
     try {
       assertOpening();
@@ -2065,9 +2080,9 @@ export class IntegratedBrowserService extends EventEmitter {
         assertOpening();
         parent.webContents.send('integrated-browser:open-requested', { url: typeof rawUrl === 'string' ? rawUrl : this.getState().url });
         return rawUrl !== undefined
-          ? this.loadTarget(rawUrl, assertOpening)
+          ? this.loadTarget(rawUrl, assertOpening, true, { signal })
           : (!contents.getURL() || contents.getURL() === 'about:blank')
-            ? this.loadTarget(INTEGRATED_BROWSER_HOME, assertOpening)
+            ? this.loadTarget(INTEGRATED_BROWSER_HOME, assertOpening, true, { signal })
             : undefined;
       }).catch(error => { abortViewport(); throw error; });
       // No liberar control mientras una navegación nativa ya emitida sigue pendiente.
@@ -3497,19 +3512,20 @@ export class IntegratedBrowserService extends EventEmitter {
     });
   }
 
-  private async loadTarget(rawTarget: unknown, assertCallerCurrent?: () => void, waitForLoad = true): Promise<void> {
+  private async loadTarget(rawTarget: unknown, assertCallerCurrent?: () => void, waitForLoad = true, agentOpening?: { signal?: AbortSignal }): Promise<void> {
     const target = normalizeBrowserTarget(rawTarget);
     const view = this.ensureView();
     const tab = this.getActiveTab()!;
     const assertCurrent = this.captureNavigationGuard();
     const requestRevision = ++this.navigationRequestRevision;
-    const documentRevision = tab.visualRevision;
+    // Un viewport recién publicado invalida coordenadas, pero no la revisión del destino.
+    const documentToken = tab.documentToken;
     const previousUrl = view.webContents.getURL();
     const safety = await checkBrowserNavigation(target, { allowRemote: this.profileKind === 'authenticated' });
     assertCurrent();
     assertCallerCurrent?.();
     if (requestRevision !== this.navigationRequestRevision || tab.view !== view || view.webContents.isDestroyed()
-      || tab.visualRevision !== documentRevision || view.webContents.getURL() !== previousUrl) {
+      || tab.documentToken !== documentToken || view.webContents.getURL() !== previousUrl) {
       throw new Error('La navegación fue reemplazada durante la revisión de seguridad.');
     }
     if (!this.enterpriseUrlAllowed(target)) {
@@ -3520,11 +3536,11 @@ export class IntegratedBrowserService extends EventEmitter {
     this.setNavigationSafety(tab, target, safety);
     this.emitState();
     this.assertNavigationAllowed(safety);
-    await this.loadTabTarget(tab, target, waitForLoad);
+    await this.loadTabTarget(tab, target, waitForLoad, agentOpening);
   }
 
   /** La UI acusa el inicio; los agentes conservan la espera del documento. */
-  private async loadTabTarget(tab: BrowserTabRuntime, target: string, waitForLoad = true): Promise<void> {
+  private async loadTabTarget(tab: BrowserTabRuntime, target: string, waitForLoad = true, agentOpening?: { signal?: AbortSignal }): Promise<void> {
     const contents = this.requireTabView(tab).webContents;
     const generation = this.sessionGeneration;
     const parent = this.parentWindow;
@@ -3548,8 +3564,32 @@ export class IntegratedBrowserService extends EventEmitter {
     }).finally(() => {
       if (tab.loadSequence === sequence) tab.awaitingNavigationStart = null;
     });
-    if (waitForLoad) await loading;
-    else void loading.catch(() => { /* El fallo vigente ya se publicó en estado. */ });
+    if (!waitForLoad) {
+      void loading.catch(() => { /* El fallo vigente ya se publicó en estado. */ });
+      return;
+    }
+    if (!agentOpening) { await loading; return; }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const stopCurrentLoad = () => {
+      if (!current()) return;
+      try { contents.stop(); } catch { /* La pestaña puede estar cerrándose. */ }
+      tab.loading = false;
+      this.emitState();
+    };
+    try {
+      agentOpening.signal?.addEventListener('abort', stopCurrentLoad, { once: true });
+      if (agentOpening.signal?.aborted) stopCurrentLoad();
+      await Promise.race([loading, new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => {
+          reject(new Error('El sitio no terminó de cargar dentro del plazo de navegación.'));
+          stopCurrentLoad();
+        }, AGENT_NAVIGATION_LOAD_TIMEOUT_MS);
+      })]);
+      if (!current()) throw new Error('La navegación fue reemplazada antes de terminar.');
+    } finally {
+      clearTimeout(timer);
+      agentOpening.signal?.removeEventListener('abort', stopCurrentLoad);
+    }
   }
 
   private assertNavigationAllowed(verdict: BrowserNavigationSafetyVerdict): void {
@@ -3681,7 +3721,9 @@ export class IntegratedBrowserService extends EventEmitter {
   }
 
   private async authorizeAgentAccess(capability: BrowserAgentCapability, tabId?: string, signal?: AbortSignal): Promise<() => void> {
-    const assertTarget = this.createAgentAccessGuard(tabId, signal);
+    const fullAccess = currentComputerAccess();
+    const accessSignal = fullAccess && signal ? AbortSignal.any([fullAccess, signal]) : fullAccess ?? signal;
+    const assertTarget = this.createAgentAccessGuard(tabId, accessSignal);
     const tab = tabId ? this.tabs.get(tabId) : this.getActiveTab();
     const startedUrl = tab?.view?.webContents.getURL() ?? tab?.url;
     const policyAudit = (allowed: boolean, confirmation: 'none' | 'accepted' | 'rejected' = 'none') => {
@@ -3699,7 +3741,8 @@ export class IntegratedBrowserService extends EventEmitter {
     const evaluation = await this.agentPolicyStore.evaluate(origin, capability);
     assertTarget();
     if (evaluation === 'block') { policyAudit(false); throw new Error('SofLIA no tiene permiso para acceder a este sitio.'); }
-    if (evaluation === 'allow') { await this.assertDocumentNotSensitive(tabId); assertTarget(); policyAudit(true); return assertTarget; }
+    if (fullAccess && evaluation === 'managed-ask') { policyAudit(false); throw new Error('La política de tu organización requiere una autorización por sitio.'); }
+    if (evaluation === 'allow' || fullAccess) { await this.assertDocumentNotSensitive(tabId); assertTarget(); policyAudit(true); return assertTarget; }
     const decision = await this.promptAgentPolicy({
       id: randomUUID(),
       origin,
@@ -5379,6 +5422,7 @@ function removeHeader(headers: Record<string, unknown>, name: string): void {
   if (key) delete headers[key];
 }
 
+const AGENT_NAVIGATION_LOAD_TIMEOUT_MS = 25_000;
 const PERMISSION_PROMPT_TIMEOUT_MS = 120_000;
 
 /**

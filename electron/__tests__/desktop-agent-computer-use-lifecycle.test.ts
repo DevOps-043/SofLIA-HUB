@@ -44,6 +44,19 @@ describe('Ciclo de vida de Computer Use integrado', () => {
     vi.clearAllMocks();
   });
 
+  it('el actuador confirma decisiones revisables sólo durante el permiso de sesión', async () => {
+    const service = fixture();
+    const grant = new AbortController();
+    mocks.runLoop.mockImplementationOnce(async ({ confirmSafety }) => {
+      expect(await confirmSafety()).toBe(true);
+      grant.abort();
+      expect(await confirmSafety()).toBe(false);
+      return { estado: 'cancelada', mensaje: 'Tarea cancelada.', pasos: 0 };
+    });
+    await expect(runComputerUseDesktopTask(service, 'Tarea de escritorio', { fullAccess: grant.signal })).resolves.toMatchObject({ estado: 'cancelada' });
+    expect(mocks.createClient).toHaveBeenCalledWith(expect.objectContaining({ fullAccess: true }));
+  });
+
   it('la tarea desktop tiene cancelación propia aunque el llamador no proporcione señal', async () => {
     const service = fixture(); const entered = deferred<void>(), drained = deferred<void>();
     mocks.runLoop.mockImplementationOnce(async ({ abortSignal }) => {

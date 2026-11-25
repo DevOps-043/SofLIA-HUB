@@ -22,8 +22,9 @@ export async function loadMessages(conversationId: string, userId?: string): Pro
     }
 
     if (!userId) {
-      saveMessagesToCache(conversationId, remote);
-      return remote;
+      const messages = dedupeMessages(remote);
+      saveMessagesToCache(conversationId, messages);
+      return messages;
     }
     return buildMessageList(userId, conversationId, remote);
   } catch (err) {
@@ -38,7 +39,7 @@ function loadLocalMessages(conversationId: string, userId: string | undefined, e
 }
 
 function mapRemoteMessages(rows: Record<string, unknown>[]): ChatMessage[] {
-  return dedupeMessages(rows.map((message) => ({
+  return rows.map((message) => ({
     id: message.id as string,
     role: message.role as 'user' | 'model',
     text: message.content as string,
@@ -47,5 +48,6 @@ function mapRemoteMessages(rows: Record<string, unknown>[]): ChatMessage[] {
     images: (message.metadata as { images?: ChatMessage['images'] })?.images,
     feedback: (message.metadata as { feedback?: ChatMessage['feedback'] })?.feedback,
     backgroundJobId: (message.metadata as { backgroundJobId?: string })?.backgroundJobId,
-  })));
+    revision: (message.metadata as { revision?: ChatMessage['revision'] })?.revision,
+  }));
 }

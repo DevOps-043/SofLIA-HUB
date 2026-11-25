@@ -12,6 +12,8 @@ import { app, BaseWindow, BrowserWindow, WebContentsView, dialog, session, syste
 import { IntegratedBrowserService, type BrowserCredentialVault } from '../integrated-browser';
 import { BrowserSitePermissionStore } from '../integrated-browser/site-permissions';
 import { BrowserAgentPolicyStore } from '../integrated-browser/agent-policy-store';
+import type { BrowserAgentAuditStore } from '../integrated-browser/agent-audit-store';
+import { withComputerAccess } from '../computer-use/permission-mode';
 import { BrowserPrivacyStore } from '../integrated-browser/privacy-store';
 import { BrowserSemanticMemory } from '../integrated-browser/semantic-memory';
 import { BrowserEnterprisePolicyStore } from '../integrated-browser/enterprise-policy-store';
@@ -2150,6 +2152,40 @@ describe('IntegratedBrowserService', () => {
     }
   });
 
+  it('Acceso completo autoriza el sitio en la operación actual y conserva los bloqueos', async () => {
+    const previous = process.env.BROWSER_AGENT_GOVERNANCE_ENABLED;
+    process.env.BROWSER_AGENT_GOVERNANCE_ENABLED = 'true';
+    const policies = new BrowserAgentPolicyStore(path.join(os.tmpdir(), `soflia-agent-full-${randomUUID()}.json`));
+    const evaluate = vi.spyOn(policies, 'evaluate').mockResolvedValue('ask');
+    const service = new IntegratedBrowserService(undefined, undefined, undefined, undefined, newStore(), undefined, undefined, undefined, policies);
+    const auditStore = (service as unknown as { auditStore: BrowserAgentAuditStore }).auditStore;
+    const audit = vi.spyOn(auditStore, 'record').mockImplementation(() => {});
+    const window = new BrowserWindow();
+    const grant = new AbortController();
+    try {
+      service.attachWindow(window);
+      await service.open('https://example.com');
+      service.setViewport({ x: 0, y: 0, width: 800, height: 600 });
+      const authorize = () => withComputerAccess(grant.signal, () => service.authorizeAgentTarget('act'));
+      const target = await authorize();
+      expect(target.assertCurrent).not.toThrow();
+      expect(window.webContents.send).not.toHaveBeenCalledWith('integrated-browser:agent-policy-prompt', expect.anything());
+      expect((await policies.get('https://example.com')).decision).toBe('ask');
+      evaluate.mockResolvedValueOnce('block');
+      await expect(authorize()).rejects.toThrow('no tiene permiso');
+      evaluate.mockResolvedValueOnce('managed-ask');
+      await expect(authorize()).rejects.toThrow('organización');
+      expect(audit.mock.calls.map(([entry]) => entry.result)).toEqual(['allowed', 'blocked', 'blocked']);
+      grant.abort();
+      expect(target.assertCurrent).toThrow();
+      await expect(authorize()).rejects.toThrow();
+    } finally {
+      service.detachWindow();
+      if (previous === undefined) delete process.env.BROWSER_AGENT_GOVERNANCE_ENABLED;
+      else process.env.BROWSER_AGENT_GOVERNANCE_ENABLED = previous;
+    }
+  });
+
   it('carga la política empresarial antes de navegar y bloquea crear pestañas restringidas', async () => {
     const previous = process.env.BROWSER_ENTERPRISE_CONTROLS_ENABLED;
     process.env.BROWSER_ENTERPRISE_CONTROLS_ENABLED = 'true';
@@ -4272,6 +4308,44 @@ describe('IntegratedBrowserService', () => {
       expect(service.getViewportSize()).toEqual({ width: 800, height: 560 });
       expect(contents.focus).toHaveBeenCalledOnce();
     } finally { detach(); control.finish(); service.releaseAgentControl(); service.detachWindow(); }
+  });
+
+  it('al abrir desde el chat, el montaje del panel no reemplaza el destino por Inicio', async () => {
+    const service = newService(); const window = new BrowserWindow(); service.attachWindow(window);
+    let allow!: (value: navigationSafety.BrowserNavigationSafetyVerdict) => void;
+    const safety = vi.spyOn(navigationSafety, 'checkBrowserNavigation').mockReturnValueOnce(new Promise(resolve => { allow = resolve; }));
+    const observation = vi.spyOn(service, 'getObservation');
+    const opening = service.navigateForChat('https://example.com/destino', new AbortController().signal);
+    try {
+      await vi.waitFor(() => expect(safety).toHaveBeenCalledOnce());
+      await service.open(undefined, { waitForLoad: false });
+      service.setViewport({ x: 100, y: 140, width: 800, height: 560 });
+      allow({ action: 'allow', source: 'local', reason: null, checkedAt: new Date().toISOString() });
+      const response = await opening;
+      expect(browserViewHarness.instances[0].webContents.loadURL.mock.calls).toEqual([['https://example.com/destino']]);
+      expect(response.state.url).toBe('https://example.com/destino');
+      expect(observation).toHaveBeenCalledWith(true, expect.any(AbortSignal));
+      expect(service.getState().agentControlling).toBe(false);
+    } finally { service.detachWindow(); }
+  });
+
+  it('detiene una carga nativa atascada y devuelve el control del navegador', async () => {
+    const service = newService(); service.attachWindow(new BrowserWindow());
+    await service.open('https://example.com');
+    service.setViewport({ x: 100, y: 100, width: 800, height: 600 });
+    const contents = browserViewHarness.instances[0].webContents;
+    let started!: () => void;
+    const start = new Promise<void>(resolve => { started = resolve; });
+    contents.loadURL.mockImplementationOnce(() => { started(); return new Promise<void>(() => undefined); });
+    vi.useFakeTimers();
+    try {
+      const open = service.navigateForChat('https://example.com/pendiente', new AbortController().signal).catch(error => error);
+      await start;
+      await vi.advanceTimersByTimeAsync(25_000);
+      expect((await open).message).toContain('no terminó de cargar');
+      expect(service.getState().agentControlling).toBe(false);
+      expect(service.getState().isLoading).toBe(false);
+    } finally { vi.useRealTimers(); service.detachWindow(); }
   });
 
   it('un fallo al pedir la apertura retira la espera supervisada y libera el control', async () => {

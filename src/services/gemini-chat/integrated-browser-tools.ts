@@ -1,4 +1,7 @@
 import { requestUserConfirmation } from '../computer-use/confirmation';
+import { isFullComputerAccess } from '../computer-use/permissions';
+import { integratedBrowserService } from '../integrated-browser-service';
+import { inspectBrowserDownloads } from './browser-download-tool';
 import {
   MEDIA_BUDGET,
   buildPlaybackWindow,
@@ -36,6 +39,7 @@ export async function executeIntegratedBrowserTool(
   signal?.throwIfAborted();
   const api = window.integratedBrowser;
   if (!api) return failure('El navegador integrado no está disponible.');
+  if (toolName === 'inspect_browser_downloads') return inspectBrowserDownloads(args, signal);
 
   if (toolName === 'read_active_document') {
     const visible = await requireVisibleBrowser('leer el documento');
@@ -110,15 +114,13 @@ export async function executeIntegratedBrowserTool(
   }
 
   if (toolName === 'navigate_integrated_browser') {
-    const visible = await requireVisibleBrowser('navegar');
-    if (visible) return visible;
     const target = typeof args.target === 'string' ? args.target.trim() : '';
     if (!target || target.length > 2_048) {
       return failure('El destino debe ser una URL o consulta válida de hasta 2048 caracteres.');
     }
-    const navigation = await api.navigate(target);
-    if (!navigation.success) return failure(navigation.error || 'No fue posible navegar al destino solicitado.');
-    return serializeObservation(await api.getObservation(true));
+    const navigation = await integratedBrowserService.navigateForChat(target, signal);
+    signal?.throwIfAborted();
+    return serializeObservation(navigation);
   }
 
   if (toolName === 'click_browser_element') {
@@ -126,9 +128,10 @@ export async function executeIntegratedBrowserTool(
     if (visible) return visible;
     const ref = readRef(args.ref);
     if (!ref) return failure('Indica el identificador "ref" de un control devuelto por read_browser_dom.');
-    const denied = await confirmDestructiveInteraction(ref, args.reason);
-    if (denied) return denied;
-    const result = await api.clickElement(ref);
+    const review = await reviewBrowserClick(ref, args.reason);
+    if ('error' in review) return review.error;
+    signal?.throwIfAborted();
+    const result = review.requireFullAccess ? await api.clickElement(ref, true) : await api.clickElement(ref);
     if (!result.success) return failure(result.error || 'No fue posible hacer clic en el elemento indicado.');
     return serializeInteraction(result, await api.getObservation(true));
   }
@@ -140,14 +143,19 @@ export async function executeIntegratedBrowserTool(
     if (!ref) return failure('Indica el identificador "ref" de un campo devuelto por read_browser_dom.');
     if (typeof args.text !== 'string') return failure('El texto a escribir debe ser una cadena.');
     if (args.text.length > 5_000) return failure('El texto a escribir excede el límite de 5000 caracteres.');
-    if (args.submit === true) {
+    const submit = args.submit === true;
+    const requireFullAccess = submit && await isFullComputerAccess();
+    if (submit && !requireFullAccess) {
       const confirmed = await requestUserConfirmation(
         'type_in_browser_element',
         `Escribir y enviar contenido mediante Enter en el navegador integrado.\nContenido: ${args.text.slice(0, 500)}`,
       );
       if (!confirmed) return failure('Acción cancelada por el usuario.');
     }
-    const result = await api.typeInElement(ref, args.text, args.submit === true);
+    signal?.throwIfAborted();
+    const result = requireFullAccess
+      ? await api.typeInElement(ref, args.text, submit, true)
+      : await api.typeInElement(ref, args.text, submit);
     if (!result.success) return failure(result.error || 'No fue posible escribir en el campo indicado.');
     return serializeInteraction(result, await api.getObservation(true));
   }
@@ -285,18 +293,22 @@ async function requireVisibleBrowser(action: string): Promise<string | null> {
   return null;
 }
 
-async function confirmDestructiveInteraction(ref: string, reason: unknown): Promise<string | null> {
-  const observation = await window.integratedBrowser!.getObservation(false);
-  const control = observation.observation?.dom.controls.find((candidate) => candidate.ref === ref) ?? null;
+async function reviewBrowserClick(ref: string, reason: unknown): Promise<{ error: string } | { requireFullAccess: boolean }> {
+  const api = window.integratedBrowser!;
+  const cached = await api.getObservation(false);
+  const observation = cached.observation ? cached : await api.getObservation(true);
+  const control = observation.observation?.dom.controls.find((candidate) => candidate.ref === ref);
+  if (!observation.success || !control) return { error: failure('La referencia del control ya no está disponible. Vuelve a leer el DOM antes de actuar.') };
   const label = [control?.name, control?.text, control?.type].filter(Boolean).join(' ').trim();
-  if (!label || !DESTRUCTIVE_CONTROL_PATTERN.test(label)) return null;
+  if (!label || !DESTRUCTIVE_CONTROL_PATTERN.test(label)) return { requireFullAccess: false };
+  if (await isFullComputerAccess()) return { requireFullAccess: true };
 
   const motive = typeof reason === 'string' && reason.trim() ? `\nMotivo: ${reason.trim().slice(0, 200)}` : '';
   const confirmed = await requestUserConfirmation(
     'click_browser_element',
     `Hacer clic en un control con efecto irreversible dentro del navegador integrado.\nControl: ${label.slice(0, 160)}${motive}`,
   );
-  return confirmed ? null : failure('Acción cancelada por el usuario.');
+  return confirmed ? { requireFullAccess: false } : { error: failure('Acción cancelada por el usuario.') };
 }
 
 function readRef(value: unknown): string | null {

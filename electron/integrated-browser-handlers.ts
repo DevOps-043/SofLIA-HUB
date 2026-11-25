@@ -9,6 +9,8 @@ import { validateBrowserSemanticRequest } from '../src/shared/browser-semantic-m
 import { getAuthState, onAuthStateChange } from './main/auth-state';
 import { validateCredentialSessionRequest } from '../src/shared/browser-credential-session';
 import { validateExtensionCatalogRequest } from '../src/shared/browser-extension-catalog';
+import { trustedAppCaller } from './ipc/caller-authorization';
+import { currentComputerAccess, fullComputerAccessFor, withComputerAccess } from './computer-use/permission-mode';
 
 export function registerIntegratedBrowserHandlers(
   service: IntegratedBrowserService,
@@ -34,6 +36,19 @@ export function registerIntegratedBrowserHandlers(
         return { success: false, error: safeBrowserError(error) };
       }
     });
+  };
+  const handleAgent = (channel: string, operation: Parameters<typeof handle>[1], serialize?: Parameters<typeof handle>[2]) => {
+    handle(channel, async (event, ...args) => {
+      const windows = () => [getMainWindow()];
+      const fullAccess = fullComputerAccessFor(getMainWindow());
+      if (!fullAccess) return operation(event, ...args);
+      const caller = trustedAppCaller(event, windows);
+      try {
+        caller.assert();
+        const signal = AbortSignal.any([caller.signal, fullAccess]);
+        return await withComputerAccess(signal, () => operation(event, ...args));
+      } finally { caller.dispose(); }
+    }, serialize);
   };
 
   handle('integrated-browser:get-state', () => service.getState());
@@ -149,7 +164,7 @@ export function registerIntegratedBrowserHandlers(
   }, (result) => result as Record<string, unknown>);
   // Captura explicita bajo demanda: ruta paralela a la observacion pasiva,
   // sin su cadencia ni su presupuesto visual reducido.
-  handle('integrated-browser:capture-frame', async () => ({
+  handleAgent('integrated-browser:capture-frame', async () => ({
     capture: await service.captureExplicitFrame(),
     state: service.getState(),
   }), (result) => result as Record<string, unknown>);
@@ -159,7 +174,7 @@ export function registerIntegratedBrowserHandlers(
   }), (result) => result as Record<string, unknown>);
   const frameSamples = new Map<string, AbortController>();
   onAuthStateChange(() => { for (const controller of frameSamples.values()) controller.abort(); frameSamples.clear(); });
-  handle('integrated-browser:sample-frames', async (event, input) => {
+  handleAgent('integrated-browser:sample-frames', async (event, input) => {
     if (!event.senderFrame || event.senderFrame !== getMainWindow()?.webContents.mainFrame) throw new Error('Emisor inválido.');
     const requestId = (input as { requestId?: unknown })?.requestId;
     if (requestId !== undefined && (typeof requestId !== 'string' || !/^[a-z0-9-]{1,80}$/i.test(requestId))) throw new Error('Identificador de muestreo inválido.');
@@ -176,7 +191,7 @@ export function registerIntegratedBrowserHandlers(
     controller?.abort();
     return { cancelled: Boolean(controller) };
   }, result => result as Record<string, unknown>);
-  handle('integrated-browser:get-observation', async (_event, input) => ({
+  handleAgent('integrated-browser:get-observation', async (_event, input) => ({
     ...(await service.getObservation(readForceFresh(input))),
     state: service.getState(),
   }), (result) => result as Record<string, unknown>);
@@ -189,6 +204,38 @@ export function registerIntegratedBrowserHandlers(
     return service.open(url, { waitForLoad: readWaitForLoad(input) });
   });
   handle('integrated-browser:navigate', (_event, input) => service.navigate(readTarget(input), undefined, { waitForLoad: readWaitForLoad(input) }));
+  let chatNavigation: { requestId: string; controller: AbortController; sender: IpcMainInvokeEvent['sender'] } | undefined;
+  handle('integrated-browser:chat-navigate', async (event, requestId, target, ...extra) => {
+    const caller = trustedAppCaller(event, () => [getMainWindow()]);
+    try {
+      caller.assert();
+      if (extra.length || typeof requestId !== 'string' || !/^[a-z0-9-]{1,80}$/i.test(requestId)
+        || typeof target !== 'string' || !target.trim() || target.length > 2048) throw new Error('Destino de navegación inválido.');
+      if (chatNavigation) throw new Error('Ya hay una navegación del chat en curso.');
+      const controller = new AbortController();
+      chatNavigation = { requestId, controller, sender: event.sender };
+      try {
+        const fullAccess = fullComputerAccessFor(caller.parent);
+        const signals = [caller.signal, controller.signal];
+        if (fullAccess) signals.push(fullAccess);
+        const signal = AbortSignal.any(signals);
+        const result = await withComputerAccess(fullAccess && signal, () => service.navigateForChat(target, signal));
+        caller.assert();
+        return result;
+      } finally { chatNavigation = undefined; }
+    } finally { caller.dispose(); }
+  }, result => result as Record<string, unknown>);
+  handle('integrated-browser:chat-cancel-navigation', (event, requestId, ...extra) => {
+    const caller = trustedAppCaller(event, () => [getMainWindow()]);
+    try {
+      caller.assert();
+      if (extra.length || typeof requestId !== 'string' || !/^[a-z0-9-]{1,80}$/i.test(requestId)) throw new Error('Cancelación de navegación inválida.');
+      const current = chatNavigation;
+      if (!current || current.requestId !== requestId || current.sender !== event.sender) return { cancelled: false };
+      current.controller.abort();
+      return { cancelled: true };
+    } finally { caller.dispose(); }
+  }, result => result as Record<string, unknown>);
   handle('integrated-browser:page-find', (_event, input) => {
     const value = readPageFindInput(input);
     return service.findInPage(value.query, value.forward);
@@ -205,18 +252,20 @@ export function registerIntegratedBrowserHandlers(
   handle('integrated-browser:downloads-retry', (_event, input) => service.retryDownload(readDownloadId(input)), (download) => ({ download }));
   handle('integrated-browser:downloads-open', (_event, input) => service.openDownload(readDownloadId(input)), (opened) => ({ opened }));
   handle('integrated-browser:downloads-reveal', (_event, input) => service.revealDownload(readDownloadId(input)), (revealed) => ({ revealed }));
-  handle('integrated-browser:element-click', async (_event, input) => ({
-    ...(await service.clickElement(readElementRef(input))),
-    state: service.getState(),
-  }), (result) => result as Record<string, unknown>);
-  handle('integrated-browser:element-type', async (_event, input) => {
+  handleAgent('integrated-browser:element-click', async (_event, input) => {
+    const ref = readElementRef(input);
+    assertInteractionPermission(input);
+    return { ...(await service.clickElement(ref)), state: service.getState() };
+  }, (result) => result as Record<string, unknown>);
+  handleAgent('integrated-browser:element-type', async (_event, input) => {
     const value = readElementTypeInput(input);
+    assertInteractionPermission(input);
     return {
       ...(await service.typeInElement(value.ref, value.text, value.submit)),
       state: service.getState(),
     };
   }, (result) => result as Record<string, unknown>);
-  handle('integrated-browser:scroll', async (_event, input) => {
+  handleAgent('integrated-browser:scroll', async (_event, input) => {
     const value = readScrollInput(input);
     await service.scrollView(value.direction, value.amount);
     return service.getState();
@@ -268,8 +317,8 @@ export function registerIntegratedBrowserHandlers(
     if (temporary !== undefined && typeof temporary !== 'boolean') throw new Error('Modo de ocultación inválido.');
     return service.hide(temporary === true);
   });
-  handle('integrated-browser:document-read', () => service.readActiveDocument(), (document) => ({ document }));
-  handle('integrated-browser:reading-prepare', (_event, input) => service.prepareReadingMode(readReadingPrepareInput(input)), (reading) => ({ reading }));
+  handleAgent('integrated-browser:document-read', () => service.readActiveDocument(), (document) => ({ document }));
+  handleAgent('integrated-browser:reading-prepare', (_event, input) => service.prepareReadingMode(readReadingPrepareInput(input)), (reading) => ({ reading }));
   handle('integrated-browser:reading-synthesize', (_event, input) => service.synthesizeReadingSegment(readReadingSynthesisInput(input)), (speech) => ({ speech }));
   handle('integrated-browser:reading-highlight', (_event, input) => service.highlightReadingRange(readReadingHighlightInput(input)), (result) => result as Record<string, unknown>);
   handle('integrated-browser:reading-toolbar-wait', (_event, input) => service.waitForReadingToolbarAction(readReadingIdInput(input)), (toolbarAction) => ({ toolbarAction }));
@@ -454,7 +503,7 @@ export function registerIntegratedBrowserHandlers(
     const summaries = service.getTabSummaries();
     return { summaries, state: service.getState() };
   }, (result) => result as Record<string, unknown>);
-  handle('integrated-browser:get-tab-content', async (event, ...args) => {
+  handleAgent('integrated-browser:get-tab-content', async (event, ...args) => {
     if (!event.senderFrame || event.senderFrame !== getMainWindow()?.webContents.mainFrame || args.length !== 1) throw new Error('La lectura sólo se permite desde la ventana principal.');
     const input = args[0];
     if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some((key) => !['tabId', 'expected'].includes(key))) throw new Error('La selección de pestaña es inválida.');
@@ -574,6 +623,12 @@ function readElementRef(input: unknown): string {
   const ref = (input as { ref?: unknown }).ref;
   if (typeof ref !== 'string' || !ref.trim() || ref.length > 60) throw new Error('La referencia del elemento es invalida.');
   return ref;
+}
+
+function assertInteractionPermission(input: unknown): void {
+  const { requireFullAccess } = input as { requireFullAccess?: unknown };
+  if (requireFullAccess !== undefined && typeof requireFullAccess !== 'boolean') throw new Error('El modo de permisos de la acción es inválido.');
+  if (requireFullAccess && currentComputerAccess()?.aborted !== false) throw new Error('Acceso completo dejó de estar activo.');
 }
 
 function readElementTypeInput(input: unknown): { ref: string; text: string; submit: boolean } {

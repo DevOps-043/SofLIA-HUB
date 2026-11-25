@@ -22,6 +22,7 @@ export interface BrowserDownloadRecord {
   canResume: boolean;
   startedAt: string;
   completedAt: string | null;
+  savedPath?: string;
   error: string | null;
 }
 

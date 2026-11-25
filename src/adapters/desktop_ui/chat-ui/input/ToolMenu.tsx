@@ -8,6 +8,8 @@ import { desktopContextService } from '../../../../services/desktop-context-serv
 import { startAppExtraction, type AppContextAttachmentState } from '../app-attachments';
 import { BROWSER_SOURCE_LIMITS } from '../../../../shared/browser-tab-context';
 import { BrowserAgentShortcutsPanel } from '../../../../components/browser/BrowserAgentShortcutsPanel';
+import { hasComputerPermissions } from '../../../../services/computer-use/permissions';
+import { ComputerPermissionMenu } from './ComputerPermissionMenu';
 import {
   ImageIcon,
   SparklesIcon,
@@ -42,6 +44,7 @@ function getToolIcon(id: string, active: boolean) {
     case 'create_prompt':
       return <DocumentIcon size={size} className={className} />;
     case 'my_skills':
+    case 'computer_permissions':
       return <ToolsIcon size={size} className={className} />;
     case 'attach_file':
       return <PaperclipIcon size={size} className={className} />;
@@ -58,6 +61,7 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
   const [isTabPickerOpen, setIsTabPickerOpen] = useState(false);
   const [isAppPickerOpen, setIsAppPickerOpen] = useState(false);
   const [isShortcutPickerOpen, setIsShortcutPickerOpen] = useState(false);
+  const [isPermissionPickerOpen, setIsPermissionPickerOpen] = useState(false);
 
   const attachedTabs = controller.state.tabs?.attached ?? [];
   const hasAttachedTabs = attachedTabs.length > 0;
@@ -67,6 +71,7 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
   const canAttachApps = desktopContextService.isAvailable();
 
   const options: ToolOption[] = [
+    ...(hasComputerPermissions() ? [{ id: 'computer_permissions', label: 'Permisos de computadora', sub: 'Elegir cuándo autorizar acciones' }] : []),
     { id: 'browser_shortcuts', label: 'Atajos del navegador', sub: 'Instrucciones de lectura reutilizables' },
     { id: 'attach_tabs', label: 'Añadir pestañas', sub: 'Análisis multi-pestaña', active: hasAttachedTabs },
     ...(canAttachApps
@@ -86,6 +91,7 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
       setIsTabPickerOpen(false);
       setIsAppPickerOpen(false);
       setIsShortcutPickerOpen(false);
+      setIsPermissionPickerOpen(false);
       return;
     }
     const rect = buttonRef.current.getBoundingClientRect();
@@ -101,6 +107,7 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
     setIsTabPickerOpen(false);
     setIsAppPickerOpen(false);
     setIsShortcutPickerOpen(false);
+    setIsPermissionPickerOpen(false);
   }, [controller.state.tools]);
 
   const handleToggleTab = (tab: TabContextAttachment) => {
@@ -155,7 +162,7 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
             className="fixed z-[9999] overflow-hidden animate-in fade-in zoom-in-95 duration-150"
             style={{ left: menuPos.left, bottom: menuPos.bottom }}
           >
-            {isShortcutPickerOpen ? <BrowserAgentShortcutsPanel key={controller.shortcuts.contextKey} onClose={handleClose} onUse={(entry, profile) => { controller.shortcuts.use(entry, profile); handleClose(); }} /> : isTabPickerOpen ? (
+            {isPermissionPickerOpen ? <ComputerPermissionMenu onBack={() => setIsPermissionPickerOpen(false)} /> : isShortcutPickerOpen ? <BrowserAgentShortcutsPanel key={controller.shortcuts.contextKey} onClose={handleClose} onUse={(entry, profile) => { controller.shortcuts.use(entry, profile); handleClose(); }} /> : isTabPickerOpen ? (
               <TabAttachmentPicker
                 attachedTabs={attachedTabs}
                 onToggleTab={handleToggleTab}
@@ -169,7 +176,9 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
                   <button
                     key={tool.id}
                     onClick={() => {
-                      if (tool.id === 'browser_shortcuts') {
+                      if (tool.id === 'computer_permissions') {
+                        setIsPermissionPickerOpen(true);
+                      } else if (tool.id === 'browser_shortcuts') {
                         setIsShortcutPickerOpen(true);
                       } else if (tool.id === 'attach_tabs') {
                         setIsTabPickerOpen(true);
@@ -203,7 +212,7 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
                         {tool.sub}
                       </div>
                     </div>
-                    {(tool.id === 'attach_tabs' || tool.id === 'attach_apps') && (
+                    {(tool.id === 'attach_tabs' || tool.id === 'attach_apps' || tool.id === 'computer_permissions') && (
                       <ChevronRightIcon size={14} className="text-gray-400 shrink-0" />
                     )}
                   </button>

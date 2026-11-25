@@ -18,6 +18,8 @@ export const CHANNEL_GROUP_4 = [
   'integrated-browser:set-observation-enabled',
   'integrated-browser:open',
   'integrated-browser:navigate',
+  'integrated-browser:chat-navigate',
+  'integrated-browser:chat-cancel-navigation',
   'integrated-browser:page-find',
   'integrated-browser:page-find-stop',
   'integrated-browser:page-zoom',

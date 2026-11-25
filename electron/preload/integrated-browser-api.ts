@@ -31,6 +31,8 @@ export function exposeIntegratedBrowserApi(bridge: PreloadBridge, ipc: SafeIpc):
     setObservationEnabled: (enabled: boolean) => safeInvoke('integrated-browser:set-observation-enabled', { enabled }),
     open: (url?: string, options?: BrowserNavigationOptions) => safeInvoke('integrated-browser:open', navigationPayload(url === undefined ? {} : { url }, options)),
     navigate: (target: string, options?: BrowserNavigationOptions) => safeInvoke('integrated-browser:navigate', navigationPayload({ target }, options)),
+    navigateForChat: (requestId: string, target: string) => safeInvoke('integrated-browser:chat-navigate', requestId, target),
+    cancelChatNavigation: (requestId: string) => safeInvoke('integrated-browser:chat-cancel-navigation', requestId),
     findInPage: (query: string, forward = true) => safeInvoke('integrated-browser:page-find', { query, forward }),
     stopFindInPage: () => safeInvoke('integrated-browser:page-find-stop'),
     setZoom: (action: 'in' | 'out' | 'reset') => safeInvoke('integrated-browser:page-zoom', { action }),
@@ -44,9 +46,10 @@ export function exposeIntegratedBrowserApi(bridge: PreloadBridge, ipc: SafeIpc):
     retryDownload: (id: string) => safeInvoke('integrated-browser:downloads-retry', { id }),
     openDownload: (id: string) => safeInvoke('integrated-browser:downloads-open', { id }),
     revealDownload: (id: string) => safeInvoke('integrated-browser:downloads-reveal', { id }),
-    clickElement: (ref: string) => safeInvoke('integrated-browser:element-click', { ref }),
-    typeInElement: (ref: string, text: string, submit = false) =>
-      safeInvoke('integrated-browser:element-type', { ref, text, submit }),
+    clickElement: (ref: string, requireFullAccess = false) =>
+      safeInvoke('integrated-browser:element-click', { ref, ...(requireFullAccess ? { requireFullAccess } : {}) }),
+    typeInElement: (ref: string, text: string, submit = false, requireFullAccess = false) =>
+      safeInvoke('integrated-browser:element-type', { ref, text, submit, ...(requireFullAccess ? { requireFullAccess } : {}) }),
     scrollView: (direction: 'up' | 'down' | 'left' | 'right', amount?: number) =>
       safeInvoke('integrated-browser:scroll', { direction, amount }),
     createTab: (url?: string, options?: BrowserNavigationOptions) => safeInvoke('integrated-browser:tab-create', navigationPayload(url === undefined ? {} : { url }, options)),

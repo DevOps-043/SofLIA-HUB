@@ -113,8 +113,7 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
       return;
     }
 
-    const cleanHistory = updatedMessages
-      .filter((message) => message.id !== aiMessageId)
+    const cleanHistory = (isRegeneration ? currentHistory.slice(0, -1) : currentHistory)
       .map((message) => ({ role: message.role, text: message.text }));
     // El armado de contexto (IRIS/memoria) va por IPC/red: se acota con timeout
     // y degrada a sin-contexto para que un servicio colgado no congele el turno.

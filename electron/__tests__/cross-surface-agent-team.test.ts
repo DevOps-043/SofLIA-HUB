@@ -28,7 +28,7 @@ describe('Integración de equipos en main', () => {
       environment: 'ENVIRONMENT_BROWSER',
       createClient: async () => ({ responses: { create: generate } }) as unknown as OpenAI,
     });
-    await client.iniciar('Abre el panel y revisa sus datos', 'captura-privada', { text: 'Datos de la página' });
+    await client.iniciar('Modo equipo: abre el panel y revisa sus datos', 'captura-privada', { text: 'Datos de la página' });
     expect(generate).toHaveBeenCalledTimes(3);
     for (const [params] of generate.mock.calls.slice(0, 2)) {
       expect(params).not.toHaveProperty('tools');
@@ -39,6 +39,16 @@ describe('Integración de equipos en main', () => {
     expect(final.tools).toContainEqual(expect.objectContaining({ name: 'click_at' }));
     expect(JSON.stringify(final.input)).toContain('Plan independiente');
     expect(JSON.stringify(final.input)).toContain('captura-privada');
+  });
+  it('una tarea visual ordinaria inicia sólo el controlador', async () => {
+    const generate = vi.fn().mockResolvedValue({ output: [], output_text: 'Fin' });
+    const client = createComputerUseClient({
+      environment: 'ENVIRONMENT_BROWSER',
+      createClient: async () => ({ responses: { create: generate } }) as unknown as OpenAI,
+    });
+    await client.iniciar('Abre el panel y revisa sus datos', 'imagen', undefined);
+    expect(generate).toHaveBeenCalledOnce();
+    expect(generate.mock.calls[0][0].tools).toContainEqual(expect.objectContaining({ name: 'click_at' }));
   });
   it('cancelar especialistas de Computer Use impide iniciar el controlador', async () => {
     const controller = new AbortController(); let resolve!: (value: { text: string }) => void;

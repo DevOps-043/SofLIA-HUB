@@ -40,7 +40,7 @@ export async function handleKillProcess(pid: number): Promise<{ success: boolean
   }
 }
 
-export async function handleGetSystemInfo(): Promise<Record<string, any>> {
+export async function handleGetSystemInfo(includeGraphics = false): Promise<Record<string, any>> {
   try {
     const cpus = os.cpus();
     const totalMem = os.totalmem();
@@ -77,8 +77,18 @@ export async function handleGetSystemInfo(): Promise<Record<string, any>> {
       cpu: { model: cpus[0]?.model || 'Unknown', cores: cpus.length },
       memory: { total: formatBytes(totalMem), free: formatBytes(freeMem), used: formatBytes(totalMem - freeMem), usagePercent: Math.round(((totalMem - freeMem) / totalMem) * 100) },
       uptime: `${Math.floor(os.uptime() / 3600)}h ${Math.floor((os.uptime() % 3600) / 60)}m`,
+      ...(includeGraphics ? await readGraphicsControllers() : {}),
     };
   } catch (err: any) {
     return { success: false, error: err.message };
   }
+}
+
+async function readGraphicsControllers() {
+  try {
+    const devices = await si.graphics();
+    const graphics = (devices.controllers as Array<{ vendor: string; model: string; driverVersion?: string }>)
+      .slice(0, 16).map(({ vendor, model, driverVersion }) => ({ vendor, model, driverVersion }));
+    return { graphics, graphicsStatus: graphics.length ? 'detected' : 'unavailable' };
+  } catch { return { graphics: [], graphicsStatus: 'unavailable' }; }
 }

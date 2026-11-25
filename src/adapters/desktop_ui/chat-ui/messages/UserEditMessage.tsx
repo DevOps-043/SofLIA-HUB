@@ -25,18 +25,20 @@ export function UserEditMessage({
       />
       <div className="flex justify-end items-center gap-3 pt-3.5 border-t border-gray-200/50 dark:border-white/[0.06]">
         <button
+          type="button"
           onClick={() => editing.setMessageId(null)}
           className="px-4 py-1.5 text-[12.5px] font-semibold text-gray-500 hover:text-gray-900 dark:text-white/40 dark:hover:text-white bg-transparent hover:bg-gray-100/50 dark:hover:bg-white/[0.03] border border-gray-200 dark:border-white/[0.08] rounded-xl transition-all"
         >
           Cancelar
         </button>
         <button
+          type="button"
           onClick={() => {
             if (!controller.props.canSendMessages) return;
             controller.runtime.chat.handleEditMessage(message.id, editing.value, message.images || []);
             editing.setMessageId(null);
           }}
-          disabled={!controller.props.canSendMessages}
+          disabled={!controller.props.canSendMessages || (!editing.value.trim() && !message.images?.length)}
           className="px-5 py-1.5 bg-accent hover:bg-accent/90 text-white rounded-xl text-[12.5px] font-semibold shadow-md shadow-accent/10 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Enviar

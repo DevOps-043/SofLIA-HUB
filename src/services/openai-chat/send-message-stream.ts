@@ -81,6 +81,7 @@ export interface OpenAIStreamParams {
   options?: SendMessageStreamOptions;
   useToolLoop: boolean;
   computerUseEnabled: boolean;
+  computerActionTurn?: boolean;
   useWebSearch: boolean;
   /** Esfuerzo de razonamiento forzado por una politica explicita del turno. */
   reasoningEffort?: string;
@@ -116,6 +117,7 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
 
   const tools = buildTools(params, effort);
   const conWorkspace = Boolean(params.options?.activeSkill?.workspaceId);
+  const bufferIteration = conWorkspace || params.computerActionTurn;
   const maxIterations = conWorkspace ? MAX_TOOL_ITERATIONS_WITH_WORKSPACE : MAX_TOOL_ITERATIONS;
   const maxOutputTokens = conWorkspace ? MAX_OUTPUT_TOKENS_WITH_WORKSPACE : MAX_OUTPUT_TOKENS;
   const audio = await prepareAudioEvidence(options?.media ?? [], signal);
@@ -133,6 +135,7 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
 
   const stream = (async function* (): AsyncIterable<string> {
     let emittedText = false;
+    let retriedWithoutAction = false;
     if (params.prefixNotice) {
       emittedText = true;
       yield `${params.prefixNotice}\n\n`;
@@ -181,7 +184,7 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
               if (event.type === 'response.output_text.delta' && event.delta) {
                 const safeDelta = sanitizer.push(event.delta as string);
                 if (safeDelta) {
-                  if (conWorkspace) {
+                  if (bufferIteration) {
                     // Aunque se retenga hasta conocer si es una respuesta
                     // final o una tanda de herramientas, ya no es seguro
                     // reintentar la peticion: duplicaria ese mismo texto.
@@ -210,7 +213,7 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
             }
             const safeTail = sanitizer.flush();
             if (safeTail) {
-              if (conWorkspace) {
+              if (bufferIteration) {
                 emitidoEnIntento = true;
                 iterationText += safeTail;
               }
@@ -223,7 +226,7 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
             break;
           } catch (error) {
             const espera = retryDelayMs(error, intento);
-            if (emitidoEnIntento && conWorkspace && iterationText) {
+            if (emitidoEnIntento && conWorkspace && !params.computerActionTurn && iterationText) {
               // El texto se retiene solo para validar un cierre normal. Si la
               // peticion falla despues de producirlo, se conserva como texto
               // parcial antes de anexar el error publico.
@@ -257,20 +260,30 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
             yield workspaceIncompleteMessage(params.options?.activeSkill);
             return;
           }
+          if (params.computerActionTurn && promisesAction(iterationText)) {
+            if (!finalizing && !retriedWithoutAction) {
+              retriedWithoutAction = true;
+              input.push({ role: 'user', content: 'La respuesta sólo adelantó una acción. Si puedes avanzar, llama ahora a la herramienta y comprueba el resultado. Si falta un permiso o dato imprescindible, indica cuál.' });
+              continue;
+            }
+            yield computerActionIncompleteMessage(toolCalls);
+            return;
+          }
           if (iterationText) {
             emittedText = true;
             yield iterationText;
           }
           // Un turno cuyo canal visible solo traia andamiaje se queda sin texto
           // tras el saneado: es preferible decirlo a dejar la burbuja vacia.
-          if (!emittedText) yield UNUSABLE_RESPONSE_MESSAGE;
+          if (!iterationText && params.computerActionTurn) yield computerActionIncompleteMessage(toolCalls);
+          else if (!emittedText) yield UNUSABLE_RESPONSE_MESSAGE;
           return;
         }
 
         // Ninguna llamada adicional se ejecuta aunque el proveedor ignore NONE.
         if (finalizing) break;
 
-        if (iterationText) {
+        if (iterationText && !params.computerActionTurn) {
           emittedText = true;
           yield iterationText;
         }
@@ -284,7 +297,8 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
         const ejecutadas = await runFunctionCalls(functionCalls, params, toolCalls, generatedImages, input);
         if (signal?.aborted) return;
         if (ejecutadas === 0) {
-          if (!emittedText) yield UNUSABLE_RESPONSE_MESSAGE;
+          if (params.computerActionTurn) yield computerActionIncompleteMessage(toolCalls);
+          else if (!emittedText) yield UNUSABLE_RESPONSE_MESSAGE;
           return;
         }
       }
@@ -304,6 +318,10 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
       console.warn('[OpenAIChat] stream failed:', { modelId: params.modelId, error });
       // Sin texto emitido, dejar que el llamador muestre su mensaje de error;
       // con texto ya en pantalla, reemplazarlo lo borraria: se anexa el aviso.
+      if (params.computerActionTurn && toolCalls.length) {
+        yield `${emittedText ? '\n\n' : ''}${computerActionIncompleteMessage(toolCalls)}`;
+        return;
+      }
       if (!emittedText) throw error;
       yield `\n\n${getPublicAiErrorMessage(error)}`;
     } finally {
@@ -312,6 +330,23 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
   })();
 
   return { stream, sources: sourcesPromise, toolCalls, generatedImages };
+}
+
+function promisesAction(text: string): boolean {
+  const normalized = text.trim().toLowerCase();
+  if (!normalized || normalized.length > 220 || normalized.includes('?')) return false;
+  return /^(?:(?:primero|ahora)[, ]+)?(?:voy a (?:abrir|buscar|descargar|navegar|revisar|comprobar)|abriré|buscaré|descargaré|revisaré|comprobaré)(?=\s|[,.!]|$)/u.test(normalized);
+}
+
+function computerActionIncompleteMessage(toolCalls: ToolCallInfo[]): string {
+  const last = toolCalls[toolCalls.length - 1];
+  if (!last) return 'No pude iniciar la acción en la computadora en este turno.';
+  try {
+    const result = JSON.parse(last.result || '{}');
+    const detail = result.outcome?.mensaje || (result.success === false ? result.error || result.message : undefined);
+    if (typeof detail === 'string' && detail.trim()) return `No pude verificar el cierre de la tarea. Último resultado: ${detail.slice(0, 300)}`;
+  } catch { /* El último resultado puede no ser JSON. */ }
+  return 'La última acción devolvió un resultado, pero no pude comprobar que el encargo completo terminara.';
 }
 
 /**

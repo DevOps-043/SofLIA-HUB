@@ -354,4 +354,33 @@ describe('turno de OpenAI con espacio de trabajo', () => {
     expect(openAiMocks.create).toHaveBeenCalledTimes(11);
     expect(openAiMocks.create.mock.calls[10][0].tool_choice).toBe('none');
   });
+
+  it('recupera una promesa de navegación y continúa hasta verificar el archivo', async () => {
+    const steps = [
+      ['navigate_integrated_browser', { target: 'https://example.com' }],
+      ['click_browser_element', { ref: 'dom-1' }],
+      ['inspect_browser_downloads', { download_id: '1eb01ba1-65e4-4762-80f2-fa30f9000fd9', wait: true }],
+      ['move_item', { source_path: 'Descargas/prueba.txt', destination_path: 'Escritorio/prueba.txt' }],
+      ['get_file_info', { path: 'Escritorio/prueba.txt' }],
+    ] as const;
+    openAiMocks.create.mockReturnValueOnce(textStream('Buscaré el instalador y comprobaré el destino.'))
+    steps.forEach(([name, args], index) => openAiMocks.create.mockReturnValueOnce(toolCallStream(name, args, `paso-${index}`)));
+    openAiMocks.create.mockReturnValueOnce(textStream('El archivo quedó en el Escritorio.'));
+    const result = await sendOpenAIMessageStream(params({ options: undefined, computerActionTurn: true }));
+    await expect(collect(result.stream)).resolves.toBe('El archivo quedó en el Escritorio.');
+    expect(dispatch.execute.mock.calls.map(([name, args]) => [name, args])).toEqual(steps);
+    expect(openAiMocks.create).toHaveBeenCalledTimes(7);
+  });
+
+  it('explica qué falló si OpenAI termina sin texto después de un intento visual', async () => {
+    openAiMocks.create.mockReturnValueOnce(toolCallStream('use_computer', { task: 'Abre un sitio' }))
+      .mockReturnValueOnce(textStream(''));
+    dispatch.execute.mockImplementationOnce(async (_name, _args, _options, calls) => {
+      const response = { success: false, outcome: { estado: 'fallida', mensaje: 'No llegó el viewport del navegador.' } };
+      calls.push({ name: 'use_computer', result: JSON.stringify(response) });
+      return { functionResponse: { name: 'use_computer', response } };
+    });
+    const result = await sendOpenAIMessageStream(params({ options: undefined, computerActionTurn: true }));
+    await expect(collect(result.stream)).resolves.toContain('No llegó el viewport del navegador.');
+  });
 });

@@ -78,8 +78,10 @@ export function registerPreloadChannelTests() {
 
   it('SEC-035: el navegador integrado expone solo su contrato allowlisted', () => {
     const browserChannels = ALLOWED_IPC_CHANNELS.filter((channel) => channel.startsWith('integrated-browser:'));
-    expect(browserChannels).toHaveLength(130);
-    expect(new Set(browserChannels).size).toBe(130);
+    expect(browserChannels).toHaveLength(132);
+    expect(new Set(browserChannels).size).toBe(132);
+    expect(browserChannels).toContain('integrated-browser:chat-navigate');
+    expect(browserChannels).toContain('integrated-browser:chat-cancel-navigation');
     expect(browserChannels).toContain('integrated-browser:cancel-frame-sampling');
     expect(browserChannels).toContain('integrated-browser:ecosystem-connect');
     expect(browserChannels).toContain('integrated-browser:extensions-catalog');

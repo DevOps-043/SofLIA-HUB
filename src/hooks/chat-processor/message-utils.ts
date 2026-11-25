@@ -40,6 +40,18 @@ export function createUserMessage(text: string, images: string[]): ChatMessage {
   };
 }
 
+export function replaceChatTurn(messages: ChatMessage[], index: number, userMessage: ChatMessage): ChatMessage[] {
+  const priorRevision = userMessage.revision;
+  const superseded = messages.slice(index + 1).flatMap(message => [message.id, ...(message.revision?.supersedes ?? [])]);
+  return dedupeMessageList([...messages.slice(0, index), {
+    ...userMessage,
+    revision: {
+      editedAt: Math.max(Date.now(), (priorRevision?.editedAt ?? 0) + 1),
+      supersedes: [...new Set([...(priorRevision?.supersedes ?? []), ...superseded])],
+    },
+  }]);
+}
+
 export function createAiPlaceholder(id: string, userTimestamp?: number): ChatMessage {
   const baseTime = typeof userTimestamp === 'number' ? userTimestamp : Date.now();
   return {

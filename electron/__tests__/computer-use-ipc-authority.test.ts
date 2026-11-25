@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { dialog, ipcMain, type IpcMainInvokeEvent, type BrowserWindow, type MessageBoxOptions, type MessageBoxReturnValue } from 'electron';
+import { dialog, ipcMain, type IpcMainInvokeEvent } from 'electron';
 import { registerComputerUseHandlers } from '../computer-use/ipc-registration';
 import { executeToolDirect } from '../computer-use/tool-dispatch';
 import { authSourceFixture } from './helpers/auth-source.fixture';
+import { mountComputerApprovalFixture } from './helpers/computer-approval.fixture';
 import { resetAuthStateForTests, setAuthState } from '../main/auth-state';
 import { COMPUTER_IPC_TOOLS } from '../computer-use/ipc-tools';
 import { computerInputSnapshot, COMPUTER_IPC_MAX_BYTES } from '../../src/shared/computer-use-input';
@@ -13,14 +14,14 @@ import { executeLocalComputerTool } from '../../src/services/computer-use/local-
 
 vi.mock('../computer-use/tool-dispatch', () => ({ executeToolDirect: vi.fn(async () => ({ success: true, content: 'dato-ficticio' })) }));
 const ipc = ipcMain as unknown as { _clearHandlers(): void; _getHandler(channel: string): (event: IpcMainInvokeEvent, ...args: unknown[]) => Promise<unknown> };
-const nativeDialog = vi.mocked(dialog.showMessageBox as (parent: BrowserWindow, options: MessageBoxOptions) => Promise<MessageBoxReturnValue>);
+let review: ReturnType<typeof mountComputerApprovalFixture>['review'];
 let hub: ReturnType<typeof authSourceFixture>;
 const invoke = (name: string, args: unknown[] = [], event?: IpcMainInvokeEvent) => ipc._getHandler(`computer:${name}`)(event ?? hub.event, ...args);
 beforeEach(() => {
   vi.clearAllMocks(); resetAuthStateForTests(); setAuthState({ authenticated: true, userId: 'usuario-qa' });
   ipc._clearHandlers(); hub = authSourceFixture();
   vi.mocked(executeToolDirect).mockResolvedValue({ success: true, content: 'dato-ficticio' });
-  nativeDialog.mockResolvedValue({ response: 0, checkboxChecked: false });
+  review = mountComputerApprovalFixture(hub.window, false).review;
   registerComputerUseHandlers(() => hub.window, () => null);
 });
 afterEach(() => { resetAuthStateForTests(); vi.restoreAllMocks(); vi.useRealTimers(); });
@@ -32,7 +33,7 @@ describe('Autoridad IPC de Computer Use', () => {
     if (reason === 'documento') hub.frame.url = 'https://ajeno.invalid';
     if (reason === 'sin ventanas') { ipc._clearHandlers(); registerComputerUseHandlers(); }
     expect(await invoke('read-file', ['ruta-ficticia'])).toMatchObject({ error: 'IPC_DENIED' });
-    expect(executeToolDirect).not.toHaveBeenCalled(); expect(dialog.showMessageBox).not.toHaveBeenCalled();
+    expect(executeToolDirect).not.toHaveBeenCalled(); expect(review).not.toHaveBeenCalled();
   });
   it('ventana ajena no recibe archivos', async () => {
     await invoke('read-file', ['ruta-ficticia'], authSourceFixture().event);
@@ -42,9 +43,54 @@ describe('Autoridad IPC de Computer Use', () => {
     await invoke('read-file', ['ruta-ficticia', 'inyectado']);
     expect(executeToolDirect).not.toHaveBeenCalled();
   });
-  it('escribir exige aprobación nativa y cancelar no escribe', async () => {
+  it('escribir exige aprobación de SofLIA y cancelar no escribe', async () => {
     await invoke('write-file', ['ruta-ficticia', 'contenido']);
-    expect(dialog.showMessageBox).toHaveBeenCalledOnce(); expect(executeToolDirect).not.toHaveBeenCalled();
+    expect(review).toHaveBeenCalledOnce(); expect(executeToolDirect).not.toHaveBeenCalled();
+    expect(dialog.showMessageBox).not.toHaveBeenCalled();
+  });
+  it('Acceso completo autoriza los efectos locales con una sola aprobación por ventana', async () => {
+    expect(await invoke('permission-mode')).toMatchObject({ mode: 'review' });
+    expect(await invoke('permission-mode', ['full'], authSourceFixture().event)).toMatchObject({ success: false });
+    review.mockResolvedValueOnce(true);
+    expect(await invoke('permission-mode', ['full'])).toMatchObject({ mode: 'full' });
+    expect(await invoke('open-url', ['https://example.invalid/documento'])).toMatchObject({ success: true });
+    expect(await invoke('create-directory', ['carpeta-local'])).toMatchObject({ success: true });
+    expect(await invoke('clipboard-write', ['Texto literal'])).toMatchObject({ success: true });
+    expect(await invoke('move-item', ['archivo', 'destino', true])).toMatchObject({ success: true });
+    expect(executeToolDirect).toHaveBeenCalledWith('move_item', { source_path: 'archivo', destination_path: 'destino', no_overwrite: true }, expect.any(Function));
+    for (const [channel, args] of [
+      ['run-background-command', [{ command: 'dir' }]], ['delete-item', ['archivo']],
+      ['write-file', ['archivo', 'texto']], ['move-item', ['archivo', 'destino']],
+    ] as const) expect(await invoke(channel, [...args])).toMatchObject({ success: true });
+    expect(await invoke('delete-item', ['archivo'], authSourceFixture().event)).toMatchObject({ error: 'IPC_DENIED' });
+    expect(await invoke('delete-item', ['archivo', 'extra'])).toMatchObject({ error: 'INVALID_PAYLOAD' });
+    expect(review).toHaveBeenCalledOnce();
+    expect(await invoke('permission-mode', ['review'])).toMatchObject({ mode: 'review' });
+    expect(await invoke('create-directory', ['otra-carpeta'])).toMatchObject({ error: 'CANCELLED' });
+    expect(await invoke('clipboard-write', ['Texto literal'])).toMatchObject({ error: 'CANCELLED' });
+    expect(await invoke('delete-item', ['archivo'])).toMatchObject({ error: 'CANCELLED' });
+  });
+  it('Aprobar por mí deja pasar orígenes HTTPS ordinarios y revisa destinos fuera de la regla', async () => {
+    expect(await invoke('open-url', ['https://example.invalid'])).toMatchObject({ success: true });
+    expect(review).not.toHaveBeenCalled();
+    for (const url of ['http://example.invalid', 'https://127.0.0.1', 'https://app.local', 'https://example.invalid/documento', 'https://example.invalid/?accion=enviar']) {
+      expect(await invoke('open-url', [url])).toMatchObject({ error: 'CANCELLED' });
+    }
+  });
+  it('el permiso se revoca en A/B/A y una aprobación pendiente cancelada nunca ejecuta', async () => {
+    review.mockResolvedValueOnce(true);
+    await invoke('permission-mode', ['full']);
+    setAuthState({ authenticated: true, userId: 'otra' });
+    setAuthState({ authenticated: true, userId: 'usuario-qa' });
+    expect(await invoke('permission-mode')).toMatchObject({ mode: 'review' });
+    let decide!: (approved: boolean) => void;
+    review.mockImplementationOnce(() => new Promise(resolve => { decide = resolve; }));
+    const pending = invoke('delete-item', ['archivo']);
+    await vi.waitFor(() => expect(review).toHaveBeenCalledTimes(2));
+    expect(await invoke('cancel-review')).toMatchObject({ success: true });
+    decide(true);
+    expect(await pending).toMatchObject({ error: 'CANCELLED' });
+    expect(executeToolDirect).not.toHaveBeenCalled();
   });
   it('cambio de sesión durante lectura no publica dato tardío', async () => {
     vi.mocked(executeToolDirect).mockImplementationOnce(async () => {
@@ -74,7 +120,7 @@ describe('Autoridad IPC de Computer Use', () => {
     ['batch-move-files', [{ source_directory: 'origen' }]],
   ] as [string, unknown[]][])('rechaza contrato inválido %s %#', async (name, args) => {
     expect(await invoke(name, args)).toMatchObject({ error: 'INVALID_PAYLOAD' });
-    expect(executeToolDirect).not.toHaveBeenCalled(); expect(dialog.showMessageBox).not.toHaveBeenCalled();
+    expect(executeToolDirect).not.toHaveBeenCalled(); expect(review).not.toHaveBeenCalled();
   });
   it('getters/prototipos/ciclos y cuota UTF-8 no llegan al parser', () => {
     const getter = vi.fn(() => 'dir');
@@ -86,29 +132,29 @@ describe('Autoridad IPC de Computer Use', () => {
     expect(() => computerInputSnapshot(['😀'.repeat(COMPUTER_IPC_MAX_BYTES / 4 + 1)])).toThrow();
   });
   it.each(['navegación', 'A/B/A', 'destrucción'] as const)('revoca durante aprobación: %s', async reason => {
-    nativeDialog.mockImplementationOnce(async () => {
+    review.mockImplementationOnce(async () => {
       if (reason === 'navegación') hub.sender.emit('did-start-navigation', { isMainFrame: true });
       if (reason === 'A/B/A') { setAuthState({ authenticated: true, userId: 'otra' }); setAuthState({ authenticated: true, userId: 'usuario-qa' }); }
       if (reason === 'destrucción') hub.destroy();
-      return { response: 1, checkboxChecked: false };
+      return true;
     });
     expect(await invoke('delete-item', ['ruta-ficticia'])).toMatchObject({ success: false });
     expect(executeToolDirect).not.toHaveBeenCalled();
   });
   it('copiar argumentos antes del diálogo impide cambiar el comando aprobado', async () => {
     const args = { command: 'comando-ficticio', working_directory: 'ruta-ficticia' };
-    nativeDialog.mockImplementationOnce(async (_win, options) => {
-      expect(options.detail).toContain('comando-ficticio'); args.command = 'otro-comando';
-      return { response: 1, checkboxChecked: false };
+    review.mockImplementationOnce(async (html) => {
+      expect(html).toContain('comando-ficticio'); args.command = 'otro-comando';
+      return true;
     });
     await invoke('run-background-command', [args]);
     expect(executeToolDirect).toHaveBeenCalledWith('run_background_command', expect.objectContaining({ command: 'comando-ficticio' }), expect.any(Function));
   });
   it('contraseña SMTP no aparece en detalle ni excepciones', async () => {
-    nativeDialog.mockResolvedValueOnce({ response: 1, checkboxChecked: false });
+    review.mockResolvedValueOnce(true);
     vi.mocked(executeToolDirect).mockRejectedValueOnce(new Error('secreto-ficticio'));
     const result = await invoke('configure-email', ['qa@example.invalid', 'secreto-ficticio']);
-    expect(nativeDialog.mock.calls[0][1].detail).not.toContain('secreto-ficticio');
+    expect(review.mock.calls[0][0]).not.toContain('secreto-ficticio');
     expect(JSON.stringify(result)).not.toContain('secreto-ficticio');
   });
   it('progreso posterior a revocación se descarta y retira listeners', async () => {
@@ -153,7 +199,7 @@ describe('Autoridad IPC de Computer Use', () => {
     const safe = createSafeIpc({ invoke: transport, send: vi.fn(), on: vi.fn(), off: vi.fn(), removeAllListeners: vi.fn() });
     exposeComputerApis({ exposeInMainWorld: (_name, value) => { api = value as ComputerUseApi; } }, safe);
     expect(api?.nativeActionReview).toBe(true);
-    nativeDialog.mockResolvedValueOnce({ response: 1, checkboxChecked: false });
+    review.mockResolvedValueOnce(true);
     expect(await executeLocalComputerTool('write_file', { path: 'ruta', content: 'texto' }, api!)).toMatchObject({ success: true });
     expect(executeToolDirect).toHaveBeenCalledWith('write_file', { path: 'ruta', content: 'texto' }, expect.any(Function));
     expect(() => safe.safeInvoke('computer:execute-arbitrary')).toThrow();
@@ -162,27 +208,27 @@ describe('Autoridad IPC de Computer Use', () => {
     expect(executeToolDirect).not.toHaveBeenCalled();
   });
   it('aprobación informativa anterior no autoriza un comando nuevo', async () => {
-    nativeDialog.mockResolvedValueOnce({ response: 1, checkboxChecked: true });
+    review.mockResolvedValueOnce(true);
     expect(await invoke('confirm-action', ['Revisión anterior', { allowAlways: true, command: 'dir' }])).toMatchObject({ confirmed: true, always: false });
     expect(await invoke('execute-command', ['dir'])).toMatchObject({ error: 'CANCELLED' });
-    expect(dialog.showMessageBox).toHaveBeenCalledTimes(2); expect(executeToolDirect).not.toHaveBeenCalled();
+    expect(review).toHaveBeenCalledTimes(2); expect(executeToolDirect).not.toHaveBeenCalled();
   });
   it('handler heredado GUI entrega lease al servicio sin abrir el canal en preload', async () => {
-    nativeDialog.mockResolvedValueOnce({ response: 1, checkboxChecked: false });
+    review.mockResolvedValueOnce(true);
     await invoke('use-computer', [{ action: 'type', text: 'texto' }]);
     const call = vi.mocked(executeToolDirect).mock.calls[0];
     expect(call[0]).toBe('use_computer'); expect(call[3]).toMatchObject({ signal: expect.any(AbortSignal), assertCurrent: expect.any(Function) });
     const safe = createSafeIpc({ invoke: vi.fn(), send: vi.fn(), on: vi.fn(), off: vi.fn(), removeAllListeners: vi.fn() });
     expect(() => safe.safeInvoke('computer:use-computer', {})).toThrow();
   });
-  it('diálogo vencido no ejecuta ni permite acumular otro diálogo físico', async () => {
-    vi.useFakeTimers(); let close!: (result: { response: number; checkboxChecked: boolean }) => void;
-    nativeDialog.mockImplementationOnce(() => new Promise(resolve => { close = resolve; }));
+  it('revisión vencida se desmonta y su respuesta tardía nunca autoriza', async () => {
+    vi.useFakeTimers(); let close!: (result: boolean) => void;
+    review.mockImplementationOnce(() => new Promise(resolve => { close = resolve; }));
     const pending = invoke('delete-item', ['ruta']); await vi.advanceTimersByTimeAsync(120001);
     expect(await pending).toMatchObject({ success: false });
     expect(await invoke('delete-item', ['otra'])).toMatchObject({ success: false });
-    expect(dialog.showMessageBox).toHaveBeenCalledOnce(); expect(executeToolDirect).not.toHaveBeenCalled();
-    close({ response: 1, checkboxChecked: false }); for (let index = 0; index < 10; index++) await Promise.resolve();
+    expect(review).toHaveBeenCalledTimes(2); expect(executeToolDirect).not.toHaveBeenCalled();
+    close(true); for (let index = 0; index < 10; index++) await Promise.resolve();
     expect(executeToolDirect).not.toHaveBeenCalled();
   });
 });

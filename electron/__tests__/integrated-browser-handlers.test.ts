@@ -3,6 +3,9 @@ import { BrowserWindow, ipcMain } from 'electron';
 import { registerIntegratedBrowserHandlers } from '../integrated-browser-handlers';
 import { BrowserCredentialError, type IntegratedBrowserService } from '../integrated-browser';
 import { setAuthState } from '../main/auth-state';
+import { authSourceFixture } from './helpers/auth-source.fixture';
+import { mountComputerApprovalFixture } from './helpers/computer-approval.fixture';
+import { currentComputerAccess, registerComputerPermissions } from '../computer-use/permission-mode';
 
 type TestHandler = (event: { sender: { id: number }; senderFrame?: unknown }, ...input: unknown[]) => Promise<{
   success: boolean;
@@ -46,6 +49,9 @@ describe('handlers del navegador integrado', () => {
     setObservationEnabled: vi.fn(async (enabled: boolean) => ({ observation: null, observationStatus: { enabled } })),
     open: vi.fn(async () => ({ url: 'https://example.com' })),
     navigate: vi.fn(async () => ({ url: 'https://example.com' })),
+    navigateForChat: vi.fn<(target: string, signal: AbortSignal) => Promise<{ state: { url: string } }>>(),
+    clickElement: vi.fn(async () => ({ target: { ref: 'dom-1' } })),
+    typeInElement: vi.fn(async () => ({ target: { ref: 'dom-1' } })),
     findInPage: vi.fn(() => ({ url: 'https://example.com' })),
     stopFindInPage: vi.fn(() => ({ url: 'https://example.com' })),
     setZoom: vi.fn(() => ({ url: 'https://example.com' })),
@@ -330,7 +336,7 @@ describe('handlers del navegador integrado', () => {
 
   it('registra el contrato completo y enruta payloads validos', async () => {
     const handlers = ipcMainHarness._getHandlers();
-    expect(Array.from(handlers.keys()).filter((key: unknown) => String(key).startsWith('integrated-browser:'))).toHaveLength(120);
+    expect(Array.from(handlers.keys()).filter((key: unknown) => String(key).startsWith('integrated-browser:'))).toHaveLength(122);
     expect(handlers.has('integrated-browser:clear-browsing-data')).toBe(true);
     expect(handlers.has('integrated-browser:writing-resolve')).toBe(true);
     expect(handlers.has('integrated-browser:reading-download')).toBe(false);
@@ -448,6 +454,69 @@ describe('handlers del navegador integrado', () => {
     const closeHandler = handlers.get('integrated-browser:reading-close');
     expect(await closeHandler!({ sender: window.webContents }, { readingId: 'reading-id' }))
       .toMatchObject({ success: true, closed: true });
+  });
+
+  it('liga la navegación del chat y su cancelación al documento principal y al identificador', async () => {
+    const hub = authSourceFixture();
+    const sender = Object.assign(hub.sender, { id: 901 });
+    const event = { sender, senderFrame: hub.frame };
+    ipcMainHarness._clearHandlers();
+    registerIntegratedBrowserHandlers(service as unknown as IntegratedBrowserService, () => hub.window);
+    const navigate = ipcMainHarness._getHandler('integrated-browser:chat-navigate');
+    const cancel = ipcMainHarness._getHandler('integrated-browser:chat-cancel-navigation');
+    await expect(navigate({ ...event, senderFrame: {} }, 'solicitud', 'https://example.com')).resolves.toMatchObject({ success: false });
+    await expect(navigate(event, 'solicitud', 'https://example.com', true)).resolves.toMatchObject({ success: false });
+    expect(service.navigateForChat).not.toHaveBeenCalled();
+    service.navigateForChat.mockImplementationOnce(async (_target, signal) => {
+      if (!signal.aborted) await new Promise(resolve => signal.addEventListener('abort', resolve, { once: true }));
+      throw new Error('Tarea cancelada.');
+    });
+    const pending = navigate(event, 'solicitud', 'https://example.com');
+    await expect(cancel(event, 'otra')).resolves.toMatchObject({ success: true, cancelled: false });
+    await expect(cancel(event, 'solicitud', true)).resolves.toMatchObject({ success: false });
+    await expect(cancel(event, 'solicitud')).resolves.toMatchObject({ success: true, cancelled: true });
+    await expect(pending).resolves.toMatchObject({ success: false, error: 'Tarea cancelada.' });
+  });
+
+  it('la navegación y el DOM del chat comparten el permiso vigente sólo en el documento autorizado', async () => {
+    const hub = authSourceFixture();
+    const event = { sender: Object.assign(hub.sender, { id: 902 }), senderFrame: hub.frame };
+    const { review } = mountComputerApprovalFixture(hub.window, true);
+    ipcMainHarness._clearHandlers();
+    registerComputerPermissions(() => [hub.window]);
+    registerIntegratedBrowserHandlers(service as unknown as IntegratedBrowserService, () => hub.window);
+    const permission = ipcMainHarness._getHandler('computer:permission-mode');
+    expect(await permission(event, 'full')).toMatchObject({ mode: 'full' });
+    try {
+      const observation = ipcMainHarness._getHandler('integrated-browser:get-observation');
+      const input = { forceFresh: true };
+      expect(await observation({ ...event, senderFrame: {} }, input)).toMatchObject({ success: false });
+      expect(service.getObservation).not.toHaveBeenCalled();
+      service.getObservation.mockImplementationOnce(async () => {
+        expect(currentComputerAccess()?.aborted).toBe(false);
+        return { observation: null, observationStatus: { enabled: true } };
+      });
+      expect(await observation(event, input)).toMatchObject({ success: true });
+      service.navigateForChat.mockImplementationOnce(async (url, signal) => {
+        expect(currentComputerAccess()).toBe(signal);
+        expect(signal.aborted).toBe(false);
+        return { state: { url } };
+      });
+      const navigate = ipcMainHarness._getHandler('integrated-browser:chat-navigate');
+      expect(await navigate(event, 'solicitud', 'https://example.com')).toMatchObject({ success: true });
+      expect(currentComputerAccess()).toBeUndefined();
+      expect(review).toHaveBeenCalledOnce();
+      const click = ipcMainHarness._getHandler('integrated-browser:element-click');
+      const type = ipcMainHarness._getHandler('integrated-browser:element-type');
+      const requireFull = { ref: 'dom-1', requireFullAccess: true };
+      expect(await click(event, requireFull)).toMatchObject({ success: true });
+      expect(await type(event, { ...requireFull, text: 'Contenido', submit: true })).toMatchObject({ success: true });
+      await permission(event, 'review');
+      expect(await click(event, requireFull)).toMatchObject({ success: false, error: 'Acceso completo dejó de estar activo.' });
+      expect(await type(event, { ...requireFull, text: 'Contenido', submit: true })).toMatchObject({ success: false });
+      expect(service.clickElement).toHaveBeenCalledOnce();
+      expect(service.typeInElement).toHaveBeenCalledOnce();
+    } finally { await permission(event, 'review'); }
   });
 
   it('entrega la decision del aviso de permiso y rechaza payloads invalidos', async () => {

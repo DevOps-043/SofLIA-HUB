@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { executeIntegratedBrowserTool } from '../../services/gemini-chat/integrated-browser-tools';
 import { buildModelTools } from '../../services/gemini-chat/model-config';
 import { setConfirmationHandler } from '../../services/computer-use/confirmation';
+import * as permissions from '../../services/computer-use/permissions';
 
 function observation() {
   return {
@@ -35,6 +36,10 @@ function installBrowserApi() {
     getObservation: vi.fn(async (): Promise<Record<string, unknown>> => observation()),
     readActiveDocument: vi.fn(async () => ({ success: true, document: { tabId: 'tab-1', url: 'https://docs.google.com/document/d/1/edit', title: 'SofLIA Speakers', language: 'es', text: 'Contenido documental verificado', truncated: false } })),
     navigate: vi.fn(async () => ({ success: true, state: { isVisible: true } })),
+    navigateForChat: vi.fn<(requestId: string, target: string) => Promise<Record<string, unknown>>>().mockImplementation(async () => observation()),
+    cancelChatNavigation: vi.fn<(requestId: string) => Promise<{ success: boolean }>>().mockResolvedValue({ success: true }),
+    listDownloads: vi.fn(async () => ({ success: true, downloads: [] as Array<Record<string, unknown>> })),
+    onDownloadsChanged: vi.fn<(notify: (downloads: Array<Record<string, unknown>>) => void) => () => void>().mockImplementation(() => vi.fn()),
     clickElement: vi.fn(async () => ({
       success: true,
       state: { isVisible: true },
@@ -106,8 +111,8 @@ describe('herramientas deterministas del navegador integrado', () => {
       target: 'https://github.com/example/repo',
     }));
 
-    expect(api.navigate).toHaveBeenCalledWith('https://github.com/example/repo');
-    expect(api.getObservation).toHaveBeenCalledWith(true);
+    expect(api.navigateForChat).toHaveBeenCalledWith(expect.any(String), 'https://github.com/example/repo');
+    expect(api.getObservation).not.toHaveBeenCalled();
     expect(desktopSpy).not.toHaveBeenCalled();
     expect(result.success).toBe(true);
     Reflect.deleteProperty(window, 'desktopAgent');
@@ -155,7 +160,7 @@ describe('herramientas deterministas del navegador integrado', () => {
     Reflect.deleteProperty(window, 'desktopAgent');
   });
 
-  it('IBT-006: una navegación oculta falla cerrada sin cambiar la página', async () => {
+  it('IBT-006: una navegación en frío usa el mismo navegador sin exigir estado visible', async () => {
     const api = installBrowserApi();
     api.getState.mockResolvedValueOnce({ success: true, state: { isVisible: false } });
 
@@ -163,9 +168,38 @@ describe('herramientas deterministas del navegador integrado', () => {
       target: 'https://example.com',
     }));
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
+    expect(api.getState).not.toHaveBeenCalled();
     expect(api.navigate).not.toHaveBeenCalled();
     expect(api.getObservation).not.toHaveBeenCalled();
+  });
+
+  it('cancela una apertura en curso usando el identificador de la llamada', async () => {
+    const api = installBrowserApi();
+    const controller = new AbortController();
+    let answer!: (result: Record<string, unknown>) => void;
+    api.navigateForChat.mockImplementationOnce(() => new Promise(resolve => { answer = resolve; }));
+    const operation = executeIntegratedBrowserTool('navigate_integrated_browser', { target: 'https://example.com' }, controller.signal);
+    controller.abort();
+    const [[requestId]] = api.navigateForChat.mock.calls;
+    expect(api.cancelChatNavigation).toHaveBeenCalledWith(requestId);
+    answer(observation());
+    await expect(operation).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('espera la transferencia identificada y sólo confirma la ruta que publicó el navegador', async () => {
+    const api = installBrowserApi();
+    const id = '1eb01ba1-65e4-4762-80f2-fa30f9000fd9';
+    const record = { id, filename: 'prueba.txt', state: 'progressing', receivedBytes: 1 };
+    api.listDownloads.mockResolvedValue({ success: true, downloads: [record] });
+    const incomplete = JSON.parse(await executeIntegratedBrowserTool('inspect_browser_downloads', { download_id: id }));
+    expect(incomplete).toMatchObject({ completed: false, download: { state: 'progressing' } });
+    const wait = executeIntegratedBrowserTool('inspect_browser_downloads', { download_id: id, wait: true });
+    await vi.waitFor(() => expect(api.onDownloadsChanged).toHaveBeenCalledOnce());
+    const [[notify]] = api.onDownloadsChanged.mock.calls;
+    notify([{ ...record, state: 'completed', savedPath: 'C:\\Descargas\\prueba.txt' }]);
+    expect(JSON.parse(await wait)).toMatchObject({ completed: true, download: { savedPath: 'C:\\Descargas\\prueba.txt' } });
+    expect(api.onDownloadsChanged.mock.results[0].value).toHaveBeenCalledOnce();
   });
 
   it('IBT-007: el clic determinista actúa por referencia y devuelve el DOM posterior', async () => {
@@ -189,6 +223,18 @@ describe('herramientas deterministas del navegador integrado', () => {
       untrustedContent: true,
     });
     Reflect.deleteProperty(window, 'desktopAgent');
+  });
+
+  it('renueva el DOM para revisar un clic y lo bloquea si la referencia ya no existe', async () => {
+    const api = installBrowserApi();
+    api.getObservation.mockResolvedValueOnce({ success: true, observation: null });
+    const found = JSON.parse(await executeIntegratedBrowserTool('click_browser_element', { ref: 'dom-1' }));
+    expect(found.success).toBe(true);
+    expect(api.getObservation.mock.calls.slice(0, 2)).toEqual([[false], [true]]);
+    api.clickElement.mockClear();
+    const missing = JSON.parse(await executeIntegratedBrowserTool('click_browser_element', { ref: 'dom-9' }));
+    expect(missing).toMatchObject({ success: false });
+    expect(api.clickElement).not.toHaveBeenCalled();
   });
 
   it('IBT-008: un control irreversible exige confirmación y se cancela sin actuar', async () => {
@@ -248,6 +294,23 @@ describe('herramientas deterministas del navegador integrado', () => {
     expect(confirm).toHaveBeenCalledWith('type_in_browser_element', expect.stringContaining('Resumen ejecutivo'));
     expect(api.typeInElement).not.toHaveBeenCalled();
     expect(result).toMatchObject({ success: false, error: 'Acción cancelada por el usuario.' });
+  });
+
+  it('Acceso completo ejecuta clic y envío sin una revisión adicional del chat', async () => {
+    const api = installBrowserApi();
+    const observed = observation();
+    observed.observation.dom.controls[0].name = 'Eliminar definitivamente';
+    api.getObservation.mockResolvedValueOnce(observed);
+    const review = vi.fn(async () => false);
+    setConfirmationHandler(review);
+    const fullAccess = vi.spyOn(permissions, 'isFullComputerAccess').mockResolvedValue(true);
+    try {
+      expect(JSON.parse(await executeIntegratedBrowserTool('click_browser_element', { ref: 'dom-1' })).success).toBe(true);
+      expect(JSON.parse(await executeIntegratedBrowserTool('type_in_browser_element', { ref: 'dom-2', text: 'Resumen', submit: true })).success).toBe(true);
+      expect(api.clickElement).toHaveBeenCalledWith('dom-1', true);
+      expect(api.typeInElement).toHaveBeenCalledWith('dom-2', 'Resumen', true, true);
+      expect(review).not.toHaveBeenCalled();
+    } finally { fullAccess.mockRestore(); }
   });
 
   it('IBT-010: sin pestaña visible el controlador no actúa', async () => {

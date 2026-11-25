@@ -4,17 +4,33 @@ import { CodeBlock } from '../../components/chat/markdown-renderer/CodeBlock';
 import { MarkdownRenderer } from '../../components/chat/markdown-renderer/MarkdownRenderer';
 import { QuoteBlock } from '../../components/chat/markdown-renderer/QuoteBlock';
 
-beforeEach(() => vi.clearAllMocks());
+const writeText = vi.fn<(text: string) => Promise<void>>();
+const descriptors = [
+  [navigator, 'clipboard', Object.getOwnPropertyDescriptor(navigator, 'clipboard')],
+  [window, 'isSecureContext', Object.getOwnPropertyDescriptor(window, 'isSecureContext')],
+  [document, 'execCommand', Object.getOwnPropertyDescriptor(document, 'execCommand')],
+] as const;
+
+beforeEach(() => {
+  writeText.mockReset().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+  Object.defineProperty(window, 'isSecureContext', { configurable: true, value: true });
+  Object.defineProperty(document, 'execCommand', { configurable: true, value: vi.fn(() => false) });
+});
 
 afterEach(() => {
   cleanup();
+  for (const [object, key, descriptor] of descriptors) {
+    if (descriptor) Object.defineProperty(object, key, descriptor);
+    else Reflect.deleteProperty(object, key);
+  }
   vi.restoreAllMocks();
   vi.useRealTimers();
 });
 
 describe('Bloques de código de SoflIA', () => {
   it('muestra colores y copia el código original sin etiquetas HTML', async () => {
-    const copy = vi.spyOn(window.computerUse!, 'clipboardWrite').mockResolvedValue({ success: true });
+    const copy = writeText;
     const code = '@echo off\n\nnet user "%USERNAME%" *';
     const { container } = render(<CodeBlock language="bat" code={code} />);
     expect(container.querySelector('.hljs-built_in')).toBeInTheDocument();
@@ -25,8 +41,8 @@ describe('Bloques de código de SoflIA', () => {
   });
 
   it('espera la confirmación y evita copias simultáneas', async () => {
-    let resolveCopy!: (result: { success: boolean }) => void;
-    const copy = vi.spyOn(window.computerUse!, 'clipboardWrite').mockImplementation(() => (
+    let resolveCopy!: () => void;
+    const copy = writeText.mockImplementation(() => (
       new Promise((resolve) => { resolveCopy = resolve; })
     ));
     render(<CodeBlock language="cmd" code="echo hola" />);
@@ -37,14 +53,14 @@ describe('Bloques de código de SoflIA', () => {
     expect(screen.getByText('Copiando…')).toBeInTheDocument();
     expect(screen.queryByText('Copiado')).not.toBeInTheDocument();
     expect(copy).toHaveBeenCalledTimes(1);
-    await act(async () => resolveCopy({ success: true }));
+    await act(async () => resolveCopy());
     expect(screen.getByText('Copiado')).toBeInTheDocument();
   });
 
   it('informa del fallo y permite reintentar', async () => {
-    const copy = vi.spyOn(window.computerUse!, 'clipboardWrite')
-      .mockResolvedValueOnce({ success: false })
-      .mockResolvedValueOnce({ success: true });
+    const copy = writeText
+      .mockRejectedValueOnce(new Error('Permiso denegado'))
+      .mockResolvedValueOnce(undefined);
     render(<CodeBlock language="bat" code="echo hola" />);
     fireEvent.click(screen.getByRole('button', { name: 'Copiar código' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo copiar');
@@ -57,7 +73,6 @@ describe('Bloques de código de SoflIA', () => {
 
   it('restablece la etiqueta y limpia el temporizador al desmontar', async () => {
     vi.useFakeTimers();
-    vi.spyOn(window.computerUse!, 'clipboardWrite').mockResolvedValue({ success: true });
     const { unmount } = render(<CodeBlock language="bat" code="echo hola" />);
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copiar código' })));
     expect(screen.getByText('Copiado')).toBeInTheDocument();
@@ -70,7 +85,6 @@ describe('Bloques de código de SoflIA', () => {
 
   it('no envía formularios al copiar', async () => {
     const submit = vi.fn();
-    vi.spyOn(window.computerUse!, 'clipboardWrite').mockResolvedValue({ success: true });
     render(<form onSubmit={submit}><CodeBlock language="bat" code="echo hola" /></form>);
     fireEvent.click(screen.getByRole('button', { name: 'Copiar código' }));
     await screen.findByText('Copiado');
@@ -78,7 +92,7 @@ describe('Bloques de código de SoflIA', () => {
   });
 
   it('conserva líneas vacías iniciales y finales del bloque Markdown', async () => {
-    const copy = vi.spyOn(window.computerUse!, 'clipboardWrite').mockResolvedValue({ success: true });
+    const copy = writeText;
     const { container } = render(<MarkdownRenderer text={'```bat\n\n\n  echo hola\n\n```'} />);
     expect(container.querySelector('code')!.textContent).toBe('\n\n  echo hola\n');
     fireEvent.click(screen.getByRole('button', { name: 'Copiar código' }));
@@ -87,7 +101,6 @@ describe('Bloques de código de SoflIA', () => {
   });
 
   it('mantiene el estado de copia mientras crece la respuesta', async () => {
-    vi.spyOn(window.computerUse!, 'clipboardWrite').mockResolvedValue({ success: true });
     const { rerender } = render(<MarkdownRenderer text={'```bat\necho hola'} />);
     fireEvent.click(screen.getByRole('button', { name: 'Copiar código' }));
     await screen.findByText('Copiado');
@@ -104,8 +117,8 @@ describe('Bloques de código de SoflIA', () => {
     expect(container.querySelector('script')).toBeNull();
   });
 
-  it('reutiliza la copia nativa en las citas del chat', async () => {
-    const copy = vi.spyOn(window.computerUse!, 'clipboardWrite').mockResolvedValue({ success: true });
+  it('reutiliza el portapapeles del documento en las citas del chat', async () => {
+    const copy = writeText;
     render(<QuoteBlock rawText="Texto de la cita">Texto de la cita</QuoteBlock>);
     fireEvent.click(screen.getByRole('button', { name: 'Copiar cita' }));
     expect(await screen.findByRole('button', { name: 'Copiado' })).toBeInTheDocument();

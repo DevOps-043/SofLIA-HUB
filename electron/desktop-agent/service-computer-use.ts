@@ -12,6 +12,7 @@ import { resolveTaskStepBudget } from './task-budget';
 import { buildTaskOutcome, type DesktopTaskEstado, type DesktopTaskOutcome } from './task-outcome';
 import { ensureBrowserPage } from '../browser-web/service-page';
 import { createIntegratedBrowserCuDriver } from '../integrated-browser';
+import { withComputerAccess } from '../computer-use/permission-mode';
 import type { DesktopAgentConfig } from '../desktop-agent-types';
 import type { DesktopTaskExecutionOptions } from './types';
 import type { DesktopAgentService } from '../desktop-agent-service';
@@ -28,12 +29,13 @@ function mapEstado(estado: CuLoopEstado): DesktopTaskEstado {
   return estado === 'bloqueada' ? 'fallida' : estado;
 }
 
-function nuevoCliente(service: any, environment: CuEnvironment): CuClient {
+function nuevoCliente(service: any, environment: CuEnvironment, fullAccess?: AbortSignal): CuClient {
   const config: DesktopAgentConfig = service.config;
   // El ID del modelo se resuelve SIEMPRE por el registro: ningun literal de
   // modelo debe vivir en el wiring.
   return createComputerUseClient({
     environment,
+    fullAccess: Boolean(fullAccess && !fullAccess.aborted),
     enablePromptInjectionDetection: config.computerUsePromptInjectionDetection,
     onTeamEvent: event => console.info('[Equipo Computer Use]', JSON.stringify(event)),
   });
@@ -56,7 +58,7 @@ export async function runComputerUseDesktopTask(
   options?: DesktopTaskExecutionOptions,
 ): Promise<DesktopTaskOutcome | null> {
   const config: DesktopAgentConfig = service.config;
-  const client = nuevoCliente(service, 'ENVIRONMENT_DESKTOP');
+  const client = nuevoCliente(service, 'ENVIRONMENT_DESKTOP', options?.fullAccess);
   if (!client.disponible()) {
     console.warn('[DesktopAgent][CU] Computer Use no disponible (SDK/API key); usando loop legacy.');
     return null;
@@ -89,7 +91,7 @@ export async function runComputerUseBrowserTask(
   task: string,
   options?: DesktopTaskExecutionOptions,
 ): Promise<DesktopTaskOutcome | null> {
-  const client = nuevoCliente(service, 'ENVIRONMENT_BROWSER');
+  const client = nuevoCliente(service, 'ENVIRONMENT_BROWSER', options?.fullAccess);
   if (!client.disponible()) return null;
   const integrated = service.integratedBrowser && !options?.browserIsolated && !options?.browserProfile && !options?.resetBrowserProfile;
   const startedAt = Date.now();
@@ -98,7 +100,8 @@ export async function runComputerUseBrowserTask(
   }), options?.signal);
   try {
     assertCuNotAborted(taskControl.signal);
-    return await runBrowserCuWithControl(service, task, { ...options, signal: taskControl.signal }, client, taskControl.taskId, taskControl.supervisor);
+    return await withComputerAccess(options?.fullAccess, () =>
+      runBrowserCuWithControl(service, task, { ...options, signal: taskControl.signal }, client, taskControl.taskId, taskControl.supervisor));
   } catch (error) {
     if (!taskControl.signal.aborted) throw error;
     return buildTaskOutcome({ taskId: taskControl.taskId, estado: 'cancelada', mensaje: 'Tarea cancelada.', startedAt });
@@ -176,12 +179,14 @@ async function runCuTaskCommon(
   console.log(`[DesktopAgent][CU] Iniciando tarea (${etiqueta}, ${resolveComputerUseModel(config).model}, ${maxSteps} pasos): "${task.slice(0, 80)}"`);
 
   try {
+    const fullAccess = options?.fullAccess;
     const loopOptions: Parameters<typeof runComputerUseLoop>[0] = {
       client,
       driver,
       task,
       maxSteps,
       abortSignal: options?.signal ?? null,
+      ...(fullAccess ? { confirmSafety: async () => !fullAccess.aborted } : {}),
       delay: (ms: number) => service.delay(ms),
       ...(etiqueta === 'desktop' ? {
         settleDelayMs: 400,

@@ -40,6 +40,7 @@ export const TOOL_DISPLAY_NAMES: Record<string, string> = {
   use_computer: 'Usando computadora...',
   show_visual_guidance: 'Señalando en pantalla...',
   run_background_command: 'Ejecutando en segundo plano...',
+  inspect_browser_downloads: 'Comprobando la descarga…',
   list_process_sessions: 'Revisando procesos...',
   poll_process_session: 'Consultando el proceso...',
   kill_process_session: 'Deteniendo el proceso...',

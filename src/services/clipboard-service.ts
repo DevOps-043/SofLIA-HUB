@@ -1,15 +1,5 @@
-/** Copia texto literal y respeta los rechazos del puente nativo. */
+/** Copia el texto de la interfaz con el portapapeles del documento. */
 export async function copyTextWithFallback(text: string): Promise<boolean> {
-  if (typeof window.computerUse?.clipboardWrite === 'function') {
-    try {
-      const result: unknown = await window.computerUse.clipboardWrite(text);
-      return typeof result === 'object' && result !== null
-        && 'success' in result && result.success === true;
-    } catch {
-      return false;
-    }
-  }
-
   if (window.isSecureContext && typeof navigator.clipboard?.writeText === 'function') {
     try {
       await navigator.clipboard.writeText(text);

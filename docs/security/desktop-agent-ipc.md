@@ -34,7 +34,8 @@ no se certifican como redactados de forma general.
 ## Revisión y controles
 
 Tareas individuales/paralelas, configuración, reset de perfil, observación,
-primitivas, foco y calibración requieren HITL nativo con cancelar predeterminado.
+primitivas, foco y calibración usan la autorización de sesión de Acceso
+completo o la revisión por acción en la vista aislada de SofLIA.
 Se revisa el snapshot copiado: mutar opciones originales durante diálogo no
 cambia la orden. Contenido extenso usa preview marcado y digest; esa revisión
 de tarea no certifica cada paso de un modelo ni sustituye guardas internas.
@@ -48,8 +49,11 @@ compartido del mismo usuario; no asigna ownership de cada tarea a una ventana.
 
 nativeActionReview del preload evita doble diálogo renderer sólo para
 use_computer y reset_browser_profile; no omite revisión de host/nodos remotos.
-El código main siempre revisa, incluso con clientes anteriores sin capability.
-El diálogo nativo conserva su límite de dos minutos y un único diálogo físico.
+Main valida cada llamada y aplica el modo de la ventana autenticada.
+La vista se cierra al cancelar, al recibir Stop desde la misma ventana o al
+vencer los dos minutos. El actuador conserva las decisiones de bloqueo y
+puede resolver las decisiones revisables con Acceso completo vigente.
+Véase [permisos de Computer Use](computer-use-ipc.md).
 
 ## Tareas y observación
 

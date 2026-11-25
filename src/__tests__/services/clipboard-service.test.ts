@@ -35,27 +35,21 @@ describe('Copia fiable del chat', () => {
     document.body.replaceChildren();
   });
 
-  it('prefiere la copia nativa y conserva el texto literal', async () => {
+  it('copia el texto literal del usuario sin invocar la herramienta nativa del agente', async () => {
     const nativeCopy = vi.spyOn(nativeBridge!, 'clipboardWrite').mockResolvedValue({ success: true });
     const text = '\n  net user "%USERNAME%" *\n\n';
     expect(await copyTextWithFallback(text)).toBe(true);
-    expect(nativeCopy).toHaveBeenCalledWith(text);
-    expect(writeText).not.toHaveBeenCalled();
+    expect(nativeCopy).not.toHaveBeenCalled();
+    expect(writeText).toHaveBeenCalledWith(text);
     expect(execCommand).not.toHaveBeenCalled();
   });
 
-  it.each([{ success: false }, undefined, { success: 'true' }])('no confirma respuestas nativas fallidas o inválidas: %j', async (response) => {
-    // Un puente defectuoso puede incumplir su tipo: simular la frontera sin
-    // debilitar el contrato público para que acepte undefined.
-    Object.defineProperty(nativeBridge!, 'clipboardWrite', { configurable: true, writable: true, value: vi.fn(async () => response) });
+  it('un fallo del documento tampoco abre una revisión del agente', async () => {
+    const nativeCopy = vi.spyOn(nativeBridge!, 'clipboardWrite');
+    writeText.mockRejectedValue(new Error('No disponible'));
+    execCommand.mockReturnValue(false);
     expect(await copyTextWithFallback('echo hola')).toBe(false);
-    expect(writeText).not.toHaveBeenCalled();
-    expect(execCommand).not.toHaveBeenCalled();
-  });
-
-  it('controla el rechazo de la promesa nativa', async () => {
-    vi.spyOn(nativeBridge!, 'clipboardWrite').mockRejectedValue(new Error('No disponible'));
-    expect(await copyTextWithFallback('echo hola')).toBe(false);
+    expect(nativeCopy).not.toHaveBeenCalled();
   });
 
   it('usa el portapapeles web sin puente de escritorio', async () => {

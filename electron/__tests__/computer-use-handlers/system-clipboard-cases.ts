@@ -1,6 +1,7 @@
 ﻿import { describe, it, expect, vi } from 'vitest';
 import { clipboard } from 'electron';
 import { executeToolDirect } from './context';
+import { mockSi } from '../computer-use-handlers.mocks';
 
 describe('Clipboard and system info', () => {
   it('CU-058: clipboard_read returns clipboard text', async () => {
@@ -35,6 +36,15 @@ describe('Clipboard and system info', () => {
     expect(result.success).toBe(true);
     expect(result.cpu).toBeDefined();
     expect(result.cpu.cores).toBeGreaterThan(0);
+    expect(mockSi.graphics).not.toHaveBeenCalled();
+  });
+
+  it('proyecta GPU y controlador sólo cuando se solicita la consulta', async () => {
+    const result = await executeToolDirect('get_system_info', { graphics: true });
+    expect(result).toMatchObject({ success: true, graphicsStatus: 'detected' });
+    expect(result.graphics).toEqual([{ vendor: 'Proveedor de prueba', model: 'GPU ficticia', driverVersion: '1.0' }]);
+    mockSi.graphics.mockRejectedValueOnce(new Error('No disponible.'));
+    expect(await executeToolDirect('get_system_info', { graphics: true })).toMatchObject({ success: true, graphicsStatus: 'unavailable', graphics: [] });
   });
 
   it('CU-063: get_system_info returns memory info', async () => {

@@ -2,6 +2,7 @@ import { buildPrimaryChatPrompt } from '../../prompts/chat';
 import { buildServerSideToolInvocationsConfig } from '../../shared/gemini-grounding-config';
 import { isOpenAIModel } from '../../shared/model-providers';
 import { isComputerUseAvailable } from '../computer-use-service';
+import { isFullComputerAccess } from '../computer-use/permissions';
 import type { BrowserDomSnapshot } from '../integrated-browser-service';
 import { consumeSofliaMaxUse, SOFLIA_MAX_MONTHLY_LIMIT } from '../model-quota';
 import { resolveRoutedModel } from '../model-routing';
@@ -156,9 +157,16 @@ async function sendMessageForTurn(
     .some(group => group.functionDeclarations?.some((tool: { name: string }) => tool.name === 'open_application'))) {
     return executeSingleApplicationOpen(applicationToOpen, options);
   }
+  const fullComputerAccess = !attachedSourcesOnly && useToolLoop
+    && (requestsComputerUse || hasExecutableAction || hasBrowserInteraction || hybridSurfaceRequest)
+    && await isFullComputerAccess();
+  if (fullComputerAccess) {
+    systemInstruction += '\n\nEstá activo Acceso completo. Ejecuta las acciones locales de Computer Use solicitadas y deja que las herramientas comprueben el permiso vigente. No pidas confirmación adicional en el chat. Respeta los bloqueos de las herramientas y conserva los permisos de otros servicios.';
+  }
   if (requestsComputerUse && useToolLoop && buildModelTools(computerUseEnabled, options?.model, options?.activeSkill, attachedSourcesOnly)
     .some((group) => group.functionDeclarations?.some((tool: { name: string }) => tool.name === 'use_computer'))) {
-    systemInstruction += '\n\nuse_computer está disponible en este turno. El usuario pidió usarla: ejecuta la tarea con las herramientas disponibles y verifica el resultado antes de afirmar que la completaste. La disponibilidad actual la determina este catálogo; las respuestas anteriores del historial que negaban acceso no describen este turno. Conserva la sesión visible del navegador y solicita confirmación antes de efectos externos.';
+    systemInstruction += '\n\nuse_computer está disponible en este turno. El usuario pidió usarla: ejecuta la tarea con las herramientas disponibles y verifica el resultado antes de afirmar que la completaste. La disponibilidad actual la determina este catálogo; las respuestas anteriores del historial que negaban acceso no describen este turno. Conserva la sesión visible del navegador.';
+    if (!fullComputerAccess) systemInstruction += ' Solicita confirmación antes de efectos externos.';
   }
   const effectiveOptions = browserObservation
     ? { ...options, images: [...(options?.images ?? []), browserObservation.screenshot] }
@@ -180,7 +188,8 @@ async function sendMessageForTurn(
     return admitBackgroundTurn(finalMessage, conversationHistory, options, options.activeSkill.workspaceId);
   }
   if (hybridSurfaceRequest && !attachedSourcesOnly) {
-    systemInstruction = `${systemInstruction}\n\nEsta es una tarea hibrida por superficies. Conserva el modelo actual como orquestador: primero usa use_computer con backend desktop solo para observar la aplicacion externa; despues utiliza read_browser_dom y el controlador del navegador integrado (o backend browser si el DOM no basta) sobre la sesion visible. Verifica el resultado de cada fase. No incluyas el envio dentro de la observacion desktop y solicita confirmacion humana antes de enviar o publicar.`;
+    systemInstruction = `${systemInstruction}\n\nEsta es una tarea hibrida por superficies. Conserva el modelo actual como orquestador: primero usa use_computer con backend desktop solo para observar la aplicacion externa; despues utiliza read_browser_dom y el controlador del navegador integrado (o backend browser si el DOM no basta) sobre la sesion visible. Verifica el resultado de cada fase. No incluyas el envio dentro de la observacion desktop.`;
+    if (!fullComputerAccess) systemInstruction += ' Solicita confirmación humana antes de enviar o publicar.';
   }
   // Las data URLs heredadas y los medios ya resueltos convergen en la misma
   // lista: el constructor decide la ruta de transporte de cada uno y devuelve
@@ -212,11 +221,15 @@ async function sendMessageForTurn(
   // sin haber abierto nada. En OpenAI el loop conserva `web_search`, asi que
   // no se pierde la parte de investigacion del encargo.
   const actionTakesPriority = useToolLoop && (hasExecutableAction || inspectsLocalResource);
+  const computerActionTurn = !attachedSourcesOnly && useToolLoop && (hasExecutableAction || hasBrowserInteraction);
+  if (computerActionTurn) {
+    systemInstruction += '\n\nEjecuta el encargo antes de responder con el resultado. Para abrir el navegador integrado, incluso si está cerrado, usa navigate_integrated_browser como primer paso web. Haz clic por referencia DOM cuando el control esté disponible. Para descargar, identifica la transferencia nueva con inspect_browser_downloads y verifica el archivo antes de informar su ubicación o moverlo. Para consultar GPU usa get_system_info con graphics: true. Usa el actuador visual para pasos que requieran ver o controlar una superficie y que no cubran estas herramientas. Conserva el progreso si un paso falla y reporta el bloqueo concreto.';
+  }
   const wantsWebGrounding = requestsWebGrounding
     || (browserGroundingIntent === 'follow-resource' && !hasBrowserInteraction);
 
   // El modelo visible orquesta incluso cuando necesita herramientas. La llamada
-  // `use_computer` delega internamente al actuador fijo Gemini 3.8 Flash en main;
+  // `use_computer` delega internamente al actuador de OpenAI en main;
   // sustituir aqui el proveedor hacia irrelevante el modelo y razonamiento que
   // el usuario acababa de elegir.
   const routedOptions: SendMessageStreamOptions = {
@@ -256,6 +269,7 @@ async function sendMessageForTurn(
       options: routedOptions,
       useToolLoop,
       computerUseEnabled,
+      computerActionTurn,
       // OpenAI puede combinar herramientas hospedadas y funciones locales en
       // la misma Responses API. Mantener web_search disponible permite que el
       // orquestador investigue antes de decidir si necesita navegar o actuar.

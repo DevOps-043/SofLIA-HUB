@@ -9,6 +9,7 @@ const computerUseMocks = vi.hoisted(() => {
     mockTransporter: transporter,
     mockNodemailer: { createTransport: vi.fn(() => transporter) },
     mockSi: {
+      graphics: vi.fn(async () => ({ controllers: [{ vendor: 'Proveedor de prueba', model: 'GPU ficticia', driverVersion: '1.0', bus: 'dato innecesario' }] })),
       processes: vi.fn(async () => ({
         list: [
           { pid: 1, name: 'test-proc', cpu: 10.5, mem: 5.2, command: 'test' },
@@ -26,11 +27,12 @@ export const mockSi = computerUseMocks.mockSi;
 export const mockTrashItem = computerUseMocks.mockTrashItem;
 
 vi.mock('node:fs/promises', () => ({
-  default: { readdir: vi.fn(), stat: vi.fn(), readFile: vi.fn(), writeFile: vi.fn(), mkdir: vi.fn(), rename: vi.fn(), cp: vi.fn(), copyFile: vi.fn(), access: vi.fn(), unlink: vi.fn(), rm: vi.fn() },
+  default: { readdir: vi.fn(), stat: vi.fn(), lstat: vi.fn(), realpath: vi.fn(), link: vi.fn(), readFile: vi.fn(), writeFile: vi.fn(), mkdir: vi.fn(), rename: vi.fn(), cp: vi.fn(), copyFile: vi.fn(), access: vi.fn(), unlink: vi.fn(), rm: vi.fn() },
   readdir: vi.fn(), stat: vi.fn(), readFile: vi.fn(), writeFile: vi.fn(), mkdir: vi.fn(), rename: vi.fn(), cp: vi.fn(), copyFile: vi.fn(), access: vi.fn(), unlink: vi.fn(), rm: vi.fn(),
 }));
 
 vi.mock('node:fs', () => ({
+  constants: { COPYFILE_EXCL: 1 },
   default: { existsSync: vi.fn(() => true), accessSync: vi.fn(), readFileSync: vi.fn(() => '{}'), writeFileSync: vi.fn(), statSync: vi.fn(() => ({ isDirectory: () => false, size: 100 })) },
   existsSync: vi.fn(() => true),
   accessSync: vi.fn(),

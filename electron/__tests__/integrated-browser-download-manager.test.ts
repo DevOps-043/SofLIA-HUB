@@ -94,9 +94,10 @@ describe('BrowserDownloadManager', () => {
     item.received = 50;
     item.emit('updated', {}, 'progressing');
     expect(manager.list()[0]).toMatchObject({ id, progress: 0.5, state: 'progressing', origin: 'https://files.example.com' });
+    expect(manager.list()[0]).not.toHaveProperty('savedPath');
     item.received = 100;
     item.emit('done', {}, 'completed');
-    expect(manager.list()[0]).toMatchObject({ progress: 1, state: 'completed', completedAt: expect.any(String) });
+    expect(manager.list()[0]).toMatchObject({ progress: 1, state: 'completed', completedAt: expect.any(String), savedPath: path.join(root, 'reporte_.pdf') });
   });
 
   it('bloquea protocolos no HTTP sin escribir un destino', () => {

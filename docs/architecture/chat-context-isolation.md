@@ -27,6 +27,13 @@ handler originario. No reemplazan el historial completo ni el turno posterior.
 Un mensaje eliminado por regeneración o una identidad revocada no se repone.
 Los tombstones siguen siendo autoridad frente a guardados tardíos.
 
+Editar o regenerar conserva el ID y la fecha del mensaje del usuario. Sus
+metadatos de revisión identifican los mensajes conocidos de la rama sustituida.
+La carga y la recuperación aplican esa revisión al combinar caché, cola y
+filas remotas. El historial conserva envíos independientes, aunque tengan
+el mismo texto. Una recarga comenzada antes de cambiar los mensajes no
+publica su resultado sobre la edición.
+
 La carga muestra primero el caché de la organización activa. Una respuesta
 remota parcial conserva las conversaciones propias conocidas y sus mensajes;
 ausencia no equivale a borrado. Los shares revocados no se recuperan como chats

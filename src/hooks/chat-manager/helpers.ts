@@ -50,6 +50,7 @@ export function areMessageListsEqual(left: ChatMessage[], right: ChatMessage[]):
       message.timestamp === other?.timestamp &&
       JSON.stringify(message.sources || []) === JSON.stringify(other?.sources || []) &&
       JSON.stringify(message.images || []) === JSON.stringify(other?.images || []) &&
+      JSON.stringify(message.revision) === JSON.stringify(other?.revision) &&
       message.feedback === other?.feedback
     );
   });

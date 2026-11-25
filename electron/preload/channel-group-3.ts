@@ -44,6 +44,8 @@ export const CHANNEL_GROUP_3 = [
   'desktop-agent:take-screenshot',
   'desktop-agent:run-calibration',
   'computer:organize-files',
+  'computer:permission-mode',
+  'computer:cancel-review',
   'computer:batch-move-files',
   'computer:list-directory-summary',
   'computer:undo-last-file-operation',

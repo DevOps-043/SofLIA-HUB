@@ -36,6 +36,8 @@ export interface ChatMessage {
   sources?: Array<{ uri: string; title: string; snippet?: string; kind?: 'browser'; citationId?: string; capturedAt?: string }>;
   images?: string[];
   feedback?: 'like' | 'dislike';
+  /** Identifica una edición o regeneración y los mensajes conocidos que reemplaza. */
+  revision?: { editedAt: number; supersedes: string[] };
 }
 
 /** Actualización de un origen; los acuses tardíos sólo parchean su mensaje. */

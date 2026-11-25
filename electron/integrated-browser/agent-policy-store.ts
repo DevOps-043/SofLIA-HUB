@@ -3,7 +3,7 @@ import { browserProfilePath, resolveStoreLocation } from './profile-scope';
 import type { BrowserAgentCapability, BrowserAgentPolicyMode, BrowserAgentSiteDecision, BrowserAgentSitePolicy } from './platform-types';
 
 type AgentPolicyFile = { version: 1; policies: BrowserAgentSitePolicy[] };
-export type BrowserAgentPolicyEvaluation = 'allow' | 'ask' | 'block';
+export type BrowserAgentPolicyEvaluation = 'allow' | 'ask' | 'managed-ask' | 'block';
 const MODES = new Set<BrowserAgentPolicyMode>(['strict', 'balanced']);
 const STORED_DECISIONS = new Set<BrowserAgentSiteDecision>(['ask', 'allow-always', 'block']);
 
@@ -47,7 +47,7 @@ export class BrowserAgentPolicyStore {
     if (policy.decision === 'block') return 'block';
     if (policy.decision === 'allow-always') return 'allow';
     if (policy.mode === 'balanced' && capability !== 'act' && policy.updatedAt !== new Date(0).toISOString()) return 'allow';
-    return 'ask';
+    return policy.managed ? 'managed-ask' : 'ask';
   }
 
   private get filePath(): string { return resolveStoreLocation(this.location); }

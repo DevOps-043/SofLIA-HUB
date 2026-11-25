@@ -27,10 +27,12 @@ export function useConversationRefresh({ accessUserIds, getCurrentChatStorageKey
       const key = JSON.stringify([userId, orgId, revision, capturedScopeVersion, conversationId]);
       return joinRequest(pendingMessages.current, key, async () => {
         if (!userId) return;
+        const previousMessages = state.currentMessagesRef.current;
         const refreshedMessages = await loadMessages(conversationId, userId);
         if (
           generation.current !== revision || state.scopeVersionRef.current !== capturedScopeVersion ||
           state.currentConvIdRef.current !== conversationId ||
+          state.currentMessagesRef.current !== previousMessages ||
           hasActivePlaceholder(state.currentMessagesRef.current)
         ) return;
         state.setCurrentMessages((prev) => (areMessageListsEqual(prev, refreshedMessages) ? prev : refreshedMessages));

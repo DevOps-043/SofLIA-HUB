@@ -6,6 +6,7 @@
  * es por-placeholder y un "..." residual bloquea la conversación para siempre.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, renderHook } from '@testing-library/react';
 import type { ChatMessage } from '../../services/chat-service';
 
 const mocks = vi.hoisted(() => ({
@@ -29,6 +30,7 @@ vi.mock('../../services/iris-data', () => ({ needsIrisData: mocks.needsIrisData,
 vi.mock('../../services/memory-bridge', () => ({ fetchChatMemoryContext: mocks.fetchChatMemoryContext, recordChatTurn: mocks.recordChatTurn }));
 
 import { processChatMessage } from '../../hooks/chat-processor/process-message';
+import { useChatProcessor } from '../../hooks/useChatProcessor';
 import { normalizeMessage } from '../../services/chat/normalize/messages';
 
 function singleChunk(text: string): AsyncIterable<string> {
@@ -62,6 +64,29 @@ function lastAiText(messages: ChatMessage[]): string | undefined {
 afterEach(() => vi.restoreAllMocks());
 
 describe('process-message settle guarantee', () => {
+  it('editar reutiliza el mensaje y envía la nueva petición al modelo una sola vez', async () => {
+    const messages: ChatMessage[] = [
+      { id: '1', role: 'user', text: 'Primer turno', timestamp: 1 },
+      { id: '2', role: 'model', text: 'Primera respuesta', timestamp: 2 },
+      { id: '3', role: 'user', text: 'Versión anterior', timestamp: 3 },
+      { id: '4', role: 'model', text: 'Respuesta anterior', timestamp: 4 },
+    ];
+    const onMessagesChange = vi.fn();
+    mocks.sendMessageStream.mockResolvedValue({ stream: singleChunk('Nueva respuesta'), sources: Promise.resolve(null) });
+    const { result } = renderHook(() => useChatProcessor({ messages, onMessagesChange, preferredPrimaryModel: 'gpt-6.2-sol', thinkingMode: 'medium',
+      isImageGenMode: false, isPromptOptimizerMode: false, optimizerTarget: 'chatgpt', activeSkill: null, memorySessionScope: 'chat-qa' }));
+    await act(async () => { await result.current.handleEditMessage('3', 'Versión nueva'); });
+    const snapshot = onMessagesChange.mock.lastCall![0] as ChatMessage[];
+    expect(snapshot.slice(0, 3).map(message => message.id)).toEqual(['1', '2', '3']);
+    expect(snapshot[2]).toMatchObject({ timestamp: 3, text: 'Versión nueva', revision: { supersedes: ['4'] } });
+    expect(snapshot[3]).toMatchObject({ text: 'Nueva respuesta' });
+    expect(mocks.sendMessageStream).toHaveBeenCalledWith('Versión nueva', [
+      { role: 'user', text: 'Primer turno' }, { role: 'model', text: 'Primera respuesta' },
+    ], expect.any(Object));
+    const writes = onMessagesChange.mock.calls.length;
+    await act(async () => { await result.current.handleEditMessage('3', 'Versión nueva'); });
+    expect(onMessagesChange).toHaveBeenCalledTimes(writes);
+  });
   it('agrupa mil fragmentos conservando texto, fuentes, imágenes y actividad', async () => {
     vi.spyOn(performance, 'now').mockReturnValue(0);
     const chunks = Array.from({ length: 1000 }, (_, index) => `${index},`);

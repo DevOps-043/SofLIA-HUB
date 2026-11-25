@@ -1,9 +1,11 @@
 import { ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
 import { executeToolDirect } from './tool-dispatch';
 import { computerInputSnapshot, computerInputs } from '../../src/shared/computer-use-input';
-import { trustedAppCaller, nativeConfirmation } from '../ipc/caller-authorization';
+import { trustedAppCaller } from '../ipc/caller-authorization';
 import { COMPUTER_IPC_TOOLS } from './ipc-tools';
 import { computerActionReview } from './ipc-review';
+import { showComputerApproval } from './approval-view';
+import { fullComputerAccessFor, permitsWithoutReview, registerComputerPermissions } from './permission-mode';
 
 const denied = () => ({ success: false, error: 'IPC_DENIED', message: 'La sesión o ventana de origen ya no está autorizada. Una operación ya iniciada puede haber producido efectos.' });
 const invalid = () => ({ success: false, error: 'INVALID_PAYLOAD', message: 'Argumentos de Computer Use no válidos.' });
@@ -13,7 +15,7 @@ export function registerComputerUseHandlers(
   getOrbWindow: () => BrowserWindow | null = () => null,
 ): void {
   const windows = () => [getMainWindow(), getOrbWindow()];
-  const approve = nativeConfirmation('SofLIA — Revisar acción en el equipo');
+  registerComputerPermissions(windows);
   const jobs = new Set<IpcMainInvokeEvent['sender']>();
   type Caller = ReturnType<typeof trustedAppCaller>;
   async function run(event: IpcMainInvokeEvent, action: (caller: Caller) => Promise<Record<string, unknown>>) {
@@ -31,8 +33,8 @@ export function registerComputerUseHandlers(
     ipcMain.handle(mapping.channel, (event, ...params: unknown[]) => run(event, async caller => {
       let args: Record<string, unknown>;
       try { args = mapping.parse(computerInputSnapshot(params)); } catch { return invalid(); }
-      if (mapping.review(args)) {
-        if (!caller.parent || !await approve(caller.parent, computerActionReview(mapping.tool, args), caller.assert, caller.signal)) {
+      if (mapping.review(args) && !permitsWithoutReview(caller, mapping.tool, args)) {
+        if (!caller.parent || !await showComputerApproval(caller.parent, 'Revisar acción en el equipo', computerActionReview(mapping.tool, args), caller.assert, caller.signal)) {
           return { success: false, error: 'CANCELLED', message: 'Acción cancelada.' };
         }
       }
@@ -44,12 +46,17 @@ export function registerComputerUseHandlers(
             if (typeof message === 'string' && message.length <= 8000) event.sender.send('computer:progress', { tool: mapping.tool, message });
           } catch { /* Fuente revocada: no publicar progreso. */ }
         };
+        const fullAccess = fullComputerAccessFor(caller.parent);
+        const signal = fullAccess ? AbortSignal.any([caller.signal, fullAccess]) : caller.signal;
         const result: unknown = mapping.tool === 'use_computer'
-          ? await executeToolDirect(mapping.tool, args, progress, { assertCurrent: caller.assert, signal: caller.signal })
+          ? await executeToolDirect(mapping.tool, args, progress, { assertCurrent: caller.assert, signal })
           : await executeToolDirect(mapping.tool, args, progress);
         caller.assert();
         if (!result || typeof result !== 'object' || Array.isArray(result)) throw new Error('invalid_result');
         const reply = result as Record<string, unknown>;
+        if (mapping.tool === 'move_item' && args.no_overwrite === true && reply.success === false && reply.code === 'DESTINATION_EXISTS') {
+          return { success: false, error: 'DESTINATION_EXISTS', message: 'El destino ya existe. El archivo de origen se conservó.', mayHaveApplied: false };
+        }
         if (reply.success === false || reply.ok === false) return { success: false, error: 'TOOL_FAILED', message: 'La operación de Computer Use no pudo completarse.', mayHaveApplied: mapping.review(args) };
         return reply;
       } catch {
@@ -64,7 +71,7 @@ export function registerComputerUseHandlers(
       let message: string;
       try { [message] = computerInputs['confirm-action'].parse(computerInputSnapshot(params)); } catch { return { confirmed: false }; }
       if (!caller.parent) return { confirmed: false };
-      return { confirmed: await approve(caller.parent, message, caller.assert, caller.signal), always: false };
+      return { confirmed: await showComputerApproval(caller.parent, 'Revisar acción en el equipo', message, caller.assert, caller.signal), always: false };
     });
     return 'confirmed' in result ? result : { confirmed: false };
   });

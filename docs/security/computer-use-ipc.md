@@ -1,10 +1,12 @@
-# Computer Use: autorización nativa
+# Computer Use: autorización en main
 
-Estado: vigente. Actualizado: 2026-10-26.
+Estado: vigente. Actualizado: 2026-11-25.
 
 <!-- evidence: electron/computer-use/ipc-registration.ts -->
 <!-- evidence: electron/computer-use/ipc-tools.ts -->
 <!-- evidence: electron/computer-use/ipc-review.ts -->
+<!-- evidence: electron/computer-use/approval-view.ts -->
+<!-- evidence: electron/computer-use/permission-mode.ts -->
 <!-- evidence: src/shared/computer-use-input.ts -->
 <!-- evidence: electron/preload/computer-apis.ts -->
 <!-- evidence: src/services/computer-use/confirmation.ts -->
@@ -18,8 +20,9 @@ no se acepta cualquier BrowserWindow encontrada por emisor. La revisión se
 invalida con cambio de sesión, A/B/A, navegación o destrucción.
 
 Se mantienen dispatcher de servicios, handler, allowlist, preload tipado y
-wrappers del renderer. El registro usa schemas por tupla y DTO validados,
-sin casts de funciones heterogéneas ni nuevos canales.
+wrappers del renderer. El registro usa schemas por tupla y DTO validados.
+`computer:permission-mode` consulta o cambia el modo. `computer:cancel-review`
+cancela la revisión vigente de la ventana autenticada.
 
 ## Entradas y aprobación
 
@@ -41,11 +44,30 @@ preview marcado y digest completo. Reglas y lista de adjuntos admiten hasta
 20000 caracteres serializados para poder revisarse completas. La contraseña
 SMTP no aparece en el detalle ni en su digest. No se registran argumentos.
 
-El diálogo inicia en cancelar, vence en dos minutos y sólo puede haber uno
-físicamente pendiente; una respuesta tardía no ejecuta. Un trabajo por emisor
-y cuatro globales, sin cola. Las plazas del servicio no se liberan mientras
-su I/O siga pendiente. El diálogo puede cerrar después del rechazo lógico;
-su bloqueo nativo sigue hasta cerrar aunque ya se permita otra lectura.
+La revisión vive en una vista aislada dentro de SofLIA, sin JavaScript ni
+preload, y vence en dos minutos. Escape cancela. Se admite una revisión por
+ventana y una respuesta tardía no ejecuta. Se admite un trabajo por emisor y
+cuatro globales, sin cola. Las plazas del servicio permanecen ocupadas mientras
+su I/O siga pendiente.
+
+El menú `+` del chat permite elegir **Aprobar por mí** o **Acceso completo**.
+Aprobar por mí aplica reglas de main. Autoriza la raíz de un dominio HTTPS
+ordinario sin parámetros y presenta al usuario los casos restantes. Acceso
+completo exige autorización expresa en la vista de main al activarse. La
+autorización cubre los efectos de Computer Use local, incluidos comandos,
+archivos, portapapeles, Desktop Agent y las acciones del agente en el navegador
+integrado. Main conserva la validación del emisor y de los parámetros. El
+navegador sigue aplicando los bloqueos de sitios, documentos sensibles y las
+restricciones administradas. Los servicios remotos mantienen sus permisos.
+Main vuelve a comprobar el permiso de un clic o envío cuando el chat omitió
+la revisión al detectar Acceso completo.
+
+El permiso vive en memoria por ventana autenticada y se revoca al recargar,
+cambiar de sesión, cerrar la ventana o elegir Aprobar por mí. Las tareas con
+soporte para cancelación reciben una señal de revocación.
+
+Los botones de copia de la interfaz usan el portapapeles del documento. La
+herramienta `clipboard_write` se reserva para operaciones del agente.
 
 ## Compatibilidad y resultados
 

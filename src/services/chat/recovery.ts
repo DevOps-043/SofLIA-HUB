@@ -90,12 +90,10 @@ export function recoverPendingMessagesFromCache(
   }
 
   const remoteIds = new Set(remoteMessages.map((m) => m.id));
-  const hasLocalOnly = cached.some((m) => !remoteIds.has(m.id));
+  // Una rama reemplazada por otro equipo no se vuelve a encolar desde el caché.
+  const localOnly = dedupeMessages([...remoteMessages, ...cached]).filter(message => !remoteIds.has(message.id));
+  if (localOnly.length === 0) return false;
 
-  if (!hasLocalOnly) {
-    return false;
-  }
-
-  queueMessageSnapshot(userId, conversationId, cached);
+  queueMessageSnapshot(userId, conversationId, localOnly);
   return true;
 }

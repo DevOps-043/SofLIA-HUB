@@ -61,6 +61,7 @@ export function buildMessageList(
 ): ChatMessage[] {
   const merged = dedupeMessages([
     ...remoteMessages,
+    ...loadMessagesFromCache(conversationId).filter(message => message.revision),
     ...getPendingMessageSnapshot(userId, conversationId),
   ]);
 
