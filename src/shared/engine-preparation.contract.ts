@@ -1,5 +1,6 @@
 // Generado desde Learning. Sincronizar con scripts/quality/sync-learning-studio.mjs.
 import { z } from 'zod';
+import { engineSessionDocumentSchema } from './engine-session-documents.contract';
 
 const id=z.string().uuid();
 const text=(max:number)=>z.string().trim().min(1).max(max);
@@ -15,6 +16,66 @@ export const engineSessionManifestSchema=z.object({
   version:z.literal(1),course_id:id,revision:text(100),scenes:z.array(scene).max(12),materials:z.array(material).max(20),
   quizzes:z.array(quiz).max(20),practices:z.array(studioPracticeSchema).max(20),
 }).strict();
+export const engineConductionSchema = z.object({
+  documents: z.array(engineSessionDocumentSchema).length(14).optional(),
+  minutes: z.number().int().min(15).max(480),
+  blocks: z.array(z.object({
+    id: text(200),
+    purpose: text(8000),
+    minutes: z.number().int().positive().max(480),
+    explanation: text(8000),
+    activity: text(8000),
+    criteria: z.array(text(8000)).min(1).max(10),
+    practice_ids: z.array(id).max(20),
+  }).strict()).min(1).max(30),
+  speaker_notes: z.array(z.object({ scene_id: id, content: text(1800) }).strict()).max(12),
+}).strict().superRefine((value, context) => {
+  if (value.documents) {
+    const blocks = new Set(value.blocks.map(block => block.id));
+    if (new Set(value.documents.map(document => document.id)).size !== value.documents.length ||
+      new Set(value.documents.map(document => document.kind)).size !== value.documents.length ||
+      value.documents.some(document => document.block_ids.some(id => !blocks.has(id)))) {
+      context.addIssue({ code: 'custom', path: ['documents'], message: 'Los documentos repiten identidad o refieren bloques ajenos.' });
+    }
+  }
+  if (value.blocks.reduce((sum, block) => sum + block.minutes, 0) !== value.minutes) {
+    context.addIssue({ code: 'custom', path: ['blocks'], message: 'Los tiempos de los bloques deben coincidir con la duración de la sesión.' });
+  }
+  if (new Set(value.blocks.map(block => block.id)).size !== value.blocks.length) {
+    context.addIssue({ code: 'custom', path: ['blocks'], message: 'Los bloques deben tener identificadores únicos.' });
+  }
+  if (new Set(value.speaker_notes.map(note => note.scene_id)).size !== value.speaker_notes.length) {
+    context.addIssue({ code: 'custom', path: ['speaker_notes'], message: 'Cada escena admite una sola nota del ponente.' });
+  }
+});
+
+// Plantilla previa a la programación. Los archivos se resuelven en el servidor
+// desde el paquete autorizado antes de construir el manifiesto de impartición.
+export const engineSessionTemplateSchema = z.object({
+  scenes: z.array(scene.omit({ asset_path: true }).extend({ asset_id: id.optional() })).max(12),
+  materials: z.array(material.omit({ asset_path: true, mime: true, bytes: true }).extend({ asset_id: id })).max(20),
+  quizzes: z.array(quiz).max(20),
+  practices: z.array(studioPracticeSchema.omit({ collaboration: true })).max(20),
+  preparation: engineConductionSchema,
+}).strict().superRefine((template, context) => {
+  for (const field of ['scenes', 'materials', 'quizzes', 'practices'] as const) {
+    if (new Set(template[field].map(item => item.id)).size !== template[field].length) {
+      context.addIssue({ code: 'custom', path: [field], message: 'El manifiesto tiene identificadores duplicados' });
+    }
+  }
+  const sceneIds = new Set(template.scenes.map(item => item.id));
+  const practiceIds = new Set(template.practices.map(item => item.id));
+  if (template.preparation.speaker_notes.some(note => !sceneIds.has(note.scene_id))) {
+    context.addIssue({ code: 'custom', path: ['preparation', 'speaker_notes'], message: 'La nota debe pertenecer a una escena de la preparación.' });
+  }
+  if (template.preparation.blocks.some(block => new Set(block.practice_ids).size !== block.practice_ids.length || block.practice_ids.some(key => !practiceIds.has(key)))) {
+    context.addIssue({ code: 'custom', path: ['preparation', 'blocks'], message: 'La práctica debe pertenecer a la preparación y aparecer una sola vez por bloque.' });
+  }
+  if (!template.preparation.documents) {
+    context.addIssue({ code: 'custom', path: ['preparation', 'documents'], message: 'Faltan los documentos de la preparación aprobada.' });
+  }
+});
+
 export const enginePreparationSchema=z.object({
   version:z.literal(1),actor_id:id,artifact_id:id,source_session_id:id,source_revision:z.number().int().positive(),
   organization_slug:z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(100),session_id:id,
