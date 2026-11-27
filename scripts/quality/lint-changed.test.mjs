@@ -24,7 +24,7 @@ function fixture(source = 'export const base = 1;\n') {
   }
   fs.symlinkSync(path.join(projectRoot, 'node_modules'), path.join(root, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir');
   fs.writeFileSync(path.join(root, 'package.json'), '{"private":true}');
-  fs.writeFileSync(path.join(root, '.gitignore'), 'node_modules/\n');
+  fs.writeFileSync(path.join(root, '.gitignore'), '/node_modules\n');
   const write = (file, text) => { const target = path.join(root, file); fs.mkdirSync(path.dirname(target), { recursive: true }); fs.writeFileSync(target, text); };
   const git = args => execFileSync('git', ['-c', 'core.hooksPath=' + path.join(root, 'empty-hooks'), '-c', 'commit.gpgsign=false',
     '-c', 'user.name=QA', '-c', 'user.email=qa@example.test', ...args], { cwd: root, env: environment(), encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
