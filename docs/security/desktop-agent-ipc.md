@@ -1,6 +1,6 @@
 # Desktop Agent: autoridad de IPC
 
-Estado: vigente. Actualizado: 2026-10-27.
+Estado: vigente. Actualizado: 2026-11-26.
 
 <!-- evidence: electron/desktop-agent-handlers.ts -->
 <!-- evidence: electron/desktop-agent-handlers/authorized-registration.ts -->
@@ -49,7 +49,7 @@ compartido del mismo usuario; no asigna ownership de cada tarea a una ventana.
 
 nativeActionReview del preload evita doble diálogo renderer sólo para
 use_computer y reset_browser_profile; no omite revisión de host/nodos remotos.
-Main valida cada llamada y aplica el modo de la ventana autenticada.
+Main valida cada llamada y aplica el modo guardado para la cuenta autenticada.
 La vista se cierra al cancelar, al recibir Stop desde la misma ventana o al
 vencer los dos minutos. El actuador conserva las decisiones de bloqueo y
 puede resolver las decisiones revisables con Acceso completo vigente.

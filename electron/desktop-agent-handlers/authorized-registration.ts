@@ -26,7 +26,9 @@ export function desktopRegistration(windows: () => (BrowserWindow | null)[]) {
         if (options.effect ? effects.has(event.sender) || effects.size >= 4 : options.control ? controls >= 8 : queries >= 16) throw new Error('busy');
         if (options.effect) effects.add(event.sender); else if (options.control) controls++; else queries++; admitted = true;
         phase = 'IPC_DENIED';
-        const fullAccess = options.effect ? fullComputerAccessFor(caller.parent) : undefined;
+        const fullAccess = options.effect ? await fullComputerAccessFor(caller.parent) : undefined;
+        caller.assert();
+        fullAccess?.throwIfAborted();
         if (options.effect && !fullAccess && (!caller.parent || !await showComputerApproval(caller.parent, 'Revisar control de la computadora', computerActionReview(`desktop-agent:${name}`, { argumentos: parsed }), caller.assert, caller.signal))) return failed('CANCELLED');
         caller.assert(); phase = 'DESKTOP_FAILED';
         const signal = fullAccess ? AbortSignal.any([caller.signal, fullAccess]) : caller.signal;

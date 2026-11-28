@@ -1,9 +1,10 @@
 # Aislamiento de chats y continuidad de entregables
 
-Estado: vigente. Actualizado: 2026-11-14.
+Estado: vigente. Actualizado: 2026-11-26.
 
 <!-- evidence: src/hooks/chat-manager/useScopedMessagesHandler.ts -->
 <!-- evidence: src/hooks/chat-manager/useChatManagerState.ts -->
+<!-- evidence: src/app/AppWorkspace.tsx -->
 <!-- evidence: electron/background-teams/presentation-workspace.ts -->
 <!-- evidence: electron/background-teams/legacy-workspace-owner.ts -->
 <!-- evidence: src/services/gemini-chat/background-admission.ts -->
@@ -122,3 +123,8 @@ La verificación de archivos y esquema no acredita revisión visual de todas las
 diapositivas ni la exactitud factual de contenido no respaldado.
 
 Pruebas y limitaciones del entorno: [verificación del cambio](../../openspec/changes/investigate-chat-isolation/reports/verification.md).
+
+Cuando un turno del chat abre el navegador integrado, su compositor se
+mueve al panel lateral conservando el controlador del turno y su alcance.
+El resultado o el error regresan a esa conversación. Cambiar de conversación,
+cuenta u organización sigue invalidando los turnos del origen anterior.

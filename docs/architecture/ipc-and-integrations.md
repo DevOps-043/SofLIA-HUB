@@ -296,6 +296,13 @@ permiso temporal y la revisión activa del emisor. Ver [contrato de Computer Use
 observa la pestaña integrada para el documento principal autenticado.
 `integrated-browser:chat-cancel-navigation` cancela por identificador y emisor.
 
+`integrated-browser:get-observation` admite `domOnly: true` para leer el DOM
+sin solicitar un frame. `findLink` requiere `domOnly: true`, `forceFresh: true`,
+una consulta de 3 a 160 caracteres y permiso de interacción. Devuelve
+`observation.dom.matchedLinkRef` si el enlace se pudo revelar. Una lectura DOM
+queda vinculada al documento, perfil, pestaña y permisos. La captura visual
+mantiene además su comprobación de geometría.
+
 El namespace `agent-activity` expone `snapshot`, `publish` y el evento `changed`.
 Sólo los frames principales autenticados del Hub y Orbe pueden acceder al
 contrato. Main comprueba identidad, secuencia y un esquema cerrado de roles/estados,
@@ -672,7 +679,9 @@ pestaña oculta reciente queda caliente para cambios rápidos y las demás se
 suspenden por LRU después de 90 segundos, o 30 si la ventana está oculta. Audio,
 captura, carga, DevTools, ventana separada visible y control del agente protegen
 la vista; restaurarla conserva identidad y URL, pero recarga el documento.
-Los popups HTTP(S) se convierten en pestañas internas. Los canales
+Los popups HTTP(S) con destino se convierten en pestañas internas. Main
+conserva la referencia y la política que Chromium entrega para la apertura.
+Los enlaces con `noreferrer` conservan la ausencia de esa cabecera. Los canales
 `integrated-browser:tab-detach` y `integrated-browser:tab-reattach` permiten al
 renderer principal mover una pestaña validada a una de hasta cuatro
 `BaseWindow`, siempre dentro del mismo presupuesto y sesión. Una composición puede mantener una vista única,

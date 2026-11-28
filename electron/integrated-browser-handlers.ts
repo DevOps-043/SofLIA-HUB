@@ -11,6 +11,8 @@ import { validateCredentialSessionRequest } from '../src/shared/browser-credenti
 import { validateExtensionCatalogRequest } from '../src/shared/browser-extension-catalog';
 import { trustedAppCaller } from './ipc/caller-authorization';
 import { currentComputerAccess, fullComputerAccessFor, withComputerAccess } from './computer-use/permission-mode';
+import { normalizeBrowserLinkQuery } from '../src/shared/browser-navigation';
+import { sanitizeObservedUrl } from '../src/shared/browser-observed-url';
 
 export function registerIntegratedBrowserHandlers(
   service: IntegratedBrowserService,
@@ -40,12 +42,14 @@ export function registerIntegratedBrowserHandlers(
   const handleAgent = (channel: string, operation: Parameters<typeof handle>[1], serialize?: Parameters<typeof handle>[2]) => {
     handle(channel, async (event, ...args) => {
       const windows = () => [getMainWindow()];
-      const fullAccess = fullComputerAccessFor(getMainWindow());
-      if (!fullAccess) return operation(event, ...args);
       const caller = trustedAppCaller(event, windows);
       try {
+        const fullAccess = await fullComputerAccessFor(getMainWindow());
+        caller.signal.throwIfAborted();
+        if (!fullAccess) return await withComputerAccess(undefined, () => operation(event, ...args));
         caller.assert();
         const signal = AbortSignal.any([caller.signal, fullAccess]);
+        signal.throwIfAborted();
         return await withComputerAccess(signal, () => operation(event, ...args));
       } finally { caller.dispose(); }
     }, serialize);
@@ -191,10 +195,13 @@ export function registerIntegratedBrowserHandlers(
     controller?.abort();
     return { cancelled: Boolean(controller) };
   }, result => result as Record<string, unknown>);
-  handleAgent('integrated-browser:get-observation', async (_event, input) => ({
-    ...(await service.getObservation(readForceFresh(input))),
-    state: service.getState(),
-  }), (result) => result as Record<string, unknown>);
+  handleAgent('integrated-browser:get-observation', async (_event, input) => {
+    const { forceFresh, domOnly, findLink } = readObservationRequest(input);
+    const result = domOnly
+      ? await service.getObservation(forceFresh, undefined, { domOnly, findLink })
+      : await service.getObservation(forceFresh);
+    return { ...result, state: service.getState() };
+  }, (result) => result as Record<string, unknown>);
   handle('integrated-browser:set-observation-enabled', async (_event, input) => ({
     ...(await service.setObservationEnabled(readEnabled(input))),
     state: service.getState(),
@@ -215,7 +222,8 @@ export function registerIntegratedBrowserHandlers(
       const controller = new AbortController();
       chatNavigation = { requestId, controller, sender: event.sender };
       try {
-        const fullAccess = fullComputerAccessFor(caller.parent);
+        const fullAccess = await fullComputerAccessFor(caller.parent);
+        caller.assert();
         const signals = [caller.signal, controller.signal];
         if (fullAccess) signals.push(fullAccess);
         const signal = AbortSignal.any(signals);
@@ -651,13 +659,15 @@ function readScrollInput(input: unknown): { direction: string; amount: number | 
   return { direction: value.direction, amount: value.amount as number | undefined };
 }
 
-function readForceFresh(input: unknown): boolean {
-  if (input === undefined || input === null) return false;
-  if (!input || typeof input !== 'object') throw new Error('Payload de observación inválido.');
-  const forceFresh = (input as { forceFresh?: unknown }).forceFresh;
-  if (forceFresh === undefined) return false;
+function readObservationRequest(input: unknown): { forceFresh: boolean; domOnly: boolean; findLink?: string } {
+  if (input === undefined || input === null) return { forceFresh: false, domOnly: false };
+  if (typeof input !== 'object' || Array.isArray(input)) throw new Error('Payload de observación inválido.');
+  const { forceFresh = false, domOnly = false, findLink: rawLink } = input as Record<string, unknown>;
   if (typeof forceFresh !== 'boolean') throw new Error('El modo de actualización de percepción es inválido.');
-  return forceFresh;
+  if (typeof domOnly !== 'boolean') throw new Error('El modo de observación es inválido.');
+  const findLink = normalizeBrowserLinkQuery(rawLink);
+  if (rawLink !== undefined && (!forceFresh || !domOnly || !findLink)) throw new Error('La búsqueda de enlace requiere una lectura DOM nueva y entre 3 y 160 caracteres.');
+  return { forceFresh, domOnly, findLink };
 }
 
 function readEnabled(input: unknown): boolean {
@@ -929,5 +939,5 @@ function readFrameIntervalMs(input: unknown): number {
 
 function safeBrowserError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
-  return message.replace(/[\r\n\t]+/g, ' ').trim().slice(0, 240) || 'Error del navegador integrado.';
+  return message.replace(/https?:\/\/[^\s'"<>]+/gi, sanitizeObservedUrl).replace(/[\r\n\t]+/g, ' ').trim().slice(0, 240) || 'Error del navegador integrado.';
 }

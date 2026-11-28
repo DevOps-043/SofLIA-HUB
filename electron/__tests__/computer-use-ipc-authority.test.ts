@@ -3,7 +3,7 @@ import { dialog, ipcMain, type IpcMainInvokeEvent } from 'electron';
 import { registerComputerUseHandlers } from '../computer-use/ipc-registration';
 import { executeToolDirect } from '../computer-use/tool-dispatch';
 import { authSourceFixture } from './helpers/auth-source.fixture';
-import { mountComputerApprovalFixture } from './helpers/computer-approval.fixture';
+import { installComputerPermissionProfile, mountComputerApprovalFixture } from './helpers/computer-approval.fixture';
 import { resetAuthStateForTests, setAuthState } from '../main/auth-state';
 import { COMPUTER_IPC_TOOLS } from '../computer-use/ipc-tools';
 import { computerInputSnapshot, COMPUTER_IPC_MAX_BYTES } from '../../src/shared/computer-use-input';
@@ -11,20 +11,23 @@ import { exposeComputerApis } from '../preload/computer-apis';
 import { createSafeIpc } from '../preload/safe-ipc';
 import type { ComputerUseApi } from '../../src/shared/computer-use';
 import { executeLocalComputerTool } from '../../src/services/computer-use/local-tools';
+import { systemCipher } from '../storage/os-cipher';
 
 vi.mock('../computer-use/tool-dispatch', () => ({ executeToolDirect: vi.fn(async () => ({ success: true, content: 'dato-ficticio' })) }));
 const ipc = ipcMain as unknown as { _clearHandlers(): void; _getHandler(channel: string): (event: IpcMainInvokeEvent, ...args: unknown[]) => Promise<unknown> };
 let review: ReturnType<typeof mountComputerApprovalFixture>['review'];
 let hub: ReturnType<typeof authSourceFixture>;
+let profile: Awaited<ReturnType<typeof installComputerPermissionProfile>>;
 const invoke = (name: string, args: unknown[] = [], event?: IpcMainInvokeEvent) => ipc._getHandler(`computer:${name}`)(event ?? hub.event, ...args);
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks(); resetAuthStateForTests(); setAuthState({ authenticated: true, userId: 'usuario-qa' });
+  profile = await installComputerPermissionProfile();
   ipc._clearHandlers(); hub = authSourceFixture();
   vi.mocked(executeToolDirect).mockResolvedValue({ success: true, content: 'dato-ficticio' });
   review = mountComputerApprovalFixture(hub.window, false).review;
   registerComputerUseHandlers(() => hub.window, () => null);
 });
-afterEach(() => { resetAuthStateForTests(); vi.restoreAllMocks(); vi.useRealTimers(); });
+afterEach(async () => { setAuthState({ authenticated: false, userId: null }); resetAuthStateForTests(); await profile.dispose(); vi.restoreAllMocks(); vi.useRealTimers(); });
 
 describe('Autoridad IPC de Computer Use', () => {
   it.each(['sesión', 'subframe', 'documento', 'sin ventanas'] as const)('deniega origen inválido: %s', async reason => {
@@ -48,7 +51,7 @@ describe('Autoridad IPC de Computer Use', () => {
     expect(review).toHaveBeenCalledOnce(); expect(executeToolDirect).not.toHaveBeenCalled();
     expect(dialog.showMessageBox).not.toHaveBeenCalled();
   });
-  it('Acceso completo autoriza los efectos locales con una sola aprobación por ventana', async () => {
+  it('Acceso completo autoriza los efectos locales tras una sola aprobación', async () => {
     expect(await invoke('permission-mode')).toMatchObject({ mode: 'review' });
     expect(await invoke('permission-mode', ['full'], authSourceFixture().event)).toMatchObject({ success: false });
     review.mockResolvedValueOnce(true);
@@ -77,19 +80,39 @@ describe('Autoridad IPC de Computer Use', () => {
       expect(await invoke('open-url', [url])).toMatchObject({ error: 'CANCELLED' });
     }
   });
-  it('el permiso se revoca en A/B/A y una aprobación pendiente cancelada nunca ejecuta', async () => {
+  it('recupera la autorización de la misma cuenta al reiniciar y la retira al elegir revisión', async () => {
     review.mockResolvedValueOnce(true);
-    await invoke('permission-mode', ['full']);
+    expect(await invoke('permission-mode', ['full'])).toMatchObject({ success: true, mode: 'full' });
+    hub.destroy();
     setAuthState({ authenticated: true, userId: 'otra' });
+    ipc._clearHandlers(); hub = authSourceFixture();
+    review = mountComputerApprovalFixture(hub.window, false).review;
+    registerComputerUseHandlers(() => hub.window);
+    expect(await invoke('permission-mode')).toMatchObject({ mode: 'review' });
+    setAuthState({ authenticated: true, userId: 'usuario-qa' });
+    // La primera operación tras abrir puede ocurrir antes de consultar el menú.
+    expect(await invoke('delete-item', ['archivo'])).toMatchObject({ success: true });
+    expect(review).not.toHaveBeenCalled();
+    expect(await invoke('permission-mode', ['review'])).toMatchObject({ mode: 'review' });
+    setAuthState({ authenticated: false, userId: null });
     setAuthState({ authenticated: true, userId: 'usuario-qa' });
     expect(await invoke('permission-mode')).toMatchObject({ mode: 'review' });
+  });
+  it('una aprobación pendiente cancelada nunca ejecuta', async () => {
     let decide!: (approved: boolean) => void;
     review.mockImplementationOnce(() => new Promise(resolve => { decide = resolve; }));
     const pending = invoke('delete-item', ['archivo']);
-    await vi.waitFor(() => expect(review).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(review).toHaveBeenCalledOnce());
     expect(await invoke('cancel-review')).toMatchObject({ success: true });
     decide(true);
     expect(await pending).toMatchObject({ error: 'CANCELLED' });
+    expect(executeToolDirect).not.toHaveBeenCalled();
+  });
+  it('un fallo de persistencia conserva el modo de revisión y deniega el efecto sin aprobación', async () => {
+    vi.mocked(systemCipher.encrypt).mockRejectedValueOnce(new Error('Almacén ficticio no disponible.'));
+    review.mockResolvedValueOnce(true);
+    expect(await invoke('permission-mode', ['full'])).toMatchObject({ success: false, mode: 'review' });
+    expect(await invoke('delete-item', ['archivo'])).toMatchObject({ error: 'CANCELLED' });
     expect(executeToolDirect).not.toHaveBeenCalled();
   });
   it('cambio de sesión durante lectura no publica dato tardío', async () => {
@@ -222,6 +245,7 @@ describe('Autoridad IPC de Computer Use', () => {
     expect(() => safe.safeInvoke('computer:use-computer', {})).toThrow();
   });
   it('revisión vencida se desmonta y su respuesta tardía nunca autoriza', async () => {
+    await invoke('permission-mode');
     vi.useFakeTimers(); let close!: (result: boolean) => void;
     review.mockImplementationOnce(() => new Promise(resolve => { close = resolve; }));
     const pending = invoke('delete-item', ['ruta']); await vi.advanceTimersByTimeAsync(120001);

@@ -40,7 +40,7 @@ export const INTEGRATED_BROWSER_TOOLS: GeminiToolGroup = {
     },
     {
       name: 'navigate_integrated_browser',
-      description: 'Abre el navegador integrado aunque esté cerrado, navega a una URL HTTP(S) o consulta de búsqueda y devuelve el DOM de la pestaña tras cargar. Conserva cookies y sesión. Úsala para abrir el primer destino web y para navegar cuando tienes la URL. Si el destino es un control de la página, usa click_browser_element.',
+      description: 'Abre el navegador integrado aunque esté cerrado, navega a una URL HTTP(S) o consulta de búsqueda y devuelve el DOM tras cargar. Conserva cookies y sesión. Para descargar un archivo abre primero la página oficial que ofrece el enlace y pulsa su control con click_browser_element, aunque ya conozcas la URL del archivo.',
       parameters: objectParams({
         target: stringProp('URL HTTP(S) completa o consulta de búsqueda que debe abrirse en la pestaña activa.'),
       }, ['target']),
@@ -54,8 +54,9 @@ export const INTEGRATED_BROWSER_TOOLS: GeminiToolGroup = {
       name: 'click_browser_element',
       description: 'Hace clic real sobre un control de la pestaña activa usando el identificador "ref" que devolvió read_browser_dom en la lista "controls". Es la forma correcta de abrir un correo de la bandeja, entrar a un hilo, expandir un panel o cambiar de pestaña interna del sitio: no requiere Computer Use y conserva la sesión del usuario. Después del clic devuelve el DOM actualizado, así que para recorrer varios elementos (por ejemplo abrir varios correos) haz clic, lee el resultado, usa go_back_integrated_browser y repite. Las referencias caducan cuando la página cambia: si el resultado indica que la referencia venció, vuelve a llamar read_browser_dom. No la uses para confirmar pagos, enviar mensajes ni borrar datos sin que el usuario lo haya pedido explícitamente.',
       parameters: objectParams({
-        ref: stringProp('Identificador del control tal como aparece en el campo "ref" de read_browser_dom (por ejemplo "dom-42").'),
+        ref: stringProp('Identificador exacto del campo "ref" devuelto por read_browser_dom o scroll_integrated_browser.'),
         reason: stringProp('Motivo breve y verificable del clic, en español, para la trazabilidad de la acción.'),
+        wait_for_download: booleanProp('Úsalo para un enlace que debe iniciar una descarga. Espera hasta ocho segundos y devuelve las transferencias nuevas candidatas junto con la página observada. Comprueba cuál corresponde al archivo solicitado antes de esperar o moverla.'),
       }, ['ref']),
     },
     {
@@ -69,11 +70,12 @@ export const INTEGRATED_BROWSER_TOOLS: GeminiToolGroup = {
     },
     {
       name: 'scroll_integrated_browser',
-      description: 'Desplaza la pestaña activa para revelar contenido que aún no está en el área visible. Úsala cuando read_browser_dom indique "truncated" o cuando el elemento buscado no aparezca entre los controles. Después de desplazar, vuelve a leer el DOM.',
+      description: 'Revela contenido de la pestaña activa y devuelve el DOM posterior. Para encontrar un enlace en el documento principal por nombre de archivo, ruta o etiqueta, pasa find_link. Si lo encuentra, desplaza al enlace y devuelve dom.matchedLinkRef para un clic por separado. Si es null, sigue con desplazamiento manual si queda contenido. Para desplazar manualmente, usa direction y amount.',
       parameters: objectParams({
         direction: stringProp('Dirección del desplazamiento: up, down, left o right.'),
         amount: numberProp('Magnitud del desplazamiento entre 1 y 20. Predeterminado: 3.'),
-      }, ['direction']),
+        find_link: stringProp('Fragmento distintivo de la etiqueta o ruta del enlace, entre 3 y 160 caracteres. Reemplaza direction y amount.'),
+      }),
     },
     {
       name: 'go_back_integrated_browser',

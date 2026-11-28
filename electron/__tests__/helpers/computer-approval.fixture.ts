@@ -1,6 +1,24 @@
 import { EventEmitter } from 'node:events';
-import type { BrowserWindow, WebContentsView } from 'electron';
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { app, type BrowserWindow, type WebContentsView } from 'electron';
 import { vi } from 'vitest';
+import { systemCipher } from '../../storage/os-cipher';
+
+export async function installComputerPermissionProfile() {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'soflia-permisos-'));
+  const defaultPath = vi.mocked(app.getPath).getMockImplementation();
+  const location = vi.spyOn(app, 'getPath').mockImplementation(name => name === 'userData' ? root : defaultPath?.(name) ?? root);
+  const available = vi.spyOn(systemCipher, 'available').mockResolvedValue(true);
+  const encrypt = vi.spyOn(systemCipher, 'encrypt').mockImplementation(async value => Buffer.from(value, 'utf8'));
+  const decrypt = vi.spyOn(systemCipher, 'decrypt').mockImplementation(async value => ({ result: value.toString('utf8'), shouldReEncrypt: false }));
+  return { root, dispose: async () => {
+    location.mockImplementation(defaultPath!);
+    available.mockRestore(); encrypt.mockRestore(); decrypt.mockRestore();
+    await rm(root, { recursive: true, force: true });
+  } };
+}
 
 export function mountComputerApprovalFixture(window: BrowserWindow, defaultApproval = false) {
   const events = new EventEmitter();

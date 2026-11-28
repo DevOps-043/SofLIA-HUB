@@ -228,7 +228,8 @@ export function BrowserWorkspaceLayout(props: BrowserWorkspaceLayoutProps) {
           </div>
         </header>
         <div className="min-h-0 min-w-0 flex-1 overflow-hidden rounded-b-[1.25rem]">
-          {artifactViewer?.selected ? <ArtifactViewerPanel compact /> : props.chat}
+          {artifactViewer?.selected && <ArtifactViewerPanel compact />}
+          <div className={artifactViewer?.selected ? 'hidden' : 'contents'}>{props.chat}</div>
         </div>
       </section>
 

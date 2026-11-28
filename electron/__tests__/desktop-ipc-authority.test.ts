@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ipcMain, type IpcMainInvokeEvent } from 'electron';
 import { registerDesktopAgentHandlers } from '../desktop-agent-handlers';
-import { registerComputerPermissions } from '../computer-use/permission-mode';
+import { fullComputerAccessFor, registerComputerPermissions } from '../computer-use/permission-mode';
 import type { DesktopAgentService } from '../desktop-agent-service';
 import { createMockDesktopAgentService } from './desktop-agent-handlers.fixture';
 import { authSourceFixture } from './helpers/auth-source.fixture';
-import { mountComputerApprovalFixture } from './helpers/computer-approval.fixture';
+import { installComputerPermissionProfile, mountComputerApprovalFixture } from './helpers/computer-approval.fixture';
 import { resetAuthStateForTests, setAuthState } from '../main/auth-state';
 import { desktopInputs, desktopInputSnapshot } from '../../src/shared/desktop-input';
 import { exposeDesktopApi } from '../preload/desktop-apis';
@@ -22,7 +22,7 @@ beforeEach(() => {
   review = mountComputerApprovalFixture(hub.window, false).review;
   registerDesktopAgentHandlers(service as unknown as DesktopAgentService, () => hub.window, () => null);
 });
-afterEach(() => { resetAuthStateForTests(); vi.restoreAllMocks(); vi.useRealTimers(); });
+afterEach(() => { setAuthState({ authenticated: false, userId: null }); resetAuthStateForTests(); vi.restoreAllMocks(); vi.useRealTimers(); });
 describe('Autoridad nativa Desktop Agent', () => {
   it.each(Object.keys(desktopInputs))('todos los canales deniegan ventana ajena: %s', async name => {
     await invoke(name, [], authSourceFixture().event).catch(() => undefined);
@@ -46,21 +46,24 @@ describe('Autoridad nativa Desktop Agent', () => {
     await invoke('click', [10, 20]); expect(review).toHaveBeenCalledOnce(); expect(service.mouseClick).not.toHaveBeenCalled();
   });
   it('Acceso completo inicia la tarea de observación sin diálogo y revoca el trabajo en curso', async () => {
+    const profile = await installComputerPermissionProfile();
     registerComputerPermissions(() => [hub.window]);
     const permission = (...args: unknown[]) => ipc._getHandler('computer:permission-mode')(hub.event, ...args);
-    review.mockResolvedValueOnce(true);
-    expect(await permission('full')).toMatchObject({ mode: 'full' });
-    service.executeTaskDetailed.mockImplementationOnce(async (_task, options) => {
-      expect(options?.signal).toBe(options?.fullAccess);
-      expect(options?.signal?.aborted).toBe(false);
-      expect(await permission('review')).toMatchObject({ mode: 'review' });
-      expect(options?.signal?.aborted).toBe(true);
-      return { taskId: 'qa', estado: 'cancelada', mensaje: 'Cancelada.', pasosEjecutados: 0, duracionMs: 1 };
-    });
-    expect(await invoke('execute-task', ['Observa la aplicación activa.', { backend: 'desktop', maxSteps: 3 }])).toMatchObject({ outcome: { estado: 'cancelada' } });
-    expect(review).toHaveBeenCalledOnce();
-    expect(await invoke('execute-task', ['Observa la aplicación activa.', { backend: 'desktop' }])).toMatchObject({ error: 'CANCELLED' });
-    expect(review).toHaveBeenCalledTimes(2);
+    try {
+      review.mockResolvedValueOnce(true);
+      expect(await permission('full')).toMatchObject({ mode: 'full' });
+      service.executeTaskDetailed.mockImplementationOnce(async (_task, options) => {
+        expect(options?.signal).toBe(options?.fullAccess);
+        expect(options?.signal?.aborted).toBe(false);
+        expect(await permission('review')).toMatchObject({ mode: 'review' });
+        expect(options?.signal?.aborted).toBe(true);
+        return { taskId: 'qa', estado: 'cancelada', mensaje: 'Cancelada.', pasosEjecutados: 0, duracionMs: 1 };
+      });
+      expect(await invoke('execute-task', ['Observa la aplicación activa.', { backend: 'desktop', maxSteps: 3 }])).toMatchObject({ outcome: { estado: 'cancelada' } });
+      expect(review).toHaveBeenCalledOnce();
+      expect(await invoke('execute-task', ['Observa la aplicación activa.', { backend: 'desktop' }])).toMatchObject({ error: 'CANCELLED' });
+      expect(review).toHaveBeenCalledTimes(2);
+    } finally { await profile.dispose(); }
   });
   it('sin sesión no lee estado', async () => {
     resetAuthStateForTests(); await invoke('get-status').catch(() => undefined); expect(service.getStatus).not.toHaveBeenCalled();
@@ -164,6 +167,7 @@ describe('Autoridad nativa Desktop Agent', () => {
     for (let index = 0; index < 8; index++) await Promise.resolve(); expect(hub.sender.listenerCount('did-start-navigation')).toBe(0);
   });
   it('timeout de aprobación no ejecuta respuesta tardía', async () => {
+    await fullComputerAccessFor(hub.window);
     vi.useFakeTimers(); let close!: (value: boolean) => void;
     review.mockImplementationOnce(() => new Promise(resolve => { close = resolve; }));
     const pending = invoke('click', [1, 2]); await vi.advanceTimersByTimeAsync(120001);

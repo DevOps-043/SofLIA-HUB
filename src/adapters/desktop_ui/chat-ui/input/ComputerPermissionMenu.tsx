@@ -4,7 +4,7 @@ import type { ComputerPermissionMode } from '../../../../shared/computer-permiss
 
 const choices = [
   { mode: 'review', label: 'Aprobar por mí', detail: 'SofLIA aprueba acciones de bajo riesgo mediante reglas. Te consulta cuando necesita tu decisión.' },
-  { mode: 'full', label: 'Acceso completo', detail: 'Permite que SofLIA ejecute las acciones de la computadora sin pedir aprobación en cada paso de esta sesión.' },
+  { mode: 'full', label: 'Acceso completo', detail: 'Permite actuar sin pedir aprobación en cada paso. Se guarda por cuenta en este equipo.' },
 ] as const;
 
 export function ComputerPermissionMenu({ onBack }: { onBack: () => void }) {

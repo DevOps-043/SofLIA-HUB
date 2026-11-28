@@ -358,9 +358,9 @@ describe('turno de OpenAI con espacio de trabajo', () => {
   it('recupera una promesa de navegación y continúa hasta verificar el archivo', async () => {
     const steps = [
       ['navigate_integrated_browser', { target: 'https://example.com' }],
-      ['click_browser_element', { ref: 'dom-1' }],
+      ['click_browser_element', { ref: 'dom-1', wait_for_download: true }],
       ['inspect_browser_downloads', { download_id: '1eb01ba1-65e4-4762-80f2-fa30f9000fd9', wait: true }],
-      ['move_item', { source_path: 'Descargas/prueba.txt', destination_path: 'Escritorio/prueba.txt' }],
+      ['move_item', { source_path: 'Descargas/prueba.txt', destination_path: 'Escritorio/prueba.txt', no_overwrite: true }],
       ['get_file_info', { path: 'Escritorio/prueba.txt' }],
     ] as const;
     openAiMocks.create.mockReturnValueOnce(textStream('Buscaré el instalador y comprobaré el destino.'))

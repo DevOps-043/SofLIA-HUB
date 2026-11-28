@@ -27,6 +27,19 @@ export function FloatingSofliaChat({ children, navigation, openRequest, onPrepar
   const prepare = useRef(onPrepare);
   useLayoutEffect(() => { prepare.current = onPrepare; }, [onPrepare]);
   const model = useModelSelector();
+  const { isModelSelectorOpen, setIsModelSelectorOpen } = model;
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      // El compositor puede llegar por portal. El alcance se resuelve con su DOM.
+      if (event.key !== 'Escape' || event.defaultPrevented || !(event.target instanceof Node) || !root.current?.contains(event.target)) return;
+      event.preventDefault();
+      setIsModelSelectorOpen(false);
+      if (!isModelSelectorOpen) setOpen(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [open, isModelSelectorOpen, setIsModelSelectorOpen]);
   const show = useCallback(async () => {
     if (pending.current) return;
     pending.current = true; setOpen(true); setBusy(true); setError('');
@@ -63,9 +76,7 @@ export function FloatingSofliaChat({ children, navigation, openRequest, onPrepar
     catch { if (live.current) setError('No se pudo crear el chat. Inténtalo de nuevo.'); }
     finally { if (live.current) { pending.current = false; setBusy(false); } }
   };
-  return <div ref={root} className="soflia-floating-dock" data-soflia-floating="true" data-dragging={placement.dragging || undefined} data-native-browser-overlay={placement.dragging ? 'true' : undefined} style={placement.style} onKeyDown={event => {
-    if (event.key === 'Escape' && !event.defaultPrevented) { event.preventDefault(); if (model.isModelSelectorOpen) model.setIsModelSelectorOpen(false); else minimize(); }
-  }}>
+  return <div ref={root} className="soflia-floating-dock" data-soflia-floating="true" data-dragging={placement.dragging || undefined} data-native-browser-overlay={placement.dragging ? 'true' : undefined} style={placement.style}>
     <section className="soflia-floating-card" hidden={!open} aria-label="Chat flotante con Soflia">
       <header className="soflia-floating-header">
         <button type="button" className="soflia-floating-grip" aria-label="Mover chat flotante" title="Arrastra para mover · Flechas para ajustar" {...placement.grip}><svg viewBox="0 0 24 16" aria-hidden="true"><path d="M7 5h.01M12 5h.01M17 5h.01M7 11h.01M12 11h.01M17 11h.01" /></svg></button>

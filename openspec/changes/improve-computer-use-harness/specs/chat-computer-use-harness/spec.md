@@ -12,8 +12,12 @@ El chat SHALL ofrecer **Aprobar por mí** y **Acceso completo** desde el menú `
 - **THEN** se autoriza para esa sesión y se respetan los bloqueos configurados, los documentos sensibles y las políticas de la organización
 
 #### Scenario: Revocar la autorización
-- **WHEN** cambia la sesión, se recarga la ventana o el usuario vuelve a Aprobar por mí
-- **THEN** las operaciones que sólo autorizaba Acceso completo vuelven a requerir aprobación
+- **WHEN** el usuario vuelve a Aprobar por mí
+- **THEN** main retira la autorización activa y elimina la autorización guardada para esa cuenta en el equipo
+
+#### Scenario: Reiniciar la aplicación
+- **WHEN** el usuario vuelve a abrir SofLIA y se autentica con la cuenta que autorizó Acceso completo en ese equipo
+- **THEN** main restaura la elección guardada. Cada tarea sigue vinculada a su ventana y sesión autenticada, y otra cuenta conserva su propia elección
 
 #### Scenario: Copia iniciada por el usuario
 - **WHEN** la persona copia texto desde el chat
@@ -30,13 +34,41 @@ Guardar una edición SHALL actualizar el mensaje con su identidad original y des
 - **WHEN** la sincronización devuelve una versión vieja del mensaje editado o mensajes de su rama anterior
 - **THEN** la interfaz muestra una sola copia con el texto editado y conserva otros mensajes que no pertenecían al reemplazo
 
+#### Scenario: Reintentar un mensaje sin respuesta
+- **WHEN** el usuario selecciona Enviar desde el editor del último mensaje, que quedó sin respuesta y sin un turno activo
+- **THEN** el chat ejecuta un nuevo intento con el mismo mensaje aunque su texto no haya cambiado
+
 ### Requirement: Navegación y descargas verificables
 El harness SHALL abrir y navegar en la pestaña integrada aunque el panel todavía esté cerrado. SHALL comprobar el estado de una descarga con el registro del navegador antes de tratarla como completa.
+
+#### Scenario: DOM disponible sin captura visual
+- **WHEN** la pestaña visible carga y la captura visual está vacía o no se puede obtener
+- **THEN** el controlador determinista puede leer el DOM autorizado y seguir por referencias. Si la lectura falla, el chat recibe la etapa y el motivo, y conserva el resultado de la navegación
+
+#### Scenario: Enlace de descarga fuera de la vista
+- **WHEN** el agente pide revelar un enlace por su etiqueta o ruta en la página activa
+- **THEN** se busca con límites dentro de la página y, si coincide un enlace renderizado, se desplaza hasta él y se devuelve una referencia DOM actual. El desplazamiento aplica la política de interacción del sitio. Una referencia anterior nunca debe identificar otro nodo por ocupar su posición en la lista
 
 #### Scenario: Abrir la primera página de una tarea
 - **WHEN** el chat navega a un destino autorizado con el panel cerrado
 - **THEN** abre el panel, conserva el destino y devuelve una observación de la pestaña o un fallo explícito
 
+#### Scenario: Reenviar un mensaje editado que abre el navegador
+- **WHEN** el turno vigente abre el navegador integrado y el chat pasa al panel lateral
+- **THEN** el mismo turno sigue en curso y publica el resultado o el error en la misma conversación
+
 #### Scenario: Transferencia en curso o interrumpida
 - **WHEN** el navegador aún está descargando un archivo o lo marca como interrumpido
 - **THEN** el resultado conserva el estado real y sólo incluye el destino final tras completarse
+
+#### Scenario: El enlace oficial de descarga abre otra pestaña
+- **WHEN** un clic del navegador abre una URL HTTP(S) en una nueva pestaña integrada
+- **THEN** la navegación conserva la referencia de origen y la política de privacidad entregadas por Chromium. Se siguen aplicando las reglas de navegación y descarga
+
+#### Scenario: Clic sin transferencia confirmada
+- **WHEN** el agente solicita esperar el comienzo de una descarga tras un clic
+- **THEN** el clic se ejecuta una vez. El agente recibe las transferencias nuevas observadas o un estado explícito de espera agotada y puede examinar la página de resultado antes de decidir cómo continuar
+
+#### Scenario: Cierre de la indicación de un control DOM
+- **WHEN** el clic o la escritura terminan o detectan un control inválido
+- **THEN** se retira su indicación visual sin cerrar una indicación posterior de otra tarea

@@ -1,5 +1,5 @@
 import type { BrowserShortcutRequest, BrowserShortcutResponse } from '../shared/browser-agent-shortcuts';
-import type { BrowserNavigationOptions } from '../shared/browser-navigation';
+import type { BrowserNavigationOptions, BrowserObservationOptions } from '../shared/browser-navigation';
 import { isBrowserUiCommandRequest, type BrowserUiCommandRequest } from '../shared/browser-keyboard-shortcuts';
 import type { BrowserPolicyRecoveryRequest, BrowserPolicyRecoveryResponse } from '../shared/browser-policy-recovery';
 import type { BrowserExtensionCatalogRequest, BrowserExtensionCatalogEntry } from '../shared/browser-extension-catalog';
@@ -491,6 +491,7 @@ export interface BrowserDomSnapshot {
   frames: Array<{ title: string; url: string; accessible: boolean }>;
   viewport: { width: number; height: number; scrollX: number; scrollY: number; documentWidth: number; documentHeight: number };
   truncated: boolean;
+  matchedLinkRef?: string | null;
 }
 
 export interface BrowserObservationSnapshot {
@@ -498,7 +499,7 @@ export interface BrowserObservationSnapshot {
   sequence: number;
   capturedAt: string;
   tabId: string;
-  screenshot: string;
+  screenshot?: string;
   dom: BrowserDomSnapshot;
 }
 
@@ -532,6 +533,7 @@ export interface IntegratedBrowserInteractionResponse extends IntegratedBrowserR
 export interface IntegratedBrowserObservationResponse extends IntegratedBrowserResponse {
   observation?: BrowserObservationSnapshot | null;
   observationStatus?: BrowserObservationStatus;
+  observationError?: string;
 }
 
 export interface BrowserSelectionActionRequest {
@@ -669,7 +671,7 @@ export interface IntegratedBrowserApi {
   getPlayerState(): Promise<BrowserPlayerStateResponse>;
   sampleFrames(count: number, intervalMs: number, requestId?: string): Promise<BrowserFrameSampleResponse>;
   cancelFrameSampling(requestId: string): Promise<{ success: boolean; cancelled?: boolean; error?: string }>;
-  getObservation(forceFresh?: boolean): Promise<IntegratedBrowserObservationResponse>;
+  getObservation(forceFresh?: boolean, options?: BrowserObservationOptions): Promise<IntegratedBrowserObservationResponse>;
   setObservationEnabled(enabled: boolean): Promise<IntegratedBrowserObservationResponse>;
   open(url?: string, options?: BrowserNavigationOptions): Promise<IntegratedBrowserResponse>;
   navigate(target: string, options?: BrowserNavigationOptions): Promise<IntegratedBrowserResponse>;
@@ -822,6 +824,8 @@ export const integratedBrowserService = {
     requireApi().sampleFrames(count, intervalMs, requestId),
   cancelFrameSampling: (requestId: string) => requireApi().cancelFrameSampling(requestId),
   getObservation: (forceFresh = false): Promise<IntegratedBrowserObservationResponse> => requireApi().getObservation(forceFresh),
+  getDomObservation: (forceFresh = true, findLink?: string): Promise<IntegratedBrowserObservationResponse> =>
+    requireApi().getObservation(forceFresh, findLink ? { domOnly: true, findLink } : { domOnly: true }),
   setObservationEnabled: (enabled: boolean): Promise<IntegratedBrowserObservationResponse> => requireApi().setObservationEnabled(enabled),
   // waitForLoad:false acusa inicio; errores posteriores llegan por state-changed.
   open: (url?: string, options?: BrowserNavigationOptions): Promise<IntegratedBrowserResponse> => options ? requireApi().open(url, options) : requireApi().open(url),

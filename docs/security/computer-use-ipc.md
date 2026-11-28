@@ -1,12 +1,13 @@
 # Computer Use: autorización en main
 
-Estado: vigente. Actualizado: 2026-11-25.
+Estado: vigente. Actualizado: 2026-11-26.
 
 <!-- evidence: electron/computer-use/ipc-registration.ts -->
 <!-- evidence: electron/computer-use/ipc-tools.ts -->
 <!-- evidence: electron/computer-use/ipc-review.ts -->
 <!-- evidence: electron/computer-use/approval-view.ts -->
 <!-- evidence: electron/computer-use/permission-mode.ts -->
+<!-- evidence: electron/computer-use/permission-preference.ts -->
 <!-- evidence: src/shared/computer-use-input.ts -->
 <!-- evidence: electron/preload/computer-apis.ts -->
 <!-- evidence: src/services/computer-use/confirmation.ts -->
@@ -62,9 +63,12 @@ restricciones administradas. Los servicios remotos mantienen sus permisos.
 Main vuelve a comprobar el permiso de un clic o envío cuando el chat omitió
 la revisión al detectar Acceso completo.
 
-El permiso vive en memoria por ventana autenticada y se revoca al recargar,
-cambiar de sesión, cerrar la ventana o elegir Aprobar por mí. Las tareas con
-soporte para cancelación reciben una señal de revocación.
+Main guarda la autorización de Acceso completo cifrada con el almacén del
+sistema para la cuenta autenticada y el perfil local. La restaura al iniciar
+sesión con esa cuenta, incluso tras reiniciar la aplicación. Elegir Aprobar
+por mí retira la autorización activa y elimina la guardada. Recargar, cerrar
+la ventana o cambiar de sesión invalida las llamadas del origen anterior.
+Las tareas que admiten cancelación reciben esa señal.
 
 Los botones de copia de la interfaz usan el portapapeles del documento. La
 herramienta `clipboard_write` se reserva para operaciones del agente.

@@ -8,6 +8,8 @@ export type BrowserPerceptionTarget = Readonly<{
   documentToken: string;
   loadSequence: number;
   visualRevision: number;
+  /** El DOM explícito se vincula al documento. */
+  documentOnly?: true;
   sessionGeneration: number;
   policyRevision: number;
   controlRevision: number;
@@ -28,7 +30,8 @@ type ObservationContent = Omit<BrowserObservationSnapshot, 'id' | 'sequence'>;
 function sameTarget(a: BrowserPerceptionTarget, b: BrowserPerceptionTarget): boolean {
   return a.tabId === b.tabId && a.url === b.url && a.contents === b.contents
     && a.documentToken === b.documentToken && a.loadSequence === b.loadSequence
-    && a.visualRevision === b.visualRevision && a.sessionGeneration === b.sessionGeneration
+    && a.documentOnly === b.documentOnly && (a.documentOnly || a.visualRevision === b.visualRevision)
+    && a.sessionGeneration === b.sessionGeneration
     && a.policyRevision === b.policyRevision && a.controlRevision === b.controlRevision;
 }
 
@@ -39,8 +42,10 @@ export class BrowserPerceptionState {
   private readonly targets = new Map<string, object>();
   private readonly visualSlot: Slot<BrowserVisualCapture> = { job: null };
   private readonly observationSlot: Slot<BrowserObservationSnapshot> = { job: null };
+  private readonly domSlot: Slot<BrowserObservationSnapshot> = { job: null };
   private visualCache: Cache<BrowserVisualCapture> | null = null;
   private observationCache: Cache<BrowserObservationSnapshot> | null = null;
+  private domCache: Cache<BrowserObservationSnapshot> | null = null;
   private error: string | null = null;
   private sequence = 0;
   private timer: ReturnType<typeof setTimeout> | null = null;
@@ -90,6 +95,7 @@ export class BrowserPerceptionState {
 
   invalidateDom(tabId?: string): void {
     if (tabId === undefined || this.observationCache?.lease.target.tabId === tabId) this.observationCache = null;
+    if (tabId === undefined || this.domCache?.lease.target.tabId === tabId) this.domCache = null;
   }
 
   visual(target: BrowserPerceptionTarget): BrowserVisualCapture | null {
@@ -102,8 +108,13 @@ export class BrowserPerceptionState {
     return cached?.lease.isCurrent() && sameTarget(cached.lease.target, target) ? cached.value : null;
   }
 
+  domObservation(target: BrowserPerceptionTarget): BrowserObservationSnapshot | null {
+    const cached = this.domCache;
+    return cached?.lease.isCurrent() && sameTarget(cached.lease.target, target) ? cached.value : null;
+  }
+
   status(intervalMs: number): BrowserObservationStatus {
-    return { enabled: this.active, capturing: this.observing || this.visualSlot.job !== null,
+    return { enabled: this.active, capturing: this.observing || this.visualSlot.job !== null || this.domSlot.job !== null,
       intervalMs, lastCapturedAt: this.visualCache?.value.capturedAt ?? this.observationCache?.value.capturedAt ?? null,
       lastError: this.error };
   }
@@ -119,6 +130,18 @@ export class BrowserPerceptionState {
       const value = { ...content, id: randomUUID(), sequence: ++this.sequence };
       this.observationCache = { lease, value }; this.error = null; return value;
     }, () => this.observation(lease.target));
+  }
+
+  captureDom(lease: BrowserPerceptionLease, produce: () => Promise<ObservationContent | null>): Promise<BrowserObservationSnapshot | null> {
+    return this.run(this.domSlot, lease, produce, content => {
+      const value = { ...content, id: randomUUID(), sequence: ++this.sequence };
+      this.domCache = { lease, value };
+      this.error = null;
+      return value;
+    }, reason => {
+      if (this.domCache?.lease.target.tabId === lease.target.tabId) this.domCache = null;
+      throw reason;
+    });
   }
 
   schedule(delayMs: number, capture: () => Promise<unknown>): void {
@@ -145,12 +168,12 @@ export class BrowserPerceptionState {
   }
 
   private async run<T, R>(slot: Slot<R>, lease: BrowserPerceptionLease, produce: () => Promise<T | null>,
-    publish: (value: T) => R, fallback: () => R | null): Promise<R | null> {
+    publish: (value: T) => R, fallback: (reason: unknown) => R | null): Promise<R | null> {
     if (!lease.isCurrent()) return null;
     const previous = slot.job;
     if (previous) {
       if (previous.lease.isCurrent() && sameTarget(previous.lease.target, lease.target)) return previous.promise;
-      await previous.promise;
+      await previous.promise.catch(() => undefined);
       return this.run(slot, lease, produce, publish, fallback);
     }
     const job: Job<R> = { lease, promise: Promise.resolve(null) };
@@ -165,7 +188,7 @@ export class BrowserPerceptionState {
       } catch (error) {
         if (!lease.isCurrent()) return null;
         this.error = this.input.describeError(error);
-        return fallback();
+        return fallback(error);
       } finally {
         if (slot.job === job) slot.job = null;
       }

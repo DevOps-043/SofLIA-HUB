@@ -5,6 +5,7 @@ import { initialGuidanceState, validGuidanceTarget, type GuidanceControl, type G
 export type GuidancePresentation = { target: GuidanceTarget; instruction: string; signal?: AbortSignal; assertCurrent?: () => void; holdMs?: number };
 export interface VisualGuidancePort {
   present(input: GuidancePresentation): Promise<void>;
+  clearPresentation?(target: GuidanceTarget): void;
   clear(): void;
   capture<T>(operation: () => Promise<T>): Promise<T>;
   wait(signal?: AbortSignal): Promise<void>;
@@ -31,6 +32,7 @@ export class OrbGuidanceService extends EventEmitter implements VisualGuidancePo
   private practiceObservation = 0;
   private practiceOwner: (() => void) | null = null;
   private targetRequest = 0;
+  private presentationTarget: GuidanceTarget | null = null;
   private rendering: Promise<void> = Promise.resolve();
 
   constructor(private readonly options: GuidanceServiceOptions) { super(); }
@@ -55,6 +57,7 @@ export class OrbGuidanceService extends EventEmitter implements VisualGuidancePo
     input.assertCurrent?.();
     if (wasPaused || lifetime !== this.lifetime || !this.options.authorized() || input.signal?.aborted) throw cancelled();
     this.cancelExpiry();
+    this.presentationTarget = input.target;
     this.update({ phase: 'presenting', target: input.target, instruction: input.instruction.slice(0, 300), message: null });
     this.renderState();
     await this.awaitRendering();
@@ -68,6 +71,14 @@ export class OrbGuidanceService extends EventEmitter implements VisualGuidancePo
       this.update({ target: null });
       (this.options.surfaces.suspend ?? this.options.surfaces.clear).call(this.options.surfaces);
     }, input.holdMs ?? 1500);
+  }
+
+  clearPresentation(target: GuidanceTarget): void {
+    if (this.state.phase !== 'presenting' || this.presentationTarget !== target) return;
+    this.presentationTarget = null;
+    this.cancelExpiry();
+    this.update({ phase: 'idle', target: null, instruction: '' });
+    this.options.surfaces.clear();
   }
 
   capture<T>(operation: () => Promise<T>): Promise<T> { return this.options.surfaces.capture(operation); }
@@ -91,6 +102,7 @@ export class OrbGuidanceService extends EventEmitter implements VisualGuidancePo
     }
     if (control.action === 'resume') {
       if (this.state.phase !== 'paused') return;
+      this.presentationTarget = null;
       this.update({ phase: this.definition ? 'practice' : 'idle', target: null });
       for (const release of [...this.pending]) release();
       if (this.definition) void this.refreshPractice();
@@ -110,6 +122,7 @@ export class OrbGuidanceService extends EventEmitter implements VisualGuidancePo
     this.targetRequest++;
     this.practiceObservation++;
     this.cancelExpiry();
+    this.presentationTarget = null;
     if (this.tracking) clearTimeout(this.tracking);
     this.tracking = null;
     this.definition = null;

@@ -7,7 +7,7 @@ import { BROWSER_HOME_TITLE, isBrowserHomeUrl } from '../../src/shared/browser-h
 import { prepareEcosystemSession, ecosystemSessionOrigins, rememberEcosystemSignOut, responseIndicatesEcosystemSignOut } from './ecosystem-session-runtime';
 import { EcosystemSessionError } from './ecosystem-session';
 import { ecosystemOrigin } from '../../src/shared/browser-ecosystem';
-import type { BrowserNavigationOptions } from '../../src/shared/browser-navigation';
+import type { BrowserNavigationOptions, BrowserObservationOptions } from '../../src/shared/browser-navigation';
 import type { BrowserViewport } from '../../src/shared/browser-navigation';
 import { applyBrowserTabZoom, browserDomPoint, invalidateBrowserTabZoom, supportsIsolatedBrowserZoom } from './tab-zoom';
 import { BrowserCredentialUnlock } from './credential-unlock';
@@ -115,6 +115,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { currentComputerAccess } from '../computer-use/permission-mode';
 import { browserCertificateDecision } from './certificate-policy';
 import { assertCuNotAborted, CuContextChangedError } from '../desktop-agent/gemini-cu/execution-guard';
+import { waitForCuResponse } from '../desktop-agent/gemini-cu/cancellable-wait';
 import { BrowserPrivacyStore, normalizePrivacyOrigin } from './privacy-store';
 import { BrowserTrackingRuleEngine, createTrackingRuleList, mitigateFingerprintingRequestHeaders, mitigateFingerprintingResponseHeaders, stripTrackingParameters } from './tracking-protection';
 import { BrowserEnterprisePolicyStore } from './enterprise-policy-store';
@@ -186,6 +187,8 @@ type ViewportWaiter = {
   timer: ReturnType<typeof setTimeout>;
 };
 
+type NewTabOptions = BrowserNavigationOptions & { httpReferrer?: Electron.Referrer };
+
 type BrowserTabRuntime = {
   sensitive?: boolean;
   id: string;
@@ -256,13 +259,13 @@ export class IntegratedBrowserService extends EventEmitter {
     return this.isSensitiveContents(contents) ? sensitiveSessionDisplayUrl(contents.getURL()) : contents.getURL();
   }
 
-  private async assertDocumentNotSensitive(tabId?: string): Promise<void> {
+  private async assertDocumentNotSensitive(tabId?: string, guardVisualRevision = true): Promise<void> {
     this.assertKnownDocumentNotSensitive(tabId);
     if (!this.capabilities.agentGovernance) return;
     const tab = tabId ? this.tabs.get(tabId) : this.getActiveTab();
     const contents = tab?.view?.webContents;
     if (!tab || !contents) throw new Error('La página no está disponible para revisión de seguridad.');
-    const guard = this.createAgentAccessGuard(tabId);
+    const guard = this.createAgentAccessGuard(tabId, undefined, true, guardVisualRevision);
     const reason = await inspectBrowserSensitivePage(contents);
     guard();
     if (reason) {
@@ -1192,10 +1195,14 @@ export class IntegratedBrowserService extends EventEmitter {
     const assertTarget = this.captureNavigationGuard();
     try {
       assertCuNotAborted(signal);
-      const result = await this.getObservation(true, signal);
+      const state = this.getState();
+      const result = await waitForCuResponse(() => this.getObservation(true, signal, { domOnly: true }), signal).catch((error: unknown) => ({
+        observation: null,
+        observationError: safeErrorMessage(error instanceof Error ? error.message : ''),
+      }));
       assertCuNotAborted(signal);
       assertTarget();
-      return { ...result, state: this.getState() };
+      return { ...result, state };
     } finally { if (this.agentControlRevision === controlRevision) this.releaseAgentControl(); }
   }
 
@@ -1447,7 +1454,7 @@ export class IntegratedBrowserService extends EventEmitter {
     return { state: this.getState(), ...result };
   }
 
-  async createTab(rawUrl?: unknown, activate = true, restored?: BrowserSessionTab, options: BrowserNavigationOptions = {}): Promise<IntegratedBrowserState> {
+  async createTab(rawUrl?: unknown, activate = true, restored?: BrowserSessionTab, options: NewTabOptions = {}): Promise<IntegratedBrowserState> {
     const assertCurrent = this.captureProfileGuard(true);
     await this.ephemeralCleanup;
     assertCurrent();
@@ -1475,7 +1482,7 @@ export class IntegratedBrowserService extends EventEmitter {
     if (!this.primaryTabId) this.primaryTabId = tab.id;
     if (activate) this.activateTabInternal(tab.id);
     this.applyViewLayout();
-    await this.loadTabTarget(tab, target, options.waitForLoad);
+    await this.loadTabTarget(tab, target, options.waitForLoad, undefined, options.httpReferrer);
     assertCurrent();
     this.enforceLiveTabBudget();
     return this.getState();
@@ -2425,10 +2432,12 @@ export class IntegratedBrowserService extends EventEmitter {
     return this.perception.status(passiveObservationIntervalMs(active?.view?.webContents.getURL() ?? active?.url ?? ''));
   }
 
-  async getObservation(forceFresh = false, signal?: AbortSignal): Promise<{ observation: BrowserObservationSnapshot | null; observationStatus: BrowserObservationStatus }> {
-    return this.auditAgentOperation('dom', () => this.getObservationInternal(forceFresh, signal));
+  async getObservation(forceFresh = false, signal?: AbortSignal, options: BrowserObservationOptions = {}) {
+    return this.auditAgentOperation(options.findLink ? 'scroll' : 'dom', () => options.domOnly
+      ? this.getDomObservationInternal(forceFresh, signal, options.findLink)
+      : this.getObservationInternal(forceFresh, signal));
   }
-  private async getObservationInternal(forceFresh = false, signal?: AbortSignal): Promise<{ observation: BrowserObservationSnapshot | null; observationStatus: BrowserObservationStatus }> {
+  private async getObservationInternal(forceFresh: boolean, signal?: AbortSignal): Promise<{ observation: BrowserObservationSnapshot | null; observationStatus: BrowserObservationStatus }> {
     assertCuNotAborted(signal);
     if (!this.perception.enabled) return { observation: null, observationStatus: this.getObservationStatus() };
     const cycleCurrent = this.perception.guardCycle();
@@ -2436,9 +2445,47 @@ export class IntegratedBrowserService extends EventEmitter {
     if (!cycleCurrent()) return { observation: null, observationStatus: this.getObservationStatus() };
     const active = this.getActiveTab();
     const target = active && this.perceptionTarget(active);
-    const observation = forceFresh ? await this.refreshObservation(true, assertTarget) : target ? this.perception.observation(target) : null;
+    const observation = forceFresh ? await this.refreshObservation(assertTarget) : target ? this.perception.observation(target) : null;
     assertTarget();
     return { observation, observationStatus: this.getObservationStatus() };
+  }
+
+  private async getDomObservationInternal(forceFresh: boolean, signal?: AbortSignal, findLink?: string): Promise<{ observation: BrowserObservationSnapshot | null; observationStatus: BrowserObservationStatus; observationError?: string }> {
+    assertCuNotAborted(signal);
+    if (!this.perception.enabled) return { observation: null, observationStatus: this.getObservationStatus() };
+    const cycleCurrent = this.perception.guardCycle();
+    const assertTarget = await this.authorizeAgentAccess('observe-dom', undefined, signal, false);
+    if (!cycleCurrent()) return { observation: null, observationStatus: this.getObservationStatus() };
+    const active = this.getActiveTab();
+    const target = active && this.perceptionTarget(active, false);
+    if (!active || !target || !this.isTabVisible(active) || this.usesShellHome(active)) {
+      return { observation: null, observationStatus: this.getObservationStatus(), observationError: 'La pestaña visible aún no tiene un documento web para leer.' };
+    }
+    let assertRead = assertTarget;
+    if (findLink) {
+      this.requireVisibleContents();
+      const assertAction = await this.authorizeAgentAccess('act', undefined, signal, false);
+      assertRead = () => { assertTarget(); assertAction(); this.requireVisibleContents(); };
+      assertRead();
+      if (!cycleCurrent()) return { observation: null, observationStatus: this.getObservationStatus() };
+      this.perception.invalidate(active.id);
+    }
+    let observation: BrowserObservationSnapshot | null = null;
+    let observationError: string | undefined;
+    try {
+      if (forceFresh || findLink) {
+        observation = await this.refreshDomObservation(active, target, assertRead, findLink);
+      } else {
+        const cached = this.perception.domObservation(target) ?? this.perception.observation(this.perceptionTarget(active)!);
+        if (cached) observation = { ...cached, screenshot: undefined };
+      }
+    } catch (error) {
+      observationError = safeErrorMessage(error instanceof Error ? error.message : 'No se pudo leer el DOM de la página.');
+    }
+    assertRead();
+    if (!cycleCurrent() || !this.isPerceptionTargetCurrent(target)) observation = null;
+    if (forceFresh && !observation) observationError ??= 'La lectura del DOM perdió vigencia. Vuelve a leer la pestaña activa.';
+    return { observation, observationStatus: this.getObservationStatus(), observationError };
   }
 
   async setObservationEnabled(enabled: boolean): Promise<{ observation: BrowserObservationSnapshot | null; observationStatus: BrowserObservationStatus }> {
@@ -2467,9 +2514,7 @@ export class IntegratedBrowserService extends EventEmitter {
     assertTarget();
     if (target.disabled) throw new Error(`El control "${target.name || target.tag}" esta deshabilitado.`);
     const point = browserDomPoint(contents, target, this.getActiveTab()?.zoomFactor ?? 1);
-    const assertGuided = await this.prepareGuidedBrowserTarget(target, point, assertTarget);
-    assertGuided();
-    sendBrowserClick(contents, point.x, point.y);
+    await this.withGuidedBrowserTarget(target, point, assertTarget, () => sendBrowserClick(contents, point.x, point.y));
     this.noteInteraction();
     return { target, warning: target.occluded ? 'Otro elemento cubria el punto de impacto; verifica el resultado antes de continuar.' : null };
   }
@@ -2491,18 +2536,18 @@ export class IntegratedBrowserService extends EventEmitter {
     if (!target.editable) throw new Error(`El elemento "${target.name || target.tag}" no es un campo editable.`);
     if (target.disabled) throw new Error(`El campo "${target.name || target.tag}" esta deshabilitado.`);
     const point = browserDomPoint(contents, target, this.getActiveTab()?.zoomFactor ?? 1);
-    const assertGuided = await this.prepareGuidedBrowserTarget(target, point, assertTarget);
-    assertGuided();
-    sendBrowserClick(contents, point.x, point.y);
-    const selectionModifier = process.platform === 'darwin' ? 'meta' : 'control';
-    contents.sendInputEvent({ type: 'keyDown', keyCode: 'A', modifiers: [selectionModifier] });
-    contents.sendInputEvent({ type: 'keyUp', keyCode: 'A', modifiers: [selectionModifier] });
-    await contents.insertText(rawText);
-    assertTarget();
-    if (rawSubmit === true) {
-      contents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
-      contents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
-    }
+    await this.withGuidedBrowserTarget(target, point, assertTarget, async () => {
+      sendBrowserClick(contents, point.x, point.y);
+      const selectionModifier = process.platform === 'darwin' ? 'meta' : 'control';
+      contents.sendInputEvent({ type: 'keyDown', keyCode: 'A', modifiers: [selectionModifier] });
+      contents.sendInputEvent({ type: 'keyUp', keyCode: 'A', modifiers: [selectionModifier] });
+      await contents.insertText(rawText);
+      assertTarget();
+      if (rawSubmit === true) {
+        contents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
+        contents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
+      }
+    });
     this.noteInteraction();
     return { target, warning: null };
   }
@@ -2536,23 +2581,25 @@ export class IntegratedBrowserService extends EventEmitter {
     this.noteInteraction();
   }
 
-  private async prepareGuidedBrowserTarget(target: BrowserElementTarget, point: { x: number; y: number }, assertCurrent: () => void): Promise<() => void> {
-    if (!this.visualGuidance) return () => undefined;
-    const assertGuidance = this.visualGuidance.createGuard?.();
+  private async withGuidedBrowserTarget(target: BrowserElementTarget, point: { x: number; y: number }, assertCurrent: () => void, act: () => void | Promise<void>): Promise<void> {
+    const guidance = this.visualGuidance;
+    const cue = guidance && this.getGuidanceTarget(point);
+    if (!guidance || !cue) { assertCurrent(); await act(); return; }
+    const assertGuidance = guidance.createGuard?.();
+    const signal = currentComputerAccess();
     const assertDocument = this.createAgentTargetGuard(undefined, true);
-    const cue = this.getGuidanceTarget(point);
-    if (!cue) return () => undefined;
-    await this.visualGuidance.wait();
-    await this.visualGuidance.present({ target: cue, instruction: `Seleccionar ${target.name || target.tag}` });
-    assertCurrent(); assertDocument();
-    assertGuidance?.();
-    const current = await this.requireInteractiveTarget(target.ref);
-    assertCurrent(); assertDocument();
-    assertGuidance?.();
-    if (current.target.disabled || current.target.occluded || current.target.editable !== target.editable) throw new Error('El control cambió o está cubierto. Vuelve a localizarlo.');
-    const next = browserDomPoint(current.contents, current.target, this.getActiveTab()?.zoomFactor ?? 1);
-    if (next.x !== point.x || next.y !== point.y || JSON.stringify(this.getGuidanceTarget(next)) !== JSON.stringify(cue)) throw new Error('El control cambió de posición. Vuelve a localizarlo.');
-    return () => { assertCurrent(); assertDocument(); assertGuidance?.(); };
+    const assertGuided = () => { assertCurrent(); assertDocument(); assertGuidance?.(); };
+    try {
+      await guidance.wait(signal);
+      await guidance.present({ target: cue, instruction: `Seleccionar ${target.name || target.tag}`, assertCurrent: assertGuided, signal });
+      assertGuided();
+      const current = await this.requireInteractiveTarget(target.ref);
+      assertGuided();
+      if (current.target.disabled || current.target.occluded || current.target.editable !== target.editable) throw new Error('El control cambió o está cubierto. Vuelve a localizarlo.');
+      const next = browserDomPoint(current.contents, current.target, this.getActiveTab()?.zoomFactor ?? 1);
+      if (next.x !== point.x || next.y !== point.y || JSON.stringify(this.getGuidanceTarget(next)) !== JSON.stringify(cue)) throw new Error('El control cambió de posición. Vuelve a localizarlo.');
+      await act();
+    } finally { guidance.clearPresentation?.(cue); }
   }
 
   private async requireInteractiveTarget(rawRef: unknown): Promise<{ contents: WebContents; target: BrowserElementTarget }> {
@@ -3287,7 +3334,7 @@ export class IntegratedBrowserService extends EventEmitter {
         // abrio recibe `null` y pierde la relacion `opener`. Queda registrado
         // porque hay flujos que dependen de ese vinculo.
         console.info(`[Navegador][Ventana] Apertura con destino convertida en pestaña: ${describeBlockedUrl(url)}`);
-        void this.createTab(url, true, undefined, { sensitive: tab.sensitive }).catch((error) => this.recordError(error, tab.id));
+        void this.createTab(url, true, undefined, { sensitive: tab.sensitive, httpReferrer: details.referrer }).catch((error) => this.recordError(error, tab.id));
       } else this.recordError(new Error('El sitio intento abrir un protocolo no permitido.'));
       return { action: 'deny' };
     });
@@ -3540,7 +3587,7 @@ export class IntegratedBrowserService extends EventEmitter {
   }
 
   /** La UI acusa el inicio; los agentes conservan la espera del documento. */
-  private async loadTabTarget(tab: BrowserTabRuntime, target: string, waitForLoad = true, agentOpening?: { signal?: AbortSignal }): Promise<void> {
+  private async loadTabTarget(tab: BrowserTabRuntime, target: string, waitForLoad = true, agentOpening?: { signal?: AbortSignal }, httpReferrer?: Electron.Referrer): Promise<void> {
     const contents = this.requireTabView(tab).webContents;
     const generation = this.sessionGeneration;
     const parent = this.parentWindow;
@@ -3555,7 +3602,12 @@ export class IntegratedBrowserService extends EventEmitter {
     tab.awaitingNavigationStart = target;
     if (tab.appliedVisible !== null) this.applyTabVisibility(tab, this.requireTabView(tab), tab.appliedVisible);
     this.emitState();
-    const loading = contents.loadURL(target).then(() => {
+    // Solo el evento nativo aporta esta referencia. Chromium vuelve a aplicar
+    // la política original, incluidas las solicitudes sin Referer.
+    const navigation = httpReferrer?.url && httpReferrer.policy !== 'no-referrer'
+      ? contents.loadURL(target, { httpReferrer })
+      : contents.loadURL(target);
+    const loading = navigation.then(() => {
       if (current() && tab.loading) { tab.loading = false; this.snapshotTab(tab); this.emitState(); }
     }).catch((error: unknown) => {
       // Un destino nuevo o un perfil reemplazado no recibe errores de esta carga.
@@ -3570,6 +3622,7 @@ export class IntegratedBrowserService extends EventEmitter {
     }
     if (!agentOpening) { await loading; return; }
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let onProcessGone: (() => void) | undefined;
     const stopCurrentLoad = () => {
       if (!current()) return;
       try { contents.stop(); } catch { /* La pestaña puede estar cerrándose. */ }
@@ -3580,6 +3633,8 @@ export class IntegratedBrowserService extends EventEmitter {
       agentOpening.signal?.addEventListener('abort', stopCurrentLoad, { once: true });
       if (agentOpening.signal?.aborted) stopCurrentLoad();
       await Promise.race([loading, new Promise<never>((_resolve, reject) => {
+        onProcessGone = () => reject(new Error('La pestaña se cerró inesperadamente durante la navegación.'));
+        contents.once('render-process-gone', onProcessGone);
         timer = setTimeout(() => {
           reject(new Error('El sitio no terminó de cargar dentro del plazo de navegación.'));
           stopCurrentLoad();
@@ -3588,6 +3643,7 @@ export class IntegratedBrowserService extends EventEmitter {
       if (!current()) throw new Error('La navegación fue reemplazada antes de terminar.');
     } finally {
       clearTimeout(timer);
+      if (onProcessGone) contents.removeListener('render-process-gone', onProcessGone);
       agentOpening.signal?.removeEventListener('abort', stopCurrentLoad);
     }
   }
@@ -3695,12 +3751,14 @@ export class IntegratedBrowserService extends EventEmitter {
     });
   }
 
-  private createAgentAccessGuard(tabId?: string, signal?: AbortSignal, document = true): () => void {
+  private createAgentAccessGuard(tabId?: string, signal?: AbortSignal, document = true, guardVisualRevision = true): () => void {
     const tab = tabId ? this.tabs.get(tabId) : this.getActiveTab();
     const contents = tab?.view?.webContents;
     const startedUrl = contents?.getURL() ?? tab?.url;
     const scopeId = this.scopeId;
     const revision = tab?.visualRevision;
+    const documentToken = tab?.documentToken;
+    const loadSequence = tab?.loadSequence;
     const generation = this.sessionGeneration;
     const parent = this.parentWindow;
     const activeRevision = this.activeTabRevision;
@@ -3713,17 +3771,18 @@ export class IntegratedBrowserService extends EventEmitter {
         || !parent || parent.isDestroyed() || this.parentWindow !== parent
         || !tab || !contents || this.tabs.get(tab.id) !== tab || tab.view?.webContents !== contents
         || contents.isDestroyed() || this.agentPolicyRevision !== policyRevision || this.agentControlRevision !== controlRevision
-        || (document && ((contents.getURL() ?? tab.url) !== startedUrl || tab.visualRevision !== revision))
+        || (document && ((contents.getURL() ?? tab.url) !== startedUrl || tab.documentToken !== documentToken
+          || tab.loadSequence !== loadSequence || (guardVisualRevision && tab.visualRevision !== revision)))
         || (!tabId && (this.activeTabId !== tab.id || this.activeTabRevision !== activeRevision))) throw new CuContextChangedError();
     };
     assertTarget();
     return assertTarget;
   }
 
-  private async authorizeAgentAccess(capability: BrowserAgentCapability, tabId?: string, signal?: AbortSignal): Promise<() => void> {
+  private async authorizeAgentAccess(capability: BrowserAgentCapability, tabId?: string, signal?: AbortSignal, guardVisualRevision = true): Promise<() => void> {
     const fullAccess = currentComputerAccess();
     const accessSignal = fullAccess && signal ? AbortSignal.any([fullAccess, signal]) : fullAccess ?? signal;
-    const assertTarget = this.createAgentAccessGuard(tabId, accessSignal);
+    const assertTarget = this.createAgentAccessGuard(tabId, accessSignal, true, guardVisualRevision);
     const tab = tabId ? this.tabs.get(tabId) : this.getActiveTab();
     const startedUrl = tab?.view?.webContents.getURL() ?? tab?.url;
     const policyAudit = (allowed: boolean, confirmation: 'none' | 'accepted' | 'rejected' = 'none') => {
@@ -3734,7 +3793,7 @@ export class IntegratedBrowserService extends EventEmitter {
     assertTarget();
     if (this.enterprisePolicy?.agentAllowed === false) { policyAudit(false); throw new Error('SofLIA está bloqueada por tu organización en el navegador.'); }
     if (!this.capabilities.agentGovernance) { this.assertKnownDocumentNotSensitive(tabId); return assertTarget; }
-    await this.assertDocumentNotSensitive(tabId); assertTarget();
+    await this.assertDocumentNotSensitive(tabId, guardVisualRevision); assertTarget();
     let origin: string;
     try { origin = normalizeAgentOrigin(startedUrl ?? ''); }
     catch { throw new Error('SofLIA sólo puede acceder a páginas web seguras del navegador.'); }
@@ -3742,7 +3801,7 @@ export class IntegratedBrowserService extends EventEmitter {
     assertTarget();
     if (evaluation === 'block') { policyAudit(false); throw new Error('SofLIA no tiene permiso para acceder a este sitio.'); }
     if (fullAccess && evaluation === 'managed-ask') { policyAudit(false); throw new Error('La política de tu organización requiere una autorización por sitio.'); }
-    if (evaluation === 'allow' || fullAccess) { await this.assertDocumentNotSensitive(tabId); assertTarget(); policyAudit(true); return assertTarget; }
+    if (evaluation === 'allow' || fullAccess) { await this.assertDocumentNotSensitive(tabId, guardVisualRevision); assertTarget(); policyAudit(true); return assertTarget; }
     const decision = await this.promptAgentPolicy({
       id: randomUUID(),
       origin,
@@ -3758,7 +3817,7 @@ export class IntegratedBrowserService extends EventEmitter {
       if (decision === 'block') this.agentPolicyRevision += 1;
     }
     if (decision !== 'allow-once' && decision !== 'allow-always') throw new Error('El acceso del agente fue bloqueado por el usuario.');
-    await this.assertDocumentNotSensitive(tabId);
+    await this.assertDocumentNotSensitive(tabId, guardVisualRevision);
     assertTarget();
     return assertTarget;
   }
@@ -4475,7 +4534,7 @@ export class IntegratedBrowserService extends EventEmitter {
         };
       }
       if (isAllowedBrowserUrl(details.url) && this.enterpriseUrlAllowed(details.url)) {
-        void this.createTab(details.url, true, undefined, { sensitive }).catch(() => this.recordError(new Error("No se pudo abrir la ventana de la sesión.")));
+        void this.createTab(details.url, true, undefined, { sensitive, httpReferrer: details.referrer }).catch(() => this.recordError(new Error("No se pudo abrir la ventana de la sesión.")));
       } else this.recordError(new Error('El sitio intento abrir un protocolo no permitido.'));
       return { action: 'deny' };
     });
@@ -5142,11 +5201,12 @@ export class IntegratedBrowserService extends EventEmitter {
 
   private invalidateObservation(tabId?: string): void { this.perception.invalidate(tabId); }
 
-  private perceptionTarget(tab: BrowserTabRuntime): BrowserPerceptionTarget | null {
+  private perceptionTarget(tab: BrowserTabRuntime, guardVisualRevision = true): BrowserPerceptionTarget | null {
     const contents = tab.view?.webContents;
     if (!contents || contents.isDestroyed()) return null;
     return { tabId: tab.id, url: contents.getURL(), contents, documentToken: tab.documentToken,
-      loadSequence: tab.loadSequence, visualRevision: tab.visualRevision, sessionGeneration: this.sessionGeneration,
+      loadSequence: tab.loadSequence, visualRevision: tab.visualRevision, documentOnly: guardVisualRevision ? undefined : true,
+      sessionGeneration: this.sessionGeneration,
       policyRevision: this.agentPolicyRevision, controlRevision: this.agentControlRevision };
   }
 
@@ -5158,7 +5218,7 @@ export class IntegratedBrowserService extends EventEmitter {
       && !!tab && this.getActiveTab() === tab && this.isTabVisible(tab)
       && !!contents && contents === target.contents && !contents.isDestroyed()
       && contents.getURL() === target.url && tab.documentToken === target.documentToken
-      && tab.loadSequence === target.loadSequence && tab.visualRevision === target.visualRevision;
+      && tab.loadSequence === target.loadSequence && (target.documentOnly || tab.visualRevision === target.visualRevision);
   }
 
   private async refreshVisualCapture(force = false, authorization?: () => void): Promise<BrowserVisualCapture | null> {
@@ -5193,36 +5253,47 @@ export class IntegratedBrowserService extends EventEmitter {
       authorization?.();
       if (image.isEmpty()) throw new Error('La captura de percepción está vacía.');
       return { tabId: tab.id, url: target.url, capturedAt: new Date().toISOString(),
-        screenshot: encodePassiveCapture(image), revision: target.visualRevision };
+        screenshot: encodePassiveCapture(image), revision: tab.visualRevision };
     });
   }
 
-  private async refreshObservation(force = false, authorization?: () => void): Promise<BrowserObservationSnapshot | null> {
+  private async refreshDomObservation(tab: BrowserTabRuntime, target: BrowserPerceptionTarget, authorize: () => void, findLink?: string): Promise<BrowserObservationSnapshot | null> {
+    const lease = this.perception.acquire(target);
+    const contents = tab.view!.webContents;
+    return this.perception.captureDom(lease, async () => {
+      await this.assertDocumentNotSensitive(tab.id, false);
+      if (!lease.isCurrent()) return null;
+      authorize();
+      const dom = await collectIntegratedBrowserDom(contents, findLink ? { findLink } : undefined);
+      if (!lease.isCurrent()) return null;
+      await this.assertDocumentNotSensitive(tab.id, false);
+      if (!lease.isCurrent()) return null;
+      authorize();
+      return { capturedAt: new Date().toISOString(), tabId: tab.id, dom };
+    });
+  }
+
+  private async refreshObservation(authorize: () => void): Promise<BrowserObservationSnapshot | null> {
     if (!this.perception.enabled) return null;
     const tab = this.getActiveTab();
     if (!tab || !this.isTabVisible(tab) || !tab.view || tab.view.webContents.isDestroyed() || this.usesShellHome(tab)) return null;
     const target = this.perceptionTarget(tab)!;
     const lease = this.perception.acquire(target);
-    if (!authorization && !await this.canAgentAccessWithoutPrompt(target.url, 'observe-dom')) {
-      if (lease.isCurrent()) this.perception.invalidate(tab.id);
-      return null;
-    }
-    if (!lease.isCurrent()) return null;
     try { await this.assertDocumentNotSensitive(tab.id); }
     catch { if (lease.isCurrent()) this.perception.invalidate(tab.id); return null; }
     if (!lease.isCurrent()) return null;
-    authorization?.();
+    authorize();
     const host = this.getTabHost(tab);
-    if (!host || !this.isWindowUsable(host) || (tab.loading && !force)) return this.perception.observation(target);
+    if (!host || !this.isWindowUsable(host)) return this.perception.observation(target);
     const contents = tab.view.webContents;
     return this.perception.captureObservation(lease, async () => {
       const [visualCapture, dom] = await Promise.all([
-        this.getFreshVisualCapture(tab.id, target.url, authorization), collectIntegratedBrowserDom(contents),
+        this.getFreshVisualCapture(tab.id, target.url, authorize), collectIntegratedBrowserDom(contents),
       ]);
       if (!lease.isCurrent()) return null;
       await this.assertDocumentNotSensitive(tab.id);
       if (!lease.isCurrent()) return null;
-      authorization?.();
+      authorize();
       if (!visualCapture) throw new Error('La captura de percepción está vacía.');
       return { capturedAt: visualCapture.capturedAt, tabId: tab.id, screenshot: visualCapture.screenshot, dom };
     });
@@ -5531,7 +5602,7 @@ function isSupersededNavigation(error: unknown): boolean {
 }
 
 function safeErrorMessage(message: string): string {
-  const normalized = message.replace(/[\r\n\t]+/g, ' ').trim();
+  const normalized = message.replace(/https?:\/\/[^\s'"<>]+/gi, sanitizeStateUrl).replace(/[\r\n\t]+/g, ' ').trim();
   return (normalized || 'No se pudo cargar la pagina.').slice(0, 240);
 }
 

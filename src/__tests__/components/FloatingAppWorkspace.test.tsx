@@ -48,6 +48,14 @@ describe('Integración del chat flotante en la aplicación',()=>{
     expect(navigate).not.toHaveBeenCalled();
     expect(screen.getByText('Tablero del proyecto')).toBeVisible();
   });
+  it('Escape desde el compositor minimiza el chat flotante', async () => {
+    const base = props();
+    const projectWorkspace = { key: 'p', canShowChat: true, navigation: { name: 'Proyecto', section: 'tasks' } } as unknown as NonNullable<typeof base.projectWorkspace>;
+    render(<AppWorkspace {...base} activeView="project-hub" projectWorkspace={projectWorkspace} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir chat flotante con Soflia' }));
+    fireEvent.keyDown(await screen.findByRole('textbox'), { key: 'Escape' });
+    expect(screen.queryByRole('textbox')).toBeNull();
+  });
   it('nuevo chat conserva el ámbito del proyecto',async()=>{
     const base=props(),create=vi.fn(async()=>{}),globalCreate=vi.fn();
     const projectWorkspace={key:'p',canShowChat:true,navigation:{name:'Proyecto',section:'tasks',canCreateChat:true,onBrowserNewChat:create,conversations:[]}} as unknown as NonNullable<typeof base.projectWorkspace>;

@@ -33,7 +33,11 @@ export function registerComputerUseHandlers(
     ipcMain.handle(mapping.channel, (event, ...params: unknown[]) => run(event, async caller => {
       let args: Record<string, unknown>;
       try { args = mapping.parse(computerInputSnapshot(params)); } catch { return invalid(); }
-      if (mapping.review(args) && !permitsWithoutReview(caller, mapping.tool, args)) {
+      const requiresReview = mapping.review(args);
+      const fullAccess = requiresReview ? await fullComputerAccessFor(caller.parent) : undefined;
+      caller.assert();
+      fullAccess?.throwIfAborted();
+      if (requiresReview && !fullAccess && !permitsWithoutReview(mapping.tool, args)) {
         if (!caller.parent || !await showComputerApproval(caller.parent, 'Revisar acción en el equipo', computerActionReview(mapping.tool, args), caller.assert, caller.signal)) {
           return { success: false, error: 'CANCELLED', message: 'Acción cancelada.' };
         }
@@ -46,7 +50,6 @@ export function registerComputerUseHandlers(
             if (typeof message === 'string' && message.length <= 8000) event.sender.send('computer:progress', { tool: mapping.tool, message });
           } catch { /* Fuente revocada: no publicar progreso. */ }
         };
-        const fullAccess = fullComputerAccessFor(caller.parent);
         const signal = fullAccess ? AbortSignal.any([caller.signal, fullAccess]) : caller.signal;
         const result: unknown = mapping.tool === 'use_computer'
           ? await executeToolDirect(mapping.tool, args, progress, { assertCurrent: caller.assert, signal })
@@ -57,11 +60,11 @@ export function registerComputerUseHandlers(
         if (mapping.tool === 'move_item' && args.no_overwrite === true && reply.success === false && reply.code === 'DESTINATION_EXISTS') {
           return { success: false, error: 'DESTINATION_EXISTS', message: 'El destino ya existe. El archivo de origen se conservó.', mayHaveApplied: false };
         }
-        if (reply.success === false || reply.ok === false) return { success: false, error: 'TOOL_FAILED', message: 'La operación de Computer Use no pudo completarse.', mayHaveApplied: mapping.review(args) };
+        if (reply.success === false || reply.ok === false) return { success: false, error: 'TOOL_FAILED', message: 'La operación de Computer Use no pudo completarse.', mayHaveApplied: requiresReview };
         return reply;
       } catch {
         caller.assert();
-        return { success: false, error: 'TOOL_FAILED', message: 'La operación de Computer Use no pudo completarse.', mayHaveApplied: mapping.review(args) };
+        return { success: false, error: 'TOOL_FAILED', message: 'La operación de Computer Use no pudo completarse.', mayHaveApplied: requiresReview };
       }
     }));
   }

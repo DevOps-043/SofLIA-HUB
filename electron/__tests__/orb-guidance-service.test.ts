@@ -21,8 +21,24 @@ describe('guía visual y prácticas de escritorio', () => {
     expect(surfaces.render).toHaveBeenCalledWith(expect.objectContaining({ target, phase: 'presenting' }));
     service.control({ action: 'style', style: 'arrow' });
     await vi.advanceTimersByTimeAsync(1500);
-    expect(service.getState().target).toBeNull(); expect(surfaces.suspend).toHaveBeenCalled();
-    service.clear();
+    expect(service.getState().target).toBeNull(); expect(surfaces.suspend).toHaveBeenCalledOnce();
+    service.clearPresentation(target);
+    expect(service.getState()).toMatchObject({ phase: 'idle', instruction: '' });
+    expect(surfaces.clear).toHaveBeenCalledOnce();
+  });
+  it('cerrar un clic anterior conserva la nueva indicación', async () => {
+    vi.useFakeTimers(); const { service, surfaces } = fixture();
+    const first = service.present({ target, instruction: 'Primera' });
+    await vi.advanceTimersByTimeAsync(180); await first;
+    const nextTarget = { point: { x: 50, y: 70 } };
+    const second = service.present({ target: nextTarget, instruction: 'Siguiente' });
+    await vi.advanceTimersByTimeAsync(180); await second;
+    service.clearPresentation(target);
+    expect(service.getState()).toMatchObject({ phase: 'presenting', instruction: 'Siguiente' });
+    expect(surfaces.clear).not.toHaveBeenCalled();
+    service.clearPresentation(nextTarget);
+    expect(service.getState().phase).toBe('idle');
+    expect(surfaces.clear).toHaveBeenCalledOnce();
   });
   it('no concede acción después de cancelar una presentación pendiente', async () => {
     const { service, surfaces } = fixture(); const rendered = deferred<void>();

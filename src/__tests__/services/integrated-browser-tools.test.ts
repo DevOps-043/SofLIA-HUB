@@ -70,7 +70,7 @@ describe('herramientas deterministas del navegador integrado', () => {
 
     const result = JSON.parse(await executeIntegratedBrowserTool('read_browser_dom', { refresh: true }));
 
-    expect(api.getObservation).toHaveBeenCalledWith(true);
+    expect(api.getObservation).toHaveBeenCalledWith(true, { domOnly: true });
     expect(result).toMatchObject({
       success: true,
       source: 'integrated-browser-dom',
@@ -79,6 +79,30 @@ describe('herramientas deterministas del navegador integrado', () => {
       untrustedContent: true,
     });
     expect(JSON.stringify(result)).not.toContain('c2VjcmV0by12aXN1YWw');
+  });
+
+  it('conserva el destino cargado si falla leer su DOM y distingue un fallo de carga', async () => {
+    const api = installBrowserApi();
+    api.navigateForChat.mockResolvedValueOnce({ success: true, state: { isVisible: true, url: 'https://example.com/pagina?id=privado' },
+      observation: null, observationError: 'La lectura DOM se interrumpió.' });
+    const args = { target: 'https://example.com/pagina' };
+    const loaded = JSON.parse(await executeIntegratedBrowserTool('navigate_integrated_browser', args));
+    expect(loaded).toMatchObject({ success: true, navigated: true, url: args.target, errorStage: 'dom', domUnavailable: 'La lectura DOM se interrumpió.' });
+    api.navigateForChat.mockResolvedValueOnce({ success: false, error: 'El sitio no terminó de cargar.' });
+    expect(JSON.parse(await executeIntegratedBrowserTool('navigate_integrated_browser', args)))
+      .toEqual({ success: false, errorStage: 'navigation', error: 'El sitio no terminó de cargar.' });
+  });
+
+  it('revela por fragmento y conserva la referencia encontrada para el siguiente paso', async () => {
+    const api = installBrowserApi();
+    const current = observation();
+    api.getObservation.mockResolvedValueOnce({ ...current, observation: { ...current.observation,
+      dom: { ...current.observation.dom, matchedLinkRef: 'dom-1' } } });
+    const result = JSON.parse(await executeIntegratedBrowserTool('scroll_integrated_browser', { find_link: ' Código ' }));
+    expect(api.getObservation).toHaveBeenCalledWith(true, { domOnly: true, findLink: 'Código' });
+    expect(api.clickElement).not.toHaveBeenCalled();
+    expect(api.scrollView).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ success: true, dom: { matchedLinkRef: 'dom-1' } });
   });
 
   it('IBT-012: read_active_document devuelve el documento activo con identidad y paginación', async () => {
@@ -202,6 +226,38 @@ describe('herramientas deterministas del navegador integrado', () => {
     expect(api.onDownloadsChanged.mock.results[0].value).toHaveBeenCalledOnce();
   });
 
+  it('un clic de descarga espera el registro nuevo y conserva el resultado aunque cambie el DOM', async () => {
+    const api = installBrowserApi();
+    const previous = { id: 'anterior', filename: 'anterior.zip', state: 'completed' };
+    const transfer = { id: 'nueva', filename: 'paquete.exe', state: 'progressing' };
+    api.listDownloads.mockResolvedValue({ success: true, downloads: [previous] });
+    api.getObservation.mockResolvedValueOnce(observation()).mockRejectedValueOnce(new Error('El documento cambió.'));
+    const operation = executeIntegratedBrowserTool('click_browser_element', { ref: 'dom-1', wait_for_download: true });
+    await vi.waitFor(() => expect(api.onDownloadsChanged).toHaveBeenCalledOnce());
+    const [[notify]] = api.onDownloadsChanged.mock.calls;
+    notify([previous, transfer]);
+    expect(JSON.parse(await operation)).toMatchObject({ success: true, acted: { ref: 'dom-1' }, domUnavailable: expect.any(String),
+      downloadAttempt: { status: 'observed', candidates: [transfer], sourcePage: 'https://github.com/example/repo' } });
+    expect(api.clickElement).toHaveBeenCalledOnce();
+    expect(api.onDownloadsChanged.mock.results[0].value).toHaveBeenCalledOnce();
+  });
+
+  it('si el sitio devuelve una página de error, conserva su DOM y el clic no se repite', async () => {
+    vi.useFakeTimers();
+    try {
+      const api = installBrowserApi();
+      const outcome = observation();
+      outcome.observation.dom.title = 'Download Not Complete';
+      api.getObservation.mockResolvedValueOnce(observation()).mockResolvedValueOnce(outcome);
+      const operation = executeIntegratedBrowserTool('click_browser_element', { ref: 'dom-1', wait_for_download: true });
+      await vi.advanceTimersByTimeAsync(8_000);
+      expect(JSON.parse(await operation)).toMatchObject({ success: true, dom: { title: 'Download Not Complete' },
+        downloadAttempt: { status: 'not-observed' } });
+      expect(api.clickElement).toHaveBeenCalledOnce();
+      expect(api.onDownloadsChanged.mock.results[0].value).toHaveBeenCalledOnce();
+    } finally { vi.useRealTimers(); }
+  });
+
   it('IBT-007: el clic determinista actúa por referencia y devuelve el DOM posterior', async () => {
     const api = installBrowserApi();
     const desktopSpy = vi.fn();
@@ -213,7 +269,7 @@ describe('herramientas deterministas del navegador integrado', () => {
     }));
 
     expect(api.clickElement).toHaveBeenCalledWith('dom-1');
-    expect(api.getObservation).toHaveBeenLastCalledWith(true);
+    expect(api.getObservation).toHaveBeenLastCalledWith(true, { domOnly: true });
     expect(desktopSpy).not.toHaveBeenCalled();
     expect(result).toMatchObject({
       success: true,
@@ -230,7 +286,7 @@ describe('herramientas deterministas del navegador integrado', () => {
     api.getObservation.mockResolvedValueOnce({ success: true, observation: null });
     const found = JSON.parse(await executeIntegratedBrowserTool('click_browser_element', { ref: 'dom-1' }));
     expect(found.success).toBe(true);
-    expect(api.getObservation.mock.calls.slice(0, 2)).toEqual([[false], [true]]);
+    expect(api.getObservation.mock.calls.slice(0, 2)).toEqual([[false, { domOnly: true }], [true, { domOnly: true }]]);
     api.clickElement.mockClear();
     const missing = JSON.parse(await executeIntegratedBrowserTool('click_browser_element', { ref: 'dom-9' }));
     expect(missing).toMatchObject({ success: false });

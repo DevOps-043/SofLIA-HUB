@@ -1,7 +1,18 @@
 import { integratedBrowserService, type BrowserDownloadRecord } from '../integrated-browser-service';
 
 const DOWNLOAD_WAIT_MS = 45_000;
+const DOWNLOAD_START_WAIT_MS = 8_000;
 const ACTIVE_STATES = new Set(['pending', 'progressing', 'paused']);
+
+export type BrowserDownloadAttempt = { status: 'observed'; candidates: BrowserDownloadRecord[] }
+  | { status: 'not-observed' | 'unavailable' };
+
+export async function observeNewBrowserDownloads(previousIds: ReadonlySet<string>, signal?: AbortSignal): Promise<BrowserDownloadAttempt> {
+  return waitForDownloadRecords<BrowserDownloadAttempt>(records => {
+    const candidates = records.filter(record => !previousIds.has(record.id)).slice(0, 10);
+    if (candidates.length) return { status: 'observed', candidates };
+  }, DOWNLOAD_START_WAIT_MS, () => ({ status: 'not-observed' }), { status: 'unavailable' }, signal);
+}
 
 export async function inspectBrowserDownloads(args: Record<string, unknown>, signal?: AbortSignal): Promise<string> {
   const id = args.download_id;
@@ -23,9 +34,23 @@ export async function inspectBrowserDownloads(args: Record<string, unknown>, sig
 }
 
 function waitForDownload(initial: BrowserDownloadRecord, signal?: AbortSignal): Promise<BrowserDownloadRecord | null> {
+  let latest = initial;
+  return waitForDownloadRecords(records => {
+    const record = records.find(item => item.id === initial.id);
+    if (!record || !ACTIVE_STATES.has(record.state)) return record ?? null;
+    latest = record;
+  }, DOWNLOAD_WAIT_MS, () => latest, null, signal);
+}
+
+function waitForDownloadRecords<T>(
+  select: (records: BrowserDownloadRecord[]) => T | undefined,
+  timeoutMs: number,
+  onTimeout: () => T,
+  unavailable: T,
+  signal?: AbortSignal,
+): Promise<T> {
   signal?.throwIfAborted();
   return new Promise((resolve, reject) => {
-    let latest = initial;
     let finished = false;
     let unsubscribe: (() => void) | undefined;
     const cleanup = () => {
@@ -34,25 +59,27 @@ function waitForDownload(initial: BrowserDownloadRecord, signal?: AbortSignal): 
       unsubscribe?.();
       signal?.removeEventListener('abort', cancel);
     };
-    const finish = (record: BrowserDownloadRecord | null) => {
+    const finish = (result: T) => {
       if (finished) return;
-      cleanup(); resolve(record);
+      cleanup(); resolve(result);
     };
     const cancel = () => { cleanup(); reject(signal?.reason); };
     const inspect = (records: BrowserDownloadRecord[]) => {
-      const record = records.find(item => item.id === initial.id);
-      if (!record || !ACTIVE_STATES.has(record.state)) { finish(record ?? null); return; }
-      latest = record;
+      if (finished) return;
+      const result = select(records);
+      if (result !== undefined) finish(result);
     };
-    const timer = setTimeout(() => finish(latest), DOWNLOAD_WAIT_MS);
+    const timer = setTimeout(() => finish(onTimeout()), timeoutMs);
     try {
       unsubscribe = integratedBrowserService.subscribe({ onDownloadsChanged: inspect });
+      if (finished) { unsubscribe(); return; }
       signal?.addEventListener('abort', cancel, { once: true });
+      if (signal?.aborted) { cancel(); return; }
     } catch (error) { cleanup(); reject(error); return; }
     // Cubrir una finalización entre la primera consulta y la suscripción.
     void integratedBrowserService.listDownloads().then(result => {
       if (result.success) inspect(result.downloads ?? []);
-      else finish(null);
-    }).catch(() => finish(null));
+      else finish(unavailable);
+    }).catch(() => finish(unavailable));
   });
 }

@@ -56,17 +56,20 @@ type RawSnapshot = {
   frames?: unknown[];
   viewport?: Record<string, unknown>;
   truncated?: unknown;
+  matchedLinkRef?: unknown;
 };
 
 export interface CollectDomOptions {
   /** Fuerza un backend concreto. Sin valor se usa {@link preferredDomBackend}. */
   backend?: BrowserDomBackend;
+  findLink?: string;
 }
 
 export async function collectIntegratedBrowserDom(
   contents: WebContents,
   options: CollectDomOptions = {},
 ): Promise<BrowserDomSnapshot> {
+  if (options.findLink) return collectDomViaScript(contents, options.findLink);
   const backend = options.backend ?? preferredDomBackend();
   if (backend === 'cdp') {
     const viaCdp = await captureCdpDomSnapshot(contents).catch(() => null);
@@ -79,10 +82,10 @@ export async function collectIntegratedBrowserDom(
  * Recorrido historico dentro de la pagina. Se mantiene expuesto porque es el
  * respaldo del backend CDP y el punto de comparacion de las pruebas.
  */
-export async function collectDomViaScript(contents: WebContents): Promise<BrowserDomSnapshot> {
+export async function collectDomViaScript(contents: WebContents, findLink?: string): Promise<BrowserDomSnapshot> {
   const raw = await runInAgentWorld(
     contents as unknown as AgentWorldTarget,
-    DOM_SNAPSHOT_SCRIPT,
+    `(${DOM_SNAPSHOT_SCRIPT})(${JSON.stringify(findLink ?? '')})`,
   ) as RawSnapshot;
   return normalizeSnapshot(raw);
 }
@@ -126,6 +129,7 @@ function normalizeSnapshot(raw: RawSnapshot): BrowserDomSnapshot {
       documentHeight: finiteInt(raw?.viewport?.documentHeight),
     },
     truncated: raw?.truncated === true || text.length >= MAX_TEXT || controls.length >= MAX_CONTROLS,
+    matchedLinkRef: raw?.matchedLinkRef === null ? null : controls.find(control => control.ref === raw?.matchedLinkRef)?.ref,
   };
 }
 
@@ -166,14 +170,18 @@ function normalizeControl(input: unknown): BrowserDomControl | null {
   const rect = asRecord(value.rect);
   const ref = clean(value.ref, 60);
   if (!ref) return null;
+  const tag = clean(value.tag, 30);
+  const href = sanitizeObservedUrl(value.href);
   return {
     ref,
-    tag: clean(value.tag, 30),
+    tag,
     role: clean(value.role, 40),
-    name: clean(value.name, MAX_FIELD_TEXT),
+    name: clean(value.name, MAX_FIELD_TEXT) || (tag === 'a'
+      ? clean(value.text, MAX_FIELD_TEXT) || clean(href.split('/').pop(), MAX_FIELD_TEXT)
+      : ''),
     text: clean(value.text, MAX_FIELD_TEXT),
     type: clean(value.type, 40).toLowerCase() === 'password' ? 'password-redacted' : clean(value.type, 40),
-    href: sanitizeObservedUrl(value.href),
+    href,
     disabled: value.disabled === true,
     checked: typeof value.checked === 'boolean' ? value.checked : null,
     rect: {
@@ -196,17 +204,21 @@ function finiteInt(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0;
 }
 
-const DOM_SNAPSHOT_SCRIPT = `(() => {
+const DOM_SNAPSHOT_SCRIPT = `(findLink) => {
   const LIMITS = { text: ${MAX_TEXT}, headings: ${MAX_HEADINGS}, landmarks: ${MAX_LANDMARKS}, controls: ${MAX_CONTROLS}, images: ${MAX_IMAGES}, minImage: ${MIN_IMAGE_SIDE_PX}, minImageBox: ${MIN_IMAGE_BOX_PX}, frames: ${MAX_FRAMES}, scanned: ${MAX_SCANNED_NODES}, viewportMargin: ${VIEWPORT_MARGIN_PX} };
   const deadline = Date.now() + ${SNAPSHOT_BUDGET_MS};
   const registry = new Map();
+  // Cada nodo conserva su clave, incluso si otro snapshot cambia su posición.
+  const identities = window.__sofliaBrowserRefIdentities ??= {
+    prefix: Array.from(crypto.getRandomValues(new Uint8Array(12)), byte => byte.toString(16).padStart(2, '0')).join(''),
+    nodes: new WeakMap(), next: 0,
+  };
   const clean = (value, max = ${MAX_FIELD_TEXT}) => String(value || '').replace(/[\\u0000-\\u001f\\u007f]+/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, max);
   const result = { title: clean(document.title, 300), url: location.href, language: clean(document.documentElement.lang, 40), text: '', headings: [], landmarks: [], controls: [], images: [], frames: [], viewport: { width: innerWidth, height: innerHeight, scrollX, scrollY, documentWidth: document.documentElement.scrollWidth, documentHeight: document.documentElement.scrollHeight }, truncated: false };
   const textParts = [];
   let textLength = 0;
   let textNodesScanned = 0;
   let elementsScanned = 0;
-  let refIndex = 0;
   let outOfBudget = false;
   const budgetExhausted = () => {
     if (outOfBudget) return true;
@@ -255,6 +267,44 @@ const DOM_SNAPSHOT_SCRIPT = `(() => {
     return clean(el.getAttribute('alt') || el.getAttribute('title') || el.getAttribute('placeholder') || '');
   };
   const scopeName = (scope, parent) => parent || (scope instanceof ShadowRoot ? 'shadow:' + clean(scope.host.tagName.toLowerCase() + '#' + (scope.host.id || ''), 100) : 'document');
+  const addControl = (el, scope, root) => {
+    seen.add(el);
+    const isField = sensitive(el);
+    const type = el instanceof HTMLInputElement ? clean(el.type, 40) : '';
+    let ref = identities.nodes.get(el);
+    if (!ref) {
+      ref = 'dom-' + identities.prefix + '-' + (++identities.next);
+      identities.nodes.set(el, ref);
+    }
+    registry.set(ref, el);
+    result.controls.push({
+      ref, tag: el.tagName.toLowerCase(), role: el.getAttribute('role') || '', name: label(el, root),
+      text: isField || type === 'password' ? '' : clean(el.textContent), type,
+      href: el instanceof HTMLAnchorElement ? el.href : '', disabled: !!el.disabled || el.getAttribute('aria-disabled') === 'true',
+      checked: typeof el.checked === 'boolean' ? el.checked : null,
+      rect: measure(el).rect, scope,
+    });
+    return ref;
+  };
+  if (findLink) {
+    result.matchedLinkRef = null;
+    const query = clean(findLink).toLowerCase();
+    const links = document.links;
+    const limit = Math.min(links.length, LIMITS.scanned);
+    if (links.length > limit) result.truncated = true;
+    for (let i = 0; i < limit && !budgetExhausted(); i++) {
+      const link = links[i];
+      if (!(link instanceof HTMLAnchorElement) || sensitive(link) || link.closest('[inert]') || link.getAttribute('aria-disabled') === 'true') continue;
+      if (link.protocol !== 'https:' && link.protocol !== 'http:') continue;
+      if (![link.host + link.pathname, label(link, document), clean(link.innerText)].some(value => value.toLowerCase().includes(query))) continue;
+      if (!link.checkVisibility({ opacityProperty: true, visibilityProperty: true }) || !link.getClientRects().length) continue;
+      link.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+      result.viewport.scrollX = scrollX;
+      result.viewport.scrollY = scrollY;
+      if (visible(link)) result.matchedLinkRef = addControl(link, 'document', document);
+      break;
+    }
+  }
   const walk = (root, scope = 'document', depth = 0) => {
     if (depth > 4) { result.truncated = true; return; }
     const owner = root.ownerDocument || document;
@@ -308,19 +358,7 @@ const DOM_SNAPSHOT_SCRIPT = `(() => {
         try { if (el.contentDocument) { accessible = true; walk(el.contentDocument, 'frame:' + clean(el.title || el.src || 'sin titulo', 100), depth + 1); } } catch {}
         result.frames.push({ title: clean(el.title), url: el.src || '', accessible });
       }
-      if (!pendingControl) continue;
-      seen.add(el);
-      const isField = el.matches('input,textarea,select,[contenteditable="true"],[contenteditable=""]');
-      const type = el instanceof HTMLInputElement ? clean(el.type, 40) : '';
-      const ref = 'dom-' + (++refIndex);
-      registry.set(ref, el);
-      result.controls.push({
-        ref, tag, role: explicitRole, name: label(el, root),
-        text: isField || type === 'password' ? '' : clean(el.textContent), type,
-        href: el instanceof HTMLAnchorElement ? el.href : '', disabled: !!el.disabled || el.getAttribute('aria-disabled') === 'true',
-        checked: typeof el.checked === 'boolean' ? el.checked : null,
-        rect: measure(el).rect, scope,
-      });
+      if (pendingControl) addControl(el, scope, root);
     }
     if (elementsScanned >= LIMITS.scanned) result.truncated = true;
   };
@@ -331,4 +369,4 @@ const DOM_SNAPSHOT_SCRIPT = `(() => {
   // mismo elemento sin depender de coordenadas que el scroll invalida.
   try { window['${BROWSER_REF_REGISTRY_KEY}'] = registry; } catch {}
   return result;
-})()`;
+}`;

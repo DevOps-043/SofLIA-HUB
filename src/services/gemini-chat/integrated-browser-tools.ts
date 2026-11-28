@@ -1,7 +1,9 @@
 import { requestUserConfirmation } from '../computer-use/confirmation';
 import { isFullComputerAccess } from '../computer-use/permissions';
 import { integratedBrowserService } from '../integrated-browser-service';
-import { inspectBrowserDownloads } from './browser-download-tool';
+import { inspectBrowserDownloads, observeNewBrowserDownloads, type BrowserDownloadAttempt } from './browser-download-tool';
+import { normalizeBrowserLinkQuery } from '../../shared/browser-navigation';
+import { sanitizeObservedUrl } from '../../shared/browser-observed-url';
 import {
   MEDIA_BUDGET,
   buildPlaybackWindow,
@@ -77,7 +79,7 @@ export async function executeIntegratedBrowserTool(
   if (toolName === 'read_browser_dom') {
     const visible = await requireVisibleBrowser('leer');
     if (visible) return visible;
-    return serializeObservation(await api.getObservation(args.refresh !== false));
+    return serializeObservation(await integratedBrowserService.getDomObservation(args.refresh !== false));
   }
 
   if (toolName === 'capturar_vista_navegador') {
@@ -120,6 +122,18 @@ export async function executeIntegratedBrowserTool(
     }
     const navigation = await integratedBrowserService.navigateForChat(target, signal);
     signal?.throwIfAborted();
+    if (!navigation.success || navigation.state?.error) {
+      return failure(navigation.error || navigation.state?.error || 'El navegador no pudo cargar el destino.', 'navigation');
+    }
+    if (!navigation.observation && navigation.state?.isVisible) {
+      return JSON.stringify({
+        success: true,
+        navigated: true,
+        url: sanitizeObservedUrl(navigation.state.url),
+        errorStage: 'dom',
+        domUnavailable: describeDomError(navigation),
+      });
+    }
     return serializeObservation(navigation);
   }
 
@@ -130,10 +144,19 @@ export async function executeIntegratedBrowserTool(
     if (!ref) return failure('Indica el identificador "ref" de un control devuelto por read_browser_dom.');
     const review = await reviewBrowserClick(ref, args.reason);
     if ('error' in review) return review.error;
+    let previousDownloads: ReadonlySet<string> | undefined;
+    if (args.wait_for_download === true) {
+      const baseline = await integratedBrowserService.listDownloads();
+      if (!baseline.success) return failure(baseline.error || 'No pude consultar las descargas antes del clic.', 'download-observation');
+      previousDownloads = new Set(baseline.downloads?.map(download => download.id));
+    }
     signal?.throwIfAborted();
     const result = review.requireFullAccess ? await api.clickElement(ref, true) : await api.clickElement(ref);
-    if (!result.success) return failure(result.error || 'No fue posible hacer clic en el elemento indicado.');
-    return serializeInteraction(result, await api.getObservation(true));
+    if (!result.success) return failure(result.error || 'No fue posible hacer clic en el elemento indicado.', 'interaction');
+    const downloadAttempt = previousDownloads && await observeNewBrowserDownloads(previousDownloads, signal);
+    const observation = await readDomAfterAction();
+    signal?.throwIfAborted();
+    return serializeInteraction(result, observation, downloadAttempt && { ...downloadAttempt, sourcePage: review.sourcePage });
   }
 
   if (toolName === 'type_in_browser_element') {
@@ -157,12 +180,18 @@ export async function executeIntegratedBrowserTool(
       ? await api.typeInElement(ref, args.text, submit, true)
       : await api.typeInElement(ref, args.text, submit);
     if (!result.success) return failure(result.error || 'No fue posible escribir en el campo indicado.');
-    return serializeInteraction(result, await api.getObservation(true));
+    return serializeInteraction(result, await readDomAfterAction());
   }
 
   if (toolName === 'scroll_integrated_browser') {
     const visible = await requireVisibleBrowser('desplazar');
     if (visible) return visible;
+    if (args.find_link !== undefined) {
+      const query = normalizeBrowserLinkQuery(args.find_link);
+      if (!query) return failure('La búsqueda de enlace requiere entre 3 y 160 caracteres.', 'interaction');
+      const observation = await integratedBrowserService.getDomObservation(true, query);
+      return serializeObservation(observation, observation.success ? 'dom' : 'interaction');
+    }
     const direction = args.direction;
     if (direction !== 'up' && direction !== 'down' && direction !== 'left' && direction !== 'right') {
       return failure('La dirección debe ser up, down, left o right.');
@@ -172,7 +201,7 @@ export async function executeIntegratedBrowserTool(
       : undefined;
     const result = await api.scrollView(direction, amount);
     if (!result.success) return failure(result.error || 'No fue posible desplazar la página.');
-    return serializeObservation(await api.getObservation(true));
+    return serializeObservation(await readDomAfterAction());
   }
 
   if (toolName === 'go_back_integrated_browser') {
@@ -180,7 +209,7 @@ export async function executeIntegratedBrowserTool(
     if (visible) return visible;
     const result = await api.goBack();
     if (!result.success) return failure(result.error || 'No fue posible volver a la página anterior.');
-    return serializeObservation(await api.getObservation(true));
+    return serializeObservation(await readDomAfterAction());
   }
 
   return failure('Herramienta de navegador no reconocida.');
@@ -293,22 +322,24 @@ async function requireVisibleBrowser(action: string): Promise<string | null> {
   return null;
 }
 
-async function reviewBrowserClick(ref: string, reason: unknown): Promise<{ error: string } | { requireFullAccess: boolean }> {
-  const api = window.integratedBrowser!;
-  const cached = await api.getObservation(false);
-  const observation = cached.observation ? cached : await api.getObservation(true);
+async function reviewBrowserClick(ref: string, reason: unknown): Promise<{ error: string } | { requireFullAccess: boolean; sourcePage: string }> {
+  const cached = await integratedBrowserService.getDomObservation(false);
+  if (!cached.success) return { error: failure(describeDomError(cached), 'dom') };
+  const observation = cached.observation ? cached : await integratedBrowserService.getDomObservation();
+  if (!observation.success || !observation.observation) return { error: failure(describeDomError(observation), 'dom') };
   const control = observation.observation?.dom.controls.find((candidate) => candidate.ref === ref);
-  if (!observation.success || !control) return { error: failure('La referencia del control ya no está disponible. Vuelve a leer el DOM antes de actuar.') };
+  if (!control) return { error: failure('La referencia del control ya no está disponible. Vuelve a leer el DOM antes de actuar.', 'target') };
+  const sourcePage = observation.observation.dom.url;
   const label = [control?.name, control?.text, control?.type].filter(Boolean).join(' ').trim();
-  if (!label || !DESTRUCTIVE_CONTROL_PATTERN.test(label)) return { requireFullAccess: false };
-  if (await isFullComputerAccess()) return { requireFullAccess: true };
+  if (!label || !DESTRUCTIVE_CONTROL_PATTERN.test(label)) return { requireFullAccess: false, sourcePage };
+  if (await isFullComputerAccess()) return { requireFullAccess: true, sourcePage };
 
   const motive = typeof reason === 'string' && reason.trim() ? `\nMotivo: ${reason.trim().slice(0, 200)}` : '';
   const confirmed = await requestUserConfirmation(
     'click_browser_element',
     `Hacer clic en un control con efecto irreversible dentro del navegador integrado.\nControl: ${label.slice(0, 160)}${motive}`,
   );
-  return confirmed ? { requireFullAccess: false } : { error: failure('Acción cancelada por el usuario.') };
+  return confirmed ? { requireFullAccess: false, sourcePage } : { error: failure('Acción cancelada por el usuario.') };
 }
 
 function readRef(value: unknown): string | null {
@@ -325,6 +356,7 @@ function readDocumentOffset(value: unknown): number | null {
 function serializeInteraction(
   result: IntegratedBrowserInteractionResponse,
   observation: IntegratedBrowserObservationResponse,
+  downloadAttempt?: BrowserDownloadAttempt & { sourcePage: string },
 ): string {
   const dom = readObservationDom(observation);
   return JSON.stringify({
@@ -334,8 +366,10 @@ function serializeInteraction(
     warning: result.warning ?? undefined,
     observedAt: observation.observation?.capturedAt,
     tabId: observation.observation?.tabId,
+    downloadAttempt,
     dom: dom ?? undefined,
-    domUnavailable: dom ? undefined : 'La acción se ejecutó, pero el DOM posterior no está disponible: vuelve a leerlo antes de continuar.',
+    errorStage: dom ? undefined : 'dom',
+    domUnavailable: dom ? undefined : describeDomError(observation),
     untrustedContent: true,
   });
 }
@@ -347,13 +381,13 @@ function describeTarget(target?: BrowserElementTargetSummary): Record<string, un
     tag: target.tag,
     role: target.role,
     name: target.name,
-    href: target.href,
+    href: sanitizeObservedUrl(target.href),
   };
 }
 
-function serializeObservation(result: IntegratedBrowserObservationResponse): string {
+function serializeObservation(result: IntegratedBrowserObservationResponse, errorStage: 'dom' | 'interaction' = 'dom'): string {
   const dom = readObservationDom(result);
-  if (!dom) return failure(result.error || 'No fue posible obtener el DOM de la pestaña activa.');
+  if (!dom) return failure(describeDomError(result), errorStage);
 
   return JSON.stringify({
     success: true,
@@ -363,6 +397,18 @@ function serializeObservation(result: IntegratedBrowserObservationResponse): str
     dom,
     untrustedContent: true,
   });
+}
+
+function readDomAfterAction(): Promise<IntegratedBrowserObservationResponse> {
+  return integratedBrowserService.getDomObservation().catch(() => ({
+    success: false,
+    error: 'Se perdió la conexión con el navegador al leer el DOM posterior.',
+  }));
+}
+
+function describeDomError(result: IntegratedBrowserObservationResponse): string {
+  if (result.observationStatus?.enabled === false) return 'La percepción del navegador está pausada.';
+  return result.observationError || result.error || 'No fue posible obtener el DOM de la pestaña activa.';
 }
 
 function readObservationDom(result: IntegratedBrowserObservationResponse): BrowserDomSnapshot | null {
@@ -388,6 +434,6 @@ function compactDom(dom: BrowserDomSnapshot): BrowserDomSnapshot {
   };
 }
 
-function failure(error: string): string {
-  return JSON.stringify({ success: false, error });
+function failure(error: string, errorStage?: 'navigation' | 'dom' | 'target' | 'interaction' | 'download-observation'): string {
+  return JSON.stringify({ success: false, error, errorStage });
 }

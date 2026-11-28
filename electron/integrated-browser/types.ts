@@ -180,6 +180,7 @@ export interface BrowserDomSnapshot {
   frames: Array<{ title: string; url: string; accessible: boolean }>;
   viewport: { width: number; height: number; scrollX: number; scrollY: number; documentWidth: number; documentHeight: number };
   truncated: boolean;
+  matchedLinkRef?: string | null;
 }
 
 export interface BrowserObservationSnapshot {
@@ -187,7 +188,7 @@ export interface BrowserObservationSnapshot {
   sequence: number;
   capturedAt: string;
   tabId: string;
-  screenshot: string;
+  screenshot?: string;
   dom: BrowserDomSnapshot;
 }
 

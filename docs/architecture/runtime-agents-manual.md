@@ -181,9 +181,9 @@ conclusión sea correcta. Ver [contrato y límites de adjuntos](integrated-brows
 El menú `+` del compositor ofrece **Permisos de computadora**. Las operaciones
 revisadas por main usan una vista interna de SofLIA. **Aprobar por mí** es el
 modo inicial y autoriza acciones de bajo riesgo mediante reglas. **Acceso
-completo** requiere una autorización al activarse. Computer Use ejecuta los
-pasos locales de la tarea sin otra revisión de SofLIA durante la sesión de esa
-ventana. Consulta el
+completo** requiere una autorización al activarse. SofLIA la guarda para la
+cuenta en este equipo y la restaura al reiniciar. Computer Use ejecuta los
+pasos locales sin otra revisión mientras el permiso está activo. Consulta el
 [contrato de autorización](../security/computer-use-ipc.md) para conocer qué
 operaciones requieren revisión y cuándo se revoca el permiso.
 
@@ -316,6 +316,16 @@ el usuario y usa Google Search/URL Context; los modelos de fallback sólo se
 intentan después. En ambos proveedores la jerarquía es DOM o búsqueda web,
 navegación determinista y, únicamente si hacen falta percepción visual o
 acciones iterativas, `use_computer`.
+
+Para guardar una descarga, el agente abre la página oficial y acciona su
+enlace por DOM. Para revelar un enlace fuera de la vista puede buscar un
+fragmento de su etiqueta o ruta con `scroll_integrated_browser` y `find_link`.
+`click_browser_element` con `wait_for_download` espera hasta
+ocho segundos por registros nuevos y devuelve la página observada después del
+clic. Los registros son candidatos que se verifican por archivo y origen.
+`inspect_browser_downloads` confirma el estado y la ruta al completarse. Un
+rechazo del sitio orienta la búsqueda de otra opción oficial. La guía visual
+del clic o la escritura se retira al finalizar esa acción.
 
 Antes de la primera captura supervisada, main espera un viewport publicado por
 el renderer tras dibujar los controles del agente. Republicar la misma
@@ -679,13 +689,13 @@ emergencia y manda sobre el catálogo remoto.
 
 | Herramienta | Qué hace |
 |---|---|
-| `read_browser_dom` | Lee el DOM saneado y acotado de la pestaña activa sin captura base64 ni Computer Use. Cada control expone un `ref` reutilizable por el controlador. |
+| `read_browser_dom` | Lee el DOM saneado y acotado de la pestaña activa sin solicitar una captura visual. Cada control expone un `ref` reutilizable por el controlador. |
 | `capturar_vista_navegador` | Toma un cuadro nuevo de la pestaña visible, a resolución del viewport, sin la cadencia ni el presupuesto reducido de la observación pasiva. Es la ruta de evidencia visual invocable por el modelo, independiente del heurístico de intención del renderer. Si la captura no es utilizable devuelve el motivo y prohíbe describir la escena. |
 | `analizar_video_pestana` | Analiza el video en reproducción sin depender de transcripción. Un video público direccionable viaja por su URI y el proveedor lo procesa con su pista de audio, acotado a una ventana alrededor de la posición de reproducción; cualquier otro reproductor degrada a un muestreo de cuadros con marcas de tiempo, declarado como muestreo. No reproduce, pausa ni navega. |
-| `navigate_integrated_browser` | Abre una URL HTTP(S) o consulta en la pestaña activa y devuelve su DOM saneado, conservando la sesión. |
+| `navigate_integrated_browser` | Abre una URL HTTP(S) o consulta en la pestaña activa, conservando la sesión. Devuelve el DOM o, si la carga tuvo éxito y falló la lectura, conserva el destino y el motivo del fallo de lectura. |
 | `click_browser_element` | Hace clic real sobre el control identificado por su `ref` y devuelve el DOM posterior. Resuelve el elemento vivo y recalcula su punto de impacto, por lo que el scroll o un re-render no desvían la acción. Un control irreversible (enviar, pagar, borrar, cerrar sesión) exige confirmación explícita del usuario. |
 | `type_in_browser_element` | Reemplaza el contenido de un campo editable por su `ref`; enviar con Enter requiere confirmación explícita. Nunca se usa para credenciales. |
-| `scroll_integrated_browser` | Desplaza la pestaña activa para revelar contenido fuera del área visible. |
+| `scroll_integrated_browser` | Desplaza la pestaña activa. Con `find_link` busca un enlace renderizado en el documento principal por etiqueta o ruta y devuelve `dom.matchedLinkRef` cuando puede revelarlo. Requiere permiso de interacción y el clic se solicita por separado. |
 | `go_back_integrated_browser` | Vuelve a la página anterior y devuelve el DOM resultante; complementa al clic para recorrer listas. |
 
 El ciclo `read_browser_dom` → `click_browser_element` → `go_back_integrated_browser`
@@ -775,8 +785,13 @@ marca `truncated` con frecuencia en aplicaciones grandes. El alterno usa
 renderer y que cubre en una sola llamada los iframes del mismo proceso. Se
 habilita con `SOFLIA_BROWSER_CDP_DOM=1` y ante cualquier fallo cae al primero.
 
-Los `ref` que emite cada backend se resuelven distinto: `dom-N` vive en el
-registro del mundo aislado y muere con el re-render; `cdp-N` es un
+La búsqueda `find_link` usa el recorrido en script y un máximo de 1800 enlaces
+en el documento principal. Se ignoran los parámetros y fragmentos de las URLs.
+Un resultado nulo indica que el recorrido no reveló una coincidencia.
+
+Los `ref` que emite cada backend se resuelven distinto: `dom-…` identifica un
+nodo en el registro del mundo aislado. Cambiar el orden de los controles no
+reasigna la referencia a otro nodo. `cdp-N` es un
 `backendNodeId` de Chromium, que sobrevive mientras el nodo siga en el árbol.
 Ambos recalculan el punto de impacto en el momento del clic. Un elemento dentro
 de un iframe de otro origen falla con `marco-aislado` en lugar de señalar una

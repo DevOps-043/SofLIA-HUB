@@ -4,6 +4,7 @@ import { ArtifactViewerPanel } from '../components/artifacts/ArtifactViewerPanel
 import { useArtifactViewer } from '../components/artifacts/artifact-viewer-context';
 import { usePresentationWorkspaceContext } from '../contexts/presentation-workspace-context';
 import { lazy, Suspense, useCallback, useRef, useState, type MouseEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { FloatingSofliaChat } from '../components/floating-chat/FloatingSofliaChat';
 import { FloatingProjectChatStart } from '../components/floating-chat/FloatingProjectChatStart';
 import { FloatingArtifactPreview } from '../components/floating-chat/FloatingArtifactPreview';
@@ -63,6 +64,17 @@ export function AppWorkspace(props: AppWorkspaceProps) {
 
   const navigation = props.projectWorkspace?.navigation;
   const surface = useRef<HTMLElement>(null);
+  const [chatHost] = useState(() => {
+    const host = document.createElement('div');
+    host.style.display = 'contents';
+    return host;
+  });
+  const [chatPlaced, setChatPlaced] = useState(false);
+  const placeChat = useCallback((slot: HTMLDivElement | null) => {
+    if (slot) slot.appendChild(chatHost);
+    else chatHost.remove();
+    setChatPlaced(Boolean(slot));
+  }, [chatHost]);
   const [floatingRevision, setFloatingRevision] = useState(0);
   const creatingFloating = useRef<{ key: string; promise: Promise<void> } | null>(null);
   const floating = !props.browserWorkspaceOpen && !!navigation && navigation.section !== 'chat';
@@ -92,7 +104,7 @@ export function AppWorkspace(props: AppWorkspaceProps) {
   };
   const chatView = navigation && !props.projectWorkspace?.canShowChat ? floating ? <FloatingProjectChatStart key={surfaceKey} canCreate={navigation.canCreateChat} message={navigation.chatMessage} onStart={newFloatingChat} /> : <div className="grid h-full place-items-center p-6 text-sm text-secondary">{navigation.chatMessage || 'Selecciona o crea un chat de este proyecto.'}</div> : (
     <AppChatView
-      scopeKey={compact ? `${surfaceKey}/${floatingRevision}` : surfaceKey}
+      scopeKey={`${surfaceKey}/${floatingRevision}`}
       floating={floating}
       browserOpen={!!props.browserWorkspaceOpen}
       readVisibleContext={compact ? readVisibleContext : undefined}
@@ -117,16 +129,19 @@ export function AppWorkspace(props: AppWorkspaceProps) {
       onOpenLiveSessions={props.onOpenLiveSessions}
     />
   );
+  // Cambiar el contenedor visual conserva el mismo compositor y turno activo.
+  const chatSlot = <div ref={placeChat} className="contents" />;
+  const chatPortal = chatPlaced ? createPortal(chatView, chatHost) : null;
 
   if (props.browserWorkspaceOpen) {
     return (
-      <main className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+      <><main className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
         {props.shareLinkNotice && <ShareLinkNoticeBanner notice={props.shareLinkNotice} />}
         {props.liaDegraded && !props.userId && props.activeView !== 'chat' && <LiaDegradedNotice message={props.liaStatusMessage || undefined} />}
         <BrowserWorkspaceLayout
           key={surfaceKey}
           projectTarget={navigation?.browserProject}
-          chat={chatView}
+          chat={chatSlot}
           conversations={navigation?.conversations ?? props.chat.conversations}
           currentConversationId={navigation ? navigation.currentConversationId : props.chat.currentConversationId}
           externalSelection={props.externalSelection}
@@ -134,12 +149,12 @@ export function AppWorkspace(props: AppWorkspaceProps) {
           onNewChat={newFloatingChat}
           onSelectConversation={navigation?.onBrowserOpenChat ?? (async id => { await props.chat.handleSelectConversation(id); setFloatingRevision(value => value + 1); })}
         />
-      </main>
+      </main>{chatPortal}</>
     );
   }
 
   return (
-    <main ref={surface} className="relative flex-1 flex flex-col min-w-0 h-full min-h-0 overflow-hidden">
+    <><main ref={surface} className="relative flex-1 flex flex-col min-w-0 h-full min-h-0 overflow-hidden">
       {props.shareLinkNotice && <ShareLinkNoticeBanner notice={props.shareLinkNotice} />}
       {props.liaDegraded && !props.userId && props.activeView !== 'chat' && <LiaDegradedNotice message={props.liaStatusMessage || undefined} />}
       {props.activeView === 'chat' && (
@@ -148,7 +163,7 @@ export function AppWorkspace(props: AppWorkspaceProps) {
         // codigo escribirse.
         <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden animate-view-in">
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            {chatView}
+            {chatSlot}
           </div>
           {artifactViewer?.selected ? <ArtifactViewerPanel /> : presentation.visible && presentation.workspaceId && (
             // El panel gestiona su propio ancho (ajustable y recordado), asi
@@ -170,11 +185,11 @@ export function AppWorkspace(props: AppWorkspaceProps) {
         </div>
       )}
       {(props.activeView === 'project' || props.activeView === 'project-hub') && !navigation && <div className="grid h-full place-items-center p-6"><div><p className="text-sm text-secondary">Selecciona un proyecto de la organización actual.</p><Button size="sm" variant="ghost" onClick={props.projectWorkspace?.exit}>Volver a proyectos</Button></div></div>}
-      {navigation?.section === 'chat' && <div className="flex min-h-0 flex-1 flex-col">{chatView}</div>}
+      {props.activeView !== 'chat' && navigation?.section === 'chat' && <div className="flex min-h-0 flex-1 flex-col">{chatSlot}</div>}
       {props.activeView === 'project' && props.currentFolder && props.userId && navigation && navigation.section !== 'chat' && <Suspense fallback={<div role="status">Cargando proyecto…</div>}><FolderProjectPanel key={props.currentFolder.id} folder={props.currentFolder} navigation={navigation} userId={props.userId} orgId={props.orgId} /></Suspense>}
       {props.activeView === 'project-hub' && props.unifiedProject && navigation && navigation.section !== 'chat' && <Suspense fallback={<div role="status">Cargando proyecto…</div>}><UnifiedProjectHub workspaceId={props.unifiedProject.workspaceId} projectId={props.unifiedProject.projectId} section={navigation?.section} navigation={navigation} onNavigate={navigation?.onNavigate} onProjectReady={props.projectWorkspace?.onProjectReady} onOpenWeb={props.projectWorkspace?.onOpenWeb} /></Suspense>}
-      {floating && props.userId && <FloatingSofliaChat key={surfaceKey} title={props.currentConversation?.title || navigation?.name} onPrepare={prepareFloatingChat} onNewChat={!navigation || navigation.canCreateChat ? newFloatingChat : undefined}>{chatView}</FloatingSofliaChat>}
+      {floating && props.userId && <FloatingSofliaChat key={surfaceKey} title={props.currentConversation?.title || navigation?.name} onPrepare={prepareFloatingChat} onNewChat={!navigation || navigation.canCreateChat ? newFloatingChat : undefined}>{chatSlot}</FloatingSofliaChat>}
       {floating && props.userId && <FloatingArtifactPreview />}
-    </main>
+    </main>{chatPortal}</>
   );
 }

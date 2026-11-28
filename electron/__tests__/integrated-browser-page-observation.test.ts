@@ -1,8 +1,43 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createRequire } from 'node:module';
 import { AGENT_WORLD_ID } from '../integrated-browser/agent-world';
 import { collectIntegratedBrowserDom, preferredDomBackend } from '../integrated-browser/page-observation';
 
+const { JSDOM } = createRequire(import.meta.url)('jsdom') as {
+  JSDOM: new (html: string, options: { url: string; runScripts: string }) => { window: Window & typeof globalThis };
+};
+
 describe('percepción DOM del navegador integrado', () => {
+  it('revela un enlace renderizado por su ruta y mantiene su identidad al renovar el DOM', async () => {
+    const { window } = new JSDOM('<a hidden href="/paquete.bin">Oculto</a><a id="archivo" href="/paquete.bin?key=privado"></a>', {
+      url: 'https://example.com/notas', runScripts: 'outside-only',
+    });
+    const rect = () => new window.DOMRect(10, 2400 - window.scrollY, 140, 30);
+    Object.defineProperties(window.HTMLAnchorElement.prototype, {
+      checkVisibility: { value(this: HTMLAnchorElement) { return !this.hidden; } },
+      getBoundingClientRect: { value: rect },
+      getClientRects: { value: () => [rect()] },
+      scrollIntoView: { value: () => { Object.defineProperty(window, 'scrollY', { value: 2100, configurable: true }); } },
+    });
+    const contents = { executeJavaScript: async (script: string): Promise<unknown> => window.eval(script) } as unknown as Parameters<typeof collectIntegratedBrowserDom>[0];
+    try {
+      const normal = { backend: 'script' } as const;
+      expect((await collectIntegratedBrowserDom(contents, normal)).controls).toEqual([]);
+      const result = await collectIntegratedBrowserDom(contents, { findLink: 'paquete.bin' });
+      const { matchedLinkRef } = result;
+      expect(matchedLinkRef).toBeTruthy();
+      expect(result.controls[0]).toMatchObject({ ref: matchedLinkRef, href: 'https://example.com/paquete.bin', name: 'paquete.bin' });
+      expect(result.viewport.scrollY).toBe(2100);
+      expect((await collectIntegratedBrowserDom(contents, normal)).controls[0].ref).toBe(matchedLinkRef);
+      const oldLink = window.document.getElementById('archivo')!;
+      oldLink.replaceWith(oldLink.cloneNode());
+      expect((await collectIntegratedBrowserDom(contents, normal)).controls[0].ref).not.toBe(matchedLinkRef);
+      const secret = await collectIntegratedBrowserDom(contents, { findLink: 'key=privado' });
+      expect(secret.matchedLinkRef).toBeNull();
+      expect(JSON.stringify(secret)).not.toContain('privado');
+    } finally { window.close(); }
+  });
+
   it('acota el payload, elimina credenciales de URLs y nunca conserva valores de formularios', async () => {
     const executeJavaScript = vi.fn(async (script: string) => ({
       title: script.length ? ' Acceso ' : '',

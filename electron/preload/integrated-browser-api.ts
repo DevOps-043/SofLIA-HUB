@@ -1,5 +1,5 @@
 import type { PreloadBridge, SafeIpc } from './types';
-import type { BrowserNavigationOptions, BrowserViewport } from '../../src/shared/browser-navigation';
+import type { BrowserNavigationOptions, BrowserObservationOptions, BrowserViewport } from '../../src/shared/browser-navigation';
 import type { BrowserSyncControlRequest } from '../integrated-browser/platform-types';
 
 function navigationPayload(payload: Record<string, unknown>, options?: BrowserNavigationOptions): Record<string, unknown> {
@@ -27,7 +27,9 @@ export function exposeIntegratedBrowserApi(bridge: PreloadBridge, ipc: SafeIpc):
     sampleFrames: (count: number, intervalMs: number, requestId?: string) =>
       safeInvoke('integrated-browser:sample-frames', { count, intervalMs, ...(requestId ? { requestId } : {}) }),
     cancelFrameSampling: (requestId: string) => safeInvoke('integrated-browser:cancel-frame-sampling', requestId),
-    getObservation: (forceFresh = false) => safeInvoke('integrated-browser:get-observation', { forceFresh }),
+    getObservation: (forceFresh = false, options?: BrowserObservationOptions) => safeInvoke('integrated-browser:get-observation', {
+      forceFresh, domOnly: options?.domOnly, findLink: options?.findLink,
+    }),
     setObservationEnabled: (enabled: boolean) => safeInvoke('integrated-browser:set-observation-enabled', { enabled }),
     open: (url?: string, options?: BrowserNavigationOptions) => safeInvoke('integrated-browser:open', navigationPayload(url === undefined ? {} : { url }, options)),
     navigate: (target: string, options?: BrowserNavigationOptions) => safeInvoke('integrated-browser:navigate', navigationPayload({ target }, options)),

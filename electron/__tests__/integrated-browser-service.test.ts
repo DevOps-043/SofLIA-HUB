@@ -90,6 +90,7 @@ type MockIntegratedBrowserView = {
       focus: ReturnType<typeof vi.fn>;
       close: ReturnType<typeof vi.fn>;
       emit: (event: string, ...args: unknown[]) => boolean;
+      listenerCount: (event: string) => number;
       capturePage: ReturnType<typeof vi.fn>;
       executeJavaScript: ReturnType<typeof vi.fn>;
       sendInputEvent: ReturnType<typeof vi.fn>;
@@ -1101,6 +1102,27 @@ describe('IntegratedBrowserService', () => {
     service.detachWindow();
   });
 
+  it('el chat recibe el fallo de la pestaña durante la navegación y libera el control', async () => {
+    const window = new BrowserWindow();
+    const service = newService();
+    service.attachWindow(window);
+    await service.open('https://example.com');
+    service.setViewport({ x: 0, y: 0, width: 800, height: 600 });
+    const contents = browserViewHarness.instances[0].webContents;
+    const baseline = contents.listenerCount('render-process-gone');
+    contents.loadURL.mockImplementationOnce(() => new Promise(() => {}));
+    try {
+      const pending = expect(service.navigateForChat('https://example.com/otro', new AbortController().signal))
+        .rejects.toThrow('La pestaña se cerró inesperadamente durante la navegación.');
+      await vi.waitFor(() => expect(contents.listenerCount('render-process-gone')).toBe(baseline + 1));
+      contents.emit('render-process-gone', {}, { reason: 'crashed', exitCode: 1 });
+      await pending;
+      expect(contents.listenerCount('render-process-gone')).toBe(baseline);
+      expect(window.isDestroyed()).toBe(false);
+      await expect(service.openForAgent()).resolves.toBeUndefined();
+    } finally { service.detachWindow(); }
+  });
+
   it('BR-KEY-001: reenvía los atajos pulsados en la página y deja intactas las teclas del agente', async () => {
     const window = new BrowserWindow();
     const service = new IntegratedBrowserService();
@@ -1809,16 +1831,20 @@ describe('IntegratedBrowserService', () => {
     service.setViewport({ x: 0, y: 0, width: 800, height: 600 });
     const contents = browserViewHarness.instances[0].webContents;
 
-    contents.executeJavaScript.mockResolvedValueOnce({
+    const target = {
       ok: true, tag: 'a', role: 'link', name: 'Correo de Israel', type: '',
       href: 'https://mail.example/mensaje/1', disabled: false, editable: false, x: 120, y: 240, occluded: false,
-    });
+    };
+    contents.executeJavaScript.mockResolvedValueOnce(target).mockResolvedValueOnce(target);
+    const guidance = { present: vi.fn(async () => undefined), wait: vi.fn(async () => undefined), clear: vi.fn(), clearPresentation: vi.fn(), capture: async <T>(operation: () => Promise<T>) => operation() };
+    service.visualGuidance = guidance;
     const outcome = await service.clickElement('dom-7');
 
     expect(outcome.target).toMatchObject({ ref: 'dom-7', name: 'Correo de Israel' });
     expect(outcome.warning).toBeNull();
     expect(contents.sendInputEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'mouseDown', x: 120, y: 240 }));
     expect(contents.sendInputEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'mouseUp', x: 120, y: 240 }));
+    expect(guidance.clearPresentation).toHaveBeenCalledWith(expect.objectContaining({ point: expect.any(Object) }));
 
     contents.executeJavaScript.mockResolvedValueOnce({ ok: false, reason: 'referencia-vencida' });
     await expect(service.clickElement('dom-7')).rejects.toThrow(/vuelve a leer el DOM/i);
@@ -1833,9 +1859,11 @@ describe('IntegratedBrowserService', () => {
     const contents = browserViewHarness.instances[0].webContents;
     const target = { ok: true, tag: 'input', role: 'textbox', name: 'Nombre', type: 'text', href: '', disabled: false, editable: true, x: 120, y: 240, occluded: false };
     contents.executeJavaScript.mockResolvedValueOnce(target).mockResolvedValueOnce({ ...target, disabled: true });
-    service.visualGuidance = { present: vi.fn(async () => undefined), wait: vi.fn(async () => undefined), clear: vi.fn(), capture: async operation => operation() };
+    const guidance = { present: vi.fn(async () => undefined), wait: vi.fn(async () => undefined), clear: vi.fn(), clearPresentation: vi.fn(), capture: async <T>(operation: () => Promise<T>) => operation() };
+    service.visualGuidance = guidance;
     await expect(service.typeInElement('dom-7', 'Texto', false)).rejects.toThrow('cambió');
     expect(contents.sendInputEvent).not.toHaveBeenCalled(); expect(contents.insertText).not.toHaveBeenCalled();
+    expect(guidance.clearPresentation).toHaveBeenCalledWith(expect.objectContaining({ point: expect.any(Object) }));
     service.detachWindow();
   });
 
@@ -2509,6 +2537,25 @@ describe('IntegratedBrowserService', () => {
     expect(browserViewHarness.instances[1].webContents.loadURL).toHaveBeenCalledWith('https://safe.example/path');
     expect(handler({ url: 'javascript:alert(1)' })).toEqual({ action: 'deny' });
     expect(service.getState().error).toMatch(/protocolo no permitido/i);
+  });
+
+  it.each([
+    [{ url: 'https://example.com/', policy: 'strict-origin-when-cross-origin' }, true],
+    [{ url: '', policy: 'default' }, false],
+    [{ url: 'https://example.com/', policy: 'no-referrer' }, false],
+  ])('conserva la política de referencia nativa al abrir un enlace en otra pestaña (%j)', async (referrer, forwarded) => {
+    const service = newService();
+    service.attachWindow(new BrowserWindow());
+    try {
+      await service.open('https://example.com/drivers');
+      const open = browserViewHarness.instances[0].webContents.setWindowOpenHandler.mock.calls[0][0];
+      const url = 'https://files.example.com/download';
+      expect(open({ url, referrer })).toEqual({ action: 'deny' });
+      await vi.waitFor(() => {
+        const destination = browserViewHarness.instances[1]?.webContents;
+        expect(destination?.loadURL).toHaveBeenCalledWith(...(forwarded ? [url, { httpReferrer: referrer }] : [url]));
+      });
+    } finally { service.detachWindow(); }
   });
 
   it('la barrera de cierre espera la escritura y no vuelve a guardar al desmontar', async () => {
@@ -4324,9 +4371,88 @@ describe('IntegratedBrowserService', () => {
       const response = await opening;
       expect(browserViewHarness.instances[0].webContents.loadURL.mock.calls).toEqual([['https://example.com/destino']]);
       expect(response.state.url).toBe('https://example.com/destino');
-      expect(observation).toHaveBeenCalledWith(true, expect.any(AbortSignal));
+      expect(observation).toHaveBeenCalledWith(true, expect.any(AbortSignal), { domOnly: true });
+      expect(response.observation?.dom).toBeDefined();
+      expect(browserViewHarness.instances[0].webContents.capturePage).not.toHaveBeenCalled();
       expect(service.getState().agentControlling).toBe(false);
     } finally { service.detachWindow(); }
+  });
+
+  it('el DOM sigue disponible si el compositor falla y conserva el error de una lectura posterior', async () => {
+    const service = newService(); service.attachWindow(new BrowserWindow());
+    await service.open('https://example.com/documento');
+    service.setViewport({ x: 100, y: 140, width: 800, height: 560 });
+    const contents = browserViewHarness.instances[0].webContents;
+    contents.capturePage.mockRejectedValueOnce(new Error('Fallo del compositor'));
+    const collect = vi.spyOn(pageObservation, 'collectIntegratedBrowserDom');
+    try {
+      expect((await service.getObservation(true)).observation).toBeNull();
+      await expect(service.getObservation(true, undefined, { domOnly: true })).resolves.toMatchObject({ observation: { dom: expect.any(Object) } });
+      const captures = contents.capturePage.mock.calls.length;
+      collect.mockRejectedValueOnce(new Error('Falló la lectura en https://example.com/documento?token=privado'));
+      await expect(service.getObservation(true, undefined, { domOnly: true })).resolves.toMatchObject({
+        observation: null, observationError: 'Falló la lectura en https://example.com/documento',
+      });
+      expect(contents.capturePage).toHaveBeenCalledTimes(captures);
+    } finally { collect.mockRestore(); service.detachWindow(); }
+  });
+
+  it('el DOM tolera que el navegador termine una carga secundaria y descarta un documento reemplazado', async () => {
+    const service = newService(); service.attachWindow(new BrowserWindow());
+    await service.open('https://example.com/documento');
+    service.setViewport({ x: 100, y: 140, width: 800, height: 560 });
+    const collect = vi.spyOn(pageObservation, 'collectIntegratedBrowserDom');
+    const options = { domOnly: true };
+    try {
+      const { observation } = await service.getObservation(true, undefined, options);
+      expect(observation).not.toBeNull();
+      const dom = observation!.dom;
+      vi.useFakeTimers();
+      collect.mockImplementationOnce(async () => {
+        vi.setSystemTime(Date.now() + 1_000);
+        browserViewHarness.instances[0].webContents.emit('did-stop-loading');
+        return dom;
+      });
+      await expect(service.getObservation(true, undefined, options)).resolves.toMatchObject({ observation: { dom } });
+      collect.mockImplementationOnce(async () => {
+        await service.navigate('https://example.com/otro');
+        return dom;
+      });
+      await expect(service.getObservation(true, undefined, options)).rejects.toThrow(/cambió/i);
+    } finally { collect.mockRestore(); service.detachWindow(); vi.useRealTimers(); }
+  });
+
+  it('permiso de sólo lectura permite el DOM y bloquea revelar un enlace', async () => {
+    vi.stubEnv('BROWSER_AGENT_GOVERNANCE_ENABLED', 'true');
+    const policy = vi.spyOn(BrowserAgentPolicyStore.prototype, 'evaluate').mockImplementation(async (_origin, capability) => capability === 'act' ? 'block' : 'allow');
+    const collect = vi.spyOn(pageObservation, 'collectIntegratedBrowserDom');
+    const service = new IntegratedBrowserService(); service.attachWindow(new BrowserWindow());
+    try {
+      await service.open('https://example.com/documento');
+      service.setViewport({ x: 100, y: 140, width: 800, height: 560 });
+      await expect(service.getObservation(true, undefined, { domOnly: true })).resolves.toMatchObject({ observation: { dom: expect.any(Object) } });
+      collect.mockClear();
+      await expect(service.getObservation(true, undefined, { domOnly: true, findLink: 'paquete.bin' })).rejects.toThrow(/permiso/);
+      expect(collect).not.toHaveBeenCalled();
+    } finally { collect.mockRestore(); policy.mockRestore(); service.detachWindow(); vi.unstubAllEnvs(); }
+  });
+
+  it('entrega el control al cancelar una navegación que espera la lectura DOM', async () => {
+    const service = newService(); service.attachWindow(new BrowserWindow());
+    await service.open('https://example.com/documento');
+    service.setViewport({ x: 100, y: 140, width: 800, height: 560 });
+    const controller = new AbortController();
+    const collect = vi.spyOn(pageObservation, 'collectIntegratedBrowserDom');
+    let finish!: (snapshot: Awaited<ReturnType<typeof pageObservation.collectIntegratedBrowserDom>>) => void;
+    const initial = (await service.getObservation(true, undefined, { domOnly: true })).observation!;
+    collect.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const navigation = service.navigateForChat('https://example.com/otro', controller.signal);
+    try {
+      await vi.waitFor(() => expect(finish).toBeTypeOf('function'));
+      controller.abort();
+      await expect(navigation).rejects.toThrow(/cancelada/i);
+      expect(service.getState().agentControlling).toBe(false);
+    } finally { finish?.(initial.dom); await navigation.catch(() => undefined); collect.mockRestore(); service.detachWindow(); }
   });
 
   it('detiene una carga nativa atascada y devuelve el control del navegador', async () => {

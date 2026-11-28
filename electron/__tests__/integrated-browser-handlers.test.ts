@@ -4,7 +4,7 @@ import { registerIntegratedBrowserHandlers } from '../integrated-browser-handler
 import { BrowserCredentialError, type IntegratedBrowserService } from '../integrated-browser';
 import { setAuthState } from '../main/auth-state';
 import { authSourceFixture } from './helpers/auth-source.fixture';
-import { mountComputerApprovalFixture } from './helpers/computer-approval.fixture';
+import { installComputerPermissionProfile, mountComputerApprovalFixture } from './helpers/computer-approval.fixture';
 import { currentComputerAccess, registerComputerPermissions } from '../computer-use/permission-mode';
 
 type TestHandler = (event: { sender: { id: number }; senderFrame?: unknown }, ...input: unknown[]) => Promise<{
@@ -389,6 +389,13 @@ describe('handlers del navegador integrado', () => {
     expect(await observationHandler!({ sender: window.webContents }, { forceFresh: true }))
       .toMatchObject({ success: true, observationStatus: { enabled: true } });
     expect(service.getObservation).toHaveBeenCalledWith(true);
+    expect(await observationHandler!({ sender: window.webContents }, { forceFresh: true, domOnly: true, findLink: '  instalador.exe  ' }))
+      .toMatchObject({ success: true });
+    expect(service.getObservation).toHaveBeenLastCalledWith(true, undefined, { domOnly: true, findLink: 'instalador.exe' });
+    service.getObservation.mockClear();
+    expect(await observationHandler!({ sender: window.webContents }, { forceFresh: true, findLink: 'instalador.exe' }))
+      .toMatchObject({ success: false, error: expect.stringContaining('lectura DOM nueva') });
+    expect(service.getObservation).not.toHaveBeenCalled();
 
     const perceptionHandler = handlers.get('integrated-browser:set-observation-enabled');
     expect(await perceptionHandler!({ sender: window.webContents }, { enabled: false }))
@@ -479,6 +486,8 @@ describe('handlers del navegador integrado', () => {
   });
 
   it('la navegación y el DOM del chat comparten el permiso vigente sólo en el documento autorizado', async () => {
+    const profile = await installComputerPermissionProfile();
+    setAuthState({ authenticated: true, userId: 'permisos-navegador-qa' });
     const hub = authSourceFixture();
     const event = { sender: Object.assign(hub.sender, { id: 902 }), senderFrame: hub.frame };
     const { review } = mountComputerApprovalFixture(hub.window, true);
@@ -486,8 +495,8 @@ describe('handlers del navegador integrado', () => {
     registerComputerPermissions(() => [hub.window]);
     registerIntegratedBrowserHandlers(service as unknown as IntegratedBrowserService, () => hub.window);
     const permission = ipcMainHarness._getHandler('computer:permission-mode');
-    expect(await permission(event, 'full')).toMatchObject({ mode: 'full' });
     try {
+      expect(await permission(event, 'full')).toMatchObject({ mode: 'full' });
       const observation = ipcMainHarness._getHandler('integrated-browser:get-observation');
       const input = { forceFresh: true };
       expect(await observation({ ...event, senderFrame: {} }, input)).toMatchObject({ success: false });
@@ -516,7 +525,11 @@ describe('handlers del navegador integrado', () => {
       expect(await type(event, { ...requireFull, text: 'Contenido', submit: true })).toMatchObject({ success: false });
       expect(service.clickElement).toHaveBeenCalledOnce();
       expect(service.typeInElement).toHaveBeenCalledOnce();
-    } finally { await permission(event, 'review'); }
+    } finally {
+      await permission(event, 'review');
+      setAuthState({ authenticated: true, userId: 'prueba' });
+      await profile.dispose();
+    }
   });
 
   it('entrega la decision del aviso de permiso y rechaza payloads invalidos', async () => {

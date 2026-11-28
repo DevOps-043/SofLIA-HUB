@@ -129,7 +129,11 @@ export function useChatProcessor({
     const previous = current[userMessageIndex];
     const text = nextText.trim();
     const images = nextImages ?? previous.images ?? [];
-    if ((!text && !images.length) || (text === previous.text.trim() && JSON.stringify(images) === JSON.stringify(previous.images ?? []))) return;
+    if (!text && !images.length) return;
+    const unchanged = text === previous.text.trim() && JSON.stringify(images) === JSON.stringify(previous.images ?? []);
+    // Reintenta sólo si el mensaje sin respuesta ya está publicado en el chat.
+    // Una edición optimista aún no visible puede tener una respuesta en curso.
+    if (unchanged && (abortRef.current || current !== messages || userMessageIndex !== current.length - 1)) return;
     const revised = replaceChatTurn(current, userMessageIndex, { ...previous, text, images: images.length ? [...images] : undefined });
     messagesRef.current = revised;
     await runWithAbort(text, images, revised, true, undefined, previous.sources);
